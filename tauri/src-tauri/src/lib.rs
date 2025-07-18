@@ -13,6 +13,8 @@ pub mod database;
 pub mod mcp_bridge;
 pub mod oauth;
 pub mod node_utils;
+pub mod archestra_mcp_server;
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -64,6 +66,14 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = mcp::start_all_mcp_servers(app_handle).await {
                     eprintln!("Failed to start MCP servers: {}", e);
+                }
+            });
+
+            // Start the Archestra MCP Server
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = archestra_mcp_server::start_archestra_mcp_server(app_handle).await {
+                    eprintln!("Failed to start Archestra MCP Server: {}", e);
                 }
             });
 

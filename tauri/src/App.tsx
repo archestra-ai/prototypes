@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, Bot, Bug, Download } from "lucide-react";
+import { MessageCircle, Bot, Bug, Download, Settings, PanelLeft } from "lucide-react";
 
 import { useOllamaServer } from "./modules/chat/contexts/ollama-server-context";
 
@@ -10,8 +10,22 @@ import { ChatContainer } from "./modules/chat/components/chat-container";
 import { MCPCatalog } from "./modules/mcp-catalog/components/mcp-catalog";
 import { ModelsManager } from "./modules/models/components/models-manager";
 import { OllamaServerCard } from "./modules/chat/components/ollama-server-card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { SettingsPage } from "./components/settings/settings-page";
+
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarInset,
+  SidebarHeader,
+} from "./components/ui/sidebar";
 
 import "./index.css";
 
@@ -38,12 +52,35 @@ function App() {
   const [mcpServerStatuses, setMcpServerStatuses] = useState<{
     [key: string]: boolean;
   }>({});
-  const [activeTab, setActiveTab] = useState<"chat" | "mcp" | "models">("chat");
+  const [activeView, setActiveView] = useState<"chat" | "mcp" | "models" | "settings">("chat");
   const [debugInfo, setDebugInfo] = useState<string>("");
 
   const { isOllamaRunning } = useOllamaServer();
 
   const debugRef = useRef<HTMLDivElement>(null);
+
+  const navigationItems = [
+    {
+      title: "Chat with AI",
+      icon: MessageCircle,
+      key: "chat" as const,
+    },
+    {
+      title: "Model Library",
+      icon: Download,
+      key: "models" as const,
+    },
+    {
+      title: "MCP Catalogs",
+      icon: Bot,
+      key: "mcp" as const,
+    },
+    {
+      title: "Settings",
+      icon: Settings,
+      key: "settings" as const,
+    },
+  ];
 
   useEffect(() => {
     loadMcpServersFromDb();
@@ -179,49 +216,13 @@ function App() {
 
   console.log({ mcpServers, mcpTools });
 
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            archestra.ai
-          </h1>
-        </div>
-
-        <Tabs
-          value={activeTab}
-          onValueChange={(value: string) => setActiveTab(value as "chat" | "mcp" | "models")}
-          className="mb-6"
-        >
-          <div className="flex items-center gap-2">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="chat" className="flex items-center gap-2">
-                <MessageCircle className="h-4 w-4" />
-                Chat with AI
-              </TabsTrigger>
-
-              <TabsTrigger value="models" className="flex items-center gap-2">
-                <Download className="h-4 w-4" />
-                Model Library
-              </TabsTrigger>
-
-              <TabsTrigger value="mcp" className="flex items-center gap-2">
-                <Bot className="h-4 w-4" />
-                MCP Catalogs
-              </TabsTrigger>
-            </TabsList>
-
-            <Button onClick={debugMcpBridge} variant="outline" className="flex items-center gap-2">
-              <Bug className="h-4 w-4" />
-              Debug MCP Bridge
-            </Button>
-          </div>
-
-          <TabsContent value="chat" className="space-y-6">
+  const renderContent = () => {
+    switch (activeView) {
+      case "chat":
+        return (
+          <div className="space-y-6">
             <OllamaServerCard />
-
             <ChatContainer mcpTools={mcpTools} />
-
             {debugInfo && (
               <Card ref={debugRef}>
                 <CardHeader>
@@ -239,26 +240,83 @@ function App() {
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
+          </div>
+        );
+      case "models":
+        return <ModelsManager />;
+      case "mcp":
+        return (
+          <MCPCatalog
+            mcpServers={mcpServers}
+            setMcpServers={setMcpServers}
+            mcpServerStatus={mcpServerStatus}
+            setMcpServerStatus={setMcpServerStatus}
+            mcpServerLoading={mcpServerLoading}
+            setMcpServerLoading={setMcpServerLoading}
+            mcpServerStatuses={mcpServerStatuses}
+          />
+        );
+      case "settings":
+        return <SettingsPage />;
+      default:
+        return null;
+    }
+  };
 
-          <TabsContent value="models" className="space-y-6">
-            <ModelsManager />
-          </TabsContent>
-
-          <TabsContent value="mcp">
-            <MCPCatalog
-              mcpServers={mcpServers}
-              setMcpServers={setMcpServers}
-              mcpServerStatus={mcpServerStatus}
-              setMcpServerStatus={setMcpServerStatus}
-              mcpServerLoading={mcpServerLoading}
-              setMcpServerLoading={setMcpServerLoading}
-              mcpServerStatuses={mcpServerStatuses}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+  return (
+    <SidebarProvider>
+      <Sidebar collapsible="icon" className="border-r">
+        <SidebarHeader className="p-4 group-data-[collapsible=icon]:p-2">
+          <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-md flex items-center justify-center text-white font-bold text-sm shrink-0">
+              A
+            </div>
+            <div className="group-data-[collapsible=icon]:hidden overflow-hidden">
+              <h2 className="text-lg font-semibold whitespace-nowrap">archestra.ai</h2>
+            </div>
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navigationItems.map((item) => (
+                  <SidebarMenuItem key={item.key}>
+                    <SidebarMenuButton
+                      onClick={() => setActiveView(item.key)}
+                      isActive={activeView === item.key}
+                      tooltip={item.title}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold">
+              {navigationItems.find(item => item.key === activeView)?.title}
+            </h1>
+            {activeView === "chat" && (
+              <Button onClick={debugMcpBridge} variant="outline" size="sm" className="flex items-center gap-2">
+                <Bug className="h-4 w-4" />
+                Debug MCP Bridge
+              </Button>
+            )}
+          </div>
+        </header>
+        <main className="flex-1 space-y-4 p-4">
+          {renderContent()}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
