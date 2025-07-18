@@ -14,10 +14,22 @@
         {
           "name": "binaries/hello-server",
           "sidecar": true
+        },
+        {
+          "name": "npx",
+          "args": ["@modelcontextprotocol/server-everything", "streamableHttp"]
         }
       ]
     },
     "shell:allow-open",
-    "shell:default"
+    "shell:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "http://localhost:3001/*"
+        }
+      ]
+    }
   ]
 }

@@ -1,77 +1,113 @@
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-// import { invoke } from "@tauri-apps/api/core";
+import { useChat } from "./hooks/useChat";
+import { useMcpTools } from "./hooks/useMcpTools";
 import "./App.css";
 
+interface Message {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
 function App() {
-  const [greetingMessage, setGreetingMessage] = useState("");
-  const [greetingMessageError, setGreetingMessageError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [name, setName] = useState("");
-  // const [sidecarMsg, setSidecarMsg] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [streamingContent, setStreamingContent] = useState('');
 
-  // async function greet() {
-  //   // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  //   setGreetMsg(await invoke("greet", { name }));
-  // }
+  const { tools, isLoading: toolsLoading, hasTools, callTool, error: toolsError } = useMcpTools();
 
-  async function greetingFromNodeSidecarServer() {
-    setLoading(true);
-    try {
-      const response = await fetch('http://localhost:3000/echo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: name }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setGreetingMessage(data.message);
-      } else {
-        setGreetingMessageError(data.message);
-      }
-    } catch (error) {
-      setGreetingMessageError(error instanceof Error ? error.message : 'An unknown error occurred');
-    }
+  const { generateResponse, isLoading } = useChat({
+    tools,
+    callTool,
+    onUpdate: (content) => {
+      setStreamingContent(content);
+    },
+  });
 
-    setLoading(false);
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input.trim(),
+    };
+
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setInput('');
+    setStreamingContent('');
+
+    generateResponse(newMessages, {
+      onSuccess: (content) => {
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content,
+        };
+        setMessages([...newMessages, assistantMessage]);
+        setStreamingContent('');
+      },
+      onError: (error) => {
+        console.error('Chat error:', error);
+        setStreamingContent('');
+      },
+    });
+  };
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="chat-container">
+      <div className="chat-header">
+        <h1>MCP Chat with Ollama</h1>
+        <div className="tools-status">
+          {toolsLoading ? (
+            <span className="loading">Loading MCP tools...</span>
+          ) : toolsError ? (
+            <span className="no-tools">❌ MCP Error: {toolsError}</span>
+          ) : hasTools ? (
+            <span className="tools-available">✅ {tools.length} MCP tools available</span>
+          ) : (
+            <span className="no-tools">⚠️ No MCP tools detected</span>
+          )}
+        </div>
       </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greetingFromNodeSidecarServer();
-        }}
-      >
+      <div className="chat-messages">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`message ${message.role === "user" ? "user" : "assistant"}`}
+          >
+            <div className="message-content">
+              <strong>{message.role === "user" ? "You" : "AI"}:</strong>
+              <p>{message.content}</p>
+            </div>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="message assistant">
+            <div className="message-content">
+              <strong>AI:</strong>
+              <p>{streamingContent || "Thinking..."}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <form onSubmit={handleSubmit} className="chat-input-form">
         <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter your name..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type your message..."
+          className="chat-input"
+          disabled={isLoading}
         />
-        <button type="submit" disabled={loading}>
-          {loading ? "Loading..." : "Greet"}
+        <button type="submit" disabled={isLoading || !input.trim()}>
+          Send
         </button>
       </form>
-      <p>node.js server response: {greetingMessage}</p>
-      <p>node.js server error: {greetingMessageError}</p>
-    </main>
+    </div>
   );
 }
 

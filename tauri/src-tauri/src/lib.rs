@@ -32,19 +32,40 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_http::init())
         .setup(|app| {
-            // Start the node.js express-server sidecar when the app launches
+            // Start the MCP server using shell command
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
+                println!("Starting MCP server with command: npx @modelcontextprotocol/server-everything streamableHttp");
                 match app_handle.shell()
-                    .sidecar("hello-server")
-                    .unwrap()
+                    .command("npx")
+                    .args(["@modelcontextprotocol/server-everything", "streamableHttp", "--port", "3001"])
                     .spawn() {
-                    Ok(_) => {
-                        println!("Ayo, sidecar started up nice and smooth!");
+                    Ok((mut rx, child)) => {
+                        println!("MCP server started successfully via npx! PID: {:?}", child.pid());
+                        
+                        // Handle command output
+                        tauri::async_runtime::spawn(async move {
+                            while let Some(event) = rx.recv().await {
+                                match event {
+                                    tauri_plugin_shell::process::CommandEvent::Stdout(data) => {
+                                        println!("MCP stdout: {}", String::from_utf8_lossy(&data));
+                                    }
+                                    tauri_plugin_shell::process::CommandEvent::Stderr(data) => {
+                                        eprintln!("MCP stderr: {}", String::from_utf8_lossy(&data));
+                                    }
+                                    tauri_plugin_shell::process::CommandEvent::Terminated(payload) => {
+                                        println!("MCP server terminated with code: {:?}", payload.code);
+                                        break;
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        });
                     }
                     Err(e) => {
-                        eprintln!("Madone! Failed to spawn sidecar: {:?}", e);
+                        eprintln!("Failed to start MCP server via npx: {:?}", e);
                     }
                 }
             });
