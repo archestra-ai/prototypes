@@ -1,0 +1,62 @@
+#!/usr/bin/env node
+
+// MCP Server Everything wrapper for Tauri sidecar
+const { spawn } = require('child_process');
+const path = require('path');
+
+// Get the path to the MCP server executable  
+const mcpServerPath = path.join(
+  __dirname,
+  '..',
+  'node_modules',
+  '@modelcontextprotocol',
+  'server-everything',
+  'dist',
+  'index.js'
+);
+
+console.log('Starting MCP Server Everything in SSE mode...');
+console.log('Server path:', mcpServerPath);
+
+// Spawn the MCP server with SSE mode on port 3001
+const mcpServer = spawn('node', [mcpServerPath, 'sse', '--port', '3001'], {
+  stdio: ['inherit', 'pipe', 'pipe'],
+  cwd: process.cwd(),
+  env: {
+    ...process.env,
+    PORT: '3001'
+  }
+});
+
+mcpServer.stdout.on('data', (data) => {
+  console.log('MCP Server:', data.toString());
+});
+
+mcpServer.stderr.on('data', (data) => {
+  console.error('MCP Server Error:', data.toString());
+});
+
+mcpServer.on('spawn', () => {
+  console.log('MCP Server spawned successfully on port 3001');
+});
+
+mcpServer.on('error', (error) => {
+  console.error('Failed to start MCP server:', error);
+  process.exit(1);
+});
+
+mcpServer.on('exit', (code, signal) => {
+  console.log(`MCP server exited with code ${code} and signal ${signal}`);
+  process.exit(code || 0);
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM, shutting down MCP server...');
+  mcpServer.kill('SIGTERM');
+});
+
+process.on('SIGINT', () => {
+  console.log('Received SIGINT, shutting down MCP server...');
+  mcpServer.kill('SIGINT');
+});
