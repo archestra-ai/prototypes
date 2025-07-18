@@ -25,6 +25,7 @@ import {
 interface MCPServer {
   command: string;
   args: string[];
+  env?: { [key: string]: string };
 }
 
 interface MCPCatalogsProps {
@@ -112,6 +113,7 @@ export function MCPCatalog({
             `--access-token=${tokens.access_token}`,
             `--refresh-token=${tokens.refresh_token}`
           ],
+          env: {},
         },
       }));
 
@@ -146,6 +148,7 @@ export function MCPCatalog({
         name: currentServerName,
         command: currentServerCommand,
         args: args,
+        env: {},
       });
 
       setMcpServers((prev) => ({
@@ -153,6 +156,7 @@ export function MCPCatalog({
         [currentServerName]: {
           command: currentServerCommand,
           args: args,
+          env: {},
         },
       }));
 
@@ -248,6 +252,7 @@ export function MCPCatalog({
           validServers[name] = {
             command: config.command,
             args: config.args,
+            env: config.env && typeof config.env === "object" ? config.env : {},
           };
         }
       });
@@ -255,13 +260,14 @@ export function MCPCatalog({
       if (Object.keys(validServers).length > 0) {
         try {
           await Promise.all(
-            Object.entries(validServers).map(([name, config]) =>
-              invoke("save_mcp_server", {
+            Object.entries(validServers).map(([name, config]) => {
+              return invoke("save_mcp_server", {
                 name: name,
                 command: config.command,
                 args: config.args,
-              })
-            )
+                env: config.env || {},
+              });
+            })
           );
 
           setMcpServers((prev) => ({
@@ -282,12 +288,13 @@ export function MCPCatalog({
           }, 100);
         } catch (saveError) {
           console.error("Failed to save imported servers:", saveError);
-          alert("Failed to save imported servers. Please try again.");
+          alert(`Failed to save imported servers: ${saveError instanceof Error ? saveError.message : "Unknown error"}`);
         }
       } else {
         alert("No valid servers found in the JSON");
       }
     } catch (error) {
+      console.error("Error importing JSON:", error);
       alert(`Error importing JSON: ${error instanceof Error ? error.message : "Invalid JSON"}`);
     }
   }
@@ -355,6 +362,7 @@ export function MCPCatalog({
                             "Gmail MCP Server": {
                               command: "npx",
                               args: ["@gongrzhe/server-gmail-autoauth-mcp"],
+                              env: {},
                             },
                           }));
                         }}
@@ -457,6 +465,13 @@ export function MCPCatalog({
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "perplexity-ask": {
+      "command": "npx",
+      "args": ["-y", "server-perplexity-ask"],
+      "env": {
+        "PERPLEXITY_API_KEY": "your-api-key"
+      }
     }
   }
 }`}

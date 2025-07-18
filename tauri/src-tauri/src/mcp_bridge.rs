@@ -88,7 +88,7 @@ impl McpBridge {
         }
     }
 
-    pub async fn start_mcp_server(&self, name: String, command: String, args: Vec<String>) -> Result<(), String> {
+    pub async fn start_mcp_server(&self, name: String, command: String, args: Vec<String>, env: Option<std::collections::HashMap<String, String>>) -> Result<(), String> {
         println!("Starting MCP server '{}' with persistent connection", name);
 
         // Check if server already exists
@@ -133,12 +133,17 @@ impl McpBridge {
         };
 
         println!("Executing command: {} with args: {:?}", actual_command, actual_args);
+        let env_vars = env.unwrap_or_default();
+        if !env_vars.is_empty() {
+            println!("Environment variables: {:?}", env_vars);
+        }
 
         let mut child = TokioCommand::new("sandbox-exec")
             .arg("-f")
             .arg("./sandbox-exec-profiles/mcp-server-everything-for-now.sb")
             .arg(&actual_command)
             .args(&actual_args)
+            .envs(&env_vars)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -458,7 +463,7 @@ impl McpBridge {
                 println!("❌ Error: Server '{}' not found when trying to register tool hints", server_name);
             }
         } else {
-            println!("ℹ️ No tool hints available for server '{}', tools will be dynamically discovered", server_name);
+            println!("ℹ️ No tool hints available for server '{}', tools will be dynamically discovered when used", server_name);
         }
     }
 
@@ -766,14 +771,14 @@ impl McpBridge {
                     return Err(format!("MCP server '{}' is not running", server_name));
                 }
 
-                // Check if tool exists in discovered tools, but allow execution even if not pre-discovered
+                // Check if tool exists in discovered tools, but allow execution for dynamic discovery
                 let tool_exists = server.tools.iter().any(|t| t.name == tool_name);
-                if !tool_exists && !server.tools.is_empty() {
-                    // Only reject if we have discovered tools but this isn't one of them
-                    return Err(format!("Tool '{}' not found on server '{}' (found {} other tools)", tool_name, server_name, server.tools.len()));
-                } else if !tool_exists {
-                    // No tools were discovered, but we'll try anyway - some servers don't support tools/list
-                    println!("⚠️ Tool '{}' not pre-discovered on server '{}', attempting execution anyway", tool_name, server_name);
+                if !tool_exists {
+                    if server.tools.is_empty() {
+                        println!("🔧 Attempting to execute tool '{}' on server '{}' (no tools pre-discovered)", tool_name, server_name);
+                    } else {
+                        println!("🔧 Tool '{}' not in pre-discovered tools for '{}', attempting dynamic execution", tool_name, server_name);
+                    }
                 }
             } else {
                 return Err(format!("MCP server '{}' not found", server_name));
@@ -1016,9 +1021,10 @@ pub async fn start_persistent_mcp_server(
     name: String,
     command: String,
     args: Vec<String>,
+    env: Option<std::collections::HashMap<String, String>>,
 ) -> Result<(), String> {
     let bridge_state = app.state::<McpBridgeState>();
-    bridge_state.0.start_mcp_server(name, command, args).await
+    bridge_state.0.start_mcp_server(name, command, args, env).await
 }
 
 #[tauri::command]

@@ -47,10 +47,10 @@ pub async fn start_gmail_auth(app: tauri::AppHandle) -> Result<AuthResponse, Str
 }
 
 #[tauri::command]
-pub fn save_gmail_tokens(tokens: GmailTokens) -> Result<(), String> {
-    use crate::database::get_database_connection;
+pub fn save_gmail_tokens(app: tauri::AppHandle, tokens: GmailTokens) -> Result<(), String> {
+    use crate::database::get_database_connection_with_app;
 
-    let conn = get_database_connection().map_err(|e| format!("Failed to get database connection: {}", e))?;
+    let conn = get_database_connection_with_app(&app).map_err(|e| format!("Failed to get database connection: {}", e))?;
 
     // Save tokens as JSON in the args field of the MCP server record
     let tokens_json = serde_json::to_string(&tokens)
@@ -90,10 +90,10 @@ pub fn save_gmail_tokens_to_db(app: tauri::AppHandle, tokens: GmailTokens) -> Re
 }
 
 #[tauri::command]
-pub fn load_gmail_tokens() -> Result<Option<GmailTokens>, String> {
-    use crate::database::get_database_connection;
+pub fn load_gmail_tokens(app: tauri::AppHandle) -> Result<Option<GmailTokens>, String> {
+    use crate::database::get_database_connection_with_app;
 
-    let conn = get_database_connection().map_err(|e| format!("Failed to get database connection: {}", e))?;
+    let conn = get_database_connection_with_app(&app).map_err(|e| format!("Failed to get database connection: {}", e))?;
 
     // Query for Gmail MCP server tokens
     let mut stmt = conn.prepare("SELECT args FROM mcp_servers WHERE name = 'Gmail MCP Server'")
@@ -225,7 +225,8 @@ pub async fn handle_oauth_callback(app: tauri::AppHandle, url: String) {
                     app_clone.clone(),
                     "Gmail MCP Server".to_string(),
                     "npx".to_string(),
-                    args
+                    args,
+                    Some(std::collections::HashMap::new())
                 ).await {
                     eprintln!("Failed to start Gmail MCP server: {}", e);
                     let _ = app_clone.emit("oauth-error", format!("Failed to start MCP server: {}", e));
