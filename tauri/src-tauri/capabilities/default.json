@@ -28,6 +28,41 @@
     "shell:allow-kill",
     "shell:default",
     "core:event:default",
-    "deep-link:default"
+    "deep-link:default",
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        "$HOME/.cursor/mcp.json",
+        "$HOME/.vscode/mcp.json",
+        "$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+      ]
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [
+        "$HOME/.cursor/mcp.json",
+        "$HOME/.vscode/mcp.json",
+        "$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+      ]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [
+        "$HOME/.cursor/mcp.json",
+        "$HOME/.vscode/mcp.json",
+        "$HOME/Library/Application Support/Claude/claude_desktop_config.json",
+        "$HOME/.cursor",
+        "$HOME/.vscode",
+        "$HOME/Library/Application Support/Claude"
+      ]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [
+        "$HOME/.cursor",
+        "$HOME/.vscode",
+        "$HOME/Library/Application Support/Claude"
+      ]
+    }
   ]
 }

@@ -105,11 +105,20 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
 
     println!("Found {} MCP servers to start", servers.len());
 
-    // Start each server using the new MCP bridge
+    // Start each server using the new MCP bridge with staggered startup
+    let mut server_count = 0;
     for (server_name, config) in servers {
         let app_clone = app.clone();
+        let startup_delay = server_count * 2000; // 2 second delay between each server
+        server_count += 1;
 
         tauri::async_runtime::spawn(async move {
+            if startup_delay > 0 {
+                println!("⏳ Waiting {}ms before starting MCP server '{}'", startup_delay, server_name);
+                tokio::time::sleep(tokio::time::Duration::from_millis(startup_delay)).await;
+            }
+            
+            println!("🚀 Starting MCP server '{}' (server #{} of total)", server_name, server_count);
             match crate::mcp_bridge::start_persistent_mcp_server(
                 app_clone,
                 server_name.clone(),
@@ -117,8 +126,8 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
                 config.args,
                 Some(config.env)
             ).await {
-                Ok(_) => println!("MCP server '{}' started successfully", server_name),
-                Err(e) => eprintln!("Failed to start MCP server '{}': {}", server_name, e),
+                Ok(_) => println!("✅ MCP server '{}' started successfully", server_name),
+                Err(e) => eprintln!("❌ Failed to start MCP server '{}': {}", server_name, e),
             }
         });
     }

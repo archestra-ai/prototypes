@@ -89,7 +89,8 @@ impl McpBridge {
     }
 
     pub async fn start_mcp_server(&self, name: String, command: String, args: Vec<String>, env: Option<std::collections::HashMap<String, String>>) -> Result<(), String> {
-        println!("Starting MCP server '{}' with persistent connection", name);
+        println!("🚀 Starting MCP server '{}' with persistent connection", name);
+        println!("📋 Server config - Command: '{}', Args: {:?}", command, args);
 
         // Check if server already exists
         {
@@ -132,12 +133,13 @@ impl McpBridge {
             (command.clone(), args.clone())
         };
 
-        println!("Executing command: {} with args: {:?}", actual_command, actual_args);
+        println!("🔧 Executing command: {} with args: {:?}", actual_command, actual_args);
         let env_vars = env.unwrap_or_default();
         if !env_vars.is_empty() {
-            println!("Environment variables: {:?}", env_vars);
+            println!("🌍 Environment variables: {:?}", env_vars);
         }
 
+        println!("⚡ Spawning process for MCP server '{}'...", name);
         let mut child = TokioCommand::new("sandbox-exec")
             .arg("-f")
             .arg("./sandbox-exec-profiles/mcp-server-everything-for-now.sb")
@@ -148,25 +150,63 @@ impl McpBridge {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| format!("Failed to spawn MCP server '{}': {}", name, e))?;
+            .map_err(|e| {
+                eprintln!("❌ Failed to spawn process for MCP server '{}': {}", name, e);
+                format!("Failed to spawn MCP server '{}': {}", name, e)
+            })?;
 
+        println!("✅ Process spawned for MCP server '{}' with PID: {:?}", name, child.id());
+
+        println!("📝 Extracting stdin/stdout/stderr handles for MCP server '{}'", name);
         let stdin = child.stdin.take()
-            .ok_or_else(|| format!("Failed to get stdin for MCP server '{}'", name))?;
+            .ok_or_else(|| {
+                eprintln!("❌ Failed to get stdin handle for MCP server '{}'", name);
+                format!("Failed to get stdin for MCP server '{}'", name)
+            })?;
         let stdout = child.stdout.take()
-            .ok_or_else(|| format!("Failed to get stdout for MCP server '{}'", name))?;
+            .ok_or_else(|| {
+                eprintln!("❌ Failed to get stdout handle for MCP server '{}'", name);
+                format!("Failed to get stdout for MCP server '{}'", name)
+            })?;
         let stderr = child.stderr.take()
-            .ok_or_else(|| format!("Failed to get stderr for MCP server '{}'", name))?;
+            .ok_or_else(|| {
+                eprintln!("❌ Failed to get stderr handle for MCP server '{}'", name);
+                format!("Failed to get stderr for MCP server '{}'", name)
+            })?;
+
+        println!("✅ Successfully extracted I/O handles for MCP server '{}'", name);
 
         // Store process handle
         let process_handle = Arc::new(TokioMutex::new(child));
 
-        // Handle stderr
+        // Validate process is still running after spawn
+        println!("🔍 Validating process health for MCP server '{}'...", name);
+        {
+            let mut child_guard = process_handle.lock().await;
+            match child_guard.try_wait() {
+                Ok(None) => {
+                    println!("✅ Process is running for MCP server '{}'", name);
+                }
+                Ok(Some(status)) => {
+                    eprintln!("❌ Process exited immediately for MCP server '{}' with status: {:?}", name, status);
+                    return Err(format!("MCP server '{}' process exited immediately with status: {:?}", name, status));
+                }
+                Err(e) => {
+                    eprintln!("❌ Failed to check process status for MCP server '{}': {}", name, e);
+                    return Err(format!("Failed to check process status for MCP server '{}': {}", name, e));
+                }
+            }
+        }
+
+        // Handle stderr with better logging
         let server_name_clone = name.clone();
         tokio::spawn(async move {
+            println!("📡 Starting stderr monitor for MCP server '{}'", server_name_clone);
             let mut stderr_reader = BufReader::new(stderr).lines();
             while let Ok(Some(line)) = stderr_reader.next_line().await {
-                eprintln!("[MCP Server '{}' stderr] {}", server_name_clone, line);
+                eprintln!("🔴 [MCP Server '{}' stderr] {}", server_name_clone, line);
             }
+            println!("📡 Stderr monitor terminated for MCP server '{}'", server_name_clone);
         });
 
         // Create response buffer with bounded size
@@ -176,48 +216,71 @@ impl McpBridge {
         let server_name_clone = name.clone();
         let response_buffer_clone = response_buffer.clone();
         tokio::spawn(async move {
+            println!("📡 Starting stdout monitor for MCP server '{}'", server_name_clone);
             let mut stdout_reader = BufReader::new(stdout).lines();
             while let Ok(Some(line)) = stdout_reader.next_line().await {
-                println!("[MCP Server '{}' stdout] {}", server_name_clone, line);
+                println!("📤 [MCP Server '{}' stdout] {}", server_name_clone, line);
 
                 // Store response in buffer with timestamp
                 {
                     let mut buffer = response_buffer_clone.lock().unwrap();
+                    let buffer_size_before = buffer.len();
 
                     // Clean up old entries
                     let now = Instant::now();
                     buffer.retain(|entry| now.duration_since(entry.timestamp) < RESPONSE_CLEANUP_INTERVAL);
+                    let cleaned_count = buffer_size_before - buffer.len();
+                    if cleaned_count > 0 {
+                        println!("🧹 Cleaned {} old entries from response buffer for '{}'", cleaned_count, server_name_clone);
+                    }
 
                     // Add new entry, respecting max buffer size
                     if buffer.len() >= MAX_BUFFER_SIZE {
                         buffer.pop_front();
+                        println!("⚠️ Response buffer full for '{}', removing oldest entry", server_name_clone);
                     }
 
                     buffer.push_back(ResponseEntry {
                         content: line,
                         timestamp: now,
                     });
+                    println!("📝 Stored response in buffer for '{}' (buffer size: {})", server_name_clone, buffer.len());
                 }
             }
-            println!("[MCP Server '{}'] stdout reader terminated", server_name_clone);
+            println!("📡 Stdout monitor terminated for MCP server '{}'", server_name_clone);
         });
 
         // Handle stdin with bounded channel
+        println!("📬 Creating stdin channel for MCP server '{}' (capacity: {})", name, CHANNEL_CAPACITY);
         let (stdin_tx, mut stdin_rx) = mpsc::channel::<String>(CHANNEL_CAPACITY);
         let server_name_for_stdin = name.clone();
+        let stdin_tx_clone = stdin_tx.clone(); // Keep a clone for health monitoring
+        
         tokio::spawn(async move {
+            println!("📡 Starting stdin writer for MCP server '{}'", server_name_for_stdin);
             let mut stdin = stdin;
+            let mut message_count = 0;
+            
             while let Some(message) = stdin_rx.recv().await {
+                message_count += 1;
+                println!("📬 Writing message #{} to stdin for MCP server '{}' ({} bytes)", 
+                        message_count, server_name_for_stdin, message.len());
+                
                 if let Err(e) = stdin.write_all(message.as_bytes()).await {
-                    eprintln!("[MCP Server '{}'] Failed to write to stdin: {}", server_name_for_stdin, e);
+                    eprintln!("❌ [MCP Server '{}'] Failed to write to stdin (message #{}): {}", 
+                             server_name_for_stdin, message_count, e);
                     break;
                 }
                 if let Err(e) = stdin.flush().await {
-                    eprintln!("[MCP Server '{}'] Failed to flush stdin: {}", server_name_for_stdin, e);
+                    eprintln!("❌ [MCP Server '{}'] Failed to flush stdin (message #{}): {}", 
+                             server_name_for_stdin, message_count, e);
                     break;
                 }
+                println!("✅ Successfully wrote and flushed message #{} to MCP server '{}'", 
+                        message_count, server_name_for_stdin);
             }
-            println!("[MCP Server '{}'] stdin writer terminated", server_name_for_stdin);
+            println!("📡 Stdin writer terminated for MCP server '{}' (processed {} messages)", 
+                    server_name_for_stdin, message_count);
         });
 
         // Create server struct with all required fields
@@ -238,9 +301,62 @@ impl McpBridge {
         {
             let mut servers = self.servers.lock().unwrap();
             servers.insert(name.clone(), server);
+            println!("✅ Stored MCP server '{}' in bridge registry", name);
+        }
+
+        // Wait for process to stabilize before initialization and monitor for early exits
+        println!("⏳ Waiting for process stabilization before initializing MCP server '{}'...", name);
+        
+        // Check process health multiple times during stabilization
+        for i in 1..=5 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            
+            let servers = self.servers.lock().unwrap();
+            if let Some(server) = servers.get(&name) {
+                if let Some(process_handle) = &server.process_handle {
+                    let mut child_guard = process_handle.lock().await;
+                    match child_guard.try_wait() {
+                        Ok(None) => {
+                            println!("✅ Stabilization check {}/5 passed for MCP server '{}'", i, name);
+                        }
+                        Ok(Some(status)) => {
+                            eprintln!("❌ Process exited during stabilization (check {}/5) for MCP server '{}' with status: {:?}", i, name, status);
+                            return Err(format!("MCP server '{}' process exited during stabilization with status: {:?}", name, status));
+                        }
+                        Err(e) => {
+                            eprintln!("❌ Failed to check process during stabilization (check {}/5) for MCP server '{}': {}", i, name, e);
+                            return Err(format!("Failed to check process during stabilization for MCP server '{}': {}", name, e));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Validate process is still running before initialization
+        {
+            let servers = self.servers.lock().unwrap();
+            if let Some(server) = servers.get(&name) {
+                if let Some(process_handle) = &server.process_handle {
+                    let mut child_guard = process_handle.lock().await;
+                    match child_guard.try_wait() {
+                        Ok(None) => {
+                            println!("✅ Process confirmed running before initialization for MCP server '{}'", name);
+                        }
+                        Ok(Some(status)) => {
+                            eprintln!("❌ Process exited before initialization for MCP server '{}' with status: {:?}", name, status);
+                            return Err(format!("MCP server '{}' process exited before initialization with status: {:?}", name, status));
+                        }
+                        Err(e) => {
+                            eprintln!("❌ Failed to check process status before initialization for MCP server '{}': {}", name, e);
+                            return Err(format!("Failed to check process status before initialization for MCP server '{}': {}", name, e));
+                        }
+                    }
+                }
+            }
         }
 
         // Initialize the server
+        println!("🔧 Beginning initialization for MCP server '{}'", name);
         self.initialize_server(&name).await?;
 
         // Start health monitoring
@@ -611,22 +727,51 @@ impl McpBridge {
 
         println!("📤 Sending request to '{}': {}", server_name, request_json);
 
-        // Get stdin channel sender
-        let stdin_tx = {
+        // Get stdin channel sender and validate server state
+        let (stdin_tx, is_running) = {
             let servers = self.servers.lock().unwrap();
             if let Some(server) = servers.get(server_name) {
-                server.stdin_tx.clone()
+                (server.stdin_tx.clone(), server.is_running)
             } else {
-                None
+                return Err(format!("MCP server '{}' not found in registry", server_name));
             }
         };
 
+        if !is_running {
+            return Err(format!("MCP server '{}' is not running", server_name));
+        }
+
         if let Some(stdin_tx) = stdin_tx {
+            // Check if channel is closed before sending
+            if stdin_tx.is_closed() {
+                eprintln!("❌ Stdin channel is closed for MCP server '{}'", server_name);
+                return Err(format!("Stdin channel closed for server '{}'", server_name));
+            }
+
             let message_with_newline = format!("{}\n", request_json);
-            println!("📬 Sending {} bytes to '{}' stdin", message_with_newline.len(), server_name);
-            stdin_tx.send(message_with_newline).await
-                .map_err(|e| format!("Failed to send to stdin channel: {}", e))?;
-            println!("✅ Request sent successfully to '{}'", server_name);
+            println!("📬 Sending {} bytes to '{}' stdin (channel capacity remaining: {})", 
+                    message_with_newline.len(), server_name, 
+                    stdin_tx.capacity() - stdin_tx.max_capacity());
+            
+            match stdin_tx.send(message_with_newline).await {
+                Ok(_) => {
+                    println!("✅ Request sent successfully to '{}'", server_name);
+                }
+                Err(e) => {
+                    eprintln!("❌ Failed to send request to '{}': {}", server_name, e);
+                    
+                    // Mark server as not running if channel is closed
+                    {
+                        let mut servers = self.servers.lock().unwrap();
+                        if let Some(server) = servers.get_mut(server_name) {
+                            server.is_running = false;
+                            server.stdin_tx = None;
+                            println!("🔄 Marked MCP server '{}' as not running due to channel failure", server_name);
+                        }
+                    }
+                    return Err(format!("Failed to send to stdin channel: {}", e));
+                }
+            }
         } else {
             return Err(format!("No stdin channel found for server '{}'", server_name));
         }
@@ -870,21 +1015,45 @@ impl McpBridge {
         let mut debug_info = Vec::new();
 
         for (name, server) in servers.iter() {
-            let mut server_info = format!("Server '{}': Command: {} {:?}",
+            let mut server_info = format!("🖥️ Server '{}': Command: {} {:?}",
                 name, server.command, server.args);
-            server_info.push_str(&format!("\n  Running: {}", server.is_running));
-            server_info.push_str(&format!("\n  Tools Count: {}", server.tools.len()));
-            server_info.push_str(&format!("\n  Resources Count: {}", server.resources.len()));
-            server_info.push_str(&format!("\n  Has stdin: {}", server.stdin_tx.is_some()));
-            server_info.push_str(&format!("\n  Process handle: {}", server.process_handle.is_some()));
+            server_info.push_str(&format!("\n  🏃 Running: {}", server.is_running));
+            server_info.push_str(&format!("\n  🔧 Tools Count: {}", server.tools.len()));
+            server_info.push_str(&format!("\n  📁 Resources Count: {}", server.resources.len()));
+            
+            // Stdin channel info
+            if let Some(ref stdin_tx) = server.stdin_tx {
+                server_info.push_str(&format!("\n  📬 Stdin channel: ✅ Active"));
+                server_info.push_str(&format!("\n    - Capacity: {}", stdin_tx.capacity()));
+                server_info.push_str(&format!("\n    - Max capacity: {}", stdin_tx.max_capacity()));
+                server_info.push_str(&format!("\n    - Is closed: {}", stdin_tx.is_closed()));
+            } else {
+                server_info.push_str(&format!("\n  📬 Stdin channel: ❌ None"));
+            }
+            
+            server_info.push_str(&format!("\n  🔄 Process handle: {}", 
+                if server.process_handle.is_some() { "✅ Available" } else { "❌ None" }));
+            
+            server_info.push_str(&format!("\n  ⏰ Last health check: {:?} ago", 
+                Instant::now().duration_since(server.last_health_check)));
 
             // Response buffer info
             if let Ok(buffer) = server.response_buffer.lock() {
-                server_info.push_str(&format!("\n  Response buffer size: {}", buffer.len()));
+                server_info.push_str(&format!("\n  📦 Response buffer size: {}/{}", buffer.len(), MAX_BUFFER_SIZE));
                 if !buffer.is_empty() {
-                    server_info.push_str(&format!("\n  Latest response: {}",
-                        buffer.back().map(|e| e.content.as_str()).unwrap_or("None")));
+                    if let Some(latest) = buffer.back() {
+                        let time_since = Instant::now().duration_since(latest.timestamp);
+                        server_info.push_str(&format!("\n    - Latest response ({:?} ago): {}", 
+                            time_since, 
+                            if latest.content.len() > 100 { 
+                                format!("{}...", &latest.content[..100]) 
+                            } else { 
+                                latest.content.clone() 
+                            }));
+                    }
                 }
+            } else {
+                server_info.push_str(&format!("\n  📦 Response buffer: ❌ Lock failed"));
             }
 
             debug_info.push(server_info);
@@ -956,25 +1125,53 @@ impl McpBridge {
         let server_name = server_name.to_string();
 
         tokio::spawn(async move {
+            let mut check_count = 0;
             loop {
                 tokio::time::sleep(Duration::from_secs(30)).await;
+                check_count += 1;
 
-                let (should_check, process_handle) = {
+                let (should_check, process_handle, stdin_tx) = {
                     let mut servers_guard = servers.lock().unwrap();
                     if let Some(server) = servers_guard.get_mut(&server_name) {
                         if !server.is_running {
-                            (false, None) // Server was stopped, exit monitoring
+                            (false, None, None) // Server was stopped, exit monitoring
                         } else {
                             server.last_health_check = Instant::now();
-                            (true, server.process_handle.clone())
+                            (true, server.process_handle.clone(), server.stdin_tx.clone())
                         }
                     } else {
-                        (false, None) // Server removed, exit monitoring
+                        (false, None, None) // Server removed, exit monitoring
                     }
                 };
 
                 if !should_check {
-                    println!("Health monitor for MCP server '{}' stopping", server_name);
+                    println!("🔍 Health monitor for MCP server '{}' stopping after {} checks", server_name, check_count);
+                    break;
+                }
+
+                println!("🔍 Health check #{} for MCP server '{}'", check_count, server_name);
+
+                // Check if stdin channel is still healthy
+                if let Some(ref stdin_tx) = stdin_tx {
+                    if stdin_tx.is_closed() {
+                        eprintln!("❌ Health check failed: stdin channel closed for MCP server '{}'", server_name);
+                        let mut servers_guard = servers.lock().unwrap();
+                        if let Some(server) = servers_guard.get_mut(&server_name) {
+                            server.is_running = false;
+                            server.stdin_tx = None;
+                            println!("🔄 Marked MCP server '{}' as not running due to closed stdin channel", server_name);
+                        }
+                        break;
+                    } else {
+                        println!("✅ Stdin channel healthy for MCP server '{}' (capacity: {})", 
+                                server_name, stdin_tx.capacity());
+                    }
+                } else {
+                    eprintln!("❌ Health check failed: no stdin channel for MCP server '{}'", server_name);
+                    let mut servers_guard = servers.lock().unwrap();
+                    if let Some(server) = servers_guard.get_mut(&server_name) {
+                        server.is_running = false;
+                    }
                     break;
                 }
 
@@ -983,13 +1180,16 @@ impl McpBridge {
                     let is_alive = {
                         let mut child = process_handle.lock().await;
                         match child.try_wait() {
-                            Ok(None) => true, // Process is still running
+                            Ok(None) => {
+                                println!("✅ Process alive for MCP server '{}' (PID: {:?})", server_name, child.id());
+                                true
+                            }
                             Ok(Some(status)) => {
-                                println!("MCP server '{}' exited unexpectedly with status: {:?}", server_name, status);
+                                eprintln!("❌ MCP server '{}' exited unexpectedly with status: {:?}", server_name, status);
                                 false
                             }
                             Err(e) => {
-                                eprintln!("Error checking MCP server '{}' process status: {}", server_name, e);
+                                eprintln!("❌ Error checking MCP server '{}' process status: {}", server_name, e);
                                 false
                             }
                         }
@@ -1002,13 +1202,23 @@ impl McpBridge {
                             server.is_running = false;
                             server.process_handle = None;
                             server.stdin_tx = None;
+                            println!("🔄 Marked MCP server '{}' as not running due to process exit", server_name);
                         }
                         break;
-                    } else {
-                        println!("Health check passed for MCP server '{}'", server_name);
                     }
+                } else {
+                    eprintln!("❌ Health check failed: no process handle for MCP server '{}'", server_name);
+                    let mut servers_guard = servers.lock().unwrap();
+                    if let Some(server) = servers_guard.get_mut(&server_name) {
+                        server.is_running = false;
+                        server.stdin_tx = None;
+                    }
+                    break;
                 }
+
+                println!("✅ Health check #{} passed for MCP server '{}'", check_count, server_name);
             }
+            println!("🔍 Health monitor terminated for MCP server '{}' after {} checks", server_name, check_count);
         });
 
         Ok(())
