@@ -8,6 +8,7 @@ use tokio::sync::{mpsc, Mutex as TokioMutex};
 use uuid::Uuid;
 use std::time::{Duration, Instant};
 use tauri::Manager;
+use crate::node_utils;
 
 pub struct McpBridgeState(pub Arc<McpBridge>);
 
@@ -100,11 +101,44 @@ impl McpBridge {
             }
         }
 
+        // Handle special case for npx commands
+        let (actual_command, actual_args) = if command == "npx" {
+            // Detect Node.js installation
+            let node_info = node_utils::detect_node_installation();
+            
+            if !node_info.is_available() {
+                let instructions = node_utils::get_node_installation_instructions();
+                return Err(format!("Cannot start MCP server '{}': {}", name, instructions));
+            }
+
+            // Get the package name (first arg) and remaining args
+            if args.is_empty() {
+                return Err(format!("No package specified for npx command in server '{}'", name));
+            }
+            
+            let package_name = &args[0];
+            let remaining_args = args[1..].to_vec();
+            
+            // Get the execution command based on available tools
+            match node_utils::get_npm_execution_command(package_name, &node_info) {
+                Ok((cmd, cmd_args)) => {
+                    let mut all_args = cmd_args;
+                    all_args.extend(remaining_args);
+                    (cmd, all_args)
+                }
+                Err(e) => return Err(format!("Failed to prepare npm execution for '{}': {}", name, e))
+            }
+        } else {
+            (command.clone(), args.clone())
+        };
+
+        println!("Executing command: {} with args: {:?}", actual_command, actual_args);
+
         let mut child = TokioCommand::new("sandbox-exec")
             .arg("-f")
             .arg("./sandbox-exec-profiles/mcp-server-everything-for-now.sb")
-            .arg(&command)
-            .args(&args)
+            .arg(&actual_command)
+            .args(&actual_args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -184,8 +218,8 @@ impl McpBridge {
         // Create server struct with all required fields
         let server = McpServer {
             name: name.clone(),
-            command,
-            args,
+            command: command,  // Store original command, not the resolved one
+            args: args,        // Store original args
             tools: Vec::new(),
             resources: Vec::new(),
             stdin_tx: Some(stdin_tx),

@@ -12,6 +12,7 @@ pub mod mcp;
 pub mod database;
 pub mod mcp_bridge;
 pub mod oauth;
+pub mod node_utils;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -97,7 +98,6 @@ pub fn run() {
             ollama::stop_ollama_server,
             ollama::ollama_chat_with_tools,
             ollama::ollama_chat_with_tools_streaming,
-            mcp::run_mcp_server_in_sandbox,
             mcp::save_mcp_server,
             mcp::load_mcp_servers,
             mcp::delete_mcp_server,

@@ -1,2 +1,9 @@
 (version 1)
 (allow default)
+
+;; This profile allows everything for now but documents what should be restricted later
+;; When we move to a more restrictive profile, we should:
+;; 1. Allow only specific Node.js/npm/npx paths (detected at runtime)
+;; 2. Restrict file system access to specific directories
+;; 3. Allow network access only for npm registry
+;; 4. Restrict process execution to only necessary binaries
