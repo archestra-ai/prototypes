@@ -43,3 +43,5 @@ hex = "0.4.3"
 bytes = "1.10.1"
 async-stream = "0.3.6"
 http-body-util = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+rusqlite_migration = "2.3.0"

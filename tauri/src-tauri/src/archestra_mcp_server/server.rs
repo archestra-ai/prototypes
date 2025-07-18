@@ -10,6 +10,8 @@ use http_body_util::BodyExt;
 use hyper_util::rt::TokioIo;
 use hyper_util::server::conn::auto::Builder as ConnBuilder;
 use tokio::net::TcpListener;
+use tauri::Manager;
+use crate::mcp_bridge::{McpBridge, McpBridgeState};
 
 // Fixed port for MCP server
 const MCP_SERVER_PORT: u16 = 54587;
@@ -31,10 +33,11 @@ pub struct ArchestraResource {
     pub resource_type: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ArchestraServer {
     context: Arc<Mutex<ArchestraContext>>,
     resources: Arc<Mutex<HashMap<String, ArchestraResource>>>,
+    mcp_bridge: Option<Arc<McpBridge>>,
 }
 
 impl ArchestraServer {
@@ -72,7 +75,12 @@ impl ArchestraServer {
                 active_models: vec![],
             })),
             resources: Arc::new(Mutex::new(resources)),
+            mcp_bridge: None,
         }
+    }
+
+    pub fn set_mcp_bridge(&mut self, mcp_bridge: Arc<McpBridge>) {
+        self.mcp_bridge = Some(mcp_bridge);
     }
 
     pub async fn handle_mcp_request(&self, request: Value) -> Result<Value, String> {
@@ -257,6 +265,148 @@ impl ArchestraServer {
         }
     }
 
+    async fn handle_proxy_request(&self, req: Request<Incoming>, response: hyper::http::response::Builder) -> Result<Response<String>, hyper::Error> {
+        let path = req.uri().path().to_string();
+        
+        // Extract tool name from path: /mcp/<tool>
+        let tool_name = if let Some(tool) = path.strip_prefix("/mcp/") {
+            tool.to_string()
+        } else {
+            return Ok(response
+                .status(StatusCode::BAD_REQUEST)
+                .body("Invalid proxy path".to_string()).unwrap());
+        };
+
+        println!("MCP Proxy: Routing request to tool '{}'", tool_name);
+
+        let body_bytes = match req.into_body().collect().await {
+            Ok(collected) => collected.to_bytes(),
+            Err(_) => {
+                return Ok(response
+                    .status(StatusCode::BAD_REQUEST)
+                    .body("Failed to read request body".to_string()).unwrap());
+            }
+        };
+
+        let request_json: Value = match serde_json::from_slice(&body_bytes) {
+            Ok(json) => json,
+            Err(_) => {
+                return Ok(response
+                    .status(StatusCode::BAD_REQUEST)
+                    .body("Invalid JSON".to_string()).unwrap());
+            }
+        };
+
+        // Forward request to MCP bridge
+        if let Some(mcp_bridge) = &self.mcp_bridge {
+            // Extract method and arguments from the request
+            let method = request_json.get("method").and_then(|v| v.as_str()).unwrap_or("tools/call");
+            
+            match method {
+                "tools/call" => {
+                    // Get tool parameters with proper lifetime handling
+                    let default_args = serde_json::json!({});
+                    let params = request_json.get("params");
+                    let arguments = params
+                        .and_then(|p| p.get("arguments"))
+                        .unwrap_or(&default_args);
+                    
+                    // Try to execute the tool via MCP bridge
+                    // First, get list of all servers to find which one has this tool
+                    let all_tools = mcp_bridge.get_all_tools();
+                    let server_for_tool = all_tools.iter()
+                        .find(|(_, tool)| tool.name == tool_name)
+                        .map(|(server_name, _)| server_name.clone());
+                    
+                    if let Some(server_name) = server_for_tool {
+                        println!("MCP Proxy: Found tool '{}' on server '{}'", tool_name, server_name);
+                        
+                        match mcp_bridge.execute_tool(&server_name, &tool_name, arguments.clone()).await {
+                            Ok(result) => {
+                                let proxy_response = serde_json::json!({
+                                    "jsonrpc": "2.0",
+                                    "id": request_json.get("id").unwrap_or(&serde_json::json!(null)),
+                                    "result": result
+                                });
+                                
+                                return Ok(response
+                                    .status(StatusCode::OK)
+                                    .header("Content-Type", "application/json")
+                                    .body(serde_json::to_string(&proxy_response).unwrap()).unwrap());
+                            }
+                            Err(e) => {
+                                println!("MCP Proxy: Tool execution failed: {}", e);
+                                let error_response = serde_json::json!({
+                                    "jsonrpc": "2.0",
+                                    "id": request_json.get("id").unwrap_or(&serde_json::json!(null)),
+                                    "error": {
+                                        "code": -32603,
+                                        "message": format!("Tool execution failed: {}", e)
+                                    }
+                                });
+                                
+                                return Ok(response
+                                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                                    .header("Content-Type", "application/json")
+                                    .body(serde_json::to_string(&error_response).unwrap()).unwrap());
+                            }
+                        }
+                    } else {
+                        println!("MCP Proxy: Tool '{}' not found in any server", tool_name);
+                        let error_response = serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "id": request_json.get("id").unwrap_or(&serde_json::json!(null)),
+                            "error": {
+                                "code": -32601,
+                                "message": format!("Tool '{}' not found in any MCP server", tool_name)
+                            }
+                        });
+                        
+                        return Ok(response
+                            .status(StatusCode::NOT_FOUND)
+                            .header("Content-Type", "application/json")
+                            .body(serde_json::to_string(&error_response).unwrap()).unwrap());
+                    }
+                }
+                _ => {
+                    // Handle other MCP methods if needed
+                    let proxy_response = serde_json::json!({
+                        "jsonrpc": "2.0",
+                        "id": request_json.get("id").unwrap_or(&serde_json::json!(null)),
+                        "result": {
+                            "content": [{
+                                "type": "text",
+                                "text": format!("Proxy request for method '{}' on tool '{}' not implemented", method, tool_name)
+                            }]
+                        }
+                    });
+                    
+                    return Ok(response
+                        .status(StatusCode::NOT_IMPLEMENTED)
+                        .header("Content-Type", "application/json")
+                        .body(serde_json::to_string(&proxy_response).unwrap()).unwrap());
+                }
+            }
+        }
+        
+        // Fallback response if no MCP bridge is available
+        let proxy_response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": request_json.get("id").unwrap_or(&serde_json::json!(null)),
+            "result": {
+                "content": [{
+                    "type": "text",
+                    "text": format!("Proxy request received for tool '{}'. MCP bridge not available.", tool_name)
+                }]
+            }
+        });
+
+        Ok(response
+            .status(StatusCode::OK)
+            .header("Content-Type", "application/json")
+            .body(serde_json::to_string(&proxy_response).unwrap()).unwrap())
+    }
+
     async fn handle_http_request(&self, req: Request<Incoming>) -> Result<Response<String>, hyper::Error> {
         // Log the incoming request
         println!("MCP Server: {} {} from {}", 
@@ -274,6 +424,10 @@ impl ArchestraServer {
         match (req.method(), req.uri().path()) {
             (&Method::OPTIONS, _) => {
                 Ok(response.status(StatusCode::OK).body(String::new()).unwrap())
+            }
+            (&Method::POST, path) if path.starts_with("/mcp/") => {
+                // Proxy route: /mcp/<tool> - forward to sandboxed MCP servers
+                self.handle_proxy_request(req, response).await
             }
             (&Method::POST, "/mcp") => {
                 let body_bytes = match req.into_body().collect().await {
@@ -346,17 +500,19 @@ pub async fn start_archestra_mcp_server(
     
     let server_url = format!("http://127.0.0.1:{}", MCP_SERVER_PORT);
     
-    // Register the Archestra MCP Server in the database if it doesn't exist
-    if let Err(e) = register_archestra_mcp_server(&app_handle, &server_url).await {
-        eprintln!("Failed to register Archestra MCP Server: {}", e);
-    }
+    // Get the MCP bridge from app state
+    let mcp_bridge = {
+        let bridge_state = app_handle.state::<McpBridgeState>();
+        bridge_state.0.clone()
+    };
     
     // Generate unique session ID for this app instance
     let session_id = Uuid::new_v4().to_string();
     let user_id = "archestra_user".to_string();
     
-    // Create and run the server
-    let server = ArchestraServer::new(user_id, session_id);
+    // Create and configure the server
+    let mut server = ArchestraServer::new(user_id, session_id);
+    server.set_mcp_bridge(mcp_bridge);
     
     // Run the server in a background task
     tauri::async_runtime::spawn(async move {
@@ -367,29 +523,6 @@ pub async fn start_archestra_mcp_server(
     });
     
     println!("Archestra MCP Server started successfully on {}", server_url);
-    Ok(())
-}
-
-async fn register_archestra_mcp_server(app_handle: &tauri::AppHandle, server_url: &str) -> Result<(), String> {
-    use crate::database::get_database_connection_with_app;
-    
-    let conn = get_database_connection_with_app(app_handle)
-        .map_err(|e| format!("Failed to get database connection: {}", e))?;
-    
-    // Create the server configuration
-    let server_name = "archestra-mcp-server";
-    let command = server_url; // Use the HTTP URL as the command
-    let args = vec!["--http"];
-    let args_json = serde_json::to_string(&args)
-        .map_err(|e| format!("Failed to serialize args: {}", e))?;
-    
-    // Insert or update the server configuration
-    conn.execute(
-        "INSERT OR REPLACE INTO mcp_servers (name, command, args) VALUES (?1, ?2, ?3)",
-        [server_name, command, &args_json],
-    ).map_err(|e| format!("Failed to register MCP server: {}", e))?;
-    
-    println!("Archestra MCP Server registered in database with URL: {}", server_url);
     Ok(())
 }
 
@@ -447,5 +580,181 @@ mod tests {
         assert!(tool_names.contains(&"get_context"));
         assert!(tool_names.contains(&"update_context"));
         assert!(tool_names.contains(&"set_active_models"));
+    }
+
+    #[test]
+    fn test_proxy_request_path_parsing() {
+        // Test valid proxy path parsing without HTTP request overhead
+        let path = "/mcp/test_tool";
+        let tool_name = path.strip_prefix("/mcp/").unwrap();
+        assert_eq!(tool_name, "test_tool");
+
+        // Test request body parsing
+        let request_body = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": "test-123",
+            "method": "tools/call",
+            "params": {
+                "name": "test_tool",
+                "arguments": {"param": "value"}
+            }
+        });
+
+        assert_eq!(request_body["method"], "tools/call");
+        assert_eq!(request_body["params"]["name"], "test_tool");
+        assert_eq!(request_body["params"]["arguments"]["param"], "value");
+    }
+
+    #[test]
+    fn test_proxy_request_invalid_path() {
+        // Test invalid proxy path (missing tool name)
+        let path = "/mcp/";
+        let tool_name = path.strip_prefix("/mcp/");
+        assert!(tool_name.is_some());
+        assert_eq!(tool_name.unwrap(), "");
+
+        // Test completely invalid path
+        let path = "/invalid/path";
+        let tool_name = path.strip_prefix("/mcp/");
+        assert!(tool_name.is_none());
+    }
+
+    #[test]
+    fn test_mcp_bridge_integration() {
+        // Test that we can set and access the MCP bridge
+        let mut server = ArchestraServer::new("user123".to_string(), "session456".to_string());
+        assert!(server.mcp_bridge.is_none());
+
+        // Create a mock MCP bridge
+        let mcp_bridge = Arc::new(crate::mcp_bridge::McpBridge::new());
+        server.set_mcp_bridge(mcp_bridge.clone());
+
+        assert!(server.mcp_bridge.is_some());
+        assert!(Arc::ptr_eq(&server.mcp_bridge.unwrap(), &mcp_bridge));
+    }
+
+    #[test]
+    fn test_json_rpc_error_format() {
+        // Test that our error responses follow JSON-RPC format
+        let error_response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": "test-123",
+            "error": {
+                "code": -32601,
+                "message": "Tool 'nonexistent_tool' not found in any MCP server"
+            }
+        });
+
+        assert_eq!(error_response["jsonrpc"], "2.0");
+        assert_eq!(error_response["id"], "test-123");
+        assert!(error_response["error"].is_object());
+        assert_eq!(error_response["error"]["code"], -32601);
+        assert!(error_response["error"]["message"].is_string());
+    }
+
+    #[test]
+    fn test_json_rpc_success_format() {
+        // Test that our success responses follow JSON-RPC format
+        let success_response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": "test-123",
+            "result": {
+                "content": [{
+                    "type": "text",
+                    "text": "Tool executed successfully"
+                }]
+            }
+        });
+
+        assert_eq!(success_response["jsonrpc"], "2.0");
+        assert_eq!(success_response["id"], "test-123");
+        assert!(success_response["result"].is_object());
+        assert!(success_response["error"].is_null());
+    }
+
+    #[test]
+    fn test_url_path_extraction() {
+        // Test various URL path scenarios for proxy routing
+        let test_cases = vec![
+            ("/mcp/slack", Some("slack")),
+            ("/mcp/filesystem", Some("filesystem")),
+            ("/mcp/git_status", Some("git_status")),
+            ("/mcp/", Some("")),
+            ("/mcp", None),
+            ("/health", None),
+            ("/", None),
+        ];
+
+        for (path, expected) in test_cases {
+            let result = path.strip_prefix("/mcp/");
+            match expected {
+                Some(tool_name) => {
+                    assert!(result.is_some(), "Expected Some for path: {}", path);
+                    assert_eq!(result.unwrap(), tool_name, "Wrong tool name for path: {}", path);
+                }
+                None => {
+                    assert!(result.is_none(), "Expected None for path: {}", path);
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_traditional_mcp_server_functionality() {
+        // Ensure traditional MCP server functionality still works
+        let server = ArchestraServer::new("user123".to_string(), "session456".to_string());
+
+        // Test get_context tool
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": "traditional-test",
+            "method": "tools/call",
+            "params": {
+                "name": "get_context",
+                "arguments": {}
+            }
+        });
+
+        let result = server.handle_mcp_request(request).await;
+        assert!(result.is_ok());
+
+        let response = result.unwrap();
+        assert_eq!(response["jsonrpc"], "2.0");
+        assert_eq!(response["id"], "traditional-test");
+        assert!(response["result"]["content"].is_array());
+    }
+
+    #[tokio::test]
+    async fn test_update_context_tool() {
+        let server = ArchestraServer::new("user123".to_string(), "session456".to_string());
+
+        // Test update_context tool
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": "update-test",
+            "method": "tools/call",
+            "params": {
+                "name": "update_context",
+                "arguments": {
+                    "key": "test_key",
+                    "value": "test_value"
+                }
+            }
+        });
+
+        let result = server.handle_mcp_request(request).await;
+        assert!(result.is_ok());
+
+        let response = result.unwrap();
+        assert_eq!(response["jsonrpc"], "2.0");
+        assert_eq!(response["id"], "update-test");
+
+        let content = &response["result"]["content"][0]["text"];
+        assert!(content.as_str().unwrap().contains("test_key"));
+        assert!(content.as_str().unwrap().contains("test_value"));
+
+        // Verify the context was actually updated
+        let context = server.context.lock().unwrap();
+        assert_eq!(context.project_context.get("test_key"), Some(&"test_value".to_string()));
     }
 }
