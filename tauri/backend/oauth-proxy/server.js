@@ -6,7 +6,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT;
+const PORT_LOCALHOST = process.env.PORT;
 
 app.use(express.json());
 app.use((req, res, next) => {
@@ -15,11 +15,20 @@ app.use((req, res, next) => {
 });
 
 // Load OAuth credentials
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+
+if (!CLIENT_ID || !CLIENT_SECRET) {
+  console.error('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in environment variables. Shutting down.');
+  process.exit(1);
+}
+
+const REDIRECT_URL = process.env.REDIRECT_URL || `http://localhost:${PORT_LOCALHOST}/oauth-callback`;
+
 const oauth2Client = new google.auth.OAuth2(
-  // TODO: remove these when deployed to GCP Cloud Run + rotate current oauth client credentials
-  '354887056155-h9pvmcfhl631cfv1vb9ndi7scfncsdbt.apps.googleusercontent.com',
-  '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',
-  `http://localhost:${PORT}/oauth-callback`
+  CLIENT_ID,
+  CLIENT_SECRET,
+  REDIRECT_URL
 );
 
 // Store temporary auth states (in production, use Redis or database)
@@ -122,9 +131,12 @@ app.get('/health', (req, res) => {
 app.use(express.static('public'));
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`OAuth proxy server running on port ${PORT}`);
-  console.log(`Auth URL: http://localhost:${PORT}/auth/gmail`);
-  console.log(`Health check URL: http://localhost:${PORT}/health`);
-  console.log(`Callback URL: http://localhost:${PORT}/oauth-callback`);
+app.listen(PORT_LOCALHOST, () => {
+  const baseUrl = REDIRECT_URL
+    ? REDIRECT_URL.replace(/\/oauth-callback.*/, '')
+    : `http://localhost:${PORT_LOCALHOST}`;
+  console.log(`OAuth proxy server running on port ${PORT_LOCALHOST}`);
+  console.log(`Auth URL: ${baseUrl}/auth/gmail`);
+  console.log(`Health check URL: ${baseUrl}/health`);
+  console.log(`Callback URL: ${REDIRECT_URL}`);
 });
