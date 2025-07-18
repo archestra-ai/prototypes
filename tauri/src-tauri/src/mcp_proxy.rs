@@ -4,6 +4,7 @@ use axum::{
     extract::{Extension, OriginalUri},
     http::{HeaderMap, StatusCode, Method},
     response::IntoResponse,
+    response::Response,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -39,7 +40,9 @@ async fn proxy_handler(
                 Ok(chunk) => {
                     if first {
                         match std::str::from_utf8(&chunk) {
-                            Ok(s) => println!("[MCP Proxy] Body (utf8, first chunk): {}", s),
+                            Ok(s) => {
+                                println!("[MCP Proxy] Body (utf8, first chunk): {}", s);
+                            },
                             Err(_) => println!("[MCP Proxy] Body (hex, first chunk): {}", hex::encode(&chunk)),
                         }
                         first = false;
@@ -71,6 +74,8 @@ async fn proxy_handler(
         }
     }
     let req = req_builder;
+
+    // Send the request and handle the response
     match req.send().await {
         Ok(resp) => {
             let status = StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
@@ -78,15 +83,78 @@ async fn proxy_handler(
             for (k, v) in resp.headers().iter() {
                 resp_headers.insert(k, v.clone());
             }
-            let stream = resp.bytes_stream().map(|chunk| chunk.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)));
-            let body = Body::from_stream(stream);
-            (status, resp_headers, body)
+            let content_type = resp.headers().get("content-type").and_then(|v| v.to_str().ok()).unwrap_or("").to_ascii_lowercase();
+            if content_type.contains("application/json") || content_type.contains("text/json") {
+                // Buffer and print JSON responses
+                let bytes_fut = resp.bytes();
+                return match bytes_fut.await {
+                    Ok(bytes) => {
+                        if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                            println!("[MCP Proxy] Full JSON response:\n{}", serde_json::to_string_pretty(&json).unwrap());
+                        } else if let Ok(s) = std::str::from_utf8(&bytes) {
+                            println!("[MCP Proxy] Full response (utf8):\n{}", s);
+                        } else {
+                            println!("[MCP Proxy] Full response (hex):\n{}", hex::encode(&bytes));
+                        }
+                        let mut builder = Response::builder().status(status);
+                        for (k, v) in resp_headers.iter() {
+                            builder = builder.header(k, v);
+                        }
+                        builder.body(Body::from(bytes)).unwrap()
+                    },
+                    Err(e) => {
+                        Response::builder()
+                            .status(StatusCode::BAD_GATEWAY)
+                            .body(Body::from(format!("Proxy error: {}", e)))
+                            .unwrap()
+                    }
+                };
+            } else if content_type.contains("event-stream") {
+                // Print each SSE chunk as it arrives, and pretty-print JSON in data: lines
+                let stream = resp.bytes_stream().inspect(|chunk| {
+                    if let Ok(chunk) = chunk {
+                        if let Ok(s) = std::str::from_utf8(chunk) {
+                            println!("[MCP Proxy] SSE chunk: {}", s);
+                            for line in s.lines() {
+                                if let Some(json_str) = line.strip_prefix("data: ") {
+                                    match serde_json::from_str::<serde_json::Value>(json_str) {
+                                        Ok(json) => {
+                                            println!("[MCP Proxy] SSE chunk pretty JSON:\n{}", serde_json::to_string_pretty(&json).unwrap());
+                                        }
+                                        Err(e) => {
+                                            println!("[MCP Proxy] SSE chunk JSON parse error: {}", e);
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            println!("[MCP Proxy] SSE chunk (hex): {}", hex::encode(chunk));
+                        }
+                    }
+                });
+                let body = Body::from_stream(stream);
+                let mut builder = Response::builder().status(status);
+                for (k, v) in resp_headers.iter() {
+                    builder = builder.header(k, v);
+                }
+                builder.body(body).unwrap()
+            } else {
+                // Stream all other responses (e.g., binary, etc.)
+                let stream = resp.bytes_stream().map(|chunk| chunk.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)));
+                let body = Body::from_stream(stream);
+                let mut builder = Response::builder().status(status);
+                for (k, v) in resp_headers.iter() {
+                    builder = builder.header(k, v);
+                }
+                builder.body(body).unwrap()
+            }
         }
-        Err(e) => (
-            StatusCode::BAD_GATEWAY,
-            HeaderMap::new(),
-            Body::from(format!("Proxy error: {}", e)),
-        ),
+        Err(e) => {
+            Response::builder()
+                .status(StatusCode::BAD_GATEWAY)
+                .body(Body::from(format!("Proxy error: {}", e)))
+                .unwrap()
+        }
     }
 }
 
