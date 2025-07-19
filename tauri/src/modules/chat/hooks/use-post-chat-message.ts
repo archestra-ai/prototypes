@@ -1,40 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useState, useCallback, useEffect } from "react";
-
-interface IChatMessage {
-  id: string;
-  role: string;
-  content: string;
-  thinkingContent?: string;
-  timestamp: Date;
-  isStreaming?: boolean;
-  isThinkingStreaming?: boolean;
-  toolCalls?: ToolCallInfo[];
-  isToolExecuting?: boolean;
-}
-
-interface ToolCallInfo {
-  id: string;
-  serverName: string;
-  toolName: string;
-  arguments: Record<string, any>;
-  result?: string;
-  error?: string;
-  status: "pending" | "executing" | "completed" | "error";
-  executionTime?: number;
-  startTime: Date;
-  endTime?: Date;
-}
-
-interface MCPTool {
-  serverName: string;
-  tool: {
-    name: string;
-    description?: string;
-    input_schema: any;
-  };
-}
+import { IChatMessage, ToolCallInfo, MCPTool } from "../types";
+import { parseThinkingContent } from "../utils/thinking-parser";
+import { markMessageAsCancelled } from "../utils/message-utils";
+import { CHAT_SCROLL_AREA_SELECTOR } from "../constants";
 
 interface IArgs {
   ollamaPort: number | null;
@@ -47,10 +17,92 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
     null,
   );
+  const [abortController, setAbortController] =
+    useState<AbortController | null>(null);
+  const [isToolBasedStreaming, setIsToolBasedStreaming] = useState(false);
+
+  // Scroll to bottom when new messages are added or content changes
+  useEffect(() => {
+    const scrollToBottom = () => {
+      // Find the scroll area and scroll to bottom smoothly
+      const scrollArea = document.querySelector(CHAT_SCROLL_AREA_SELECTOR);
+      if (scrollArea) {
+        scrollArea.scrollTo({
+          top: scrollArea.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+    };
+
+    // Scroll after a short delay to ensure DOM is updated
+    const timeoutId = setTimeout(scrollToBottom, 50);
+    return () => clearTimeout(timeoutId);
+  }, [chatHistory, streamingMessageId]); // Trigger on both message changes and streaming status
 
   const clearChatHistory = useCallback(() => {
     setChatHistory([]);
   }, []);
+
+  const cancelStreaming = useCallback(async () => {
+    try {
+      console.log("🛑 Cancelling streaming, tool-based:", isToolBasedStreaming);
+
+      if (isToolBasedStreaming) {
+        // Cancel tool-based streaming
+        try {
+          await invoke("cancel_ollama_streaming");
+          console.log("✅ Tool-based streaming cancellation successful");
+        } catch (error) {
+          console.warn("⚠️ Tool-based streaming cancellation failed:", error);
+          // Continue with state reset even if backend cancellation failed
+        }
+      } else if (abortController) {
+        // Cancel fetch-based streaming
+        abortController.abort();
+        setAbortController(null);
+        console.log("✅ Fetch-based streaming cancelled");
+      }
+
+      // Always reset state immediately and clear tool execution states
+      setIsChatLoading(false);
+      setStreamingMessageId(null);
+      setIsToolBasedStreaming(false);
+
+      // Clear any stuck tool execution states from the currently streaming message
+      // Don't add cancellation text here - let the event listeners handle that
+      setChatHistory((prev) =>
+        prev.map((msg) =>
+          msg.id === streamingMessageId ||
+          msg.isStreaming ||
+          msg.isToolExecuting
+            ? {
+                ...msg,
+                isStreaming: false,
+                isToolExecuting: false,
+                isThinkingStreaming: false,
+              }
+            : msg,
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to cancel streaming:", error);
+      // Still reset state even if cancellation failed
+      setIsChatLoading(false);
+      setStreamingMessageId(null);
+      setIsToolBasedStreaming(false);
+
+      // Clear any stuck tool execution states from the currently streaming message
+      setChatHistory((prev) =>
+        prev.map((msg) =>
+          msg.id === streamingMessageId ||
+          msg.isStreaming ||
+          msg.isToolExecuting
+            ? markMessageAsCancelled(msg)
+            : msg,
+        ),
+      );
+    }
+  }, [abortController, isToolBasedStreaming, streamingMessageId]);
 
   // Set up streaming event listeners
   useEffect(() => {
@@ -59,13 +111,18 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
       const unlistenChunk = await listen("ollama-chunk", (event: any) => {
         const { total_content } = event.payload;
 
+        // Parse thinking content from tool-based streaming
+        const parsed = parseThinkingContent(total_content);
+
         // Update the streaming message in chat history
         setChatHistory((prev) => {
           return prev.map((msg) =>
             msg.id === streamingMessageId && msg.isStreaming
               ? {
                   ...msg,
-                  content: total_content,
+                  content: parsed.response,
+                  thinkingContent: parsed.thinking,
+                  isThinkingStreaming: parsed.isThinkingStreaming,
                 }
               : msg,
           );
@@ -184,12 +241,31 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
 
         setStreamingMessageId(null);
         setIsChatLoading(false);
+        setIsToolBasedStreaming(false);
+      });
+
+      // Listen for cancellation
+      const unlistenCancelled = await listen("ollama-cancelled", () => {
+        console.log("Tool-based streaming cancelled");
+        setIsChatLoading(false);
+        setStreamingMessageId(null);
+        setIsToolBasedStreaming(false);
+
+        // Mark the last message as no longer streaming
+        setChatHistory((prev) => {
+          return prev.map((msg) =>
+            msg.id === streamingMessageId && msg.isStreaming
+              ? markMessageAsCancelled(msg)
+              : msg,
+          );
+        });
       });
 
       return () => {
         unlistenChunk();
         unlistenToolResults();
         unlistenComplete();
+        unlistenCancelled();
       };
     };
 
@@ -219,8 +295,10 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
         id: aiMsgId,
         role: "assistant",
         content: "",
+        thinkingContent: "", // Ensure clean slate
         timestamp: new Date(),
         isStreaming: true,
+        isThinkingStreaming: false,
       };
       setChatHistory((prev) => [...prev, aiMessage]);
 
@@ -254,8 +332,9 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
             "tools",
           );
 
-          // Set the streaming message ID
+          // Set the streaming message ID and mark as tool-based
           setStreamingMessageId(aiMsgId);
+          setIsToolBasedStreaming(true);
 
           // Mark AI message as tool executing
           setChatHistory((prev) =>
@@ -264,8 +343,7 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
                 ? {
                     ...msg,
                     isToolExecuting: true,
-                    content:
-                      "🔧 Analyzing your request and preparing to execute tools...",
+                    content: "",
                   }
                 : msg,
             ),
@@ -299,12 +377,21 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
             setChatHistory((prev) => [...prev, warningMessage]);
           }
 
+          // Set the streaming message ID for non-tool streaming
+          setStreamingMessageId(aiMsgId);
+          setIsToolBasedStreaming(false);
+
+          // Create new AbortController for this request
+          const controller = new AbortController();
+          setAbortController(controller);
+
           // Use streaming Ollama chat with thinking content parsing
           const response = await fetch(
             `http://localhost:${ollamaPort}/api/chat`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
+              signal: controller.signal,
               body: JSON.stringify({
                 model: model,
                 messages: [
@@ -352,46 +439,7 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
                 if (data.message?.content) {
                   accumulatedContent += data.message.content;
 
-                  const parseContent = (content: string) => {
-                    const thinkStartMatch = content.match(/<think>/);
-                    const thinkEndMatch = content.match(/<\/think>/);
-
-                    if (thinkStartMatch && thinkEndMatch) {
-                      const thinkStart = thinkStartMatch.index!;
-                      const thinkEnd = thinkEndMatch.index!;
-
-                      const beforeThink = content.substring(0, thinkStart);
-                      const thinkingContent = content.substring(
-                        thinkStart + 7,
-                        thinkEnd,
-                      );
-                      const afterThink = content.substring(thinkEnd + 8);
-
-                      return {
-                        thinking: thinkingContent,
-                        response: beforeThink + afterThink,
-                        isThinkingStreaming: false,
-                      };
-                    } else if (thinkStartMatch && !thinkEndMatch) {
-                      const thinkStart = thinkStartMatch.index!;
-                      const beforeThink = content.substring(0, thinkStart);
-                      const thinkingContent = content.substring(thinkStart + 7);
-
-                      return {
-                        thinking: thinkingContent,
-                        response: beforeThink,
-                        isThinkingStreaming: true,
-                      };
-                    } else {
-                      return {
-                        thinking: "",
-                        response: content,
-                        isThinkingStreaming: false,
-                      };
-                    }
-                  };
-
-                  const parsed = parseContent(accumulatedContent);
+                  const parsed = parseThinkingContent(accumulatedContent);
 
                   setChatHistory((prev) =>
                     prev.map((msg) =>
@@ -421,6 +469,9 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
                         : msg,
                     ),
                   );
+                  setStreamingMessageId(null);
+                  setAbortController(null);
+                  setIsToolBasedStreaming(false);
                   break;
                 }
               } catch (parseError) {
@@ -429,31 +480,50 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
             }
           }
         }
-      } catch (error) {
-        const errorMsg =
-          error instanceof Error ? error.message : "An unknown error occurred";
-        setChatHistory((prev) =>
-          prev.map((msg) =>
-            msg.id === aiMsgId
-              ? {
-                  ...msg,
-                  content: `Error: ${errorMsg}`,
-                  isStreaming: false,
-                }
-              : msg,
-          ),
-        );
+      } catch (error: any) {
+        // Handle abort specifically
+        if (error.name === "AbortError") {
+          console.log("Fetch-based streaming cancelled by user");
+          setChatHistory((prev) =>
+            prev.map((msg) =>
+              msg.id === aiMsgId ? markMessageAsCancelled(msg) : msg,
+            ),
+          );
+        } else {
+          const errorMsg =
+            error instanceof Error
+              ? error.message
+              : "An unknown error occurred";
+          setChatHistory((prev) =>
+            prev.map((msg) =>
+              msg.id === aiMsgId
+                ? {
+                    ...msg,
+                    content: `Error: ${errorMsg}`,
+                    isStreaming: false,
+                  }
+                : msg,
+            ),
+          );
+        }
+        setStreamingMessageId(null);
+        setAbortController(null);
+        setIsToolBasedStreaming(false);
       }
 
       setIsChatLoading(false);
     },
-    [ollamaPort, mcpTools],
+    [ollamaPort, mcpTools, chatHistory],
   );
+
+  const isStreaming = streamingMessageId !== null;
 
   return {
     chatHistory,
     isChatLoading,
+    isStreaming,
     sendChatMessage,
     clearChatHistory,
+    cancelStreaming,
   };
 }

@@ -44,12 +44,23 @@ interface ChatInputProps {
   ollamaPort: number | null;
   clearChatHistory: () => void;
   onSubmit: (message: string, model: string) => Promise<void>;
+  onStop?: () => void;
   disabled: boolean;
   mcpTools: MCPTool[];
   isLoadingTools?: boolean;
+  isStreaming?: boolean;
 }
 
-export function ChatInput({ onSubmit, clearChatHistory, disabled, ollamaPort, mcpTools, isLoadingTools = false }: ChatInputProps) {
+export function ChatInput({
+  onSubmit,
+  clearChatHistory,
+  disabled,
+  ollamaPort,
+  mcpTools,
+  isLoadingTools = false,
+  onStop,
+  isStreaming,
+}: ChatInputProps) {
   const [message, setMessage] = useState("");
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [status, setStatus] = useState<"submitted" | "streaming" | "ready" | "error">("ready");
@@ -62,6 +73,14 @@ export function ChatInput({ onSubmit, clearChatHistory, disabled, ollamaPort, mc
       setSelectedModel("");
     }
   }, [ollamaPort]);
+
+  useEffect(() => {
+    if (isStreaming) {
+      setStatus("streaming");
+    } else {
+      setStatus("ready");
+    }
+  }, [isStreaming]);
 
   useEffect(() => {
     if (availableModels.length > 0 && !selectedModel) {
@@ -257,7 +276,11 @@ export function ChatInput({ onSubmit, clearChatHistory, disabled, ollamaPort, mc
               </TooltipProvider>
             )}
           </AIInputTools>
-          <AIInputSubmit status={status} disabled={disabled || !message.trim()} />
+          <AIInputSubmit
+            status={status}
+            disabled={disabled || (!message.trim() && status !== "streaming")}
+            onClick={status === "streaming" ? onStop : undefined}
+          />
         </AIInputToolbar>
       </AIInput>
     </div>

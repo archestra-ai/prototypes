@@ -3,10 +3,14 @@ use tauri::Manager;
 use tauri::Emitter;
 use crate::utils::get_free_port;
 use crate::mcp_client::McpClientState;
-use std::sync::OnceLock;
+use std::sync::{OnceLock, Arc, Mutex};
+use tokio::sync::oneshot;
 
 // Global state for Ollama server port
 static OLLAMA_PORT: OnceLock<u16> = OnceLock::new();
+
+// Global state for streaming cancellation
+static STREAMING_CANCELLATION: OnceLock<Arc<Mutex<Option<oneshot::Sender<()>>>>> = OnceLock::new();
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct OllamaToolCall {
@@ -31,6 +35,9 @@ struct OllamaToolResponse {
 pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Result<u16, String> {
     use tauri_plugin_shell::process::CommandEvent;
 
+    // Initialize streaming cancellation state
+    STREAMING_CANCELLATION.get_or_init(|| Arc::new(Mutex::new(None)));
+
     let port = get_free_port()?;
     println!("Starting Ollama server as sidecar on port {}...", port);
 
@@ -44,7 +51,7 @@ pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Res
     match sidecar_result {
         Ok((mut rx, _child)) => {
             println!("Ollama server started successfully on port {}!", port);
-            
+
             // Store the port globally
             OLLAMA_PORT.set(port).map_err(|_| "Failed to store Ollama port")?;
 
@@ -308,6 +315,15 @@ pub async fn ollama_chat_with_tools_streaming(
 
     println!("Sending streaming request to Ollama with {} tools", ollama_tools.len());
 
+    // Create a cancellation channel
+    let (cancel_tx, mut cancel_rx) = oneshot::channel::<()>();
+
+    // Store the cancellation sender
+    if let Some(cancellation) = STREAMING_CANCELLATION.get() {
+        let mut guard = cancellation.lock().unwrap();
+        *guard = Some(cancel_tx);
+    }
+
     // Send request to Ollama with streaming
     let client = reqwest::Client::new();
     let response = client
@@ -325,9 +341,30 @@ pub async fn ollama_chat_with_tools_streaming(
     use futures_util::StreamExt;
     let mut stream = response.bytes_stream();
 
-    while let Some(chunk) = stream.next().await {
-        let chunk_bytes = chunk.map_err(|e| format!("Failed to read chunk: {}", e))?;
-        let chunk_text = String::from_utf8_lossy(&chunk_bytes);
+    loop {
+        tokio::select! {
+            // Check for cancellation
+            _ = &mut cancel_rx => {
+                println!("🛑 Streaming cancelled by user");
+
+                // Clear the cancellation sender
+                if let Some(cancellation) = STREAMING_CANCELLATION.get() {
+                    let mut guard = cancellation.lock().unwrap();
+                    *guard = None;
+                }
+
+                // Emit cancellation event
+                app.emit("ollama-cancelled", serde_json::json!({}))
+                    .map_err(|e| format!("Failed to emit cancellation event: {}", e))?;
+
+                return Ok(());
+            }
+
+            // Process streaming chunks
+            chunk_result = stream.next() => {
+                match chunk_result {
+                    Some(Ok(chunk_bytes)) => {
+                        let chunk_text = String::from_utf8_lossy(&chunk_bytes);
 
         for line in chunk_text.lines() {
             if line.trim().is_empty() {
@@ -358,12 +395,29 @@ pub async fn ollama_chat_with_tools_streaming(
                     final_message = Some(message.clone());
                 }
 
-                // If this is the final chunk, break
+                // If this is the final chunk, break the main loop
                 if chunk_data.get("done").and_then(|d| d.as_bool()).unwrap_or(false) {
                     break;
                 }
             }
         }
+                    }
+                    Some(Err(e)) => {
+                        return Err(format!("Failed to read chunk: {}", e));
+                    }
+                    None => {
+                        // Stream ended
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Clear the cancellation sender after streaming completes
+    if let Some(cancellation) = STREAMING_CANCELLATION.get() {
+        let mut guard = cancellation.lock().unwrap();
+        *guard = None;
     }
 
     // Check for tool calls in captured tool calls or final message
@@ -452,6 +506,30 @@ pub async fn ollama_chat_with_tools_streaming(
     let _ = app.emit("ollama-complete", serde_json::json!({
         "content": full_content
     }));
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn cancel_ollama_streaming() -> Result<(), String> {
+    println!("🛑 Cancel streaming requested");
+
+    if let Some(cancellation) = STREAMING_CANCELLATION.get() {
+        let mut guard = cancellation.lock().unwrap();
+        if let Some(sender) = guard.take() {
+            // Send cancellation signal
+            match sender.send(()) {
+                Ok(_) => println!("✅ Cancellation signal sent successfully"),
+                Err(_) => println!("⚠️ Cancellation signal failed (receiver may have been dropped)"),
+            }
+        } else {
+            println!("⚠️ No active streaming to cancel");
+            return Err("No active streaming to cancel".to_string());
+        }
+    } else {
+        println!("❌ Cancellation state not initialized");
+        return Err("Cancellation state not initialized".to_string());
+    }
 
     Ok(())
 }

@@ -460,7 +460,6 @@ pub async fn notify_new_mcp_tools_available(app_handle: tauri::AppHandle) -> Res
     Ok(())
 }
 
-// Legacy function exports for backward compatibility
 
 #[cfg(test)]
 mod tests {

@@ -22,3 +22,4 @@ dist-ssr
 # Serena and Claude files
 .serena/
 CLAUDE.md
+LOGGING_WORKFLOW.md

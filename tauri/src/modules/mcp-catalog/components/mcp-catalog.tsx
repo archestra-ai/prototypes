@@ -234,9 +234,8 @@ export function MCPCatalog({
           }));
           setJsonImport("");
           setActiveSection("none");
-          alert(
-            `Successfully imported ${Object.keys(validServers).length} server(s)!`,
-          );
+
+          alert(`Successfully imported ${Object.keys(validServers).length} server(s)!`);
         } catch (saveError) {
           console.error("Failed to save imported servers:", saveError);
           alert(

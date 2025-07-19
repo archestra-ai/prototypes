@@ -261,7 +261,7 @@ pub async fn save_mcp_server(
         .map_err(|e| format!("Failed to connect to database: {}", e))?;
 
     let server_config = ServerConfig {
-        transport: "stdio".to_string(), // Default to stdio for backward compatibility
+        transport: "stdio".to_string(),
         command,
         args,
         env,

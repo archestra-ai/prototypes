@@ -10,8 +10,6 @@ import {
   Power,
 } from "lucide-react";
 
-import { useOllamaServer } from "./modules/chat/contexts/ollama-server-context";
-
 import { Button } from "./components/ui/button";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { ChatContainer } from "./modules/chat/components/chat-container";
