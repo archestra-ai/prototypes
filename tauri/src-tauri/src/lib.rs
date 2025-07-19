@@ -137,6 +137,7 @@ pub fn run() {
             ollama::get_ollama_port,
             ollama::ollama_chat_with_tools,
             ollama::ollama_chat_with_tools_streaming,
+            ollama::cancel_ollama_streaming,
             models::mcp_server::save_mcp_server,
             models::mcp_server::load_mcp_servers,
             models::mcp_server::delete_mcp_server,

@@ -29,7 +29,7 @@ interface ChatContainerProps {
 export function ChatContainer({ mcpTools }: ChatContainerProps) {
   const { ollamaPort } = useOllamaServer();
 
-  const { chatHistory, isChatLoading, sendChatMessage, clearChatHistory } = usePostChatMessage({
+  const { chatHistory, isChatLoading, isStreaming, sendChatMessage, clearChatHistory, cancelStreaming } = usePostChatMessage({
     ollamaPort,
     mcpTools,
   });
@@ -153,8 +153,10 @@ export function ChatContainer({ mcpTools }: ChatContainerProps) {
         <ChatInput
           ollamaPort={ollamaPort}
           onSubmit={sendChatMessage}
+          onStop={cancelStreaming}
           clearChatHistory={clearChatHistory}
-          disabled={isChatLoading || !ollamaPort}
+          disabled={!isStreaming && (isChatLoading || !ollamaPort)}
+          isStreaming={isStreaming}
         />
       </CardContent>
     </Card>
