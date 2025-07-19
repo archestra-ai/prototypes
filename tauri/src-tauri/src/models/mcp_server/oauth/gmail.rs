@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
-use crate::models::mcp_server::{Model as McpServerModel, McpServerDefinition};
+use crate::models::mcp_server::{Model as McpServerModel, McpServerDefinition, ServerConfig};
 use crate::database::connection::get_database_connection_with_app;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -22,11 +22,16 @@ pub async fn save_gmail_tokens_to_db(app: tauri::AppHandle, tokens: GmailTokens)
         format!("--refresh-token={}", tokens.refresh_token)
     ];
 
-    let definition = McpServerDefinition {
-        name: "Gmail MCP Server".to_string(),
+    let server_config = ServerConfig {
+        transport: "stdio".to_string(),
         command: "npx".to_string(),
         args,
         env: std::collections::HashMap::new(),
+    };
+
+    let definition = McpServerDefinition {
+        name: "Gmail MCP Server".to_string(),
+        server_config,
     };
 
     McpServerModel::save_server(&conn, &definition).await
@@ -45,8 +50,8 @@ pub async fn load_gmail_tokens(app: tauri::AppHandle) -> Result<Option<GmailToke
         .map_err(|e| format!("Failed to query Gmail MCP server: {}", e))?;
 
     if let Some(server) = server {
-        // Try to parse tokens from args (first approach)
-        if let Some(tokens_json) = server.args.first() {
+        // Try to parse tokens from server_config args
+        if let Some(tokens_json) = server.server_config.args.first() {
             if let Ok(tokens) = serde_json::from_str::<GmailTokens>(tokens_json) {
                 return Ok(Some(tokens));
             }

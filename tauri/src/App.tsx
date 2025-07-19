@@ -1,6 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, Bot, Bug, Download, Settings, Power } from "lucide-react";
+import * as React from "react";
+import {
+  MessageCircle,
+  Bot,
+  Bug,
+  Download,
+  Settings,
+  Power,
+} from "lucide-react";
 
 import { useOllamaServer } from "./modules/chat/contexts/ollama-server-context";
 
@@ -9,7 +17,6 @@ import { ScrollArea } from "./components/ui/scroll-area";
 import { ChatContainer } from "./modules/chat/components/chat-container";
 import { MCPCatalog } from "./modules/mcp-catalog/components/mcp-catalog";
 import { ModelsManager } from "./modules/models/components/models-manager";
-import { OllamaServerCard } from "./modules/chat/components/ollama-server-card";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { SettingsPage } from "./components/settings/settings-page";
 
@@ -31,13 +38,17 @@ import "./index.css";
 
 function App() {
   const [mcpServers, setMcpServers] = useState<{
-    [key: string]: { command: string; args: string[] };
+    [key: string]: {
+      server_config: {
+        transport: string;
+        command: string;
+        args: string[];
+        env: { [key: string]: string };
+      };
+    };
   }>({});
-  const [mcpServerStatus, setMcpServerStatus] = useState<{
+  const [, setMcpServerStatus] = useState<{
     [key: string]: string;
-  }>({});
-  const [mcpServerLoading, setMcpServerLoading] = useState<{
-    [key: string]: boolean;
   }>({});
   const [mcpTools, setMcpTools] = useState<
     Array<{
@@ -49,31 +60,30 @@ function App() {
       };
     }>
   >([]);
-  const [mcpServerStatuses, setMcpServerStatuses] = useState<{
-    [key: string]: boolean;
-  }>({});
-  const [activeView, setActiveView] = useState<"chat" | "mcp" | "models" | "settings">("chat");
+  const [isLoadingMcpTools, setIsLoadingMcpTools] = useState(false);
+  const [activeView, setActiveView] = useState<
+    "chat" | "mcp" | "models" | "settings"
+  >("chat");
+  const [activeSubView, setActiveSubView] = useState<"ollama" | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>("");
   const [proxyRunning, setProxyRunning] = useState<boolean>(false);
   const [proxyLoading, setProxyLoading] = useState<boolean>(false);
-
-  const { isOllamaRunning } = useOllamaServer();
 
   const debugRef = useRef<HTMLDivElement>(null);
 
   const navigationItems = [
     {
-      title: "Chat with AI",
+      title: "Chat",
       icon: MessageCircle,
       key: "chat" as const,
     },
     {
-      title: "Model Library",
+      title: "LLM Providers",
       icon: Download,
       key: "models" as const,
     },
     {
-      title: "MCP Catalogs",
+      title: "Connectors",
       icon: Bot,
       key: "mcp" as const,
     },
@@ -90,28 +100,27 @@ function App() {
     // Set up periodic refresh of MCP tools for automatic discovery
     const interval = setInterval(() => {
       loadMcpTools();
-      loadMcpServerStatuses();
     }, 5000); // Refresh every 5 seconds
 
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (isOllamaRunning) {
-      autoStartMcpServers();
-    }
-  }, [isOllamaRunning]);
-
   async function loadMcpServersFromDb() {
     try {
       const servers = await invoke<{
-        [key: string]: { command: string; args: string[] };
+        [key: string]: {
+          server_config: {
+            transport: string;
+            command: string;
+            args: string[];
+            env: { [key: string]: string };
+          };
+        };
       }>("load_mcp_servers");
       setMcpServers(servers);
 
-      // Also load MCP tools and server statuses
+      // Also load MCP tools
       await loadMcpTools();
-      await loadMcpServerStatuses();
     } catch (error) {
       console.error("Failed to load MCP servers:", error);
     }
@@ -119,6 +128,7 @@ function App() {
 
   async function loadMcpTools() {
     try {
+      setIsLoadingMcpTools(true);
       const tools = await invoke<
         Array<
           [
@@ -127,7 +137,7 @@ function App() {
               name: string;
               description?: string;
               input_schema: any;
-            }
+            },
           ]
         >
       >("get_mcp_tools");
@@ -139,51 +149,9 @@ function App() {
       setMcpTools(formattedTools);
     } catch (error) {
       console.error("Failed to load MCP tools:", error);
+    } finally {
+      setIsLoadingMcpTools(false);
     }
-  }
-
-  async function loadMcpServerStatuses() {
-    try {
-      const statuses = await invoke<{
-        [key: string]: boolean;
-      }>("get_mcp_server_status");
-      setMcpServerStatuses(statuses);
-    } catch (error) {
-      console.error("Failed to load MCP server statuses:", error);
-    }
-  }
-
-  async function autoStartMcpServers() {
-    console.log("Auto-starting MCP servers...");
-
-    // Start all configured MCP servers
-    for (const [serverName, config] of Object.entries(mcpServers)) {
-      try {
-        console.log(`Auto-starting MCP server: ${serverName}`);
-        await invoke("start_persistent_mcp_server", {
-          name: serverName,
-          command: config.command,
-          args: config.args,
-        });
-
-        setMcpServerStatus((prev) => ({
-          ...prev,
-          [serverName]: "Auto-started with persistent connection",
-        }));
-      } catch (error) {
-        console.error(`Failed to auto-start MCP server ${serverName}:`, error);
-        setMcpServerStatus((prev) => ({
-          ...prev,
-          [serverName]: `Auto-start failed: ${error}`,
-        }));
-      }
-    }
-
-    // Refresh tools and statuses after starting servers
-    setTimeout(() => {
-      loadMcpTools();
-      loadMcpServerStatuses();
-    }, 3000);
   }
 
   async function debugMcpBridge() {
@@ -254,8 +222,10 @@ function App() {
       case "chat":
         return (
           <div className="space-y-6">
-            <OllamaServerCard />
-            <ChatContainer mcpTools={mcpTools} />
+            <ChatContainer
+              mcpTools={mcpTools}
+              isLoadingTools={isLoadingMcpTools}
+            />
             {debugInfo && (
               <Card ref={debugRef}>
                 <CardHeader>
@@ -282,11 +252,7 @@ function App() {
           <MCPCatalog
             mcpServers={mcpServers}
             setMcpServers={setMcpServers}
-            mcpServerStatus={mcpServerStatus}
             setMcpServerStatus={setMcpServerStatus}
-            mcpServerLoading={mcpServerLoading}
-            setMcpServerLoading={setMcpServerLoading}
-            mcpServerStatuses={mcpServerStatuses}
           />
         );
       case "settings":
@@ -305,7 +271,9 @@ function App() {
               A
             </div>
             <div className="group-data-[collapsible=icon]:hidden overflow-hidden">
-              <h2 className="text-lg font-semibold whitespace-nowrap">archestra.ai</h2>
+              <h2 className="text-lg font-semibold whitespace-nowrap">
+                archestra.ai
+              </h2>
             </div>
           </div>
         </SidebarHeader>
@@ -314,16 +282,38 @@ function App() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {navigationItems.map((item) => (
-                  <SidebarMenuItem key={item.key}>
-                    <SidebarMenuButton
-                      onClick={() => setActiveView(item.key)}
-                      isActive={activeView === item.key}
-                      tooltip={item.title}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  <React.Fragment key={item.key}>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        onClick={() => {
+                          setActiveView(item.key);
+                          if (item.key === "models") {
+                            setActiveSubView("ollama");
+                          } else {
+                            setActiveSubView(null);
+                          }
+                        }}
+                        isActive={activeView === item.key}
+                        tooltip={item.title}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    {/* Sub-navigation for LLM Providers */}
+                    {item.key === "models" && activeView === "models" && (
+                      <SidebarMenuItem className="ml-6">
+                        <SidebarMenuButton
+                          onClick={() => setActiveSubView("ollama")}
+                          isActive={activeSubView === "ollama"}
+                          size="sm"
+                          className="text-sm"
+                        >
+                          <span>Ollama</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
+                  </React.Fragment>
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -335,7 +325,14 @@ function App() {
           <SidebarTrigger className="-ml-1" />
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold">
-              {navigationItems.find(item => item.key === activeView)?.title}
+              {navigationItems.find((item) => item.key === activeView)?.title}
+              {activeView === "models" && activeSubView && (
+                <span className="text-muted-foreground ml-2">
+                  /{" "}
+                  {activeSubView.charAt(0).toUpperCase() +
+                    activeSubView.slice(1)}
+                </span>
+              )}
             </h1>
             <Button
               onClick={handleToggleProxy}
@@ -344,20 +341,25 @@ function App() {
               disabled={proxyLoading}
               title={proxyRunning ? "Stop Guardrails Proxy" : "Start MCP Proxy"}
             >
-              <Power className={`h-4 w-4 ${proxyRunning ? "text-green-400" : "text-gray-400"}`} />
+              <Power
+                className={`h-4 w-4 ${proxyRunning ? "text-green-400" : "text-gray-400"}`}
+              />
               {proxyRunning ? "Guardrails Proxy Running" : "Start MCP Proxy"}
             </Button>
             {activeView === "chat" && (
-              <Button onClick={debugMcpBridge} variant="outline" size="sm" className="flex items-center gap-2">
+              <Button
+                onClick={debugMcpBridge}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
                 <Bug className="h-4 w-4" />
                 Debug MCP Bridge
               </Button>
             )}
           </div>
         </header>
-        <main className="flex-1 space-y-4 p-4">
-          {renderContent()}
-        </main>
+        <main className="flex-1 space-y-4 p-4">{renderContent()}</main>
       </SidebarInset>
     </SidebarProvider>
   );

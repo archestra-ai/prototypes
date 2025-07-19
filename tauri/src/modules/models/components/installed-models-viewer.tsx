@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { RefreshCw, Package, Info, HardDrive } from "lucide-react";
+import { useState, useEffect } from "react";
+import { RefreshCw, Package, HardDrive, ChevronDown } from "lucide-react";
 
 import { useOllamaServer } from "../../chat/contexts/ollama-server-context";
 import { useFetchOllamaModels } from "../../chat/hooks/use-fetch-ollama-models";
@@ -10,6 +10,11 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import { ScrollArea } from "../../../components/ui/scroll-area";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "../../../components/ui/collapsible";
 
 interface ModelDetails {
   name: string;
@@ -24,9 +29,17 @@ interface ModelDetails {
 export function InstalledModelsViewer() {
   const [detailedModels, setDetailedModels] = useState<ModelDetails[]>([]);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const { ollamaPort, isOllamaRunning } = useOllamaServer();
   const { data: installedModels = [], isLoading, refetch } = useFetchOllamaModels({ ollamaPort });
+
+  // Automatically fetch detailed models when models are loaded and Ollama is running
+  useEffect(() => {
+    if (installedModels.length > 0 && isOllamaRunning && ollamaPort && detailedModels.length === 0) {
+      fetchDetailedModels();
+    }
+  }, [installedModels, isOllamaRunning, ollamaPort]);
 
   const fetchDetailedModels = async () => {
     if (!ollamaPort || !isOllamaRunning) return;
@@ -63,32 +76,40 @@ export function InstalledModelsViewer() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            <CardTitle>Currently Installed Models</CardTitle>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchDetailedModels}
-              disabled={!isOllamaRunning || isLoadingDetails}
-            >
-              <Info className="h-4 w-4 mr-2" />
-              {isLoadingDetails ? "Loading..." : "Get Details"}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={!isOllamaRunning || isLoading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
+    <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+      <Card>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                <CardTitle>Currently Installed Models</CardTitle>
+                {!isExpanded && (
+                  <div className="flex items-center gap-2 ml-2">
+                    <Badge variant="outline" className="text-xs">
+                      {installedModels.length} model{installedModels.length !== 1 ? 's' : ''}
+                    </Badge>
+                    {ollamaPort && (
+                      <Badge variant="outline" className="text-xs">
+                        Port: {ollamaPort}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+                <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+              </div>
+              <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                <Button variant="outline" size="sm" onClick={() => { refetch(); setDetailedModels([]); }} disabled={!isOllamaRunning || isLoading}>
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isLoadingDetails ? "animate-spin" : ""}`} />
+                  {isLoading || isLoadingDetails ? "Loading..." : "Refresh"}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
 
-      <CardContent>
+        <CollapsibleContent>
+          <CardContent>
         {!isOllamaRunning ? (
           <div className="text-center py-8">
             <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -172,16 +193,21 @@ export function InstalledModelsViewer() {
               </div>
             </ScrollArea>
 
-            {detailedModels.length === 0 && (
+            {isLoadingDetails && detailedModels.length === 0 && (
               <div className="text-center py-4 border-t">
-                <p className="text-sm text-muted-foreground mb-2">
-                  Click "Get Details" to see model sizes and parameters
-                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <p className="text-sm text-muted-foreground">
+                    Loading model details...
+                  </p>
+                </div>
               </div>
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }

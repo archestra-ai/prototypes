@@ -8,7 +8,7 @@ use tokio::sync::{mpsc, Mutex as TokioMutex};
 use uuid::Uuid;
 use std::time::{Duration, Instant};
 use tauri::Manager;
-use crate::node_utils;
+use crate::utils::node;
 
 pub struct McpBridgeState(pub Arc<McpBridge>);
 
@@ -112,10 +112,10 @@ impl McpBridge {
         // Handle special case for npx commands
         let (actual_command, actual_args) = if command == "npx" {
             // Detect Node.js installation
-            let node_info = node_utils::detect_node_installation();
+            let node_info = node::detect_node_installation();
             
             if !node_info.is_available() {
-                let instructions = node_utils::get_node_installation_instructions();
+                let instructions = node::get_node_installation_instructions();
                 return Err(format!("Cannot start MCP server '{}': {}", name, instructions));
             }
 
@@ -128,7 +128,7 @@ impl McpBridge {
             let remaining_args = args[1..].to_vec();
             
             // Get the execution command based on available tools
-            match node_utils::get_npm_execution_command(package_name, &node_info) {
+            match node::get_npm_execution_command(package_name, &node_info) {
                 Ok((cmd, cmd_args)) => {
                     let mut all_args = cmd_args;
                     all_args.extend(remaining_args);
@@ -1429,6 +1429,134 @@ impl McpBridge {
 
         println!("MCP server '{}' stopped successfully", server_name);
         Ok(())
+    }
+
+    pub async fn forward_raw_request(&self, server_name: &str, request_body: String) -> Result<String, String> {
+        println!("🔄 Forwarding raw request to MCP server '{}': {}", server_name, request_body);
+
+        // Verify server exists and is running, get server type
+        let server_type = {
+            let servers = self.servers.lock().unwrap();
+            if let Some(server) = servers.get(server_name) {
+                if !server.is_running {
+                    return Err(format!("MCP server '{}' is not running", server_name));
+                }
+                server.server_type.clone()
+            } else {
+                return Err(format!("MCP server '{}' not found", server_name));
+            }
+        };
+
+        // Parse the request to get the ID for response matching
+        let request_id = match serde_json::from_str::<serde_json::Value>(&request_body) {
+            Ok(json) => {
+                json.get("id")
+                    .and_then(|id| id.as_str())
+                    .unwrap_or("unknown")
+                    .to_string()
+            }
+            Err(_) => "unknown".to_string(),
+        };
+
+        // Forward request based on server type
+        match server_type {
+            ServerType::Http { url, headers } => {
+                // For HTTP servers, make direct HTTP request
+                println!("🌐 Forwarding to HTTP server at: {}", url);
+                
+                let client = reqwest::Client::new();
+                let mut req_builder = client.post(&url)
+                    .header("Content-Type", "application/json")
+                    .body(request_body);
+                
+                // Add custom headers
+                for (key, value) in &headers {
+                    req_builder = req_builder.header(key, value);
+                }
+                
+                // Send request with timeout
+                let response = req_builder
+                    .timeout(std::time::Duration::from_secs(30))
+                    .send()
+                    .await
+                    .map_err(|e| format!("HTTP request failed: {}", e))?;
+                
+                if !response.status().is_success() {
+                    return Err(format!("HTTP request failed with status: {}", response.status()));
+                }
+                
+                // Return raw response text
+                let response_text = response.text().await
+                    .map_err(|e| format!("Failed to read HTTP response: {}", e))?;
+                
+                println!("✅ Received HTTP response: {}", response_text);
+                Ok(response_text)
+            }
+            ServerType::Process => {
+                // For process servers, send via stdin and wait for stdout response
+                println!("🖥️ Forwarding to process server via stdin");
+                
+                // Send the raw request via stdin
+                let stdin_tx = {
+                    let servers = self.servers.lock().unwrap();
+                    servers.get(server_name).and_then(|s| s.stdin_tx.clone())
+                };
+                
+                if let Some(stdin_tx) = stdin_tx {
+                    let message_with_newline = format!("{}\n", request_body);
+                    stdin_tx.send(message_with_newline).await
+                        .map_err(|e| format!("Failed to send request to stdin: {}", e))?;
+                    
+                    // Wait for response in the buffer
+                    let response_buffer = {
+                        let servers = self.servers.lock().unwrap();
+                        servers.get(server_name)
+                            .map(|s| s.response_buffer.clone())
+                            .ok_or_else(|| "Server not found".to_string())?
+                    };
+                    
+                    let start_time = Instant::now();
+                    while start_time.elapsed() < REQUEST_TIMEOUT {
+                        // Check response buffer for matching response
+                        {
+                            let mut buffer = response_buffer.lock().unwrap();
+                            
+                            // Clean up old entries
+                            let now = Instant::now();
+                            buffer.retain(|entry| now.duration_since(entry.timestamp) < RESPONSE_CLEANUP_INTERVAL);
+                            
+                            // Look for matching response by ID
+                            let mut found_response = None;
+                            for (i, entry) in buffer.iter().enumerate() {
+                                // Try to parse as JSON to check ID
+                                if let Ok(response_json) = serde_json::from_str::<serde_json::Value>(&entry.content) {
+                                    if let Some(response_id) = response_json.get("id").and_then(|id| id.as_str()) {
+                                        if response_id == request_id {
+                                            found_response = Some((i, entry.content.clone()));
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Remove and return the found response
+                            if let Some((index, response_content)) = found_response {
+                                buffer.remove(index);
+                                println!("✅ Found matching response for ID '{}': {}", request_id, response_content);
+                                return Ok(response_content);
+                            }
+                        }
+                        
+                        // Wait a bit before checking again
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                    }
+                    
+                    Err(format!("Request to process server '{}' timed out after {:?}", server_name, REQUEST_TIMEOUT))
+                } else {
+                    Err(format!("No stdin channel found for server '{}'", server_name))
+                }
+            }
+        }
     }
 
     async fn start_health_monitor(&self, server_name: &str) -> Result<(), String> {

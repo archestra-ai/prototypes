@@ -8,11 +8,10 @@ use tauri_plugin_single_instance;
 
 pub mod archestra_mcp_server;
 pub mod database;
+pub mod llm_providers;
 pub mod mcp_bridge;
 pub mod mcp_proxy;
 pub mod models;
-pub mod node_utils;
-pub mod ollama;
 pub mod utils;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -86,7 +85,9 @@ pub fn run() {
             // Start Ollama server automatically on app startup
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = ollama::start_ollama_server_on_startup(app_handle).await {
+                if let Err(e) =
+                    llm_providers::ollama::start_ollama_server_on_startup(app_handle).await
+                {
                     eprintln!("Failed to start Ollama server: {}", e);
                 }
             });
@@ -134,12 +135,14 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            ollama::get_ollama_port,
-            ollama::ollama_chat_with_tools,
-            ollama::ollama_chat_with_tools_streaming,
+            llm_providers::ollama::get_ollama_port,
+            llm_providers::ollama::ollama_chat_with_tools,
+            llm_providers::ollama::ollama_chat_with_tools_streaming,
             models::mcp_server::save_mcp_server,
+            models::mcp_server::save_mcp_server_from_catalog,
             models::mcp_server::load_mcp_servers,
             models::mcp_server::delete_mcp_server,
+            models::mcp_server::get_mcp_connector_catalog,
             mcp_bridge::start_persistent_mcp_server,
             mcp_bridge::stop_persistent_mcp_server,
             mcp_bridge::get_mcp_tools,

@@ -2,7 +2,6 @@ import { useOllamaServer } from "../contexts/ollama-server-context";
 import { usePostChatMessage } from "../hooks/use-post-chat-message";
 
 import { ChatInput } from "./chat-input";
-import { Badge } from "../../../components/ui/badge";
 import { ScrollArea } from "../../../components/ui/scroll-area";
 import { AIResponse } from "../../../components/kibo/ai-response";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -24,9 +23,10 @@ interface MCPTool {
 
 interface ChatContainerProps {
   mcpTools: MCPTool[];
+  isLoadingTools?: boolean;
 }
 
-export function ChatContainer({ mcpTools }: ChatContainerProps) {
+export function ChatContainer({ mcpTools, isLoadingTools = false }: ChatContainerProps) {
   const { ollamaPort } = useOllamaServer();
 
   const { chatHistory, isChatLoading, sendChatMessage, clearChatHistory } = usePostChatMessage({
@@ -37,35 +37,7 @@ export function ChatContainer({ mcpTools }: ChatContainerProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>Chat with Ollama</span>
-          {mcpTools.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Wrench className="h-4 w-4 text-blue-600" />
-              <span className="text-sm text-muted-foreground">Tools Available</span>
-            </div>
-          )}
-        </CardTitle>
-        {mcpTools.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(
-              mcpTools.reduce((acc, tool) => {
-                if (!acc[tool.serverName]) {
-                  acc[tool.serverName] = [];
-                }
-                acc[tool.serverName].push(tool.tool.name);
-                return acc;
-              }, {} as Record<string, string[]>)
-            ).map(([serverName, toolNames]) => (
-              <Badge key={serverName} variant="outline" className="text-xs">
-                {serverName}: {toolNames.length} tool{toolNames.length !== 1 ? "s" : ""}
-              </Badge>
-            ))}
-            <Badge variant="secondary" className="text-xs">
-              Total: {mcpTools.length}
-            </Badge>
-          </div>
-        )}
+        <CardTitle>Chat</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <ScrollArea className="h-96 w-full rounded-md border p-4">
@@ -155,6 +127,8 @@ export function ChatContainer({ mcpTools }: ChatContainerProps) {
           onSubmit={sendChatMessage}
           clearChatHistory={clearChatHistory}
           disabled={isChatLoading || !ollamaPort}
+          mcpTools={mcpTools}
+          isLoadingTools={isLoadingTools}
         />
       </CardContent>
     </Card>

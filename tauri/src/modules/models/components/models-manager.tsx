@@ -4,6 +4,7 @@ import { Search, Download, Check, Loader2, HardDrive, Eye, Cpu, Clock } from "lu
 import { useOllamaServer } from "../../chat/contexts/ollama-server-context";
 import { useFetchOllamaModels } from "../../chat/hooks/use-fetch-ollama-models";
 import { InstalledModelsViewer } from "./installed-models-viewer";
+import { OllamaServerCard } from "../../chat/components/ollama-server-card";
 
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
@@ -274,13 +275,16 @@ export function ModelsManager({}: ModelsManagerProps) {
 
   return (
     <div className="space-y-6">
+      {/* Ollama Server Status */}
+      <OllamaServerCard />
+      
       {/* Installed Models Viewer */}
       <InstalledModelsViewer />
 
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Model Library</h1>
+          <h1 className="text-2xl font-bold">Ollama Model Library</h1>
           <p className="text-muted-foreground">Discover and download AI models from the Ollama library</p>
         </div>
 
