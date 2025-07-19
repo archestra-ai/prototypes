@@ -41,22 +41,6 @@ pub async fn start_oauth_auth(app: tauri::AppHandle, service: String) -> Result<
     Ok(auth_data)
 }
 
-// Backward compatibility function for Gmail
-#[tauri::command]
-pub async fn start_gmail_auth(app: tauri::AppHandle) -> Result<AuthResponse, String> {
-    start_oauth_auth(app, "gmail".to_string()).await
-}
-
-// Gmail-specific wrapper commands that delegate to the gmail module
-#[tauri::command]
-pub async fn save_gmail_tokens(app: tauri::AppHandle, tokens: gmail::GmailTokens) -> Result<(), String> {
-    gmail::save_gmail_tokens_to_db(app, tokens).await
-}
-
-#[tauri::command]
-pub async fn load_gmail_tokens(app: tauri::AppHandle) -> Result<Option<gmail::GmailTokens>, String> {
-    gmail::load_gmail_tokens(app).await
-}
 
 pub fn start_oauth_proxy(app: tauri::AppHandle) -> Result<u16, String> {
     println!("Initializing OAuth proxy...");

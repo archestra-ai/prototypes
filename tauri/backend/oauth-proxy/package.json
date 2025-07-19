@@ -1,13 +1,13 @@
 {
-  "name": "gmail-oauth-proxy",
+  "name": "oauth-proxy",
   "version": "1.0.0",
-  "description": "OAuth proxy service for Gmail MCP Server authentication",
-  "main": "server.js",
-  "bin": "server.js",
+  "description": "OAuth proxy service",
+  "main": "src/server.js",
+  "bin": "src/server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node src/server.js",
     "build": "pkg . && node build.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon src/server.js"
   },
   "dependencies": {
     "express": "^4.18.2",

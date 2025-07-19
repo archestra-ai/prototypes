@@ -336,7 +336,7 @@ pub fn create_archestra_server_config(server_name: &str) -> McpServerConfig {
 
 // Tauri commands
 #[tauri::command]
-pub async fn connect_client_by_name(app_handle: tauri::AppHandle, client_name: String) -> Result<(), String> {
+pub async fn connect_mcp_client(app_handle: tauri::AppHandle, client_name: String) -> Result<(), String> {
     use crate::database::connection::get_database_connection_with_app;
     
     let db = get_database_connection_with_app(&app_handle).await
@@ -346,7 +346,7 @@ pub async fn connect_client_by_name(app_handle: tauri::AppHandle, client_name: S
 }
 
 #[tauri::command]
-pub async fn disconnect_client_by_name(app_handle: tauri::AppHandle, client_name: String) -> Result<(), String> {
+pub async fn disconnect_mcp_client(app_handle: tauri::AppHandle, client_name: String) -> Result<(), String> {
     use crate::database::connection::get_database_connection_with_app;
     
     let db = get_database_connection_with_app(&app_handle).await
@@ -461,35 +461,6 @@ pub async fn notify_new_mcp_tools_available(app_handle: tauri::AppHandle) -> Res
 }
 
 // Legacy function exports for backward compatibility
-#[tauri::command]
-pub async fn connect_cursor_client(app_handle: tauri::AppHandle) -> Result<(), String> {
-    connect_client_by_name(app_handle, "cursor".to_string()).await
-}
-
-#[tauri::command]
-pub async fn connect_claude_desktop_client(app_handle: tauri::AppHandle) -> Result<(), String> {
-    connect_client_by_name(app_handle, "claude".to_string()).await
-}
-
-#[tauri::command]
-pub async fn connect_vscode_client(app_handle: tauri::AppHandle) -> Result<(), String> {
-    connect_client_by_name(app_handle, "vscode".to_string()).await
-}
-
-#[tauri::command]
-pub async fn disconnect_cursor_client(app_handle: tauri::AppHandle) -> Result<(), String> {
-    disconnect_client_by_name(app_handle, "cursor".to_string()).await
-}
-
-#[tauri::command]
-pub async fn disconnect_claude_desktop_client(app_handle: tauri::AppHandle) -> Result<(), String> {
-    disconnect_client_by_name(app_handle, "claude".to_string()).await
-}
-
-#[tauri::command]
-pub async fn disconnect_vscode_client(app_handle: tauri::AppHandle) -> Result<(), String> {
-    disconnect_client_by_name(app_handle, "vscode".to_string()).await
-}
 
 #[cfg(test)]
 mod tests {

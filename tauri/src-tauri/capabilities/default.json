@@ -15,7 +15,7 @@
           "args": ["serve"]
         },
         {
-          "name": "binaries/gmail-oauth-proxy",
+          "name": "binaries/oauth-proxy",
           "sidecar": true
         },
         {

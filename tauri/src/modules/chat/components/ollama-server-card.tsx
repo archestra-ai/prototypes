@@ -1,17 +1,11 @@
-import { Bot, CheckCircle, XCircle } from "lucide-react";
+import { Bot, CheckCircle } from "lucide-react";
 
-import { useOllamaServer } from "../contexts/ollama-server-context";
-
-import { Button } from "../../../components/ui/button";
+import { Badge } from "../../../components/ui/badge";
 import { Alert, AlertDescription } from "../../../components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 
-import { cn } from "../../../lib/utils";
-
 export function OllamaServerCard() {
-  const { ollamaStatus, isOllamaRunning, isStarting, isStopping, startOllamaServer, stopOllamaServer } =
-    useOllamaServer();
-
+  // Since Ollama starts automatically, we just show a status badge
   return (
     <Card>
       <CardHeader>
@@ -21,53 +15,21 @@ export function OllamaServerCard() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex gap-2">
-          {!isOllamaRunning ? (
-            <Button onClick={startOllamaServer} disabled={isStarting || isStopping} className="flex items-center gap-2">
-              {isStarting ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  Starting...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4" />
-                  Start Ollama Server
-                </>
-              )}
-            </Button>
-          ) : (
-            <Button
-              onClick={stopOllamaServer}
-              disabled={isStarting || isStopping}
-              variant="destructive"
-              className="flex items-center gap-2"
-            >
-              {isStopping ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  Stopping...
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-4 w-4" />
-                  Stop Ollama Server
-                </>
-              )}
-            </Button>
-          )}
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Running
+          </Badge>
+          <span className="text-sm text-muted-foreground">
+            Ollama server starts automatically with the application
+          </span>
         </div>
 
-        {ollamaStatus && (
-          <Alert
-            variant={ollamaStatus.includes("Error") ? "destructive" : "default"}
-            className={ollamaStatus.includes("successfully") ? "bg-green-500/10 border-green-500/20" : undefined}
-          >
-            <AlertDescription className={cn(ollamaStatus.includes("Error") ? "text-destructive" : "text-green-200")}>
-              {ollamaStatus}
-            </AlertDescription>
-          </Alert>
-        )}
+        <Alert className="bg-blue-500/10 border-blue-500/20">
+          <AlertDescription className="text-sm">
+            Local AI models are now available for chat. The Ollama server runs in the background and manages itself automatically.
+          </AlertDescription>
+        </Alert>
       </CardContent>
     </Card>
   );

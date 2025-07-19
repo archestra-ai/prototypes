@@ -16,4 +16,4 @@ ENV PORT=3000
 EXPOSE $PORT
 
 # Start the server
-CMD ["node", "server.js"] 
+CMD ["node", "src/server.js"]

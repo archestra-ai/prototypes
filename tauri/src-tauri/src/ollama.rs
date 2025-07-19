@@ -3,6 +3,10 @@ use tauri::Manager;
 use tauri::Emitter;
 use crate::utils::get_free_port;
 use crate::mcp_bridge::McpBridgeState;
+use std::sync::OnceLock;
+
+// Global state for Ollama server port
+static OLLAMA_PORT: OnceLock<u16> = OnceLock::new();
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct OllamaToolCall {
@@ -24,8 +28,7 @@ struct OllamaToolResponse {
     tool_call_id: Option<String>,
 }
 
-#[tauri::command]
-pub async fn start_ollama_server(app_handle: tauri::AppHandle) -> Result<u16, String> {
+pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Result<u16, String> {
     use tauri_plugin_shell::process::CommandEvent;
 
     let port = get_free_port()?;
@@ -41,6 +44,9 @@ pub async fn start_ollama_server(app_handle: tauri::AppHandle) -> Result<u16, St
     match sidecar_result {
         Ok((mut rx, _child)) => {
             println!("Ollama server started successfully on port {}!", port);
+            
+            // Store the port globally
+            OLLAMA_PORT.set(port).map_err(|_| "Failed to store Ollama port")?;
 
             // Handle output in background
             tauri::async_runtime::spawn(async move {
@@ -70,16 +76,9 @@ pub async fn start_ollama_server(app_handle: tauri::AppHandle) -> Result<u16, St
 }
 
 #[tauri::command]
-pub async fn stop_ollama_server() -> Result<String, String> {
-    println!("Stopping Ollama server...");
-
-    std::process::Command::new("pkill")
-        .args(&["-f", "ollama"])
-        .output()
-        .map_err(|e| format!("Failed to stop Ollama: {}", e))?;
-
-    println!("Ollama server stopped");
-    Ok("Ollama server stopped".to_string())
+pub fn get_ollama_port() -> Result<u16, String> {
+    OLLAMA_PORT.get().copied()
+        .ok_or_else(|| "Ollama server not started".to_string())
 }
 
 #[tauri::command]

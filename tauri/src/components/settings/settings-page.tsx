@@ -150,20 +150,8 @@ export function SettingsPage() {
     }));
 
     try {
-      // Call the appropriate Tauri command based on client
-      switch (clientId) {
-        case "cursor":
-          await invoke("connect_cursor_client");
-          break;
-        case "claude":
-          await invoke("connect_claude_desktop_client");
-          break;
-        case "vscode":
-          await invoke("connect_vscode_client");
-          break;
-        default:
-          throw new Error(`Unknown client: ${clientId}`);
-      }
+      // Use the generic connect_mcp_client command
+      await invoke("connect_mcp_client", { clientName: clientId });
       
       // Refresh status from database after successful connection
       const isConnected = await invoke<boolean>("check_client_connection_status", { client: clientId });
@@ -192,20 +180,8 @@ export function SettingsPage() {
     }));
 
     try {
-      // Call the appropriate Tauri command based on client
-      switch (clientId) {
-        case "cursor":
-          await invoke("disconnect_cursor_client");
-          break;
-        case "claude":
-          await invoke("disconnect_claude_desktop_client");
-          break;
-        case "vscode":
-          await invoke("disconnect_vscode_client");
-          break;
-        default:
-          throw new Error(`Unknown client: ${clientId}`);
-      }
+      // Use the generic disconnect_mcp_client command
+      await invoke("disconnect_mcp_client", { clientName: clientId });
       
       // Refresh status from database after successful disconnection
       const isConnected = await invoke<boolean>("check_client_connection_status", { client: clientId });

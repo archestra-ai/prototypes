@@ -33,10 +33,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": [
-      "binaries/ollama",
-      "binaries/gmail-oauth-proxy"
-    ]
+    "externalBin": ["binaries/ollama", "binaries/oauth-proxy"]
   },
   "plugins": {
     "deep-link": {

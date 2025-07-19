@@ -10,6 +10,7 @@ pub struct GmailTokens {
     pub expiry_date: Option<u64>,
 }
 
+#[tauri::command]
 pub async fn save_gmail_tokens_to_db(app: tauri::AppHandle, tokens: GmailTokens) -> Result<(), String> {
     let conn = get_database_connection_with_app(&app).await
         .map_err(|e| format!("Failed to get database connection: {}", e))?;
