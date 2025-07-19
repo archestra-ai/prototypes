@@ -287,6 +287,8 @@ function App() {
             mcpServerLoading={mcpServerLoading}
             setMcpServerLoading={setMcpServerLoading}
             mcpServerStatuses={mcpServerStatuses}
+            loadMcpTools={loadMcpTools}
+            loadMcpServerStatuses={loadMcpServerStatuses}
           />
         );
       case "settings":

@@ -172,14 +172,36 @@ pub async fn save_mcp_server(app: tauri::AppHandle, name: String, command: Strin
         .map_err(|e| format!("Failed to connect to database: {}", e))?;
 
     let definition = McpServerDefinition {
-        name,
-        command,
-        args,
-        env,
+        name: name.clone(),
+        command: command.clone(),
+        args: args.clone(),
+        env: env.clone(),
     };
 
     Model::save_server(&db, &definition).await
         .map_err(|e| format!("Failed to save MCP server: {}", e))?;
+
+    // Check if Ollama is running and if so, start the MCP server immediately
+    if crate::ollama::get_ollama_port().is_ok() {
+        println!("Ollama is running, starting MCP server '{}' immediately", name);
+        
+        // Start the server in the background
+        let app_clone = app.clone();
+        tauri::async_runtime::spawn(async move {
+            match crate::mcp_bridge::start_persistent_mcp_server(
+                app_clone,
+                name.clone(),
+                command,
+                args,
+                Some(env)
+            ).await {
+                Ok(_) => println!("✅ MCP server '{}' started successfully", name),
+                Err(e) => eprintln!("❌ Failed to start MCP server '{}': {}", name, e),
+            }
+        });
+    } else {
+        println!("Ollama is not running, MCP server '{}' will start when Ollama starts", name);
+    }
 
     Ok(())
 }

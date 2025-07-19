@@ -36,6 +36,8 @@ interface MCPCatalogsProps {
   mcpServerLoading: { [key: string]: boolean };
   setMcpServerLoading: React.Dispatch<React.SetStateAction<{ [key: string]: boolean }>>;
   mcpServerStatuses: { [key: string]: boolean };
+  loadMcpTools: () => Promise<void>;
+  loadMcpServerStatuses: () => Promise<void>;
 }
 
 export function MCPCatalog({
@@ -46,6 +48,8 @@ export function MCPCatalog({
   mcpServerLoading,
   setMcpServerLoading,
   mcpServerStatuses,
+  loadMcpTools,
+  loadMcpServerStatuses,
 }: MCPCatalogsProps) {
   const [currentServerName, setCurrentServerName] = useState("");
   const [currentServerCommand, setCurrentServerCommand] = useState("env");
@@ -197,6 +201,19 @@ export function MCPCatalog({
       setCurrentServerArgs("");
       setActiveSection("none");
 
+      // If Ollama is running, refresh MCP tools after a delay to allow server to start
+      try {
+        await invoke("get_ollama_port");
+        // Ollama is running, wait a bit for the server to start
+        setTimeout(async () => {
+          // Load MCP tools and server statuses
+          await loadMcpTools();
+          await loadMcpServerStatuses();
+        }, 3000); // Wait 3 seconds for server to initialize
+      } catch {
+        // Ollama not running, server will start when Ollama starts
+      }
+
       setTimeout(() => {
         if (serverListRef.current) {
           serverListRef.current.scrollIntoView({
@@ -310,6 +327,18 @@ export function MCPCatalog({
           setJsonImport("");
           setActiveSection("none");
           alert(`Successfully imported ${Object.keys(validServers).length} server(s)!`);
+
+          // If Ollama is running, refresh MCP tools after a delay to allow servers to start
+          try {
+            await invoke("get_ollama_port");
+            // Ollama is running, wait a bit for the servers to start
+            setTimeout(async () => {
+              await loadMcpTools();
+              await loadMcpServerStatuses();
+            }, 3000); // Wait 3 seconds for servers to initialize
+          } catch {
+            // Ollama not running, servers will start when Ollama starts
+          }
 
           setTimeout(() => {
             if (serverListRef.current) {
