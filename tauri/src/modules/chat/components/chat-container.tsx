@@ -12,6 +12,7 @@ import { ToolExecutionResult } from "./tool-execution-result";
 
 import { cn } from "../../../lib/utils";
 import { Wrench } from "lucide-react";
+import { CHAT_SCROLL_AREA_ID } from "../constants";
 
 interface MCPTool {
   serverName: string;
@@ -42,7 +43,9 @@ export function ChatContainer({ mcpTools }: ChatContainerProps) {
           {mcpTools.length > 0 && (
             <div className="flex items-center gap-2">
               <Wrench className="h-4 w-4 text-blue-600" />
-              <span className="text-sm text-muted-foreground">Tools Available</span>
+              <span className="text-sm text-muted-foreground">
+                Tools Available
+              </span>
             </div>
           )}
         </CardTitle>
@@ -55,10 +58,11 @@ export function ChatContainer({ mcpTools }: ChatContainerProps) {
                 }
                 acc[tool.serverName].push(tool.tool.name);
                 return acc;
-              }, {} as Record<string, string[]>)
+              }, {} as Record<string, string[]>),
             ).map(([serverName, toolNames]) => (
               <Badge key={serverName} variant="outline" className="text-xs">
-                {serverName}: {toolNames.length} tool{toolNames.length !== 1 ? "s" : ""}
+                {serverName}: {toolNames.length} tool
+                {toolNames.length !== 1 ? "s" : ""}
               </Badge>
             ))}
             <Badge variant="secondary" className="text-xs">
@@ -68,7 +72,10 @@ export function ChatContainer({ mcpTools }: ChatContainerProps) {
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        <ScrollArea className="h-96 w-full rounded-md border p-4">
+        <ScrollArea
+          id={CHAT_SCROLL_AREA_ID}
+          className="h-96 w-full rounded-md border p-4"
+        >
           <div className="space-y-4">
             {chatHistory.map((msg, index) => (
               <div
@@ -85,16 +92,23 @@ export function ChatContainer({ mcpTools }: ChatContainerProps) {
                     ? "bg-yellow-500/10 border border-yellow-500/20 text-yellow-600"
                     : msg.role === "tool"
                     ? "bg-blue-500/10 border border-blue-500/20 text-blue-600"
-                    : "bg-muted border"
+                    : "bg-muted border",
                 )}
               >
-                <div className="text-xs font-medium mb-1 opacity-70 capitalize">{msg.role}</div>
+                <div className="text-xs font-medium mb-1 opacity-70 capitalize">
+                  {msg.role}
+                </div>
                 {msg.role === "user" ? (
-                  <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                  <div className="text-sm whitespace-pre-wrap">
+                    {msg.content}
+                  </div>
                 ) : msg.role === "assistant" ? (
                   <div className="relative">
                     {(msg.isToolExecuting || msg.toolCalls) && (
-                      <ToolCallIndicator toolCalls={msg.toolCalls || []} isExecuting={!!msg.isToolExecuting} />
+                      <ToolCallIndicator
+                        toolCalls={msg.toolCalls || []}
+                        isExecuting={!!msg.isToolExecuting}
+                      />
                     )}
 
                     {msg.toolCalls && msg.toolCalls.length > 0 && (
@@ -115,9 +129,14 @@ export function ChatContainer({ mcpTools }: ChatContainerProps) {
                     )}
 
                     {msg.thinkingContent && (
-                      <AIReasoning isStreaming={msg.isThinkingStreaming} className="mb-4">
+                      <AIReasoning
+                        isStreaming={msg.isThinkingStreaming}
+                        className="mb-4"
+                      >
                         <AIReasoningTrigger />
-                        <AIReasoningContent>{msg.thinkingContent}</AIReasoningContent>
+                        <AIReasoningContent>
+                          {msg.thinkingContent}
+                        </AIReasoningContent>
                       </AIReasoning>
                     )}
 
@@ -127,7 +146,9 @@ export function ChatContainer({ mcpTools }: ChatContainerProps) {
                       <div className="flex items-center space-x-2 mt-2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                         <p className="text-muted-foreground text-sm">
-                          {msg.isToolExecuting ? "Executing tools..." : "Loading..."}
+                          {msg.isToolExecuting
+                            ? "Executing tools..."
+                            : "Loading..."}
                         </p>
                       </div>
                     )}
@@ -136,14 +157,20 @@ export function ChatContainer({ mcpTools }: ChatContainerProps) {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 mb-2">
                       <Wrench className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Tool Result</span>
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                        Tool Result
+                      </span>
                     </div>
                     <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-                      <div className="text-sm whitespace-pre-wrap font-mono">{msg.content}</div>
+                      <div className="text-sm whitespace-pre-wrap font-mono">
+                        {msg.content}
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                  <div className="text-sm whitespace-pre-wrap">
+                    {msg.content}
+                  </div>
                 )}
               </div>
             ))}

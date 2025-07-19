@@ -5,31 +5,59 @@ export interface ParsedContent {
 }
 
 export function parseThinkingContent(content: string): ParsedContent {
+  if (!content) {
+    return { thinking: "", response: "", isThinkingStreaming: false };
+  }
+
   // Handle multiple think blocks and ensure proper parsing
   const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
-  const incompleteThinkMatch = content.match(/<think>([\s\S]*)$/);
-  
+
   let thinking = "";
   let response = content;
   let isThinkingStreaming = false;
 
-  // Extract completed thinking blocks
-  const matches = [...content.matchAll(thinkRegex)];
-  if (matches.length > 0) {
-    // Extract all thinking content
-    thinking = matches.map((match) => match[1]).join("\n\n");
-    // Remove all thinking blocks from response
-    response = content.replace(thinkRegex, "").trim();
-  }
-  
+  // Extract completed thinking blocks first
+  const completedMatches = [...content.matchAll(thinkRegex)];
+  const completedThinking = completedMatches
+    .map((match) => match[1])
+    .join("\n\n");
+
+  // Remove completed thinking blocks from content
+  let contentWithoutCompleted = content.replace(thinkRegex, "");
+
   // Check for incomplete thinking block (still streaming)
-  if (incompleteThinkMatch && !content.includes("</think>")) {
-    const incompleteStart = content.indexOf("<think>");
-    if (incompleteStart !== -1) {
-      thinking = content.substring(incompleteStart + 7);
-      response = content.substring(0, incompleteStart).trim();
-      isThinkingStreaming = true;
-    }
+  const incompleteMatch = contentWithoutCompleted.match(/<think>([\s\S]*)$/);
+
+  if (incompleteMatch) {
+    // There's an incomplete thinking block
+    const incompleteThinking = incompleteMatch[1];
+    const beforeIncomplete = contentWithoutCompleted.substring(
+      0,
+      contentWithoutCompleted.indexOf("<think>"),
+    );
+
+    // Combine completed and incomplete thinking
+    thinking = completedThinking
+      ? `${completedThinking}\n\n${incompleteThinking}`
+      : incompleteThinking;
+    response = beforeIncomplete.trim();
+    isThinkingStreaming = true;
+  } else {
+    // No incomplete thinking block
+    thinking = completedThinking;
+    response = contentWithoutCompleted.trim();
+    isThinkingStreaming = false;
+  }
+
+  // Debug logging for complex cases
+  if (thinking && process.env.NODE_ENV === "development") {
+    console.log("🧠 Thinking parsed:", {
+      hasCompleted: completedMatches.length > 0,
+      hasIncomplete: !!incompleteMatch,
+      thinkingLength: thinking.length,
+      responseLength: response.length,
+      isStreaming: isThinkingStreaming,
+    });
   }
 
   return {

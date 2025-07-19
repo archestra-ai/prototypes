@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { IChatMessage, ToolCallInfo, MCPTool } from "../types";
 import { parseThinkingContent } from "../utils/thinking-parser";
 import { markMessageAsCancelled } from "../utils/message-utils";
+import { CHAT_SCROLL_AREA_SELECTOR } from "../constants";
 
 interface IArgs {
   ollamaPort: number | null;
@@ -24,9 +25,7 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
   useEffect(() => {
     const scrollToBottom = () => {
       // Find the scroll area and scroll to bottom smoothly
-      const scrollArea = document.querySelector(
-        "[data-radix-scroll-area-viewport]",
-      );
+      const scrollArea = document.querySelector(CHAT_SCROLL_AREA_SELECTOR);
       if (scrollArea) {
         scrollArea.scrollTo({
           top: scrollArea.scrollHeight,
@@ -296,8 +295,10 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
         id: aiMsgId,
         role: "assistant",
         content: "",
+        thinkingContent: "", // Ensure clean slate
         timestamp: new Date(),
         isStreaming: true,
+        isThinkingStreaming: false,
       };
       setChatHistory((prev) => [...prev, aiMessage]);
 
