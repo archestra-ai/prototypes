@@ -8,13 +8,12 @@ use tauri_plugin_single_instance;
 
 pub mod utils;
 pub mod ollama;
-pub mod mcp;
 pub mod database;
 pub mod mcp_bridge;
-pub mod oauth;
 pub mod mcp_proxy;
 pub mod node_utils;
 pub mod archestra_mcp_server;
+pub mod models;
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -38,7 +37,7 @@ pub fn run() {
               println!("SINGLE INSTANCE: Found deep link in argv: {}", arg);
               let app_handle = app.clone();
               tauri::async_runtime::spawn(async move {
-                oauth::handle_oauth_callback(app_handle, arg.to_string()).await;
+                models::mcp_server::oauth::handle_oauth_callback(app_handle, arg.to_string()).await;
               });
             }
           }
@@ -52,28 +51,30 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
-            // // Load .env file
-            // utils::load_dotenv_file()
-            //     .map_err(|e| format!("Failed to load .env file: {}", e))?;
-
             // Initialize database
-            database::migrate::init_database(app.handle().clone())
-                .map_err(|e| format!("Database error: {}", e))?;
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::block_on(async {
+                database::init_database(&app_handle).await
+                    .map_err(|e| format!("Database error: {}", e))
+            })?;
 
             // Initialize Gmail OAuth proxy
-            let _ = oauth::start_oauth_proxy(app.handle().clone());
+            let _ = models::mcp_server::oauth::start_oauth_proxy(app.handle().clone());
 
             // Initialize MCP bridge BEFORE starting servers that depend on it
             let mcp_bridge = Arc::new(mcp_bridge::McpBridge::new());
             app.manage(mcp_bridge::McpBridgeState(mcp_bridge));
 
+            // TODO: we should either remove this, or not spin up configured mcp servers specifically on ollama server
+            // startup
+            //
             // Start all persisted MCP servers
-            let app_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                if let Err(e) = mcp::start_all_mcp_servers(app_handle).await {
-                    eprintln!("Failed to start MCP servers: {}", e);
-                }
-            });
+            // let app_handle = app.handle().clone();
+            // tauri::async_runtime::spawn(async move {
+            //     if let Err(e) = mcp::start_all_mcp_servers(app_handle).await {
+            //         eprintln!("Failed to start MCP servers: {}", e);
+            //     }
+            // });
 
             // Start MCP proxy automatically on app startup
             tauri::async_runtime::spawn(async {
@@ -83,7 +84,7 @@ pub fn run() {
             // Start the Archestra MCP Server (now that MCP bridge is initialized)
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = archestra_mcp_server::server::start_archestra_mcp_server(app_handle).await {
+                if let Err(e) = archestra_mcp_server::start_archestra_mcp_server(app_handle).await {
                     eprintln!("Failed to start Archestra MCP Server: {}", e);
                 }
             });
@@ -102,7 +103,7 @@ pub fn run() {
                     println!("DEEP LINK PLUGIN: Processing URL: {}", url);
                     let app_handle = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
-                        oauth::handle_oauth_callback(app_handle, url.to_string()).await;
+                        models::mcp_server::oauth::handle_oauth_callback(app_handle, url.to_string()).await;
                     });
                 }
             });
@@ -123,27 +124,29 @@ pub fn run() {
             ollama::stop_ollama_server,
             ollama::ollama_chat_with_tools,
             ollama::ollama_chat_with_tools_streaming,
-            mcp::save_mcp_server,
-            mcp::load_mcp_servers,
-            mcp::delete_mcp_server,
+            models::mcp_server::save_mcp_server,
+            models::mcp_server::load_mcp_servers,
+            models::mcp_server::delete_mcp_server,
             mcp_bridge::start_persistent_mcp_server,
             mcp_bridge::stop_persistent_mcp_server,
             mcp_bridge::get_mcp_tools,
             mcp_bridge::get_mcp_server_status,
             mcp_bridge::execute_mcp_tool,
             mcp_bridge::debug_mcp_bridge,
-            oauth::start_gmail_auth,
-            oauth::save_gmail_tokens,
-            oauth::load_gmail_tokens,
-            oauth::check_oauth_proxy_health,
-            archestra_mcp_server::connect_cursor_client,
-            archestra_mcp_server::disconnect_cursor_client,
-            archestra_mcp_server::connect_claude_desktop_client,
-            archestra_mcp_server::disconnect_claude_desktop_client,
-            archestra_mcp_server::connect_vscode_client,
-            archestra_mcp_server::disconnect_vscode_client,
-            archestra_mcp_server::check_client_connection_status,
-            archestra_mcp_server::notify_new_mcp_tools_available,
+            models::mcp_server::oauth::start_gmail_auth,
+            models::mcp_server::oauth::save_gmail_tokens,
+            models::mcp_server::oauth::load_gmail_tokens,
+            models::mcp_server::oauth::check_oauth_proxy_health,
+            models::client_connection_config::connect_cursor_client,
+            models::client_connection_config::disconnect_cursor_client,
+            models::client_connection_config::connect_claude_desktop_client,
+            models::client_connection_config::disconnect_claude_desktop_client,
+            models::client_connection_config::connect_vscode_client,
+            models::client_connection_config::disconnect_vscode_client,
+            models::client_connection_config::connect_client_by_name,
+            models::client_connection_config::disconnect_client_by_name,
+            models::client_connection_config::check_client_connection_status,
+            models::client_connection_config::notify_new_mcp_tools_available,
             mcp_proxy::check_mcp_proxy_health,
             mcp_proxy::start_mcp_proxy,
             mcp_proxy::stop_mcp_proxy,

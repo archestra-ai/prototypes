@@ -63,11 +63,18 @@ pub struct ResponseEntry {
     pub timestamp: Instant,
 }
 
+#[derive(Debug, Clone)]
+pub enum ServerType {
+    Process,
+    Http { url: String, headers: std::collections::HashMap<String, String> },
+}
+
 #[derive(Debug)]
 pub struct McpServer {
     pub name: String,
     pub command: String,
     pub args: Vec<String>,
+    pub server_type: ServerType,
     pub tools: Vec<McpTool>,
     pub resources: Vec<McpResource>,
     pub stdin_tx: Option<mpsc::Sender<String>>,
@@ -129,6 +136,9 @@ impl McpBridge {
                 }
                 Err(e) => return Err(format!("Failed to prepare npm execution for '{}': {}", name, e))
             }
+        } else if command == "http" {
+            // Handle HTTP-based MCP server
+            return self.start_http_mcp_server(name, args, env).await;
         } else {
             (command.clone(), args.clone())
         };
@@ -254,7 +264,7 @@ impl McpBridge {
         println!("📬 Creating stdin channel for MCP server '{}' (capacity: {})", name, CHANNEL_CAPACITY);
         let (stdin_tx, mut stdin_rx) = mpsc::channel::<String>(CHANNEL_CAPACITY);
         let server_name_for_stdin = name.clone();
-        let stdin_tx_clone = stdin_tx.clone(); // Keep a clone for health monitoring
+        let _stdin_tx_clone = stdin_tx.clone(); // Keep a clone for health monitoring
         
         tokio::spawn(async move {
             println!("📡 Starting stdin writer for MCP server '{}'", server_name_for_stdin);
@@ -288,6 +298,7 @@ impl McpBridge {
             name: name.clone(),
             command: command,  // Store original command, not the resolved one
             args: args,        // Store original args
+            server_type: ServerType::Process,
             tools: Vec::new(),
             resources: Vec::new(),
             stdin_tx: Some(stdin_tx),
@@ -311,22 +322,24 @@ impl McpBridge {
         for i in 1..=5 {
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
             
-            let servers = self.servers.lock().unwrap();
-            if let Some(server) = servers.get(&name) {
-                if let Some(process_handle) = &server.process_handle {
-                    let mut child_guard = process_handle.lock().await;
-                    match child_guard.try_wait() {
-                        Ok(None) => {
-                            println!("✅ Stabilization check {}/5 passed for MCP server '{}'", i, name);
-                        }
-                        Ok(Some(status)) => {
-                            eprintln!("❌ Process exited during stabilization (check {}/5) for MCP server '{}' with status: {:?}", i, name, status);
-                            return Err(format!("MCP server '{}' process exited during stabilization with status: {:?}", name, status));
-                        }
-                        Err(e) => {
-                            eprintln!("❌ Failed to check process during stabilization (check {}/5) for MCP server '{}': {}", i, name, e);
-                            return Err(format!("Failed to check process during stabilization for MCP server '{}': {}", name, e));
-                        }
+            let process_handle = {
+                let servers = self.servers.lock().unwrap();
+                servers.get(&name).and_then(|server| server.process_handle.clone())
+            };
+            
+            if let Some(process_handle) = process_handle {
+                let mut child_guard = process_handle.lock().await;
+                match child_guard.try_wait() {
+                    Ok(None) => {
+                        println!("✅ Stabilization check {}/5 passed for MCP server '{}'", i, name);
+                    }
+                    Ok(Some(status)) => {
+                        eprintln!("❌ Process exited during stabilization (check {}/5) for MCP server '{}' with status: {:?}", i, name, status);
+                        return Err(format!("MCP server '{}' process exited during stabilization with status: {:?}", name, status));
+                    }
+                    Err(e) => {
+                        eprintln!("❌ Failed to check process during stabilization (check {}/5) for MCP server '{}': {}", i, name, e);
+                        return Err(format!("Failed to check process during stabilization for MCP server '{}': {}", name, e));
                     }
                 }
             }
@@ -334,22 +347,24 @@ impl McpBridge {
 
         // Validate process is still running before initialization
         {
-            let servers = self.servers.lock().unwrap();
-            if let Some(server) = servers.get(&name) {
-                if let Some(process_handle) = &server.process_handle {
-                    let mut child_guard = process_handle.lock().await;
-                    match child_guard.try_wait() {
-                        Ok(None) => {
-                            println!("✅ Process confirmed running before initialization for MCP server '{}'", name);
-                        }
-                        Ok(Some(status)) => {
-                            eprintln!("❌ Process exited before initialization for MCP server '{}' with status: {:?}", name, status);
-                            return Err(format!("MCP server '{}' process exited before initialization with status: {:?}", name, status));
-                        }
-                        Err(e) => {
-                            eprintln!("❌ Failed to check process status before initialization for MCP server '{}': {}", name, e);
-                            return Err(format!("Failed to check process status before initialization for MCP server '{}': {}", name, e));
-                        }
+            let process_handle = {
+                let servers = self.servers.lock().unwrap();
+                servers.get(&name).and_then(|server| server.process_handle.clone())
+            };
+            
+            if let Some(process_handle) = process_handle {
+                let mut child_guard = process_handle.lock().await;
+                match child_guard.try_wait() {
+                    Ok(None) => {
+                        println!("✅ Process confirmed running before initialization for MCP server '{}'", name);
+                    }
+                    Ok(Some(status)) => {
+                        eprintln!("❌ Process exited before initialization for MCP server '{}' with status: {:?}", name, status);
+                        return Err(format!("MCP server '{}' process exited before initialization with status: {:?}", name, status));
+                    }
+                    Err(e) => {
+                        eprintln!("❌ Failed to check process status before initialization for MCP server '{}': {}", name, e);
+                        return Err(format!("Failed to check process status before initialization for MCP server '{}': {}", name, e));
                     }
                 }
             }
@@ -459,6 +474,88 @@ impl McpBridge {
             println!("⚠️ Resource discovery failed for '{}': {} (resources are optional)", server_name, e);
         }
 
+        Ok(())
+    }
+
+    async fn start_http_mcp_server(&self, name: String, args: Vec<String>, _env: Option<std::collections::HashMap<String, String>>) -> Result<(), String> {
+        println!("🌐 Starting HTTP MCP server '{}'", name);
+        
+        if args.is_empty() {
+            return Err(format!("HTTP MCP server '{}' requires a URL as the first argument", name));
+        }
+        
+        // Parse URL and headers from args
+        let url = args[0].clone();
+        let mut headers = std::collections::HashMap::new();
+        
+        // Parse --header arguments
+        println!("🔍 Parsing args for HTTP server: {:?}", args);
+        let mut i = 1;
+        while i < args.len() {
+            if args[i] == "--header" && i + 1 < args.len() {
+                let header_str = &args[i + 1];
+                println!("🔍 Found header argument: '{}'", header_str);
+                if let Some(colon_pos) = header_str.find(':') {
+                    let key = header_str[..colon_pos].trim().to_string();
+                    let value = header_str[colon_pos + 1..].trim().to_string();
+                    println!("🔑 Parsed header - Key: '{}', Value: '{}'", key, 
+                        if key.to_lowercase().contains("auth") || key.to_lowercase().contains("token") {
+                            "***masked***"
+                        } else {
+                            &value
+                        });
+                    headers.insert(key, value);
+                } else {
+                    println!("⚠️ Header string doesn't contain ':' - skipping: '{}'", header_str);
+                }
+                i += 2;
+            } else {
+                i += 1;
+            }
+        }
+        
+        println!("📋 HTTP MCP server '{}' - URL: {}, Headers: {:?}", name, url, headers);
+        
+        // Validate URL
+        if !url.starts_with("http://") && !url.starts_with("https://") {
+            return Err(format!("HTTP MCP server '{}' requires a valid HTTP(S) URL, got: {}", name, url));
+        }
+        
+        // Create HTTP server struct
+        let server = McpServer {
+            name: name.clone(),
+            command: "http".to_string(),
+            args: args,
+            server_type: ServerType::Http { url: url.clone(), headers: headers.clone() },
+            tools: Vec::new(),
+            resources: Vec::new(),
+            stdin_tx: None, // HTTP servers don't use stdin
+            response_buffer: Arc::new(Mutex::new(VecDeque::new())),
+            process_handle: None, // HTTP servers don't have processes
+            is_running: true,
+            last_health_check: Instant::now(),
+        };
+        
+        // Store server
+        {
+            let mut servers = self.servers.lock().unwrap();
+            servers.insert(name.clone(), server);
+        }
+        
+        // Initialize HTTP server (discover tools)
+        println!("🔧 Initializing HTTP MCP server '{}'", name);
+        if let Err(e) = self.discover_tools_http(&name).await {
+            println!("⚠️ Tool discovery failed for HTTP server '{}': {}", name, e);
+            // Try to register any known tools for this server type
+            self.register_known_tools_if_available(&name).await;
+        }
+        
+        // Discover resources (optional)
+        if let Err(e) = self.discover_resources_http(&name).await {
+            println!("⚠️ Resource discovery failed for HTTP server '{}': {} (resources are optional)", name, e);
+        }
+        
+        println!("✅ HTTP MCP server '{}' started successfully", name);
         Ok(())
     }
 
@@ -721,6 +818,181 @@ impl McpBridge {
         Ok(())
     }
 
+    async fn discover_tools_http(&self, server_name: &str) -> Result<(), String> {
+        println!("🌐 Discovering tools for HTTP MCP server '{}'", server_name);
+        
+        // Get server details
+        let (url, headers) = {
+            let servers = self.servers.lock().unwrap();
+            if let Some(server) = servers.get(server_name) {
+                match &server.server_type {
+                    ServerType::Http { url, headers } => (url.clone(), headers.clone()),
+                    _ => return Err(format!("Server '{}' is not an HTTP server", server_name)),
+                }
+            } else {
+                return Err(format!("HTTP server '{}' not found", server_name));
+            }
+        };
+        
+        // Create tools/list request
+        let list_tools_request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Uuid::new_v4().to_string(),
+            method: "tools/list".to_string(),
+            params: None,
+        };
+        
+        // Send HTTP request
+        match self.send_http_request(&url, &headers, &list_tools_request).await {
+            Ok(response) => {
+                println!("✅ Received tools/list response from HTTP server '{}': {:?}", server_name, response);
+                
+                if let Some(result) = response.result {
+                    if let Ok(tools_data) = serde_json::from_value::<serde_json::Value>(result) {
+                        if let Some(tools_array) = tools_data.get("tools").and_then(|v| v.as_array()) {
+                            let mut tools = Vec::new();
+                            for tool_value in tools_array {
+                                match serde_json::from_value::<McpTool>(tool_value.clone()) {
+                                    Ok(tool) => {
+                                        println!("Successfully parsed tool: {}", tool.name);
+                                        tools.push(tool);
+                                    }
+                                    Err(e) => {
+                                        println!("Failed to parse tool: {}", e);
+                                    }
+                                }
+                            }
+                            
+                            // Update server tools
+                            {
+                                let mut servers = self.servers.lock().unwrap();
+                                if let Some(server) = servers.get_mut(server_name) {
+                                    server.tools = tools;
+                                    println!("✅ Updated tools for HTTP server '{}', total: {}", server_name, server.tools.len());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                return Err(format!("Failed to discover tools for HTTP server '{}': {}", server_name, e));
+            }
+        }
+        
+        Ok(())
+    }
+    
+    async fn discover_resources_http(&self, server_name: &str) -> Result<(), String> {
+        println!("🌐 Discovering resources for HTTP MCP server '{}'", server_name);
+        
+        // Get server details
+        let (url, headers) = {
+            let servers = self.servers.lock().unwrap();
+            if let Some(server) = servers.get(server_name) {
+                match &server.server_type {
+                    ServerType::Http { url, headers } => (url.clone(), headers.clone()),
+                    _ => return Err(format!("Server '{}' is not an HTTP server", server_name)),
+                }
+            } else {
+                return Err(format!("HTTP server '{}' not found", server_name));
+            }
+        };
+        
+        // Create resources/list request
+        let list_resources_request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Uuid::new_v4().to_string(),
+            method: "resources/list".to_string(),
+            params: None,
+        };
+        
+        // Send HTTP request
+        match self.send_http_request(&url, &headers, &list_resources_request).await {
+            Ok(response) => {
+                println!("✅ Received resources/list response from HTTP server '{}': {:?}", server_name, response);
+                
+                if let Some(result) = response.result {
+                    if let Ok(resources_data) = serde_json::from_value::<serde_json::Value>(result) {
+                        if let Some(resources_array) = resources_data.get("resources").and_then(|v| v.as_array()) {
+                            let mut resources = Vec::new();
+                            for resource_value in resources_array {
+                                match serde_json::from_value::<McpResource>(resource_value.clone()) {
+                                    Ok(resource) => {
+                                        println!("Successfully parsed resource: {}", resource.uri);
+                                        resources.push(resource);
+                                    }
+                                    Err(e) => {
+                                        println!("Failed to parse resource: {}", e);
+                                    }
+                                }
+                            }
+                            
+                            // Update server resources
+                            {
+                                let mut servers = self.servers.lock().unwrap();
+                                if let Some(server) = servers.get_mut(server_name) {
+                                    server.resources = resources;
+                                    println!("✅ Updated resources for HTTP server '{}', total: {}", server_name, server.resources.len());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                // Non-fatal error - resources are optional
+                println!("⚠️ Failed to get resources list for HTTP server '{}' (may not be supported): {}", server_name, e);
+            }
+        }
+        
+        Ok(())
+    }
+    
+    async fn send_http_request(&self, url: &str, headers: &std::collections::HashMap<String, String>, request: &JsonRpcRequest) -> Result<JsonRpcResponse, String> {
+        let client = reqwest::Client::new();
+        let request_json = serde_json::to_string(request)
+            .map_err(|e| format!("Failed to serialize request: {}", e))?;
+        
+        println!("🌐 Sending HTTP request to {}: {}", url, request_json);
+        
+        // Build the HTTP request
+        let mut req_builder = client.post(url)
+            .header("Content-Type", "application/json")
+            .body(request_json);
+        
+        // Add custom headers
+        for (key, value) in headers {
+            println!("🔑 Adding header: {} = {}", key, 
+                if key.to_lowercase().contains("auth") || key.to_lowercase().contains("token") {
+                    "***masked***"
+                } else {
+                    value
+                });
+            req_builder = req_builder.header(key, value);
+        }
+        
+        // Send request with timeout
+        let response = req_builder
+            .timeout(std::time::Duration::from_secs(30))
+            .send()
+            .await
+            .map_err(|e| format!("HTTP request failed: {}", e))?;
+        
+        if !response.status().is_success() {
+            return Err(format!("HTTP request failed with status: {}", response.status()));
+        }
+        
+        // Parse response
+        let response_text = response.text().await
+            .map_err(|e| format!("Failed to read response: {}", e))?;
+        
+        println!("✅ Received HTTP response: {}", response_text);
+        
+        serde_json::from_str::<JsonRpcResponse>(&response_text)
+            .map_err(|e| format!("Failed to parse JSON-RPC response: {}", e))
+    }
+
     async fn send_request(&self, server_name: &str, request: &JsonRpcRequest) -> Result<(), String> {
         let request_json = serde_json::to_string(request)
             .map_err(|e| format!("Failed to serialize request: {}", e))?;
@@ -908,8 +1180,8 @@ impl McpBridge {
     pub async fn execute_tool(&self, server_name: &str, tool_name: &str, arguments: serde_json::Value) -> Result<serde_json::Value, String> {
         println!("🔧 Executing tool '{}' on server '{}' with args: {}", tool_name, server_name, arguments);
 
-        // Verify server is running
-        {
+        // Verify server is running and get server type
+        let server_type = {
             let servers = self.servers.lock().unwrap();
             if let Some(server) = servers.get(server_name) {
                 if !server.is_running {
@@ -925,10 +1197,12 @@ impl McpBridge {
                         println!("🔧 Tool '{}' not in pre-discovered tools for '{}', attempting dynamic execution", tool_name, server_name);
                     }
                 }
+                
+                server.server_type.clone()
             } else {
                 return Err(format!("MCP server '{}' not found", server_name));
             }
-        }
+        };
 
         let tool_request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
@@ -940,7 +1214,19 @@ impl McpBridge {
             })),
         };
 
-        match self.send_request_with_retry(server_name, &tool_request, 2).await {
+        // Execute tool based on server type
+        let response = match server_type {
+            ServerType::Http { url, headers } => {
+                // For HTTP servers, send request directly via HTTP
+                self.send_http_request(&url, &headers, &tool_request).await
+            }
+            ServerType::Process => {
+                // For process servers, send via stdin/stdout
+                self.send_request_with_retry(server_name, &tool_request, 2).await
+            }
+        };
+
+        match response {
             Ok(response) => {
                 if let Some(error) = response.error {
                     Err(format!("Tool execution error: {} (code: {})", error.message, error.code))
@@ -1015,24 +1301,49 @@ impl McpBridge {
         let mut debug_info = Vec::new();
 
         for (name, server) in servers.iter() {
-            let mut server_info = format!("🖥️ Server '{}': Command: {} {:?}",
-                name, server.command, server.args);
+            let mut server_info = match &server.server_type {
+                ServerType::Http { url, headers: _ } => {
+                    format!("🌐 HTTP Server '{}': URL: {}", name, url)
+                }
+                ServerType::Process => {
+                    format!("🖥️ Process Server '{}': Command: {} {:?}", name, server.command, server.args)
+                }
+            };
+            
             server_info.push_str(&format!("\n  🏃 Running: {}", server.is_running));
             server_info.push_str(&format!("\n  🔧 Tools Count: {}", server.tools.len()));
             server_info.push_str(&format!("\n  📁 Resources Count: {}", server.resources.len()));
             
-            // Stdin channel info
-            if let Some(ref stdin_tx) = server.stdin_tx {
-                server_info.push_str(&format!("\n  📬 Stdin channel: ✅ Active"));
-                server_info.push_str(&format!("\n    - Capacity: {}", stdin_tx.capacity()));
-                server_info.push_str(&format!("\n    - Max capacity: {}", stdin_tx.max_capacity()));
-                server_info.push_str(&format!("\n    - Is closed: {}", stdin_tx.is_closed()));
-            } else {
-                server_info.push_str(&format!("\n  📬 Stdin channel: ❌ None"));
+            // Server type specific info
+            match &server.server_type {
+                ServerType::Http { url: _, headers } => {
+                    server_info.push_str(&format!("\n  🌐 HTTP Headers: {} configured", headers.len()));
+                    if !headers.is_empty() {
+                        for (key, value) in headers.iter() {
+                            let masked_value = if key.to_lowercase().contains("auth") || key.to_lowercase().contains("token") {
+                                "***masked***"
+                            } else {
+                                value
+                            };
+                            server_info.push_str(&format!("\n    - {}: {}", key, masked_value));
+                        }
+                    }
+                }
+                ServerType::Process => {
+                    // Stdin channel info (only for process servers)
+                    if let Some(ref stdin_tx) = server.stdin_tx {
+                        server_info.push_str(&format!("\n  📬 Stdin channel: ✅ Active"));
+                        server_info.push_str(&format!("\n    - Capacity: {}", stdin_tx.capacity()));
+                        server_info.push_str(&format!("\n    - Max capacity: {}", stdin_tx.max_capacity()));
+                        server_info.push_str(&format!("\n    - Is closed: {}", stdin_tx.is_closed()));
+                    } else {
+                        server_info.push_str(&format!("\n  📬 Stdin channel: ❌ None"));
+                    }
+                    
+                    server_info.push_str(&format!("\n  🔄 Process handle: {}", 
+                        if server.process_handle.is_some() { "✅ Available" } else { "❌ None" }));
+                }
             }
-            
-            server_info.push_str(&format!("\n  🔄 Process handle: {}", 
-                if server.process_handle.is_some() { "✅ Available" } else { "❌ None" }));
             
             server_info.push_str(&format!("\n  ⏰ Last health check: {:?} ago", 
                 Instant::now().duration_since(server.last_health_check)));
@@ -1296,7 +1607,11 @@ pub async fn debug_mcp_bridge(app: tauri::AppHandle) -> Result<String, String> {
     }
 
     debug_info.push_str("\n=== Detailed Server Info ===\n");
-    debug_info.push_str(&format!("{:#?}", bridge_state.0.get_debug_server_info()));
+    let server_info_list = bridge_state.0.get_debug_server_info();
+    for server_info in server_info_list {
+        debug_info.push_str(&server_info);
+        debug_info.push_str("\n\n");
+    }
 
     Ok(debug_info)
 }

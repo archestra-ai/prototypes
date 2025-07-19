@@ -141,7 +141,40 @@ export function MCPCatalog({
       return;
     }
 
-    const args = currentServerArgs.trim() ? currentServerArgs.split(" ").filter((arg) => arg.trim()) : [];
+    // Parse arguments respecting quotes
+    const parseArgs = (argString: string): string[] => {
+      const args: string[] = [];
+      let current = '';
+      let inQuote = false;
+      let quoteChar = '';
+      
+      for (let i = 0; i < argString.length; i++) {
+        const char = argString[i];
+        
+        if ((char === '"' || char === "'") && !inQuote) {
+          inQuote = true;
+          quoteChar = char;
+        } else if (char === quoteChar && inQuote) {
+          inQuote = false;
+          quoteChar = '';
+        } else if (char === ' ' && !inQuote) {
+          if (current.trim()) {
+            args.push(current.trim());
+            current = '';
+          }
+        } else {
+          current += char;
+        }
+      }
+      
+      if (current.trim()) {
+        args.push(current.trim());
+      }
+      
+      return args;
+    };
+    
+    const args = currentServerArgs.trim() ? parseArgs(currentServerArgs) : [];
 
     try {
       await invoke("save_mcp_server", {
@@ -522,7 +555,9 @@ export function MCPCatalog({
                           id="server-args"
                           value={currentServerArgs}
                           onChange={(e) => setCurrentServerArgs(e.target.value)}
-                          placeholder="e.g., GITHUB_PERSONAL_ACCESS_TOKEN=token npx -y @modelcontextprotocol/server-github"
+                          placeholder={currentServerCommand === "http" 
+                            ? "e.g., https://api.githubcopilot.com/mcp/ --header 'Authorization: Bearer your-token'"
+                            : "e.g., GITHUB_PERSONAL_ACCESS_TOKEN=token npx -y @modelcontextprotocol/server-github"}
                         />
                       </div>
                       <div className="space-y-2">
@@ -535,6 +570,7 @@ export function MCPCatalog({
                             <SelectItem value="env">env</SelectItem>
                             <SelectItem value="npx">npx</SelectItem>
                             <SelectItem value="node">node</SelectItem>
+                            <SelectItem value="http">http</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

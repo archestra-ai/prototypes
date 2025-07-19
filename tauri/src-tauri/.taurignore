@@ -1,7 +1,0 @@
-# Ignore database files from Tauri's file watcher
-mcp_servers.db
-mcp_servers.db-shm
-mcp_servers.db-wal
-*.db
-*.db-shm
-*.db-wal

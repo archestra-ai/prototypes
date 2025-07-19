@@ -5,7 +5,8 @@ use tauri_plugin_shell::process::CommandEvent;
 use crate::utils::get_free_port;
 use tauri_plugin_opener::OpenerExt;
 use tauri::Emitter;
-use crate::database::connection::get_database_connection_with_app;
+
+pub mod gmail;
 
 // Global state for OAuth proxy
 static OAUTH_PROXY_PORT: OnceLock<u16> = OnceLock::new();
@@ -48,40 +49,53 @@ pub async fn start_gmail_auth(app: tauri::AppHandle) -> Result<AuthResponse, Str
 }
 
 #[tauri::command]
-pub fn save_gmail_tokens(app: tauri::AppHandle, tokens: GmailTokens) -> Result<(), String> {
-    let conn = get_database_connection_with_app(&app).map_err(|e| format!("Failed to get database connection: {}", e))?;
+pub async fn save_gmail_tokens(app: tauri::AppHandle, tokens: GmailTokens) -> Result<(), String> {
+    use crate::models::mcp_server::{Model as McpServerModel, McpServerDefinition};
+    use crate::database::connection::get_database_connection_with_app;
+    
+    let conn = get_database_connection_with_app(&app).await.map_err(|e| format!("Failed to get database connection: {}", e))?;
 
     // Save tokens as JSON in the args field of the MCP server record
     let tokens_json = serde_json::to_string(&tokens)
         .map_err(|e| format!("Failed to serialize tokens: {}", e))?;
 
-    // Insert or replace the Gmail MCP server with tokens
-    conn.execute(
-        "INSERT OR REPLACE INTO mcp_servers (name, command, args) VALUES (?1, ?2, ?3)",
-        ["Gmail MCP Server", "npx", &tokens_json],
-    ).map_err(|e| format!("Failed to save Gmail MCP server: {}", e))?;
+    // Create MCP server definition for Gmail
+    let definition = McpServerDefinition {
+        name: "Gmail MCP Server".to_string(),
+        command: "npx".to_string(),
+        args: vec![tokens_json],
+        env: std::collections::HashMap::new(),
+    };
+
+    McpServerModel::save_server(&conn, &definition).await
+        .map_err(|e| format!("Failed to save Gmail MCP server: {}", e))?;
 
     Ok(())
 }
 
-pub fn save_gmail_tokens_to_db(app: tauri::AppHandle, tokens: GmailTokens) -> Result<(), String> {
+pub async fn save_gmail_tokens_to_db(app: tauri::AppHandle, tokens: GmailTokens) -> Result<(), String> {
+    use crate::models::mcp_server::{Model as McpServerModel, McpServerDefinition};
     use crate::database::connection::get_database_connection_with_app;
 
-    let conn = get_database_connection_with_app(&app)
+    let conn = get_database_connection_with_app(&app).await
         .map_err(|e| format!("Failed to get database connection: {}", e))?;
 
     // Create the MCP server args with proper formatting
-    let args_json = serde_json::to_string(&[
+    let args = vec![
         "@gongrzhe/server-gmail-autoauth-mcp".to_string(),
         format!("--access-token={}", tokens.access_token),
         format!("--refresh-token={}", tokens.refresh_token)
-    ]).map_err(|e| format!("Failed to serialize args: {}", e))?;
+    ];
 
-    // Insert or replace the Gmail MCP server with tokens
-    conn.execute(
-        "INSERT OR REPLACE INTO mcp_servers (name, command, args) VALUES (?1, ?2, ?3)",
-        ["Gmail MCP Server", "npx", &args_json],
-    ).map_err(|e| format!("Failed to save Gmail MCP server: {}", e))?;
+    let definition = McpServerDefinition {
+        name: "Gmail MCP Server".to_string(),
+        command: "npx".to_string(),
+        args,
+        env: std::collections::HashMap::new(),
+    };
+
+    McpServerModel::save_server(&conn, &definition).await
+        .map_err(|e| format!("Failed to save Gmail MCP server: {}", e))?;
 
     println!("Successfully saved Gmail MCP server to database");
 
@@ -89,27 +103,25 @@ pub fn save_gmail_tokens_to_db(app: tauri::AppHandle, tokens: GmailTokens) -> Re
 }
 
 #[tauri::command]
-pub fn load_gmail_tokens(app: tauri::AppHandle) -> Result<Option<GmailTokens>, String> {
-    let conn = get_database_connection_with_app(&app).map_err(|e| format!("Failed to get database connection: {}", e))?;
+pub async fn load_gmail_tokens(app: tauri::AppHandle) -> Result<Option<GmailTokens>, String> {
+    use crate::models::mcp_server::Model as McpServerModel;
+    use crate::database::connection::get_database_connection_with_app;
 
-    // Query for Gmail MCP server tokens
-    let mut stmt = conn.prepare("SELECT args FROM mcp_servers WHERE name = 'Gmail MCP Server'")
-        .map_err(|e| format!("Failed to prepare query: {}", e))?;
+    let conn = get_database_connection_with_app(&app).await.map_err(|e| format!("Failed to get database connection: {}", e))?;
 
-    let mut rows = stmt.query([])
-        .map_err(|e| format!("Failed to execute query: {}", e))?;
+    let server = McpServerModel::find_by_name(&conn, "Gmail MCP Server").await
+        .map_err(|e| format!("Failed to query Gmail MCP server: {}", e))?;
 
-    if let Some(row) = rows.next().map_err(|e| format!("Failed to get row: {}", e))? {
-        let tokens_json: String = row.get(0)
-            .map_err(|e| format!("Failed to get tokens from row: {}", e))?;
-
-        let tokens: GmailTokens = serde_json::from_str(&tokens_json)
-            .map_err(|e| format!("Failed to parse tokens: {}", e))?;
-
-        Ok(Some(tokens))
-    } else {
-        Ok(None)
+    if let Some(server) = server {
+        // Try to parse tokens from args (first approach)
+        if let Some(tokens_json) = server.args.first() {
+            if let Ok(tokens) = serde_json::from_str::<GmailTokens>(tokens_json) {
+                return Ok(Some(tokens));
+            }
+        }
     }
+    
+    Ok(None)
 }
 
 pub fn start_oauth_proxy(app: tauri::AppHandle) -> Result<u16, String> {
@@ -201,7 +213,7 @@ pub async fn handle_oauth_callback(app: tauri::AppHandle, url: String) {
             };
 
             // Save tokens to database
-            if let Err(e) = save_gmail_tokens_to_db(app.clone(), tokens.clone()) {
+            if let Err(e) = save_gmail_tokens_to_db(app.clone(), tokens.clone()).await {
                 eprintln!("Failed to save Gmail tokens: {}", e);
                 // Emit error to frontend
                 let _ = app.emit("oauth-error", format!("Failed to save tokens: {}", e));

@@ -1,0 +1,5 @@
+auto_discover = true
+session_management = true
+event_streaming = false
+performance_profiling = false
+network_interception = false

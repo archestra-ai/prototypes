@@ -23,13 +23,12 @@ tauri-plugin-single-instance = { version = "2.0.0", features = ["deep-link"] }
 
 [dependencies]
 tokio = { version = "1.37", features = ["process", "io-util", "macros", "rt-multi-thread", "io-std"] }
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["test"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-shell = "2"
 tauri-plugin-fs = "2"
-rusqlite = { version = "0.37", features = ["bundled"] }
 uuid = { version = "1.0", features = ["v4"] }
 reqwest = { version = "0.12", features = ["json", "stream", "blocking"] }
 futures-util = "0.3"
@@ -45,4 +44,9 @@ bytes = "1.10.1"
 async-stream = "0.3.6"
 http-body-util = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
-rusqlite_migration = "2.3.0"
+sea-orm = { version = "1.0", features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros", "with-chrono"] }
+sea-orm-migration = { version = "1.0", features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
+
+[dev-dependencies]
+tauri-mcp = "0.1"
+tempfile = "3.8"
