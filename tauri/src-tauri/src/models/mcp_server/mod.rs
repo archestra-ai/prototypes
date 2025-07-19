@@ -2,7 +2,6 @@ use sea_orm::entity::prelude::*;
 use sea_orm::{DeleteResult, Set};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
 
 pub mod oauth;
 pub mod sandbox;
@@ -15,6 +14,7 @@ pub struct Model {
     #[sea_orm(unique)]
     pub name: String,
     pub server_config: String, // JSON string containing ServerConfig
+    pub meta: Option<String>, // JSON string containing additional metadata
     pub created_at: DateTimeUtc,
 }
 
@@ -35,6 +35,7 @@ pub struct ServerConfig {
 pub struct McpServerDefinition {
     pub name: String,
     pub server_config: ServerConfig,
+    pub meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,6 +59,40 @@ pub struct ConnectorCatalog {
 }
 
 impl Model {
+    /// Save an MCP server definition to the database (without starting it)
+    pub async fn save_server_without_lifecycle(
+        db: &DatabaseConnection,
+        definition: &McpServerDefinition,
+    ) -> Result<Model, DbErr> {
+        let server_config_json = serde_json::to_string(&definition.server_config)
+            .map_err(|e| DbErr::Custom(format!("Failed to serialize server_config: {}", e)))?;
+
+        let meta_json = if let Some(meta) = &definition.meta {
+            Some(serde_json::to_string(meta)
+                .map_err(|e| DbErr::Custom(format!("Failed to serialize meta: {}", e)))?)
+        } else {
+            None
+        };
+
+        let active_model = ActiveModel {
+            name: Set(definition.name.clone()),
+            server_config: Set(server_config_json),
+            meta: Set(meta_json),
+            created_at: Set(chrono::Utc::now()),
+            ..Default::default()
+        };
+
+        // Use on_conflict to handle upsert by name
+        Entity::insert(active_model)
+            .on_conflict(
+                sea_orm::sea_query::OnConflict::column(Column::Name)
+                    .update_columns([Column::ServerConfig, Column::Meta])
+                    .to_owned(),
+            )
+            .exec_with_returning(db)
+            .await
+    }
+
     /// Save an MCP server definition to the database and start it
     pub async fn save_server(
         db: &DatabaseConnection,
@@ -75,25 +110,8 @@ impl Model {
             }
         }
         
-        let server_config_json = serde_json::to_string(&definition.server_config)
-            .map_err(|e| DbErr::Custom(format!("Failed to serialize server_config: {}", e)))?;
-
-        let active_model = ActiveModel {
-            name: Set(definition.name.clone()),
-            server_config: Set(server_config_json),
-            created_at: Set(chrono::Utc::now()),
-            ..Default::default()
-        };
-
-        // Use on_conflict to handle upsert by name
-        let result = Entity::insert(active_model)
-            .on_conflict(
-                sea_orm::sea_query::OnConflict::column(Column::Name)
-                    .update_columns([Column::ServerConfig])
-                    .to_owned(),
-            )
-            .exec_with_returning(db)
-            .await?;
+        // Save to database
+        let result = Self::save_server_without_lifecycle(db, definition).await?;
 
         // Start the server after saving
         if let Err(e) = sandbox::start_mcp_server(app_handle, definition).await {
@@ -120,9 +138,21 @@ impl Model {
                     ))
                 })?;
 
+            let meta = if let Some(meta_json) = &model.meta {
+                Some(serde_json::from_str(meta_json).map_err(|e| {
+                    DbErr::Custom(format!(
+                        "Failed to parse meta for {}: {}",
+                        model.name, e
+                    ))
+                })?)
+            } else {
+                None
+            };
+
             let definition = McpServerDefinition {
                 name: model.name.clone(),
                 server_config,
+                meta,
             };
 
             servers.insert(model.name, definition);
@@ -162,9 +192,17 @@ impl Model {
             let server_config: ServerConfig = serde_json::from_str(&model.server_config)
                 .map_err(|e| DbErr::Custom(format!("Failed to parse server_config: {}", e)))?;
 
+            let meta = if let Some(meta_json) = &model.meta {
+                Some(serde_json::from_str(meta_json)
+                    .map_err(|e| DbErr::Custom(format!("Failed to parse meta: {}", e)))?)
+            } else {
+                None
+            };
+
             Ok(Some(McpServerDefinition {
                 name: model.name,
                 server_config,
+                meta,
             }))
         } else {
             Ok(None)
@@ -176,18 +214,31 @@ impl Model {
         let server_config: ServerConfig = serde_json::from_str(&self.server_config)
             .map_err(|e| format!("Failed to parse server_config: {}", e))?;
 
+        let meta = if let Some(meta_json) = &self.meta {
+            Some(serde_json::from_str(meta_json)
+                .map_err(|e| format!("Failed to parse meta: {}", e))?)
+        } else {
+            None
+        };
+
         Ok(McpServerDefinition {
             name: self.name,
             server_config,
+            meta,
         })
     }
 }
 
 impl From<McpServerDefinition> for ActiveModel {
     fn from(definition: McpServerDefinition) -> Self {
+        let meta_json = definition.meta.map(|meta| 
+            serde_json::to_string(&meta).unwrap_or_default()
+        );
+        
         ActiveModel {
             name: Set(definition.name),
             server_config: Set(serde_json::to_string(&definition.server_config).unwrap_or_default()),
+            meta: Set(meta_json),
             created_at: Set(chrono::Utc::now()),
             ..Default::default()
         }
@@ -219,6 +270,7 @@ pub async fn save_mcp_server(
     let definition = McpServerDefinition {
         name,
         server_config,
+        meta: None,
     };
 
     Model::save_server(&db, &app, &definition)
@@ -252,6 +304,7 @@ pub async fn save_mcp_server_from_catalog(
     let definition = McpServerDefinition {
         name: connector.title.clone(),
         server_config: connector.server_config.clone(),
+        meta: None,
     };
 
     Model::save_server(&db, &app, &definition)
@@ -284,7 +337,7 @@ pub async fn delete_mcp_server(app: tauri::AppHandle, name: String) -> Result<()
         .await
         .map_err(|e| format!("Failed to connect to database: {}", e))?;
 
-    Model::delete_by_name(&db, &name)
+    Model::delete_by_name(&db, &app, &name)
         .await
         .map_err(|e| format!("Failed to delete MCP server: {}", e))?;
 
@@ -337,15 +390,7 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
                 "🚀 Starting MCP server '{}' (server #{} of total)",
                 server_name, server_count
             );
-            match crate::mcp_bridge::start_persistent_mcp_server(
-                app_clone,
-                server_name.clone(),
-                config.server_config.command,
-                config.server_config.args,
-                Some(config.server_config.env),
-            )
-            .await
-            {
+            match sandbox::start_mcp_server(&app_clone, &config).await {
                 Ok(_) => println!("✅ MCP server '{}' started successfully", server_name),
                 Err(e) => eprintln!("❌ Failed to start MCP server '{}': {}", server_name, e),
             }
@@ -381,9 +426,10 @@ mod tests {
         let definition = McpServerDefinition {
             name: "test_server".to_string(),
             server_config,
+            meta: None,
         };
 
-        let result = Model::save_server(&db, &definition).await;
+        let result = Model::save_server_without_lifecycle(&db, &definition).await;
         assert!(result.is_ok());
     }
 
@@ -395,6 +441,7 @@ mod tests {
             id: 1,
             name: "test_server".to_string(),
             server_config: server_config_json.to_string(),
+            meta: None,
             created_at: chrono::Utc::now(),
         };
 

@@ -300,11 +300,11 @@ pub fn write_config_file(path: &PathBuf, config: &Value) -> Result<(), String> {
 
 pub async fn get_available_mcp_servers(app_handle: &tauri::AppHandle) -> Result<Vec<String>, String> {
     // Get all available MCP servers from the bridge
-    use crate::mcp_bridge::McpBridgeState;
+    use crate::mcp_client::McpClientState;
     
-    println!("🔍 Getting available MCP servers from bridge...");
-    let bridge_state = app_handle.state::<McpBridgeState>();
-    let all_tools = bridge_state.0.get_all_tools();
+    println!("🔍 Getting available MCP servers from client...");
+    let client_state = app_handle.state::<McpClientState>();
+    let all_tools = client_state.0.get_all_tools();
     
     // Extract unique server names
     let mut server_names: Vec<String> = all_tools.into_iter()

@@ -1,6 +1,5 @@
-// Server functionality is implemented directly in this module
-
-use crate::mcp_bridge::{McpBridge, McpBridgeState};
+use crate::mcp_client::{McpClient, McpClientState};
+use crate::models::mcp_server::sandbox::forward_raw_request;
 use http_body_util::BodyExt;
 use hyper::service::service_fn;
 use hyper::{body::Incoming, Method, Request, Response, StatusCode};
@@ -39,7 +38,7 @@ pub struct ArchestraResource {
 pub struct ArchestraServer {
     context: Arc<Mutex<ArchestraContext>>,
     resources: Arc<Mutex<HashMap<String, ArchestraResource>>>,
-    mcp_bridge: Option<Arc<McpBridge>>,
+    mcp_client: Option<Arc<McpClient>>,
 }
 
 impl ArchestraServer {
@@ -77,12 +76,12 @@ impl ArchestraServer {
                 active_models: vec![],
             })),
             resources: Arc::new(Mutex::new(resources)),
-            mcp_bridge: None,
+            mcp_client: None,
         }
     }
 
-    pub fn set_mcp_bridge(&mut self, mcp_bridge: Arc<McpBridge>) {
-        self.mcp_bridge = Some(mcp_bridge);
+    pub fn set_mcp_client(&mut self, mcp_client: Arc<McpClient>) {
+        self.mcp_client = Some(mcp_client);
     }
 
     pub async fn handle_mcp_request(&self, request: Value) -> Result<Value, String> {
@@ -309,65 +308,49 @@ impl ArchestraServer {
             }
         };
 
-        // Forward the request AS-IS to the MCP bridge
-        if let Some(mcp_bridge) = &self.mcp_bridge {
-            // Convert bytes to string for MCP bridge
-            let request_body = match String::from_utf8(body_bytes.to_vec()) {
-                Ok(body) => body,
-                Err(_) => {
-                    return Ok(response
-                        .status(StatusCode::BAD_REQUEST)
-                        .body("Invalid UTF-8 in request body".to_string())
-                        .unwrap());
-                }
-            };
+        // Convert bytes to string
+        let request_body = match String::from_utf8(body_bytes.to_vec()) {
+            Ok(body) => body,
+            Err(_) => {
+                return Ok(response
+                    .status(StatusCode::BAD_REQUEST)
+                    .body("Invalid UTF-8 in request body".to_string())
+                    .unwrap());
+            }
+        };
 
-            // Forward the raw JSON-RPC request to the specified server
-            match mcp_bridge.forward_raw_request(&server_name, request_body).await {
-                Ok(raw_response) => {
-                    return Ok(response
-                        .status(StatusCode::OK)
-                        .header("Content-Type", "application/json")
-                        .body(raw_response)
-                        .unwrap());
-                }
-                Err(e) => {
-                    println!("MCP Server Proxy: Failed to forward request to '{}': {}", server_name, e);
-                    
-                    // Return a JSON-RPC error response
-                    let error_response = serde_json::json!({
-                        "jsonrpc": "2.0",
-                        "id": null,
-                        "error": {
-                            "code": -32603,
-                            "message": format!("Proxy error: {}", e)
-                        }
-                    });
+        // Forward the raw JSON-RPC request to the McpServerManager
+        match forward_raw_request(&server_name, request_body).await {
+            Ok(raw_response) => {
+                return Ok(response
+                    .status(StatusCode::OK)
+                    .header("Content-Type", "application/json")
+                    .body(raw_response)
+                    .unwrap());
+            }
+            Err(e) => {
+                println!(
+                    "MCP Server Proxy: Failed to forward request to '{}': {}",
+                    server_name, e
+                );
 
-                    return Ok(response
-                        .status(StatusCode::INTERNAL_SERVER_ERROR)
-                        .header("Content-Type", "application/json")
-                        .body(serde_json::to_string(&error_response).unwrap())
-                        .unwrap());
-                }
+                // Return a JSON-RPC error response
+                let error_response = serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": null,
+                    "error": {
+                        "code": -32603,
+                        "message": format!("Proxy error: {}", e)
+                    }
+                });
+
+                return Ok(response
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                    .header("Content-Type", "application/json")
+                    .body(serde_json::to_string(&error_response).unwrap())
+                    .unwrap());
             }
         }
-
-        // Fallback response if no MCP bridge is available
-        let error_response = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": null,
-            "error": {
-                "code": -32603,
-                "message": "MCP bridge not available"
-            }
-        });
-
-        Ok(response
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .header("Content-Type", "application/json")
-            .body(serde_json::to_string(&error_response).unwrap())
-            .unwrap())
     }
 
     async fn handle_http_request(
@@ -473,10 +456,10 @@ pub async fn start_archestra_mcp_server(
 
     let server_url = format!("http://127.0.0.1:{}", MCP_SERVER_PORT);
 
-    // Get the MCP bridge from app state
-    let mcp_bridge = {
-        let bridge_state = app_handle.state::<McpBridgeState>();
-        bridge_state.0.clone()
+    // Get the MCP client from app state
+    let mcp_client = {
+        let client_state = app_handle.state::<McpClientState>();
+        client_state.0.clone()
     };
 
     // Generate unique session ID for this app instance
@@ -485,7 +468,7 @@ pub async fn start_archestra_mcp_server(
 
     // Create and configure the server
     let mut server = ArchestraServer::new(user_id, session_id);
-    server.set_mcp_bridge(mcp_bridge);
+    server.set_mcp_client(mcp_client);
 
     // Run the server in a background task
     tauri::async_runtime::spawn(async move {
@@ -597,17 +580,17 @@ mod tests {
     }
 
     #[test]
-    fn test_mcp_bridge_integration() {
-        // Test that we can set and access the MCP bridge
+    fn test_mcp_client_integration() {
+        // Test that we can set and access the MCP client
         let mut server = ArchestraServer::new("user123".to_string(), "session456".to_string());
-        assert!(server.mcp_bridge.is_none());
+        assert!(server.mcp_client.is_none());
 
-        // Create a mock MCP bridge
-        let mcp_bridge = Arc::new(crate::mcp_bridge::McpBridge::new());
-        server.set_mcp_bridge(mcp_bridge.clone());
+        // Create a mock MCP client
+        let mcp_client = Arc::new(crate::mcp_client::McpClient::new());
+        server.set_mcp_client(mcp_client.clone());
 
-        assert!(server.mcp_bridge.is_some());
-        assert!(Arc::ptr_eq(&server.mcp_bridge.unwrap(), &mcp_bridge));
+        assert!(server.mcp_client.is_some());
+        assert!(Arc::ptr_eq(&server.mcp_client.unwrap(), &mcp_client));
     }
 
     #[test]

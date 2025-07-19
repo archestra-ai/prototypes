@@ -2,7 +2,7 @@ use tauri_plugin_shell::ShellExt;
 use tauri::Manager;
 use tauri::Emitter;
 use crate::utils::get_free_port;
-use crate::mcp_bridge::McpBridgeState;
+use crate::mcp_client::McpClientState;
 use std::sync::OnceLock;
 
 // Global state for Ollama server port
@@ -88,8 +88,8 @@ pub async fn ollama_chat_with_tools(
     model: String,
     messages: Vec<OllamaMessage>,
 ) -> Result<serde_json::Value, String> {
-    let bridge_state = app.state::<McpBridgeState>();
-    let available_tools = bridge_state.0.get_all_tools();
+    let client_state = app.state::<McpClientState>();
+    let available_tools = client_state.0.get_all_tools();
 
     // Convert MCP tools to Ollama tool format
     let mut ollama_tools = Vec::new();
@@ -211,7 +211,7 @@ pub async fn ollama_chat_with_tools(
 
         println!("Executing tool '{}' on server '{}'", tool_name, server_name);
 
-        let content = match bridge_state.0.execute_tool(server_name, tool_name, arguments.clone()).await {
+        let content = match client_state.0.execute_tool(server_name, tool_name, arguments.clone()).await {
             Ok(result) => {
                 // Format the result to be human-readable
                 if let Some(content) = result.get("content").and_then(|c| c.as_str()) {
@@ -249,8 +249,8 @@ pub async fn ollama_chat_with_tools_streaming(
     model: String,
     messages: Vec<OllamaMessage>,
 ) -> Result<(), String> {
-    let bridge_state = app.state::<McpBridgeState>();
-    let available_tools = bridge_state.0.get_all_tools();
+    let client_state = app.state::<McpClientState>();
+    let available_tools = client_state.0.get_all_tools();
 
     // Convert MCP tools to Ollama tool format and create system message
     let mut ollama_tools = Vec::new();
@@ -398,7 +398,7 @@ pub async fn ollama_chat_with_tools_streaming(
 
                     println!("Executing tool '{}' on server '{}'", tool_name, server_name);
 
-                    let content = match bridge_state.0.execute_tool(server_name, tool_name, arguments.clone()).await {
+                    let content = match client_state.0.execute_tool(server_name, tool_name, arguments.clone()).await {
                         Ok(result) => {
                             // Format the result to be human-readable
                             if let Some(content) = result.get("content").and_then(|c| c.as_str()) {

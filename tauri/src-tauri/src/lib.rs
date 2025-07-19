@@ -9,7 +9,7 @@ use tauri_plugin_single_instance;
 pub mod archestra_mcp_server;
 pub mod database;
 pub mod llm_providers;
-pub mod mcp_bridge;
+pub mod mcp_client;
 pub mod mcp_proxy;
 pub mod models;
 pub mod utils;
@@ -66,8 +66,8 @@ pub fn run() {
             let _ = models::mcp_server::oauth::start_oauth_proxy(app.handle().clone());
 
             // Initialize MCP bridge BEFORE starting servers that depend on it
-            let mcp_bridge = Arc::new(mcp_bridge::McpBridge::new());
-            app.manage(mcp_bridge::McpBridgeState(mcp_bridge));
+            let mcp_client = Arc::new(mcp_client::McpClient::new());
+            app.manage(mcp_client::McpClientState(mcp_client));
 
             // Start all persisted MCP servers
             let app_handle = app.handle().clone();
@@ -143,15 +143,9 @@ pub fn run() {
             models::mcp_server::load_mcp_servers,
             models::mcp_server::delete_mcp_server,
             models::mcp_server::get_mcp_connector_catalog,
-            mcp_bridge::start_persistent_mcp_server,
-            mcp_bridge::stop_persistent_mcp_server,
-            mcp_bridge::get_mcp_tools,
-            mcp_bridge::get_mcp_server_status,
-            mcp_bridge::execute_mcp_tool,
-            mcp_bridge::debug_mcp_bridge,
+            mcp_client::get_mcp_tools,
+            mcp_client::debug_mcp_client,
             models::mcp_server::oauth::start_oauth_auth,
-            models::mcp_server::oauth::gmail::save_gmail_tokens_to_db,
-            models::mcp_server::oauth::gmail::load_gmail_tokens,
             models::mcp_server::oauth::check_oauth_proxy_health,
             models::client_connection_config::connect_mcp_client,
             models::client_connection_config::disconnect_mcp_client,

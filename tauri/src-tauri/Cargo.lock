@@ -148,6 +148,7 @@ dependencies = [
  "http-body-util",
  "hyper 1.6.0",
  "hyper-util",
+ "lazy_static",
  "once_cell",
  "reqwest 0.12.22",
  "sea-orm",

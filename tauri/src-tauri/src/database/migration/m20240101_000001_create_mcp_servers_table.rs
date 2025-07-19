@@ -25,6 +25,7 @@ impl MigrationTrait for Migration {
                             .unique_key(),
                     )
                     .col(ColumnDef::new(McpServers::ServerConfig).text().not_null())
+                    .col(ColumnDef::new(McpServers::Meta).text().null())
                     .col(
                         ColumnDef::new(McpServers::CreatedAt)
                             .timestamp_with_time_zone()
@@ -48,5 +49,6 @@ enum McpServers {
     Id,
     Name,
     ServerConfig,
+    Meta,
     CreatedAt,
 }
