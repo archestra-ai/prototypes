@@ -11,27 +11,20 @@ pub mod gmail;
 // Global state for OAuth proxy
 static OAUTH_PROXY_PORT: OnceLock<u16> = OnceLock::new();
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GmailTokens {
-    pub access_token: String,
-    pub refresh_token: String,
-    pub expiry_date: Option<u64>,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthResponse {
     pub auth_url: String,
 }
 
 #[tauri::command]
-pub async fn start_gmail_auth(app: tauri::AppHandle) -> Result<AuthResponse, String> {
+pub async fn start_oauth_auth(app: tauri::AppHandle, service: String) -> Result<AuthResponse, String> {
     // Start OAuth proxy if not already running
     let port = get_oauth_proxy_port().ok_or("OAuth proxy not started")?;
 
-    // Call the OAuth proxy service
+    // Call the OAuth proxy service with dynamic service parameter
     let client = reqwest::Client::new();
     let response = client
-        .get(format!("http://localhost:{}/auth/gmail", port))
+        .get(format!("http://localhost:{}/auth/{}", port, service))
         .send()
         .await
         .map_err(|e| format!("Failed to connect to OAuth proxy: {}", e))?;
@@ -48,84 +41,25 @@ pub async fn start_gmail_auth(app: tauri::AppHandle) -> Result<AuthResponse, Str
     Ok(auth_data)
 }
 
+// Backward compatibility function for Gmail
 #[tauri::command]
-pub async fn save_gmail_tokens(app: tauri::AppHandle, tokens: GmailTokens) -> Result<(), String> {
-    use crate::models::mcp_server::{Model as McpServerModel, McpServerDefinition};
-    use crate::database::connection::get_database_connection_with_app;
-    
-    let conn = get_database_connection_with_app(&app).await.map_err(|e| format!("Failed to get database connection: {}", e))?;
-
-    // Save tokens as JSON in the args field of the MCP server record
-    let tokens_json = serde_json::to_string(&tokens)
-        .map_err(|e| format!("Failed to serialize tokens: {}", e))?;
-
-    // Create MCP server definition for Gmail
-    let definition = McpServerDefinition {
-        name: "Gmail MCP Server".to_string(),
-        command: "npx".to_string(),
-        args: vec![tokens_json],
-        env: std::collections::HashMap::new(),
-    };
-
-    McpServerModel::save_server(&conn, &definition).await
-        .map_err(|e| format!("Failed to save Gmail MCP server: {}", e))?;
-
-    Ok(())
+pub async fn start_gmail_auth(app: tauri::AppHandle) -> Result<AuthResponse, String> {
+    start_oauth_auth(app, "gmail".to_string()).await
 }
 
-pub async fn save_gmail_tokens_to_db(app: tauri::AppHandle, tokens: GmailTokens) -> Result<(), String> {
-    use crate::models::mcp_server::{Model as McpServerModel, McpServerDefinition};
-    use crate::database::connection::get_database_connection_with_app;
-
-    let conn = get_database_connection_with_app(&app).await
-        .map_err(|e| format!("Failed to get database connection: {}", e))?;
-
-    // Create the MCP server args with proper formatting
-    let args = vec![
-        "@gongrzhe/server-gmail-autoauth-mcp".to_string(),
-        format!("--access-token={}", tokens.access_token),
-        format!("--refresh-token={}", tokens.refresh_token)
-    ];
-
-    let definition = McpServerDefinition {
-        name: "Gmail MCP Server".to_string(),
-        command: "npx".to_string(),
-        args,
-        env: std::collections::HashMap::new(),
-    };
-
-    McpServerModel::save_server(&conn, &definition).await
-        .map_err(|e| format!("Failed to save Gmail MCP server: {}", e))?;
-
-    println!("Successfully saved Gmail MCP server to database");
-
-    Ok(())
+// Gmail-specific wrapper commands that delegate to the gmail module
+#[tauri::command]
+pub async fn save_gmail_tokens(app: tauri::AppHandle, tokens: gmail::GmailTokens) -> Result<(), String> {
+    gmail::save_gmail_tokens_to_db(app, tokens).await
 }
 
 #[tauri::command]
-pub async fn load_gmail_tokens(app: tauri::AppHandle) -> Result<Option<GmailTokens>, String> {
-    use crate::models::mcp_server::Model as McpServerModel;
-    use crate::database::connection::get_database_connection_with_app;
-
-    let conn = get_database_connection_with_app(&app).await.map_err(|e| format!("Failed to get database connection: {}", e))?;
-
-    let server = McpServerModel::find_by_name(&conn, "Gmail MCP Server").await
-        .map_err(|e| format!("Failed to query Gmail MCP server: {}", e))?;
-
-    if let Some(server) = server {
-        // Try to parse tokens from args (first approach)
-        if let Some(tokens_json) = server.args.first() {
-            if let Ok(tokens) = serde_json::from_str::<GmailTokens>(tokens_json) {
-                return Ok(Some(tokens));
-            }
-        }
-    }
-    
-    Ok(None)
+pub async fn load_gmail_tokens(app: tauri::AppHandle) -> Result<Option<gmail::GmailTokens>, String> {
+    gmail::load_gmail_tokens(app).await
 }
 
 pub fn start_oauth_proxy(app: tauri::AppHandle) -> Result<u16, String> {
-    println!("Initializing Gmail OAuth proxy...");
+    println!("Initializing OAuth proxy...");
 
     // Get a free port and store it in global state
     let port = get_free_port()?;
@@ -135,7 +69,7 @@ pub fn start_oauth_proxy(app: tauri::AppHandle) -> Result<u16, String> {
 
     // Start the OAuth proxy process
     let sidecar_result = app.shell()
-        .sidecar("gmail-oauth-proxy")
+        .sidecar("oauth-proxy")
         .map_err(|e| format!("Failed to get sidecar: {:?}", e))?
         .env("PORT", port.to_string())
         .spawn();
@@ -201,60 +135,25 @@ pub async fn handle_oauth_callback(app: tauri::AppHandle, url: String) {
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
 
-        if let (Some(access_token), Some(refresh_token)) = (
-            query_params.get("access_token"),
-            query_params.get("refresh_token")
-        ) {
-            let tokens = GmailTokens {
-                access_token: access_token.clone(),
-                refresh_token: refresh_token.clone(),
-                expiry_date: query_params.get("expiry_date")
-                    .and_then(|d| d.parse::<u64>().ok()),
-            };
+        // Get the service from the query parameters
+        let service = query_params.get("service").unwrap_or(&"unknown".to_string()).clone();
 
-            // Save tokens to database
-            if let Err(e) = save_gmail_tokens_to_db(app.clone(), tokens.clone()).await {
-                eprintln!("Failed to save Gmail tokens: {}", e);
-                // Emit error to frontend
-                let _ = app.emit("oauth-error", format!("Failed to save tokens: {}", e));
-                return;
-            }
-
-            // Start the Gmail MCP server automatically
-            let app_clone = app.clone();
-            let tokens_clone = tokens.clone();
-            tauri::async_runtime::spawn(async move {
-                let args = vec![
-                    "@gongrzhe/server-gmail-autoauth-mcp".to_string(),
-                    format!("--access-token={}", tokens_clone.access_token),
-                    format!("--refresh-token={}", tokens_clone.refresh_token)
-                ];
-
-                if let Err(e) = crate::mcp_bridge::start_persistent_mcp_server(
-                    app_clone.clone(),
-                    "Gmail MCP Server".to_string(),
-                    "npx".to_string(),
-                    args,
-                    Some(std::collections::HashMap::new())
-                ).await {
-                    eprintln!("Failed to start Gmail MCP server: {}", e);
-                    let _ = app_clone.emit("oauth-error", format!("Failed to start MCP server: {}", e));
-                } else {
-                    println!("Gmail MCP server started successfully!");
-                }
-            });
-
-            // Emit success event to frontend with tokens
-            let _ = app.emit("oauth-success", serde_json::json!({
-                "tokens": tokens,
-                "provider": "gmail"
-            }));
-
-            println!("Gmail authentication completed successfully!");
-        } else if let Some(error) = query_params.get("error") {
-            eprintln!("OAuth error: {}", error);
+        if let Some(error) = query_params.get("error") {
+            eprintln!("OAuth error for {}: {}", service, error);
             // Emit error to frontend
             let _ = app.emit("oauth-error", format!("OAuth error: {}", error));
+            return;
+        }
+
+        // Route to service-specific handler
+        match service.as_str() {
+            "gmail" => {
+                gmail::handle_gmail_oauth_callback(app, url).await;
+            }
+            _ => {
+                eprintln!("Unsupported OAuth service: {}", service);
+                let _ = app.emit("oauth-error", format!("Unsupported service: {}", service));
+            }
         }
     }
 }
