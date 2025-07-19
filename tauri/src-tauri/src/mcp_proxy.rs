@@ -17,7 +17,7 @@ use axum::body::Body;
 use futures_util::StreamExt;
 use async_stream::stream;
 use bytes::Bytes;
-
+ 
 static MCP_PROXY_HANDLE: Lazy<Mutex<Option<JoinHandle<()>>>> = Lazy::new(|| Mutex::new(None));
 
 pub struct ProxyConfig {
