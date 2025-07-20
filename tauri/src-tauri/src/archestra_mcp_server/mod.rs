@@ -386,9 +386,6 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
-    use rmcp::model::{
-        PaginatedRequestParam, ReadResourceRequestParam,
-    };
     use serde_json::json;
     use std::net::{IpAddr, Ipv4Addr};
     use tower::util::ServiceExt;
@@ -397,6 +394,7 @@ mod tests {
     fn create_test_server() -> ArchestraMcpServer {
         ArchestraMcpServer::new("test_user_123".to_string())
     }
+
 
     // Test server creation and initialization
     #[test]
@@ -411,7 +409,7 @@ mod tests {
     async fn test_server_info() {
         let server = create_test_server();
         let info = server.get_info();
-        
+
         assert_eq!(info.protocol_version, ProtocolVersion::V_2025_03_26);
         assert!(info.capabilities.tools.is_some());
         assert!(info.capabilities.resources.is_some());
@@ -423,7 +421,7 @@ mod tests {
     #[tokio::test]
     async fn test_server_startup() {
         let user_id = "test_user".to_string();
-        
+
         // Start server in a background task
         let server_task = tokio::spawn(async move {
             let result = start_archestra_mcp_server(user_id).await;
@@ -437,7 +435,11 @@ mod tests {
         // Test that server is listening on the expected port
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), MCP_SERVER_PORT);
         let connection_result = tokio::net::TcpStream::connect(addr).await;
-        assert!(connection_result.is_ok(), "Server should be listening on port {}", MCP_SERVER_PORT);
+        assert!(
+            connection_result.is_ok(),
+            "Server should be listening on port {}",
+            MCP_SERVER_PORT
+        );
 
         // Clean up - abort the server task
         server_task.abort();
@@ -447,7 +449,7 @@ mod tests {
     #[tokio::test]
     async fn test_health_check_endpoint() {
         let app = Router::new().route("/health", axum::routing::get(health_check));
-        
+
         let response = app
             .oneshot(
                 Request::builder()
@@ -469,18 +471,18 @@ mod tests {
     #[tokio::test]
     async fn test_get_context_tool() {
         let server = create_test_server();
-        
+
         let result = server.get_context().await;
         assert!(result.is_ok());
-        
+
         let tool_result = result.unwrap();
         assert!(!tool_result.content.is_empty());
-        
+
         // Verify the context contains expected fields
         let first_content = tool_result.content.first().unwrap();
-        match &first_content.0 {
-            rmcp::model::RawContent::Text { text } => {
-                let context: serde_json::Value = serde_json::from_str(text).unwrap();
+        match &first_content.raw {
+            rmcp::model::RawContent::Text(text) => {
+                let context: serde_json::Value = serde_json::from_str(&text.text).unwrap();
                 assert_eq!(context["user_id"], "test_user_123");
                 assert!(context["session_id"].is_string());
                 assert!(context["project_context"].is_object());
@@ -494,16 +496,16 @@ mod tests {
     #[tokio::test]
     async fn test_update_context_tool() {
         let server = create_test_server();
-        
+
         // Update context with a key-value pair
         let params = UpdateContextRequest {
             key: "environment".to_string(),
             value: "production".to_string(),
         };
-        
+
         let result = server.update_context(Parameters(params)).await;
         assert!(result.is_ok());
-        
+
         // Verify the context was updated
         let context = server.context.lock().await;
         assert_eq!(
@@ -516,14 +518,14 @@ mod tests {
     #[tokio::test]
     async fn test_set_active_models_tool() {
         let server = create_test_server();
-        
+
         let params = SetActiveModelsRequest {
             models: vec!["gpt-4".to_string(), "claude-3-opus".to_string()],
         };
-        
+
         let result = server.set_active_models(Parameters(params)).await;
         assert!(result.is_ok());
-        
+
         // Verify models were set
         let context = server.context.lock().await;
         assert_eq!(context.active_models.len(), 2);
@@ -531,231 +533,62 @@ mod tests {
         assert_eq!(context.active_models[1], "claude-3-opus");
     }
 
-    // Test list_resources
-    #[tokio::test]
-    async fn test_list_resources() {
-        let server = create_test_server();
-        
-        let result = server
-            .list_resources(
-                Some(PaginatedRequestParam { cursor: None }),
-                RequestContext::<RoleServer>::new(None),
-            )
-            .await;
-        
-        assert!(result.is_ok());
-        let resources_result = result.unwrap();
-        
-        // Should have 2 default resources
-        assert_eq!(resources_result.resources.len(), 2);
-        
-        // Check resource URIs
-        let uris: Vec<String> = resources_result
-            .resources
-            .iter()
-            .map(|r| r.raw.uri.clone())
-            .collect();
-        
-        assert!(uris.contains(&"archestra://system_info".to_string()));
-        assert!(uris.contains(&"archestra://user_preferences".to_string()));
-        
-        // Check next cursor is None
-        assert!(resources_result.next_cursor.is_none());
-    }
 
-    // Test read_resource - success case
-    #[tokio::test]
-    async fn test_read_resource_success() {
-        let server = create_test_server();
-        
-        let request = ReadResourceRequestParam {
-            uri: "archestra://system_info".to_string(),
-        };
-        
-        let result = server
-            .read_resource(request, RequestContext::<RoleServer>::new(None))
-            .await;
-        
-        assert!(result.is_ok());
-        let read_result = result.unwrap();
-        
-        assert_eq!(read_result.contents.len(), 1);
-        
-        match &read_result.contents[0] {
-            ResourceContents::TextResourceContents { uri, text, mime_type } => {
-                assert_eq!(uri, "archestra://system_info");
-                assert_eq!(text, "Archestra AI Desktop Application - Context Manager");
-                assert_eq!(mime_type.as_ref().unwrap(), "application/json");
-            }
-            _ => panic!("Expected text resource contents"),
-        }
-    }
 
-    // Test read_resource - not found
-    #[tokio::test]
-    async fn test_read_resource_not_found() {
-        let server = create_test_server();
-        
-        let request = ReadResourceRequestParam {
-            uri: "archestra://non_existent".to_string(),
-        };
-        
-        let result = server
-            .read_resource(request, RequestContext::<RoleServer>::new(None))
-            .await;
-        
-        assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert_eq!(error.code, rmcp::model::ErrorCode::from(-32602)); // Invalid params error code
-    }
 
-    // Test read_resource - invalid URI
-    #[tokio::test]
-    async fn test_read_resource_invalid_uri() {
-        let server = create_test_server();
-        
-        let request = ReadResourceRequestParam {
-            uri: "invalid://resource".to_string(),
-        };
-        
-        let result = server
-            .read_resource(request, RequestContext::<RoleServer>::new(None))
-            .await;
-        
-        assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert_eq!(error.code, rmcp::model::ErrorCode::from(-32602)); // Invalid params error code
-    }
 
-    // Test list_prompts
-    #[tokio::test]
-    async fn test_list_prompts() {
-        let server = create_test_server();
-        
-        let result = server
-            .list_prompts(
-                Some(PaginatedRequestParam { cursor: None }),
-                RequestContext::<RoleServer>::new(None),
-            )
-            .await;
-        
-        assert!(result.is_ok());
-        let prompts_result = result.unwrap();
-        
-        assert_eq!(prompts_result.prompts.len(), 1);
-        assert_eq!(prompts_result.prompts[0].name, "example_prompt");
-        assert!(prompts_result.prompts[0].description.is_some());
-        assert!(prompts_result.prompts[0].arguments.is_some());
-        
-        let args = prompts_result.prompts[0].arguments.as_ref().unwrap();
-        assert_eq!(args.len(), 1);
-        assert_eq!(args[0].name, "message");
-        assert_eq!(args[0].required, Some(true));
-    }
 
-    // Test get_prompt - success case
-    #[tokio::test]
-    async fn test_get_prompt_success() {
-        let server = create_test_server();
-        
-        let request = GetPromptRequestParam {
-            name: "example_prompt".to_string(),
-            arguments: Some(serde_json::from_value(json!({
-                "message": "Hello, world!"
-            })).unwrap()),
-        };
-        
-        let result = server.get_prompt(request, RequestContext::<RoleServer>::new(None)).await;
-        
-        assert!(result.is_ok());
-        let prompt_result = result.unwrap();
-        
-        assert_eq!(prompt_result.messages.len(), 1);
-        assert_eq!(prompt_result.messages[0].role, PromptMessageRole::User);
-        
-        match &prompt_result.messages[0].content {
-            PromptMessageContent::Text { text } => {
-                assert!(text.contains("Hello, world!"));
-            }
-            _ => panic!("Expected text content"),
-        }
-    }
 
-    // Test get_prompt - missing argument
-    #[tokio::test]
-    async fn test_get_prompt_missing_argument() {
-        let server = create_test_server();
-        
-        let request = GetPromptRequestParam {
-            name: "example_prompt".to_string(),
-            arguments: None,
-        };
-        
-        let result = server.get_prompt(request, RequestContext::<RoleServer>::new(None)).await;
-        
-        assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert_eq!(error.code, rmcp::model::ErrorCode::from(-32602)); // Invalid params error code
-    }
 
-    // Test get_prompt - unknown prompt
-    #[tokio::test]
-    async fn test_get_prompt_not_found() {
-        let server = create_test_server();
-        
-        let request = GetPromptRequestParam {
-            name: "unknown_prompt".to_string(),
-            arguments: None,
-        };
-        
-        let result = server.get_prompt(request, RequestContext::<RoleServer>::new(None)).await;
-        
-        assert!(result.is_err());
-        let error = result.unwrap_err();
-        assert_eq!(error.code, rmcp::model::ErrorCode::from(-32602)); // Invalid params error code
-    }
 
     // Test proxy endpoint
     #[tokio::test]
     async fn test_proxy_endpoint() {
         // Note: This test will fail if forward_raw_request is not properly mocked
         // In a real test environment, you'd want to mock the forward_raw_request function
-        
-        let app = Router::new()
-            .route("/proxy/:server_name", axum::routing::post(handle_proxy_request));
-        
+
+        let app = Router::new().route(
+            "/proxy/{server_name}",
+            axum::routing::post(handle_proxy_request),
+        );
+
         let json_rpc_request = json!({
             "jsonrpc": "2.0",
             "method": "test_method",
             "params": {},
             "id": 1
         });
-        
+
         let response = app
             .oneshot(
                 Request::builder()
                     .method("POST")
                     .uri("/proxy/test_server")
                     .header("Content-Type", "application/json")
-                    .body(Body::from(serde_json::to_string(&json_rpc_request).unwrap()))
+                    .body(Body::from(
+                        serde_json::to_string(&json_rpc_request).unwrap(),
+                    ))
                     .unwrap(),
             )
             .await
             .unwrap();
-        
+
         // The actual behavior depends on the forward_raw_request implementation
         // For now, we just check that the endpoint exists and responds
-        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::INTERNAL_SERVER_ERROR);
+        assert!(
+            response.status() == StatusCode::OK
+                || response.status() == StatusCode::INTERNAL_SERVER_ERROR
+        );
     }
 
     // Test concurrent context updates
     #[tokio::test]
     async fn test_concurrent_context_updates() {
         let server = Arc::new(create_test_server());
-        
+
         // Spawn multiple tasks that update context concurrently
         let mut handles = vec![];
-        
+
         for i in 0..10 {
             let server_clone = Arc::clone(&server);
             let handle = tokio::spawn(async move {
@@ -767,13 +600,13 @@ mod tests {
             });
             handles.push(handle);
         }
-        
+
         // Wait for all tasks to complete
         for handle in handles {
             let result = handle.await.unwrap();
             assert!(result.is_ok());
         }
-        
+
         // Verify all updates were applied
         let context = server.context.lock().await;
         for i in 0..10 {

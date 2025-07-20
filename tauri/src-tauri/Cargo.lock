@@ -163,6 +163,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
+ "tower",
  "url 2.5.4",
  "uuid",
 ]

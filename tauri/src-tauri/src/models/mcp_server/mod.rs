@@ -96,7 +96,6 @@ impl Model {
     /// Save an MCP server definition to the database and start it
     pub async fn save_server(
         db: &DatabaseConnection,
-        app_handle: &tauri::AppHandle,
         definition: &McpServerDefinition,
     ) -> Result<Model, DbErr> {
         // Check if server exists to determine if this is an update
@@ -164,7 +163,6 @@ impl Model {
     /// Delete an MCP server by name and stop it
     pub async fn delete_by_name(
         db: &DatabaseConnection,
-        app_handle: &tauri::AppHandle,
         server_name: &str,
     ) -> Result<DeleteResult, DbErr> {
         // Stop the server before deleting
@@ -273,7 +271,7 @@ pub async fn save_mcp_server(
         meta: None,
     };
 
-    Model::save_server(&db, &app, &definition)
+    Model::save_server(&db, &definition)
         .await
         .map_err(|e| format!("Failed to save MCP server: {}", e))?;
 
@@ -307,7 +305,7 @@ pub async fn save_mcp_server_from_catalog(
         meta: None,
     };
 
-    Model::save_server(&db, &app, &definition)
+    Model::save_server(&db, &definition)
         .await
         .map_err(|e| format!("Failed to save MCP server: {}", e))?;
 
@@ -337,7 +335,7 @@ pub async fn delete_mcp_server(app: tauri::AppHandle, name: String) -> Result<()
         .await
         .map_err(|e| format!("Failed to connect to database: {}", e))?;
 
-    Model::delete_by_name(&db, &app, &name)
+    Model::delete_by_name(&db, &name)
         .await
         .map_err(|e| format!("Failed to delete MCP server: {}", e))?;
 

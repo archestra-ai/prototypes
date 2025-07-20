@@ -151,7 +151,6 @@ impl Model {
     /// Connect a client to Archestra MCP servers
     pub async fn connect_client(
         db: &DatabaseConnection,
-        app_handle: &tauri::AppHandle,
         client_name: &str,
     ) -> Result<(), String> {
         let config_path = Self::get_config_path_for_client(client_name)?;
@@ -162,7 +161,7 @@ impl Model {
         let mut config = read_config_file(&config_path)?;
         
         // Get available MCP servers
-        let servers = get_available_mcp_servers(&app_handle).await?;
+        let servers = get_available_mcp_servers().await?;
         println!("🔧 Available MCP servers: {:?}", servers);
         
         // Ensure mcpServers object exists
@@ -297,7 +296,7 @@ pub fn write_config_file(path: &PathBuf, config: &Value) -> Result<(), String> {
     Ok(())
 }
 
-pub async fn get_available_mcp_servers(_app_handle: &tauri::AppHandle) -> Result<Vec<String>, String> {
+pub async fn get_available_mcp_servers() -> Result<Vec<String>, String> {
     // Get all available MCP servers from McpServerManager
     
     println!("🔍 Getting available MCP servers from server manager...");
@@ -333,7 +332,7 @@ pub async fn connect_mcp_client(app_handle: tauri::AppHandle, client_name: Strin
     let db = get_database_connection_with_app(&app_handle).await
         .map_err(|e| format!("Failed to get database connection: {}", e))?;
     
-    Model::connect_client(&db, &app_handle, &client_name).await
+    Model::connect_client(&db, &client_name).await
 }
 
 #[tauri::command]
@@ -411,7 +410,7 @@ pub async fn notify_new_mcp_tools_available(app_handle: tauri::AppHandle) -> Res
         .map_err(|e| format!("Failed to get database connection: {}", e))?;
 
     // Get all available MCP servers
-    let servers = get_available_mcp_servers(&app_handle).await?;
+    let servers = get_available_mcp_servers().await?;
 
     // Get connected clients from database
     let clients = Model::get_connected_clients(&db).await

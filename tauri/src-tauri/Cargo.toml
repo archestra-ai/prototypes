@@ -48,3 +48,4 @@ axum = "0.8.4"
 [dev-dependencies]
 tauri-mcp = "0.1"
 tempfile = "3.8"
+tower = { version = "0.5", features = ["util"] }
