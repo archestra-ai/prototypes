@@ -1,7 +1,7 @@
+use crate::database::connection::get_database_connection_with_app;
+use crate::models::mcp_server::{McpServerDefinition, Model as McpServerModel, ServerConfig};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
-use crate::models::mcp_server::{Model as McpServerModel, McpServerDefinition, ServerConfig};
-use crate::database::connection::get_database_connection_with_app;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GmailTokens {
@@ -40,7 +40,7 @@ pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
                 args: vec![
                     "@gongrzhe/server-gmail-autoauth-mcp".to_string(),
                     format!("--access-token={}", tokens.access_token),
-                    format!("--refresh-token={}", tokens.refresh_token)
+                    format!("--refresh-token={}", tokens.refresh_token),
                 ],
                 env: std::collections::HashMap::new(),
             };
@@ -63,7 +63,7 @@ pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
                         let _ = app.emit("oauth-error", format!("Failed to save server: {}", e));
                         return;
                     }
-                },
+                }
                 Err(e) => {
                     eprintln!("Failed to get database connection: {}", e);
                     let _ = app.emit("oauth-error", format!("Database error: {}", e));

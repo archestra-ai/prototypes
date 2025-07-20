@@ -1,7 +1,7 @@
-use tauri_plugin_shell::ShellExt;
-use tauri::Emitter;
 use crate::utils::get_free_port;
-use std::sync::{OnceLock, Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
+use tauri::Emitter;
+use tauri_plugin_shell::ShellExt;
 use tokio::sync::oneshot;
 
 // Global state for Ollama server port
@@ -39,7 +39,8 @@ pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Res
     let port = get_free_port()?;
     println!("Starting Ollama server as sidecar on port {}...", port);
 
-    let sidecar_result = app_handle.shell()
+    let sidecar_result = app_handle
+        .shell()
         .sidecar("ollama")
         .map_err(|e| format!("Failed to get sidecar: {:?}", e))?
         .env("OLLAMA_HOST", format!("127.0.0.1:{}", port))
@@ -51,7 +52,9 @@ pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Res
             println!("Ollama server started successfully on port {}!", port);
 
             // Store the port globally
-            OLLAMA_PORT.set(port).map_err(|_| "Failed to store Ollama port")?;
+            OLLAMA_PORT
+                .set(port)
+                .map_err(|_| "Failed to store Ollama port")?;
 
             // Handle output in background
             tauri::async_runtime::spawn(async move {
@@ -82,7 +85,9 @@ pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Res
 
 #[tauri::command]
 pub fn get_ollama_port() -> Result<u16, String> {
-    OLLAMA_PORT.get().copied()
+    OLLAMA_PORT
+        .get()
+        .copied()
         .ok_or_else(|| "Ollama server not started".to_string())
 }
 
@@ -109,7 +114,10 @@ pub async fn ollama_chat_with_tools(
         }
     });
 
-    println!("Sending request to Ollama with {} tools", ollama_tools.len());
+    println!(
+        "Sending request to Ollama with {} tools",
+        ollama_tools.len()
+    );
 
     // Send request to Ollama with streaming
     let client = reqwest::Client::new();
@@ -143,14 +151,16 @@ pub async fn ollama_chat_with_tools(
                         full_content.push_str(content);
                     }
 
-
-
                     // Store the final message structure
                     final_message = Some(message.clone());
                 }
 
                 // If this is the final chunk, break
-                if chunk_data.get("done").and_then(|d| d.as_bool()).unwrap_or(false) {
+                if chunk_data
+                    .get("done")
+                    .and_then(|d| d.as_bool())
+                    .unwrap_or(false)
+                {
                     break;
                 }
             }
@@ -192,18 +202,32 @@ pub async fn ollama_chat_with_tools(
     // Execute each tool call
     let mut tool_results = Vec::new();
     for tool_call in tool_calls_array {
-        let tool_call_id = tool_call.get("id").and_then(|id| id.as_str()).map(|s| s.to_string());
+        let tool_call_id = tool_call
+            .get("id")
+            .and_then(|id| id.as_str())
+            .map(|s| s.to_string());
 
         // Extract function details with early continue on failure
-        let Some(function) = tool_call.get("function") else { continue; };
-        let Some(name) = function.get("name").and_then(|n| n.as_str()) else { continue; };
-        let Some(_arguments) = function.get("arguments") else { continue; };
-        let Some((server_name, tool_name)) = name.split_once('_') else { continue; };
+        let Some(function) = tool_call.get("function") else {
+            continue;
+        };
+        let Some(name) = function.get("name").and_then(|n| n.as_str()) else {
+            continue;
+        };
+        let Some(_arguments) = function.get("arguments") else {
+            continue;
+        };
+        let Some((server_name, tool_name)) = name.split_once('_') else {
+            continue;
+        };
 
         println!("Executing tool '{}' on server '{}'", tool_name, server_name);
 
         // Tool execution will be handled by the frontend
-        let content = format!("Tool execution for {}_{} needs to be handled by the frontend", server_name, tool_name);
+        let content = format!(
+            "Tool execution for {}_{} needs to be handled by the frontend",
+            server_name, tool_name
+        );
 
         tool_results.push(OllamaToolResponse {
             role: "tool".to_string(),
@@ -264,7 +288,10 @@ pub async fn ollama_chat_with_tools_streaming(
         }
     });
 
-    println!("Sending streaming request to Ollama with {} tools", ollama_tools.len());
+    println!(
+        "Sending streaming request to Ollama with {} tools",
+        ollama_tools.len()
+    );
 
     // Create a cancellation channel
     let (cancel_tx, mut cancel_rx) = oneshot::channel::<()>();
@@ -372,77 +399,112 @@ pub async fn ollama_chat_with_tools_streaming(
     }
 
     // Check for tool calls in captured tool calls or final message
-        println!("🏁 Ollama streaming completed, checking for tool calls...");
+    println!("🏁 Ollama streaming completed, checking for tool calls...");
 
-        // Use captured tool calls from streaming chunks if available, otherwise check final message
-        let tool_calls_to_use = if let Some(captured) = &captured_tool_calls {
-            println!("🎯 Using captured tool calls from streaming chunks: {}", captured);
-            captured.as_array()
-        } else if let Some(message) = &final_message {
-            println!("🔍 Checking final message for tool calls: {}", serde_json::to_string_pretty(message).unwrap_or_else(|_| "Failed to serialize".to_string()));
-            message.get("tool_calls").and_then(|tc| tc.as_array())
-        } else {
-            None
-        };
+    // Use captured tool calls from streaming chunks if available, otherwise check final message
+    let tool_calls_to_use = if let Some(captured) = &captured_tool_calls {
+        println!(
+            "🎯 Using captured tool calls from streaming chunks: {}",
+            captured
+        );
+        captured.as_array()
+    } else if let Some(message) = &final_message {
+        println!(
+            "🔍 Checking final message for tool calls: {}",
+            serde_json::to_string_pretty(message)
+                .unwrap_or_else(|_| "Failed to serialize".to_string())
+        );
+        message.get("tool_calls").and_then(|tc| tc.as_array())
+    } else {
+        None
+    };
 
-        if let Some(tool_calls_array) = tool_calls_to_use {
-            if !tool_calls_array.is_empty() {
-                let source = if captured_tool_calls.is_some() { "streaming chunks" } else { "final message" };
-                println!("🎯 Ollama requested {} tool calls from {}", tool_calls_array.len(), source);
+    if let Some(tool_calls_array) = tool_calls_to_use {
+        if !tool_calls_array.is_empty() {
+            let source = if captured_tool_calls.is_some() {
+                "streaming chunks"
+            } else {
+                "final message"
+            };
+            println!(
+                "🎯 Ollama requested {} tool calls from {}",
+                tool_calls_array.len(),
+                source
+            );
 
-                // Execute each tool call
-                let mut tool_results = Vec::new();
-                for tool_call in tool_calls_array {
-                    let tool_call_id = tool_call.get("id").and_then(|id| id.as_str()).map(|s| s.to_string());
+            // Execute each tool call
+            let mut tool_results = Vec::new();
+            for tool_call in tool_calls_array {
+                let tool_call_id = tool_call
+                    .get("id")
+                    .and_then(|id| id.as_str())
+                    .map(|s| s.to_string());
 
-                    // Extract function details with early continue on failure
-                    let Some(function) = tool_call.get("function") else { continue; };
-                    let Some(name) = function.get("name").and_then(|n| n.as_str()) else { continue; };
-                    let Some(_arguments) = function.get("arguments") else { continue; };
-                    let Some((server_name, tool_name)) = name.split_once('_') else { continue; };
-
-                    println!("Executing tool '{}' on server '{}'", tool_name, server_name);
-
-                    // Tool execution will be handled by the frontend
-                    let content = format!("Tool execution for {}_{} needs to be handled by the frontend", server_name, tool_name);
-
-                    tool_results.push(OllamaToolResponse {
-                        role: "tool".to_string(),
-                        content,
-                        tool_call_id,
-                    });
-                }
-
-                // Send tool results to frontend
-                let message_for_results = if let Some(message) = &final_message {
-                    message.clone()
-                } else {
-                    // Create synthetic message with captured tool calls
-                    serde_json::json!({
-                        "role": "assistant",
-                        "content": full_content,
-                        "tool_calls": captured_tool_calls.unwrap_or_else(|| serde_json::json!([]))
-                    })
+                // Extract function details with early continue on failure
+                let Some(function) = tool_call.get("function") else {
+                    continue;
+                };
+                let Some(name) = function.get("name").and_then(|n| n.as_str()) else {
+                    continue;
+                };
+                let Some(_arguments) = function.get("arguments") else {
+                    continue;
+                };
+                let Some((server_name, tool_name)) = name.split_once('_') else {
+                    continue;
                 };
 
-                let _ = app.emit("ollama-tool-results", serde_json::json!({
+                println!("Executing tool '{}' on server '{}'", tool_name, server_name);
+
+                // Tool execution will be handled by the frontend
+                let content = format!(
+                    "Tool execution for {}_{} needs to be handled by the frontend",
+                    server_name, tool_name
+                );
+
+                tool_results.push(OllamaToolResponse {
+                    role: "tool".to_string(),
+                    content,
+                    tool_call_id,
+                });
+            }
+
+            // Send tool results to frontend
+            let message_for_results = if let Some(message) = &final_message {
+                message.clone()
+            } else {
+                // Create synthetic message with captured tool calls
+                serde_json::json!({
+                    "role": "assistant",
+                    "content": full_content,
+                    "tool_calls": captured_tool_calls.unwrap_or_else(|| serde_json::json!([]))
+                })
+            };
+
+            let _ = app.emit(
+                "ollama-tool-results",
+                serde_json::json!({
                     "message": message_for_results,
                     "tool_results": tool_results
-                }));
-            }
-        } else {
-            println!("❌ No tool calls found in streaming chunks or final message");
-            if captured_tool_calls.is_none() && final_message.is_none() {
-                println!("   🔍 Neither captured tool calls nor final message available");
-            } else if captured_tool_calls.is_none() {
-                println!("   📝 Final message available but no tool calls detected");
-            }
+                }),
+            );
         }
+    } else {
+        println!("❌ No tool calls found in streaming chunks or final message");
+        if captured_tool_calls.is_none() && final_message.is_none() {
+            println!("   🔍 Neither captured tool calls nor final message available");
+        } else if captured_tool_calls.is_none() {
+            println!("   📝 Final message available but no tool calls detected");
+        }
+    }
 
     // Send completion event
-    let _ = app.emit("ollama-complete", serde_json::json!({
-        "content": full_content
-    }));
+    let _ = app.emit(
+        "ollama-complete",
+        serde_json::json!({
+            "content": full_content
+        }),
+    );
 
     Ok(())
 }
@@ -457,7 +519,9 @@ pub fn cancel_ollama_streaming() -> Result<(), String> {
             // Send cancellation signal
             match sender.send(()) {
                 Ok(_) => println!("✅ Cancellation signal sent successfully"),
-                Err(_) => println!("⚠️ Cancellation signal failed (receiver may have been dropped)"),
+                Err(_) => {
+                    println!("⚠️ Cancellation signal failed (receiver may have been dropped)")
+                }
             }
         } else {
             println!("⚠️ No active streaming to cancel");

@@ -14,7 +14,7 @@ pub struct Model {
     #[sea_orm(unique)]
     pub name: String,
     pub server_config: String, // JSON string containing ServerConfig
-    pub meta: Option<String>, // JSON string containing additional metadata
+    pub meta: Option<String>,  // JSON string containing additional metadata
     pub created_at: DateTimeUtc,
 }
 
@@ -68,8 +68,10 @@ impl Model {
             .map_err(|e| DbErr::Custom(format!("Failed to serialize server_config: {}", e)))?;
 
         let meta_json = if let Some(meta) = &definition.meta {
-            Some(serde_json::to_string(meta)
-                .map_err(|e| DbErr::Custom(format!("Failed to serialize meta: {}", e)))?)
+            Some(
+                serde_json::to_string(meta)
+                    .map_err(|e| DbErr::Custom(format!("Failed to serialize meta: {}", e)))?,
+            )
         } else {
             None
         };
@@ -101,14 +103,14 @@ impl Model {
         // Check if server exists to determine if this is an update
         let existing_server = Self::find_by_name(db, &definition.name).await?;
         let is_update = existing_server.is_some();
-        
+
         // If updating, stop the existing server first
         if is_update {
             if let Err(e) = sandbox::stop_mcp_server(&definition.name).await {
                 eprintln!("Warning: Failed to stop server before update: {}", e);
             }
         }
-        
+
         // Save to database
         let result = Self::save_server_without_lifecycle(db, definition).await?;
 
@@ -139,10 +141,7 @@ impl Model {
 
             let meta = if let Some(meta_json) = &model.meta {
                 Some(serde_json::from_str(meta_json).map_err(|e| {
-                    DbErr::Custom(format!(
-                        "Failed to parse meta for {}: {}",
-                        model.name, e
-                    ))
+                    DbErr::Custom(format!("Failed to parse meta for {}: {}", model.name, e))
                 })?)
             } else {
                 None
@@ -169,7 +168,7 @@ impl Model {
         if let Err(e) = sandbox::stop_mcp_server(server_name).await {
             eprintln!("Warning: Failed to stop server before deletion: {}", e);
         }
-        
+
         Entity::delete_many()
             .filter(Column::Name.eq(server_name))
             .exec(db)
@@ -191,8 +190,10 @@ impl Model {
                 .map_err(|e| DbErr::Custom(format!("Failed to parse server_config: {}", e)))?;
 
             let meta = if let Some(meta_json) = &model.meta {
-                Some(serde_json::from_str(meta_json)
-                    .map_err(|e| DbErr::Custom(format!("Failed to parse meta: {}", e)))?)
+                Some(
+                    serde_json::from_str(meta_json)
+                        .map_err(|e| DbErr::Custom(format!("Failed to parse meta: {}", e)))?,
+                )
             } else {
                 None
             };
@@ -213,8 +214,10 @@ impl Model {
             .map_err(|e| format!("Failed to parse server_config: {}", e))?;
 
         let meta = if let Some(meta_json) = &self.meta {
-            Some(serde_json::from_str(meta_json)
-                .map_err(|e| format!("Failed to parse meta: {}", e))?)
+            Some(
+                serde_json::from_str(meta_json)
+                    .map_err(|e| format!("Failed to parse meta: {}", e))?,
+            )
         } else {
             None
         };
@@ -229,10 +232,10 @@ impl Model {
 
 impl From<McpServerDefinition> for ActiveModel {
     fn from(definition: McpServerDefinition) -> Self {
-        let meta_json = definition.meta.map(|meta| 
-            serde_json::to_string(&meta).unwrap_or_default()
-        );
-        
+        let meta_json = definition
+            .meta
+            .map(|meta| serde_json::to_string(&meta).unwrap_or_default());
+
         ActiveModel {
             name: Set(definition.name),
             server_config: Set(serde_json::to_string(&definition.server_config).unwrap_or_default()),
