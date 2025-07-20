@@ -1,4 +1,4 @@
-# A Note from Archestra Inc.
+# A Note from Archestra Inc
 
 Hello, and thank you for your interest in our project!
 
@@ -20,15 +20,15 @@ This license governs the use of the source code, documentation, and any other ma
 
 Permission to view, use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software is hereby **denied**.
 
-Any use of the Software or its source code, in whole or in part, is strictly prohibited without the express prior written consent of an authorized representative of Archestra Inc. To request permission, please contact [Your Contact Email or Legal Department Email].
+Any use of the Software or its source code, in whole or in part, is strictly prohibited without the express prior written consent of an authorized representative of Archestra Inc. To request permission, please contact <matvey@archestra.ai>.
 
 ### 2. Contributions
 
 By submitting any contribution (including but not limited to pull requests, issues, suggestions, or code) to this repository, the contributor ("Contributor") agrees to the following terms:
 
-*   The Contributor agrees to assign and hereby does assign to Archestra Inc. all right, title, and interest in and to such contribution and all associated intellectual property rights.
-*   The Contributor warrants that they are the original author of the contribution and have the legal right to make this assignment.
-*   The Contributor agrees that Archestra Inc. shall have the sole and exclusive right to use, modify, distribute, and sublicense the contribution for any purpose, commercial or otherwise, without any obligation, notice, or compensation to the Contributor.
+* The Contributor agrees to assign and hereby does assign to Archestra Inc. all right, title, and interest in and to such contribution and all associated intellectual property rights.
+* The Contributor warrants that they are the original author of the contribution and have the legal right to make this assignment.
+* The Contributor agrees that Archestra Inc. shall have the sole and exclusive right to use, modify, distribute, and sublicense the contribution for any purpose, commercial or otherwise, without any obligation, notice, or compensation to the Contributor.
 
 ### 3. License Changes
 

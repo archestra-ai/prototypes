@@ -1,6 +1,8 @@
 use super::McpServerDefinition;
+use crate::database::connection::get_database_connection_with_app;
+use crate::models::mcp_server::Model;
 use crate::utils::node;
-use rmcp::model::{Resource as McpResource, Tool as McpTool, JsonRpcRequest, JsonRpcResponse};
+use rmcp::model::{JsonRpcRequest, JsonRpcResponse, Resource as McpResource, Tool as McpTool};
 use std::collections::{HashMap, VecDeque};
 use std::process::Stdio;
 use std::sync::Arc;
@@ -8,8 +10,6 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, Mutex as TokioMutex, RwLock};
-use crate::database::connection::get_database_connection_with_app;
-use crate::models::mcp_server::Model;
 
 // Constants for resource management
 const MAX_BUFFER_SIZE: usize = 1000;
@@ -89,11 +89,17 @@ impl McpServerManager {
 
             if !node_info.is_available() {
                 let instructions = node::get_node_installation_instructions();
-                return Err(format!("Cannot start MCP server '{}': {}", name, instructions));
+                return Err(format!(
+                    "Cannot start MCP server '{}': {}",
+                    name, instructions
+                ));
             }
 
             if args.is_empty() {
-                return Err(format!("No package specified for npx command in server '{}'", name));
+                return Err(format!(
+                    "No package specified for npx command in server '{}'",
+                    name
+                ));
             }
 
             let package_name = &args[0];
@@ -105,7 +111,12 @@ impl McpServerManager {
                     all_args.extend(remaining_args);
                     (cmd, all_args)
                 }
-                Err(e) => return Err(format!("Failed to prepare npm execution for '{}': {}", name, e))
+                Err(e) => {
+                    return Err(format!(
+                        "Failed to prepare npm execution for '{}': {}",
+                        name, e
+                    ))
+                }
             }
         } else if command == "http" {
             // Handle HTTP-based MCP server
@@ -114,7 +125,10 @@ impl McpServerManager {
             (command.clone(), args.clone())
         };
 
-        println!("🔧 Executing command: {} with args: {:?}", actual_command, actual_args);
+        println!(
+            "🔧 Executing command: {} with args: {:?}",
+            actual_command, actual_args
+        );
 
         let env_vars = env.unwrap_or_default();
         if !env_vars.is_empty() {
@@ -127,7 +141,8 @@ impl McpServerManager {
         // Start the process with sandbox-exec for security (macOS only)
         let mut cmd = if cfg!(target_os = "macos") {
             let mut sandbox_cmd = Command::new("sandbox-exec");
-            sandbox_cmd.arg("-f")
+            sandbox_cmd
+                .arg("-f")
                 .arg("./sandbox-exec-profiles/mcp-server-everything-for-now.sb")
                 .arg(&actual_command)
                 .args(&actual_args)
@@ -138,7 +153,8 @@ impl McpServerManager {
             sandbox_cmd
         } else {
             let mut regular_cmd = Command::new(&actual_command);
-            regular_cmd.args(&actual_args)
+            regular_cmd
+                .args(&actual_args)
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
@@ -151,16 +167,23 @@ impl McpServerManager {
             cmd.env(key, value);
         }
 
-        let mut child = cmd.spawn()
+        let mut child = cmd
+            .spawn()
             .map_err(|e| format!("Failed to spawn MCP server process: {}", e))?;
 
-        let stdin = child.stdin.take()
+        let stdin = child
+            .stdin
+            .take()
             .ok_or_else(|| "Failed to get stdin handle".to_string())?;
 
-        let stdout = child.stdout.take()
+        let stdout = child
+            .stdout
+            .take()
             .ok_or_else(|| "Failed to get stdout handle".to_string())?;
 
-        let stderr = child.stderr.take()
+        let stderr = child
+            .stderr
+            .take()
             .ok_or_else(|| "Failed to get stderr handle".to_string())?;
 
         let (stdin_tx, mut stdin_rx) = mpsc::channel::<String>(CHANNEL_CAPACITY);
@@ -260,7 +283,7 @@ impl McpServerManager {
             args: vec![url.clone()],
             server_type: ServerType::Http {
                 url: url.clone(),
-                headers: headers.clone()
+                headers: headers.clone(),
             },
             tools: Vec::new(),
             resources: Vec::new(),
@@ -318,13 +341,15 @@ impl McpServerManager {
         request_body: String,
     ) -> Result<String, String> {
         let servers = self.servers.read().await;
-        let server = servers.get(server_name)
+        let server = servers
+            .get(server_name)
             .ok_or_else(|| format!("Server '{}' not found", server_name))?;
 
         match &server.server_type {
             ServerType::Http { url, headers } => {
                 // For HTTP servers, forward the request as-is
-                let mut req = self.http_client
+                let mut req = self
+                    .http_client
                     .post(url)
                     .body(request_body)
                     .header("Content-Type", "application/json");
@@ -333,20 +358,28 @@ impl McpServerManager {
                     req = req.header(key, value);
                 }
 
-                let response = req.send().await
+                let response = req
+                    .send()
+                    .await
                     .map_err(|e| format!("HTTP request failed: {}", e))?;
 
-                let response_text = response.text().await
+                let response_text = response
+                    .text()
+                    .await
                     .map_err(|e| format!("Failed to read response: {}", e))?;
 
                 Ok(response_text)
             }
             ServerType::Process => {
                 // For process servers, send via stdin and wait for response
-                let stdin_tx = server.stdin_tx.as_ref()
+                let stdin_tx = server
+                    .stdin_tx
+                    .as_ref()
                     .ok_or_else(|| "No stdin channel available".to_string())?;
 
-                stdin_tx.send(format!("{}\n", request_body)).await
+                stdin_tx
+                    .send(format!("{}\n", request_body))
+                    .await
                     .map_err(|e| format!("Failed to send request: {}", e))?;
 
                 // Parse request to get ID for response matching
@@ -362,7 +395,9 @@ impl McpServerManager {
 
                     let mut buffer = server.response_buffer.lock().await;
                     while let Some(entry) = buffer.pop_front() {
-                        if let Ok(response) = serde_json::from_str::<JsonRpcResponse>(&entry.content) {
+                        if let Ok(response) =
+                            serde_json::from_str::<JsonRpcResponse>(&entry.content)
+                        {
                             if response.id == request.id {
                                 return Ok(entry.content);
                             }
@@ -408,11 +443,25 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
         let server_name_clone = server_name.clone();
         let config_clone = config.clone();
 
-        println!("🚀 Starting MCP server '{}' with persistent connection", server_name_clone);
-        println!("📋 Server config - Command: '{}', Args: {:?}", config_clone.server_config.command, config_clone.server_config.args);
+        println!(
+            "🚀 Starting MCP server '{}' with persistent connection",
+            server_name_clone
+        );
+        println!(
+            "📋 Server config - Command: '{}', Args: {:?}",
+            config_clone.server_config.command, config_clone.server_config.args
+        );
 
         tauri::async_runtime::spawn(async move {
-            match MCP_SERVER_MANAGER.start_server(server_name_clone, config_clone.server_config.command, config_clone.server_config.args, Some(config_clone.server_config.env)).await {
+            match MCP_SERVER_MANAGER
+                .start_server(
+                    server_name_clone,
+                    config_clone.server_config.command,
+                    config_clone.server_config.args,
+                    Some(config_clone.server_config.env),
+                )
+                .await
+            {
                 Ok(_) => println!("✅ MCP server '{}' started successfully", server_name),
                 Err(e) => eprintln!("❌ Failed to start MCP server '{}': {}", server_name, e),
             }
@@ -424,21 +473,19 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
 }
 
 /// Start an MCP server using the global manager
-pub async fn start_mcp_server(
-    definition: &McpServerDefinition,
-) -> Result<(), String> {
-    MCP_SERVER_MANAGER.start_server(
-        definition.name.clone(),
-        definition.server_config.command.clone(),
-        definition.server_config.args.clone(),
-        Some(definition.server_config.env.clone()),
-    ).await
+pub async fn start_mcp_server(definition: &McpServerDefinition) -> Result<(), String> {
+    MCP_SERVER_MANAGER
+        .start_server(
+            definition.name.clone(),
+            definition.server_config.command.clone(),
+            definition.server_config.args.clone(),
+            Some(definition.server_config.env.clone()),
+        )
+        .await
 }
 
 /// Stop an MCP server using the global manager
-pub async fn stop_mcp_server(
-    server_name: &str,
-) -> Result<(), String> {
+pub async fn stop_mcp_server(server_name: &str) -> Result<(), String> {
     MCP_SERVER_MANAGER.stop_server(server_name).await
 }
 
@@ -447,5 +494,7 @@ pub async fn forward_raw_request(
     server_name: &str,
     request_body: String,
 ) -> Result<String, String> {
-    MCP_SERVER_MANAGER.forward_raw_request(server_name, request_body).await
+    MCP_SERVER_MANAGER
+        .forward_raw_request(server_name, request_body)
+        .await
 }

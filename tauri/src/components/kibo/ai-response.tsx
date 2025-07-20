@@ -21,10 +21,12 @@ import { memo } from "react";
 import ReactMarkdown, { type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "../../lib/utils";
+
 export type AIResponseProps = HTMLAttributes<HTMLDivElement> & {
   options?: Options;
   children: Options["children"];
 };
+
 const components: Options["components"] = {
   ol: ({ node, children, className, ...props }) => (
     <ol className={cn("ml-4 list-outside list-decimal", className)} {...props}>
@@ -136,6 +138,7 @@ const components: Options["components"] = {
     );
   },
 };
+
 export const AIResponse = memo(
   ({ className, options, children, ...props }: AIResponseProps) => (
     <div className={cn("size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0", className)} {...props}>

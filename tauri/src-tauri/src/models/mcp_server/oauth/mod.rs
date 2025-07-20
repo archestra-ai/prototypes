@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use tauri_plugin_opener::OpenerExt;
 use tauri::Emitter;
+use tauri_plugin_opener::OpenerExt;
 
 pub mod gmail;
 
@@ -10,7 +10,10 @@ pub struct AuthResponse {
 }
 
 #[tauri::command]
-pub async fn start_oauth_auth(app: tauri::AppHandle, service: String) -> Result<AuthResponse, String> {
+pub async fn start_oauth_auth(
+    app: tauri::AppHandle,
+    service: String,
+) -> Result<AuthResponse, String> {
     // Call the OAuth proxy service with dynamic service parameter
     let client = reqwest::Client::new();
     let response = client
@@ -26,7 +29,8 @@ pub async fn start_oauth_auth(app: tauri::AppHandle, service: String) -> Result<
         .map_err(|e| format!("Failed to parse auth response: {}", e))?;
 
     // Open the auth URL in the system browser
-    app.opener().open_url(auth_data.auth_url.as_str(), None::<&str>)
+    app.opener()
+        .open_url(auth_data.auth_url.as_str(), None::<&str>)
         .map_err(|e| format!("Failed to open auth URL: {}", e))?;
 
     Ok(auth_data)
@@ -44,7 +48,10 @@ pub async fn handle_oauth_callback(app: tauri::AppHandle, url: String) {
             .collect();
 
         // Get the service from the query parameters
-        let service = query_params.get("service").unwrap_or(&"unknown".to_string()).clone();
+        let service = query_params
+            .get("service")
+            .unwrap_or(&"unknown".to_string())
+            .clone();
 
         if let Some(error) = query_params.get("error") {
             eprintln!("OAuth error for {}: {}", service, error);

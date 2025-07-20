@@ -395,7 +395,6 @@ mod tests {
         ArchestraMcpServer::new("test_user_123".to_string())
     }
 
-
     // Test server creation and initialization
     #[test]
     fn test_server_creation() {
@@ -532,14 +531,6 @@ mod tests {
         assert_eq!(context.active_models[0], "gpt-4");
         assert_eq!(context.active_models[1], "claude-3-opus");
     }
-
-
-
-
-
-
-
-
 
     // Test proxy endpoint
     #[tokio::test]

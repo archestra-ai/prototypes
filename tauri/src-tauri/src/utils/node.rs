@@ -89,7 +89,7 @@ fn get_common_node_locations() -> Vec<PathBuf> {
     // Add NVM paths
     if let Ok(home) = env::var("HOME") {
         let home_path = PathBuf::from(&home);
-        
+
         // Check for .nvm directory
         let nvm_path = home_path.join(".nvm/versions/node");
         if nvm_path.exists() {
@@ -185,10 +185,16 @@ fn find_npx_in_common_locations() -> Option<PathBuf> {
 }
 
 /// Get the command to execute an npm package
-pub fn get_npm_execution_command(package_name: &str, node_info: &NodeInfo) -> Result<(String, Vec<String>), String> {
+pub fn get_npm_execution_command(
+    package_name: &str,
+    node_info: &NodeInfo,
+) -> Result<(String, Vec<String>), String> {
     // First try npx if available
     if let Some(npx_path) = &node_info.npx_path {
-        return Ok((npx_path.to_string_lossy().to_string(), vec![package_name.to_string()]));
+        return Ok((
+            npx_path.to_string_lossy().to_string(),
+            vec![package_name.to_string()],
+        ));
     }
 
     // If npx is not available but node is, we can try to run the package directly
@@ -214,7 +220,13 @@ pub fn get_npm_execution_command(package_name: &str, node_info: &NodeInfo) -> Re
         // This might work if npm is installed but npx wasn't found in our search
         return Ok((
             node_path.to_string_lossy().to_string(),
-            vec!["-e".to_string(), format!("require('child_process').execFileSync('npx', ['{}'], {{stdio: 'inherit'}})", package_name)]
+            vec![
+                "-e".to_string(),
+                format!(
+                    "require('child_process').execFileSync('npx', ['{}'], {{stdio: 'inherit'}})",
+                    package_name
+                ),
+            ],
         ));
     }
 
@@ -257,7 +269,7 @@ pub fn can_execute_npm_packages() -> bool {
 /// Get a user-friendly error message for missing Node.js
 pub fn get_node_installation_instructions() -> String {
     let os = env::consts::OS;
-    
+
     match os {
         "macos" => {
             "Node.js is not installed on your system. Please install it using one of these methods:\n\n\
@@ -301,13 +313,22 @@ fn generate_permissive_sandbox_profile(node_info: &NodeInfo) -> String {
 
     // Add Node.js paths if detected
     if let Some(node_path) = &node_info.node_path {
-        profile.push_str(&format!(";; Allow detected Node.js\n(allow process-exec (literal \"{}\"))\n", node_path.display()));
+        profile.push_str(&format!(
+            ";; Allow detected Node.js\n(allow process-exec (literal \"{}\"))\n",
+            node_path.display()
+        ));
     }
     if let Some(npm_path) = &node_info.npm_path {
-        profile.push_str(&format!("(allow process-exec (literal \"{}\"))\n", npm_path.display()));
+        profile.push_str(&format!(
+            "(allow process-exec (literal \"{}\"))\n",
+            npm_path.display()
+        ));
     }
     if let Some(npx_path) = &node_info.npx_path {
-        profile.push_str(&format!("(allow process-exec (literal \"{}\"))\n", npx_path.display()));
+        profile.push_str(&format!(
+            "(allow process-exec (literal \"{}\"))\n",
+            npx_path.display()
+        ));
     }
 
     // Add common Node.js paths as fallback
@@ -318,7 +339,9 @@ fn generate_permissive_sandbox_profile(node_info: &NodeInfo) -> String {
     profile.push_str("(allow process-exec (literal \"/opt/homebrew/bin/node\"))\n");
     profile.push_str("(allow process-exec (literal \"/opt/homebrew/bin/npm\"))\n");
     profile.push_str("(allow process-exec (literal \"/opt/homebrew/bin/npx\"))\n");
-    profile.push_str("(allow process-exec (regex \"^/Users/.*/\\.nvm/versions/node/.*/bin/(node|npm|npx)\"))\n");
+    profile.push_str(
+        "(allow process-exec (regex \"^/Users/.*/\\.nvm/versions/node/.*/bin/(node|npm|npx)\"))\n",
+    );
 
     // Add file system permissions
     profile.push_str("\n;; File system access\n");
@@ -327,7 +350,7 @@ fn generate_permissive_sandbox_profile(node_info: &NodeInfo) -> String {
     profile.push_str("(allow file-write-data (regex \"^/Users/.*/\\.npm/\"))\n");
     profile.push_str("(allow file-read-data (regex \"^/usr/local/lib/node_modules/\"))\n");
     profile.push_str("(allow file-read-data (regex \"^/opt/homebrew/lib/node_modules/\"))\n");
-    
+
     // System libraries and network
     profile.push_str("\n;; System access\n");
     profile.push_str("(allow file-read-data (regex \"^/usr/lib/\"))\n");
@@ -345,13 +368,22 @@ fn generate_restrictive_sandbox_profile(node_info: &NodeInfo) -> String {
 
     // Only allow detected paths
     if let Some(node_path) = &node_info.node_path {
-        profile.push_str(&format!(";; Allow only detected Node.js\n(allow process-exec (literal \"{}\"))\n", node_path.display()));
+        profile.push_str(&format!(
+            ";; Allow only detected Node.js\n(allow process-exec (literal \"{}\"))\n",
+            node_path.display()
+        ));
     }
     if let Some(npm_path) = &node_info.npm_path {
-        profile.push_str(&format!("(allow process-exec (literal \"{}\"))\n", npm_path.display()));
+        profile.push_str(&format!(
+            "(allow process-exec (literal \"{}\"))\n",
+            npm_path.display()
+        ));
     }
     if let Some(npx_path) = &node_info.npx_path {
-        profile.push_str(&format!("(allow process-exec (literal \"{}\"))\n", npx_path.display()));
+        profile.push_str(&format!(
+            "(allow process-exec (literal \"{}\"))\n",
+            npx_path.display()
+        ));
     }
 
     // Minimal file system access

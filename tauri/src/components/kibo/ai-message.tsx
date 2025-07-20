@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import type { ComponentProps, HTMLAttributes } from "react";
 import { cn } from "../../lib/utils";
+
 export type AIMessageProps = HTMLAttributes<HTMLDivElement> & {
   from: "user" | "assistant";
 };
@@ -15,6 +16,7 @@ export const AIMessage = ({ className, from, ...props }: AIMessageProps) => (
     {...props}
   />
 );
+
 export type AIMessageContentProps = HTMLAttributes<HTMLDivElement>;
 export const AIMessageContent = ({ children, className, ...props }: AIMessageContentProps) => (
   <div
@@ -29,6 +31,7 @@ export const AIMessageContent = ({ children, className, ...props }: AIMessageCon
     <div className="is-user:dark">{children}</div>
   </div>
 );
+
 export type AIMessageAvatarProps = ComponentProps<typeof Avatar> & {
   src: string;
   name?: string;
