@@ -1,3 +1,4 @@
+use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_opener;
 use tauri_plugin_shell;
