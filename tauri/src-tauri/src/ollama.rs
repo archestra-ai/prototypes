@@ -1,6 +1,6 @@
-use tauri_plugin_shell::ShellExt;
 use crate::utils::get_free_port;
 use std::sync::OnceLock;
+use tauri_plugin_shell::ShellExt;
 
 // Global state for Ollama server port
 static OLLAMA_PORT: OnceLock<u16> = OnceLock::new();
@@ -11,7 +11,8 @@ pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Res
     let port = get_free_port()?;
     println!("Starting Ollama server as sidecar on port {}...", port);
 
-    let sidecar_result = app_handle.shell()
+    let sidecar_result = app_handle
+        .shell()
         .sidecar("ollama")
         .map_err(|e| format!("Failed to get sidecar: {:?}", e))?
         .env("OLLAMA_HOST", format!("127.0.0.1:{}", port))
@@ -23,7 +24,9 @@ pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Res
             println!("Ollama server started successfully on port {}!", port);
 
             // Store the port globally
-            OLLAMA_PORT.set(port).map_err(|_| "Failed to store Ollama port")?;
+            OLLAMA_PORT
+                .set(port)
+                .map_err(|_| "Failed to store Ollama port")?;
 
             // Handle output in background
             tauri::async_runtime::spawn(async move {
@@ -54,6 +57,8 @@ pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Res
 
 #[tauri::command]
 pub fn get_ollama_port() -> Result<u16, String> {
-    OLLAMA_PORT.get().copied()
+    OLLAMA_PORT
+        .get()
+        .copied()
         .ok_or_else(|| "Ollama server not started".to_string())
 }

@@ -35,11 +35,7 @@ impl MigrationTrait for Migration {
                             .timestamp_with_time_zone()
                             .null(),
                     )
-                    .col(
-                        ColumnDef::new(ClientConnections::ConfigPath)
-                            .text()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(ClientConnections::ConfigPath).text().null())
                     .col(
                         ColumnDef::new(ClientConnections::CreatedAt)
                             .timestamp_with_time_zone()
