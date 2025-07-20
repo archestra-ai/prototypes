@@ -105,7 +105,7 @@ impl Model {
         
         // If updating, stop the existing server first
         if is_update {
-            if let Err(e) = sandbox::stop_mcp_server(app_handle, &definition.name).await {
+            if let Err(e) = sandbox::stop_mcp_server(&definition.name).await {
                 eprintln!("Warning: Failed to stop server before update: {}", e);
             }
         }
@@ -114,7 +114,7 @@ impl Model {
         let result = Self::save_server_without_lifecycle(db, definition).await?;
 
         // Start the server after saving
-        if let Err(e) = sandbox::start_mcp_server(app_handle, definition).await {
+        if let Err(e) = sandbox::start_mcp_server(definition).await {
             eprintln!("Warning: Failed to start server after save: {}", e);
             // Don't fail the save operation, but log the error
         }
@@ -168,7 +168,7 @@ impl Model {
         server_name: &str,
     ) -> Result<DeleteResult, DbErr> {
         // Stop the server before deleting
-        if let Err(e) = sandbox::stop_mcp_server(app_handle, server_name).await {
+        if let Err(e) = sandbox::stop_mcp_server(server_name).await {
             eprintln!("Warning: Failed to stop server before deletion: {}", e);
         }
         
@@ -348,57 +348,6 @@ pub async fn delete_mcp_server(app: tauri::AppHandle, name: String) -> Result<()
 pub async fn get_mcp_connector_catalog() -> Result<ConnectorCatalog, String> {
     let catalog_json = include_str!("catalog.json");
     serde_json::from_str(catalog_json).map_err(|e| format!("Failed to parse catalog: {}", e))
-}
-
-pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> {
-    use crate::database::connection::get_database_connection_with_app;
-
-    println!("Starting all persisted MCP servers...");
-
-    let db = get_database_connection_with_app(&app)
-        .await
-        .map_err(|e| format!("Failed to connect to database: {}", e))?;
-
-    let servers = Model::load_all_servers(&db)
-        .await
-        .map_err(|e| format!("Failed to load MCP servers: {}", e))?;
-
-    if servers.is_empty() {
-        println!("No persisted MCP servers found to start.");
-        return Ok(());
-    }
-
-    println!("Found {} MCP servers to start", servers.len());
-
-    // Start each server using the new MCP bridge with staggered startup
-    let mut server_count = 0;
-    for (server_name, config) in servers {
-        let app_clone = app.clone();
-        let startup_delay = server_count * 2000; // 2 second delay between each server
-        server_count += 1;
-
-        tauri::async_runtime::spawn(async move {
-            if startup_delay > 0 {
-                println!(
-                    "⏳ Waiting {}ms before starting MCP server '{}'",
-                    startup_delay, server_name
-                );
-                tokio::time::sleep(tokio::time::Duration::from_millis(startup_delay)).await;
-            }
-
-            println!(
-                "🚀 Starting MCP server '{}' (server #{} of total)",
-                server_name, server_count
-            );
-            match sandbox::start_mcp_server(&app_clone, &config).await {
-                Ok(_) => println!("✅ MCP server '{}' started successfully", server_name),
-                Err(e) => eprintln!("❌ Failed to start MCP server '{}': {}", server_name, e),
-            }
-        });
-    }
-
-    println!("All MCP servers have been queued for startup.");
-    Ok(())
 }
 
 #[cfg(test)]

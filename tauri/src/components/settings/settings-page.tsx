@@ -358,7 +358,7 @@ export function SettingsPage() {
                     Proxy Routing
                   </h4>
                   <div className="space-y-1 text-sm">
-                    <div>• /mcp/&lt;tool&gt; - Route to sandboxed servers</div>
+                    <div>• /proxy/&lt;tool&gt; - Route to sandboxed servers</div>
                     <div>• Auto-discovery of available tools</div>
                     <div>• JSON-RPC 2.0 compliant responses</div>
                     <div>• Error handling and fallbacks</div>

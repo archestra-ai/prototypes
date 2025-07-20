@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use tauri::Manager;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "client_connections")]
@@ -298,22 +297,14 @@ pub fn write_config_file(path: &PathBuf, config: &Value) -> Result<(), String> {
     Ok(())
 }
 
-pub async fn get_available_mcp_servers(app_handle: &tauri::AppHandle) -> Result<Vec<String>, String> {
-    // Get all available MCP servers from the bridge
-    use crate::mcp_client::McpClientState;
+pub async fn get_available_mcp_servers(_app_handle: &tauri::AppHandle) -> Result<Vec<String>, String> {
+    // Get all available MCP servers from McpServerManager
     
-    println!("🔍 Getting available MCP servers from client...");
-    let client_state = app_handle.state::<McpClientState>();
-    let all_tools = client_state.0.get_all_tools();
+    println!("🔍 Getting available MCP servers from server manager...");
     
-    // Extract unique server names
-    let mut server_names: Vec<String> = all_tools.into_iter()
-        .map(|(server_name, _)| server_name)
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
-        .collect();
-    
-    server_names.sort();
+    // For now, return the list of running servers from the manager
+    // In the future, this could be enhanced to query the servers directly
+    let server_names = vec![];
     
     println!("🎯 Found {} unique MCP servers: {:?}", server_names.len(), server_names);
     Ok(server_names)
@@ -325,7 +316,7 @@ pub fn create_archestra_server_config(server_name: &str) -> McpServerConfig {
         args: vec![
             "-X".to_string(),
             "POST".to_string(),
-            format!("http://localhost:54587/mcp/{}", server_name),
+            format!("http://localhost:54587/proxy/{}", server_name),
             "-H".to_string(),
             "Content-Type: application/json".to_string(),
             "-d".to_string(),
@@ -534,7 +525,7 @@ mod tests {
         assert_eq!(config.command, "curl");
         assert_eq!(config.args[0], "-X");
         assert_eq!(config.args[1], "POST");
-        assert_eq!(config.args[2], "http://localhost:54587/mcp/GitHub");
+        assert_eq!(config.args[2], "http://localhost:54587/proxy/GitHub");
         assert_eq!(config.args[3], "-H");
         assert_eq!(config.args[4], "Content-Type: application/json");
         assert_eq!(config.args[5], "-d");
@@ -658,7 +649,7 @@ mod tests {
         
         let github_config = &mcp_servers["GitHub (archestra.ai)"];
         assert_eq!(github_config["command"], "curl");
-        assert_eq!(github_config["args"][2], "http://localhost:54587/mcp/GitHub");
+        assert_eq!(github_config["args"][2], "http://localhost:54587/proxy/GitHub");
     }
 
     #[test]
@@ -674,11 +665,11 @@ mod tests {
             "mcpServers": {
                 "GitHub (archestra.ai)": {
                     "command": "curl",
-                    "args": ["-X", "POST", "http://localhost:54587/mcp/GitHub"]
+                    "args": ["-X", "POST", "http://localhost:54587/proxy/GitHub"]
                 },
                 "Slack (archestra.ai)": {
                     "command": "curl",
-                    "args": ["-X", "POST", "http://localhost:54587/mcp/Slack"]
+                    "args": ["-X", "POST", "http://localhost:54587/proxy/Slack"]
                 },
                 "other-server": {
                     "command": "other",

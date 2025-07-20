@@ -18,16 +18,17 @@ interface MCPTool {
   tool: {
     name: string;
     description?: string;
-    input_schema: any;
+    inputSchema: any;
   };
 }
 
 interface ChatContainerProps {
   mcpTools: MCPTool[];
   isLoadingTools?: boolean;
+  executeTool?: (serverName: string, toolName: string, args: any) => Promise<any>;
 }
 
-export function ChatContainer({ mcpTools, isLoadingTools = false }: ChatContainerProps) {
+export function ChatContainer({ mcpTools, isLoadingTools = false, executeTool }: ChatContainerProps) {
   const { ollamaPort } = useOllamaServer();
 
   const { chatHistory, isChatLoading, isStreaming, sendChatMessage, clearChatHistory, cancelStreaming } = usePostChatMessage({

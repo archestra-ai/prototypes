@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_opener;
@@ -9,8 +8,6 @@ use tauri_plugin_single_instance;
 pub mod archestra_mcp_server;
 pub mod database;
 pub mod llm_providers;
-pub mod mcp_client;
-pub mod mcp_proxy;
 pub mod models;
 pub mod utils;
 
@@ -61,25 +58,12 @@ pub fn run() {
                     .map_err(|e| format!("Database error: {}", e))
             })?;
 
-            // Initialize OAuth proxy binary
-            // TODO: when we deploy this to cloud run, we can remove this
-            let _ = models::mcp_server::oauth::start_oauth_proxy(app.handle().clone());
-
-            // Initialize MCP bridge BEFORE starting servers that depend on it
-            let mcp_client = Arc::new(mcp_client::McpClient::new());
-            app.manage(mcp_client::McpClientState(mcp_client));
-
             // Start all persisted MCP servers
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = models::mcp_server::start_all_mcp_servers(app_handle).await {
+                if let Err(e) = models::mcp_server::sandbox::start_all_mcp_servers(app_handle).await {
                     eprintln!("Failed to start MCP servers: {}", e);
                 }
-            });
-
-            // Start MCP proxy automatically on app startup
-            tauri::async_runtime::spawn(async {
-                let _ = crate::mcp_proxy::start_mcp_proxy().await;
             });
 
             // Start Ollama server automatically on app startup
@@ -92,10 +76,10 @@ pub fn run() {
                 }
             });
 
-            // Start the Archestra MCP Server (now that MCP bridge is initialized)
-            let app_handle = app.handle().clone();
+            // Start the Archestra MCP Server
+            let user_id = "archestra_user".to_string();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = archestra_mcp_server::start_archestra_mcp_server(app_handle).await {
+                if let Err(e) = archestra_mcp_server::start_archestra_mcp_server(user_id).await {
                     eprintln!("Failed to start Archestra MCP Server: {}", e);
                 }
             });
@@ -144,17 +128,11 @@ pub fn run() {
             models::mcp_server::load_mcp_servers,
             models::mcp_server::delete_mcp_server,
             models::mcp_server::get_mcp_connector_catalog,
-            mcp_client::get_mcp_tools,
-            mcp_client::debug_mcp_client,
             models::mcp_server::oauth::start_oauth_auth,
-            models::mcp_server::oauth::check_oauth_proxy_health,
             models::client_connection_config::connect_mcp_client,
             models::client_connection_config::disconnect_mcp_client,
             models::client_connection_config::check_client_connection_status,
             models::client_connection_config::notify_new_mcp_tools_available,
-            mcp_proxy::check_mcp_proxy_health,
-            mcp_proxy::start_mcp_proxy,
-            mcp_proxy::stop_mcp_proxy,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

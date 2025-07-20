@@ -36,7 +36,7 @@ interface MCPTool {
   tool: {
     name: string;
     description?: string;
-    input_schema: any;
+    inputSchema: any;
   };
 }
 
@@ -141,7 +141,7 @@ export function ChatInput({
     }
     acc[tool.serverName].push(tool.tool);
     return acc;
-  }, {} as Record<string, Array<{name: string; description?: string; input_schema: any}>>);
+  }, {} as Record<string, Array<{name: string; description?: string; inputSchema: any}>>);
 
   return (
     <div className="space-y-2">

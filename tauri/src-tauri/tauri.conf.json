@@ -33,7 +33,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/ollama", "binaries/oauth-proxy"]
+    "externalBin": ["binaries/ollama"]
   },
   "plugins": {
     "deep-link": {

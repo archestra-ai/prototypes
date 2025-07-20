@@ -15,10 +15,6 @@
           "args": ["serve"]
         },
         {
-          "name": "binaries/oauth-proxy",
-          "sidecar": true
-        },
-        {
           "name": "pkill",
           "args": ["-f", "ollama"]
         }

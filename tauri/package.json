@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@icons-pack/react-simple-icons": "^13.5.0",
+    "@modelcontextprotocol/sdk": "^1.16.0",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-collapsible": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.14",

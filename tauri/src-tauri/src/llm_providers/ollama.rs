@@ -1,8 +1,6 @@
 use tauri_plugin_shell::ShellExt;
-use tauri::Manager;
 use tauri::Emitter;
 use crate::utils::get_free_port;
-use crate::mcp_client::McpClientState;
 use std::sync::{OnceLock, Arc, Mutex};
 use tokio::sync::oneshot;
 
@@ -90,26 +88,12 @@ pub fn get_ollama_port() -> Result<u16, String> {
 
 #[tauri::command]
 pub async fn ollama_chat_with_tools(
-    app: tauri::AppHandle,
+    _app: tauri::AppHandle,
     port: u16,
     model: String,
     messages: Vec<OllamaMessage>,
 ) -> Result<serde_json::Value, String> {
-    let client_state = app.state::<McpClientState>();
-    let available_tools = client_state.0.get_all_tools();
-
-    // Convert MCP tools to Ollama tool format
-    let mut ollama_tools = Vec::new();
-    for (server_name, tool) in &available_tools {
-        ollama_tools.push(serde_json::json!({
-            "type": "function",
-            "function": {
-                "name": format!("{}_{}", server_name, tool.name),
-                "description": tool.description.clone().unwrap_or_else(|| format!("Tool {} from server {}", tool.name, server_name)),
-                "parameters": tool.input_schema.clone()
-            }
-        }));
-    }
+    let ollama_tools: Vec<serde_json::Value> = Vec::new();
 
     // Prepare the request to Ollama with optimal Qwen3 settings
     let request_body = serde_json::json!({
@@ -213,27 +197,13 @@ pub async fn ollama_chat_with_tools(
         // Extract function details with early continue on failure
         let Some(function) = tool_call.get("function") else { continue; };
         let Some(name) = function.get("name").and_then(|n| n.as_str()) else { continue; };
-        let Some(arguments) = function.get("arguments") else { continue; };
+        let Some(_arguments) = function.get("arguments") else { continue; };
         let Some((server_name, tool_name)) = name.split_once('_') else { continue; };
 
         println!("Executing tool '{}' on server '{}'", tool_name, server_name);
 
-        let content = match client_state.0.execute_tool(server_name, tool_name, arguments.clone()).await {
-            Ok(result) => {
-                // Format the result to be human-readable
-                if let Some(content) = result.get("content").and_then(|c| c.as_str()) {
-                    // If the result has a 'content' field, extract and format it
-                    content.replace("\\n", "\n").replace("\\\"", "\"")
-                } else if result.is_string() {
-                    // If it's a plain string, unescape it
-                    result.as_str().unwrap_or("").replace("\\n", "\n").replace("\\\"", "\"")
-                } else {
-                    // For other JSON structures, pretty print them
-                    serde_json::to_string_pretty(&result).unwrap_or_else(|_| result.to_string())
-                }
-            },
-            Err(e) => format!("Error executing tool: {}", e),
-        };
+        // Tool execution will be handled by the frontend
+        let content = format!("Tool execution for {}_{} needs to be handled by the frontend", server_name, tool_name);
 
         tool_results.push(OllamaToolResponse {
             role: "tool".to_string(),
@@ -256,34 +226,15 @@ pub async fn ollama_chat_with_tools_streaming(
     model: String,
     messages: Vec<OllamaMessage>,
 ) -> Result<(), String> {
-    let client_state = app.state::<McpClientState>();
-    let available_tools = client_state.0.get_all_tools();
+    // Tool discovery now happens in the frontend
+    let available_tools: Vec<(String, serde_json::Value)> = vec![];
 
     // Convert MCP tools to Ollama tool format and create system message
-    let mut ollama_tools = Vec::new();
-    let mut tool_descriptions = Vec::new();
+    let ollama_tools: Vec<serde_json::Value> = Vec::new();
+    let tool_descriptions: Vec<String> = Vec::new();
 
-    println!("🔧 Converting {} MCP tools to Ollama format", available_tools.len());
-    for (server_name, tool) in &available_tools {
-        let tool_name = format!("{}_{}", server_name, tool.name);
-        let tool_desc = tool.description.clone().unwrap_or_else(|| format!("Tool {} from server {}", tool.name, server_name));
-
-        println!("  🛠️ Converting tool '{}' from server '{}'", tool.name, server_name);
-        println!("     Ollama name: {}", tool_name);
-        println!("     Description: {}", tool_desc);
-        println!("     Schema: {}", tool.input_schema);
-
-        tool_descriptions.push(format!("- {}: {}", tool_name, tool_desc));
-
-        ollama_tools.push(serde_json::json!({
-            "type": "function",
-            "function": {
-                "name": tool_name,
-                "description": tool_desc,
-                "parameters": tool.input_schema.clone()
-            }
-        }));
-    }
+    // Tool conversion is now handled by the frontend
+    println!("🔧 Tool discovery and conversion now handled by frontend");
 
     // Prepare messages with tool awareness
     let mut enhanced_messages = messages.clone();
@@ -447,27 +398,13 @@ pub async fn ollama_chat_with_tools_streaming(
                     // Extract function details with early continue on failure
                     let Some(function) = tool_call.get("function") else { continue; };
                     let Some(name) = function.get("name").and_then(|n| n.as_str()) else { continue; };
-                    let Some(arguments) = function.get("arguments") else { continue; };
+                    let Some(_arguments) = function.get("arguments") else { continue; };
                     let Some((server_name, tool_name)) = name.split_once('_') else { continue; };
 
                     println!("Executing tool '{}' on server '{}'", tool_name, server_name);
 
-                    let content = match client_state.0.execute_tool(server_name, tool_name, arguments.clone()).await {
-                        Ok(result) => {
-                            // Format the result to be human-readable
-                            if let Some(content) = result.get("content").and_then(|c| c.as_str()) {
-                                // If the result has a 'content' field, extract and format it
-                                content.replace("\\n", "\n").replace("\\\"", "\"")
-                            } else if result.is_string() {
-                                // If it's a plain string, unescape it
-                                result.as_str().unwrap_or("").replace("\\n", "\n").replace("\\\"", "\"")
-                            } else {
-                                // For other JSON structures, pretty print them
-                                serde_json::to_string_pretty(&result).unwrap_or_else(|_| result.to_string())
-                            }
-                        },
-                        Err(e) => format!("Error executing tool: {}", e),
-                    };
+                    // Tool execution will be handled by the frontend
+                    let content = format!("Tool execution for {}_{} needs to be handled by the frontend", server_name, tool_name);
 
                     tool_results.push(OllamaToolResponse {
                         role: "tool".to_string(),

@@ -28,6 +28,6 @@ export interface MCPTool {
   tool: {
     name: string;
     description?: string;
-    input_schema: any;
+    inputSchema: any;
   };
 }

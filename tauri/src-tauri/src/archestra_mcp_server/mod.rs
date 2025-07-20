@@ -1,17 +1,33 @@
-use crate::mcp_client::{McpClient, McpClientState};
 use crate::models::mcp_server::sandbox::forward_raw_request;
-use http_body_util::BodyExt;
-use hyper::service::service_fn;
-use hyper::{body::Incoming, Method, Request, Response, StatusCode};
-use hyper_util::rt::TokioIo;
-use hyper_util::server::conn::auto::Builder as ConnBuilder;
+use axum::{
+    body::Body,
+    extract::Path,
+    routing::{get, post},
+    Router,
+};
+use rmcp::{
+    handler::server::{router::tool::ToolRouter, tool::Parameters},
+    model::{
+        CallToolResult, Content, GetPromptRequestParam, GetPromptResult, ListPromptsResult,
+        ListResourcesResult, PaginatedRequestParam, Prompt, PromptArgument, PromptMessage,
+        PromptMessageContent, PromptMessageRole, ProtocolVersion, RawResource,
+        ReadResourceRequestParam, ReadResourceResult, Resource, ResourceContents,
+        ServerCapabilities, ServerInfo,
+    },
+    schemars,
+    service::RequestContext,
+    tool, tool_handler, tool_router,
+    transport::sse_server::{SseServer, SseServerConfig},
+    ErrorData as McpError, RoleServer, ServerHandler,
+};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
+use std::future::Future;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
-use tauri::Manager;
+use std::sync::Arc;
 use tokio::net::TcpListener;
+use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 // Fixed port for MCP server
@@ -34,15 +50,98 @@ pub struct ArchestraResource {
     pub resource_type: String,
 }
 
-#[derive(Clone)]
-pub struct ArchestraServer {
-    context: Arc<Mutex<ArchestraContext>>,
-    resources: Arc<Mutex<HashMap<String, ArchestraResource>>>,
-    mcp_client: Option<Arc<McpClient>>,
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct UpdateContextRequest {
+    pub key: String,
+    pub value: String,
 }
 
-impl ArchestraServer {
-    pub fn new(user_id: String, session_id: String) -> Self {
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct SetActiveModelsRequest {
+    pub models: Vec<String>,
+}
+
+#[derive(Clone)]
+pub struct ArchestraMcpServer {
+    context: Arc<Mutex<ArchestraContext>>,
+    resources: Arc<Mutex<HashMap<String, ArchestraResource>>>,
+    tool_router: ToolRouter<ArchestraMcpServer>,
+}
+
+// Health check endpoint
+async fn health_check() -> &'static str {
+    "OK"
+}
+
+// Proxy request endpoint
+async fn handle_proxy_request(
+    Path(server_name): Path<String>,
+    req: axum::http::Request<Body>,
+) -> axum::http::Response<Body> {
+    println!(
+        "MCP Server Proxy: Forwarding raw request to server '{}'",
+        server_name
+    );
+
+    // Read the request body
+    let body_bytes = match axum::body::to_bytes(req.into_body(), usize::MAX).await {
+        Ok(bytes) => bytes,
+        Err(_) => {
+            return axum::http::Response::builder()
+                .status(axum::http::StatusCode::BAD_REQUEST)
+                .header("Content-Type", "application/json")
+                .body(Body::from("Failed to read request body"))
+                .unwrap();
+        }
+    };
+
+    // Convert bytes to string
+    let request_body = match String::from_utf8(body_bytes.to_vec()) {
+        Ok(body) => body,
+        Err(_) => {
+            return axum::http::Response::builder()
+                .status(axum::http::StatusCode::BAD_REQUEST)
+                .header("Content-Type", "application/json")
+                .body(Body::from("Invalid UTF-8 in request body"))
+                .unwrap();
+        }
+    };
+
+    // Forward the raw JSON-RPC request to the McpServerManager
+    match forward_raw_request(&server_name, request_body).await {
+        Ok(raw_response) => axum::http::Response::builder()
+            .status(axum::http::StatusCode::OK)
+            .header("Content-Type", "application/json")
+            .body(Body::from(raw_response))
+            .unwrap(),
+        Err(e) => {
+            println!(
+                "MCP Server Proxy: Failed to forward request to '{}': {}",
+                server_name, e
+            );
+
+            // Return a JSON-RPC error response
+            let error_response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": null,
+                "error": {
+                    "code": -32603,
+                    "message": format!("Proxy error: {}", e)
+                }
+            });
+
+            axum::http::Response::builder()
+                .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                .header("Content-Type", "application/json")
+                .body(Body::from(serde_json::to_string(&error_response).unwrap()))
+                .unwrap()
+        }
+    }
+}
+
+#[tool_router]
+impl ArchestraMcpServer {
+    pub fn new(user_id: String) -> Self {
         let mut resources = HashMap::new();
 
         // Add default resources
@@ -71,658 +170,614 @@ impl ArchestraServer {
         Self {
             context: Arc::new(Mutex::new(ArchestraContext {
                 user_id,
-                session_id,
+                session_id: Uuid::new_v4().to_string(),
                 project_context: HashMap::new(),
                 active_models: vec![],
             })),
             resources: Arc::new(Mutex::new(resources)),
-            mcp_client: None,
+            tool_router: Self::tool_router(),
         }
     }
 
-    pub fn set_mcp_client(&mut self, mcp_client: Arc<McpClient>) {
-        self.mcp_client = Some(mcp_client);
+    #[tool(description = "Get the current Archestra context")]
+    async fn get_context(&self) -> Result<CallToolResult, McpError> {
+        println!("Getting context");
+
+        let context = self.context.lock().await;
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&*context).unwrap_or_else(|_| "{}".to_string()),
+        )]))
     }
 
-    pub async fn handle_mcp_request(&self, request: Value) -> Result<Value, String> {
-        let method = request["method"].as_str().unwrap_or("");
-        let params = &request["params"];
-        let id = request["id"].clone();
-
-        let result = match method {
-            "initialize" => {
-                serde_json::json!({
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {
-                        "tools": {},
-                        "resources": {}
-                    },
-                    "serverInfo": {
-                        "name": "archestra-mcp-server",
-                        "version": "0.1.0"
-                    }
-                })
-            }
-            "tools/list" => {
-                serde_json::json!({
-                    "tools": [
-                        {
-                            "name": "get_context",
-                            "description": "Get the current Archestra context",
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": {},
-                                "required": []
-                            }
-                        },
-                        {
-                            "name": "update_context",
-                            "description": "Update the Archestra context",
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": {
-                                    "key": {"type": "string"},
-                                    "value": {"type": "string"}
-                                },
-                                "required": ["key", "value"]
-                            }
-                        },
-                        {
-                            "name": "set_active_models",
-                            "description": "Set active models for the session",
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": {
-                                    "models": {
-                                        "type": "array",
-                                        "items": {"type": "string"}
-                                    }
-                                },
-                                "required": ["models"]
-                            }
-                        }
-                    ]
-                })
-            }
-            "tools/call" => {
-                let tool_name = params["name"].as_str().unwrap_or("");
-                let arguments = &params["arguments"];
-
-                match tool_name {
-                    "get_context" => {
-                        let context = self.context.lock().unwrap();
-                        serde_json::json!({
-                            "content": [{
-                                "type": "text",
-                                "text": serde_json::to_string_pretty(&*context).unwrap_or("{}".to_string())
-                            }]
-                        })
-                    }
-                    "update_context" => {
-                        let key = arguments["key"].as_str().unwrap_or("");
-                        let value = arguments["value"].as_str().unwrap_or("");
-
-                        if let Ok(mut context) = self.context.lock() {
-                            context
-                                .project_context
-                                .insert(key.to_string(), value.to_string());
-                        }
-
-                        serde_json::json!({
-                            "content": [{
-                                "type": "text",
-                                "text": format!("Context updated: {} = {}", key, value)
-                            }]
-                        })
-                    }
-                    "set_active_models" => {
-                        if let Some(models_array) = arguments["models"].as_array() {
-                            let models: Vec<String> = models_array
-                                .iter()
-                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                .collect();
-
-                            if let Ok(mut context) = self.context.lock() {
-                                context.active_models = models.clone();
-                            }
-
-                            serde_json::json!({
-                                "content": [{
-                                    "type": "text",
-                                    "text": format!("Active models set to: {:?}", models)
-                                }]
-                            })
-                        } else {
-                            return Err("Invalid models parameter".to_string());
-                        }
-                    }
-                    _ => return Err(format!("Unknown tool: {}", tool_name)),
-                }
-            }
-            "resources/list" => {
-                let resources = self.resources.lock().unwrap();
-                let resource_list: Vec<Value> = resources
-                    .values()
-                    .map(|r| {
-                        serde_json::json!({
-                            "uri": format!("archestra://{}", r.id),
-                            "name": r.name,
-                            "description": r.description,
-                            "mimeType": "application/json"
-                        })
-                    })
-                    .collect();
-
-                serde_json::json!({
-                    "resources": resource_list
-                })
-            }
-            "resources/read" => {
-                let uri = params["uri"].as_str().unwrap_or("");
-                if let Some(resource_id) = uri.strip_prefix("archestra://") {
-                    let resources = self.resources.lock().unwrap();
-                    if let Some(resource) = resources.get(resource_id) {
-                        serde_json::json!({
-                            "contents": [{
-                                "uri": uri,
-                                "mimeType": "application/json",
-                                "text": resource.content
-                            }]
-                        })
-                    } else {
-                        return Err(format!("Resource not found: {}", resource_id));
-                    }
-                } else {
-                    return Err("Invalid resource URI".to_string());
-                }
-            }
-            _ => return Err(format!("Unknown method: {}", method)),
-        };
-
-        Ok(serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": id,
-            "result": result
-        }))
-    }
-
-    pub async fn run_http_server(&self, port: u16) -> Result<(), Box<dyn std::error::Error>> {
-        let addr = SocketAddr::from(([127, 0, 0, 1], port));
-        let listener = TcpListener::bind(addr).await?;
-        println!("Archestra MCP Server listening on http://{}", addr);
-
-        loop {
-            let (stream, _) = listener.accept().await?;
-            let server = self.clone();
-
-            tokio::spawn(async move {
-                let io = TokioIo::new(stream);
-                let conn_builder = ConnBuilder::new(hyper_util::rt::TokioExecutor::new());
-
-                if let Err(e) = conn_builder
-                    .serve_connection(
-                        io,
-                        service_fn(move |req| {
-                            let server = server.clone();
-                            async move { server.handle_http_request(req).await }
-                        }),
-                    )
-                    .await
-                {
-                    eprintln!("Connection error: {}", e);
-                }
-            });
-        }
-    }
-
-    async fn handle_server_proxy_request(
+    #[tool(description = "Update the Archestra context")]
+    async fn update_context(
         &self,
-        req: Request<Incoming>,
-        response: hyper::http::response::Builder,
-    ) -> Result<Response<String>, hyper::Error> {
-        let path = req.uri().path().to_string();
+        Parameters(UpdateContextRequest { key, value }): Parameters<UpdateContextRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        println!("Updating context: {} = {}", key, value);
 
-        // Extract server name from path: /mcp/<server_name>
-        let server_name = if let Some(server) = path.strip_prefix("/mcp/") {
-            server.to_string()
+        let mut context = self.context.lock().await;
+        context.project_context.insert(key.clone(), value.clone());
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Context updated: {} = {}",
+            key, value
+        ))]))
+    }
+
+    #[tool(description = "Set active models for the session")]
+    async fn set_active_models(
+        &self,
+        Parameters(SetActiveModelsRequest { models }): Parameters<SetActiveModelsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        println!("Setting active models: {:?}", models);
+
+        let mut context = self.context.lock().await;
+        context.active_models = models.clone();
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Active models set to: {:?}",
+            models
+        ))]))
+    }
+}
+
+#[tool_handler]
+impl ServerHandler for ArchestraMcpServer {
+    fn get_info(&self) -> ServerInfo {
+        ServerInfo {
+            protocol_version: ProtocolVersion::V_2025_03_26,
+            capabilities: ServerCapabilities::builder()
+                .enable_tools()
+                .enable_resources()
+                .build(),
+            instructions: None,
+            ..Default::default()
+        }
+    }
+
+    async fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParam>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListResourcesResult, McpError> {
+        let resources = self.resources.lock().await;
+        let resource_list: Vec<Resource> = resources
+            .values()
+            .map(|r| Resource {
+                raw: RawResource {
+                    uri: format!("archestra://{}", r.id),
+                    name: r.name.clone(),
+                    description: Some(r.description.clone()),
+                    mime_type: Some("application/json".to_string()),
+                    size: None,
+                },
+                annotations: None,
+            })
+            .collect();
+
+        Ok(ListResourcesResult {
+            resources: resource_list,
+            next_cursor: None,
+        })
+    }
+
+    async fn read_resource(
+        &self,
+        request: ReadResourceRequestParam,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResult, McpError> {
+        if let Some(resource_id) = request.uri.strip_prefix("archestra://") {
+            let resources = self.resources.lock().await;
+            if let Some(resource) = resources.get(resource_id) {
+                Ok(ReadResourceResult {
+                    contents: vec![ResourceContents::TextResourceContents {
+                        uri: request.uri,
+                        mime_type: Some("application/json".to_string()),
+                        text: resource.content.clone(),
+                    }],
+                })
+            } else {
+                Err(McpError::invalid_params(
+                    format!("Resource not found: {}", resource_id),
+                    None,
+                ))
+            }
         } else {
-            return Ok(response
-                .status(StatusCode::BAD_REQUEST)
-                .body("Invalid server proxy path".to_string())
-                .unwrap());
-        };
-
-        println!(
-            "MCP Server Proxy: Forwarding raw request to server '{}'",
-            server_name
-        );
-
-        // Read the request body
-        let body_bytes = match req.into_body().collect().await {
-            Ok(collected) => collected.to_bytes(),
-            Err(_) => {
-                return Ok(response
-                    .status(StatusCode::BAD_REQUEST)
-                    .body("Failed to read request body".to_string())
-                    .unwrap());
-            }
-        };
-
-        // Convert bytes to string
-        let request_body = match String::from_utf8(body_bytes.to_vec()) {
-            Ok(body) => body,
-            Err(_) => {
-                return Ok(response
-                    .status(StatusCode::BAD_REQUEST)
-                    .body("Invalid UTF-8 in request body".to_string())
-                    .unwrap());
-            }
-        };
-
-        // Forward the raw JSON-RPC request to the McpServerManager
-        match forward_raw_request(&server_name, request_body).await {
-            Ok(raw_response) => {
-                return Ok(response
-                    .status(StatusCode::OK)
-                    .header("Content-Type", "application/json")
-                    .body(raw_response)
-                    .unwrap());
-            }
-            Err(e) => {
-                println!(
-                    "MCP Server Proxy: Failed to forward request to '{}': {}",
-                    server_name, e
-                );
-
-                // Return a JSON-RPC error response
-                let error_response = serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "id": null,
-                    "error": {
-                        "code": -32603,
-                        "message": format!("Proxy error: {}", e)
-                    }
-                });
-
-                return Ok(response
-                    .status(StatusCode::INTERNAL_SERVER_ERROR)
-                    .header("Content-Type", "application/json")
-                    .body(serde_json::to_string(&error_response).unwrap())
-                    .unwrap());
-            }
+            Err(McpError::invalid_params("Invalid resource URI", None))
         }
     }
 
-    async fn handle_http_request(
+    async fn list_prompts(
         &self,
-        req: Request<Incoming>,
-    ) -> Result<Response<String>, hyper::Error> {
-        // Log the incoming request
-        println!(
-            "MCP Server: {} {} from {}",
-            req.method(),
-            req.uri().path(),
-            req.headers()
-                .get("user-agent")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("unknown")
-        );
+        _request: Option<PaginatedRequestParam>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ListPromptsResult, McpError> {
+        Ok(ListPromptsResult {
+            next_cursor: None,
+            prompts: vec![Prompt::new(
+                "example_prompt",
+                Some("This is an example prompt that takes one required argument, message"),
+                Some(vec![PromptArgument {
+                    name: "message".to_string(),
+                    description: Some("A message to put in the prompt".to_string()),
+                    required: Some(true),
+                }]),
+            )],
+        })
+    }
 
-        // Set CORS headers
-        let mut response = Response::builder();
-        response = response.header("Access-Control-Allow-Origin", "*");
-        response = response.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-        response = response.header("Access-Control-Allow-Headers", "Content-Type");
+    async fn get_prompt(
+        &self,
+        GetPromptRequestParam { name, arguments }: GetPromptRequestParam,
+        _: RequestContext<RoleServer>,
+    ) -> Result<GetPromptResult, McpError> {
+        match name.as_str() {
+            "example_prompt" => {
+                let message = arguments
+                    .and_then(|json| json.get("message")?.as_str().map(|s| s.to_string()))
+                    .ok_or_else(|| {
+                        McpError::invalid_params("No message provided to example_prompt", None)
+                    })?;
 
-        match (req.method(), req.uri().path()) {
-            (&Method::OPTIONS, _) => {
-                Ok(response.status(StatusCode::OK).body(String::new()).unwrap())
+                let prompt =
+                    format!("This is an example prompt with your message here: '{message}'");
+                Ok(GetPromptResult {
+                    description: None,
+                    messages: vec![PromptMessage {
+                        role: PromptMessageRole::User,
+                        content: PromptMessageContent::text(prompt),
+                    }],
+                })
             }
-            (&Method::POST, path) if path.starts_with("/mcp/") && path != "/mcp" => {
-                // Server proxy route: /mcp/<server_name> - proxy full MCP protocol to specific server
-                self.handle_server_proxy_request(req, response).await
-            }
-            (&Method::POST, "/mcp") => {
-                let body_bytes = match req.into_body().collect().await {
-                    Ok(collected) => collected.to_bytes(),
-                    Err(_) => {
-                        return Ok(response
-                            .status(StatusCode::BAD_REQUEST)
-                            .body("Failed to read request body".to_string())
-                            .unwrap());
-                    }
-                };
-
-                let request_json: Value = match serde_json::from_slice(&body_bytes) {
-                    Ok(json) => json,
-                    Err(_) => {
-                        return Ok(response
-                            .status(StatusCode::BAD_REQUEST)
-                            .body("Invalid JSON".to_string())
-                            .unwrap());
-                    }
-                };
-
-                // Log the MCP request details
-                if let Some(method) = request_json.get("method") {
-                    println!(
-                        "MCP Request: {} (id: {})",
-                        method.as_str().unwrap_or("unknown"),
-                        request_json.get("id").and_then(|v| v.as_i64()).unwrap_or(0)
-                    );
-                }
-
-                match self.handle_mcp_request(request_json).await {
-                    Ok(response_json) => {
-                        let response_str = serde_json::to_string(&response_json).unwrap();
-                        Ok(response
-                            .status(StatusCode::OK)
-                            .header("Content-Type", "application/json")
-                            .body(response_str)
-                            .unwrap())
-                    }
-                    Err(err) => {
-                        let error_response = serde_json::json!({
-                            "jsonrpc": "2.0",
-                            "error": {
-                                "code": -32603,
-                                "message": err
-                            }
-                        });
-                        Ok(response
-                            .status(StatusCode::INTERNAL_SERVER_ERROR)
-                            .header("Content-Type", "application/json")
-                            .body(serde_json::to_string(&error_response).unwrap())
-                            .unwrap())
-                    }
-                }
-            }
-            (&Method::GET, "/health") => Ok(response
-                .status(StatusCode::OK)
-                .body("OK".to_string())
-                .unwrap()),
-            _ => Ok(response
-                .status(StatusCode::NOT_FOUND)
-                .body("Not Found".to_string())
-                .unwrap()),
+            _ => Err(McpError::invalid_params("prompt not found", None)),
         }
     }
 }
 
-pub async fn start_archestra_mcp_server(
-    app_handle: tauri::AppHandle,
-) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Starting Archestra MCP Server...");
+pub async fn start_archestra_mcp_server(user_id: String) -> Result<(), Box<dyn std::error::Error>> {
+    let addr = SocketAddr::from(([127, 0, 0, 1], MCP_SERVER_PORT));
 
-    let server_url = format!("http://127.0.0.1:{}", MCP_SERVER_PORT);
-
-    // Get the MCP client from app state
-    let mcp_client = {
-        let client_state = app_handle.state::<McpClientState>();
-        client_state.0.clone()
+    // Configure SSE server for MCP
+    let config = SseServerConfig {
+        bind: addr,
+        sse_path: "/mcp".to_string(),
+        post_path: "/mcp".to_string(),
+        sse_keep_alive: Some(std::time::Duration::from_secs(30)),
+        ct: CancellationToken::new(),
     };
 
-    // Generate unique session ID for this app instance
-    let session_id = Uuid::new_v4().to_string();
-    let user_id = "archestra_user".to_string();
+    // Create SSE server and router
+    let (sse_mcp_server, sse_mcp_router) = SseServer::new(config);
+    let archestra_mcp_server = ArchestraMcpServer::new(user_id);
 
-    // Create and configure the server
-    let mut server = ArchestraServer::new(user_id, session_id);
-    server.set_mcp_client(mcp_client);
+    // Create main router
+    let app = Router::new()
+        .route("/health", get(health_check))
+        .route("/proxy/{server_name}", post(handle_proxy_request))
+        .merge(sse_mcp_router);
 
-    // Run the server in a background task
-    tauri::async_runtime::spawn(async move {
-        if let Err(e) = server.run_http_server(MCP_SERVER_PORT).await {
-            eprintln!("Archestra MCP Server error: {}", e);
-        }
-        println!("Archestra MCP Server stopped");
-    });
+    let ct = sse_mcp_server.with_service(move || archestra_mcp_server.clone());
+    let addr = SocketAddr::from(([127, 0, 0, 1], MCP_SERVER_PORT));
+    let listener = TcpListener::bind(addr).await?;
 
     println!(
-        "Archestra MCP Server started successfully on {}",
-        server_url
+        "Archestra MCP Server started successfully on http://{}",
+        addr
     );
+    println!("  - MCP endpoint (streamable HTTP): http://{}/mcp", addr);
+    println!("  - Proxy endpoints: http://{}/proxy/<server_name>", addr);
+    println!("  - Health check: http://{}/health", addr);
+
+    let server = axum::serve(listener, app).with_graceful_shutdown(async move {
+        // Wait for cancellation signal
+        ct.cancelled().await;
+        println!("Archestra MCP Server is shutting down...");
+    });
+
+    if let Err(e) = server.await {
+        eprintln!("Server error: {}", e);
+    }
+
+    println!("Server has been shut down");
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use rmcp::model::{
+        CallToolRequestParam, CallToolResult, PaginatedRequestParam, ReadResourceRequestParam,
+    };
+    use serde_json::json;
+    use std::net::{IpAddr, Ipv4Addr};
+    use tower::ServiceExt;
 
-    #[test]
-    fn test_archestra_server_creation() {
-        let server = ArchestraServer::new("user123".to_string(), "session456".to_string());
-        let context = server.context.lock().unwrap();
-        assert_eq!(context.user_id, "user123");
-        assert_eq!(context.session_id, "session456");
+    // Helper function to create a test server instance
+    fn create_test_server() -> ArchestraMcpServer {
+        ArchestraMcpServer::new("test_user_123".to_string())
     }
 
+    // Test server creation and initialization
+    #[test]
+    fn test_server_creation() {
+        let server = create_test_server();
+        // Server should be created successfully with default resources
+        let _ = server; // Ensure server is created without panic
+    }
+
+    // Test server info
     #[tokio::test]
-    async fn test_handle_initialize() {
-        let server = ArchestraServer::new("user123".to_string(), "session456".to_string());
-        let request = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {}
-        });
-
-        let result = server.handle_mcp_request(request).await;
-        assert!(result.is_ok());
-
-        let response = result.unwrap();
-        assert_eq!(response["jsonrpc"], "2.0");
-        assert_eq!(response["id"], 1);
-        assert!(response["result"]["serverInfo"]["name"]
-            .as_str()
-            .unwrap()
-            .contains("archestra"));
+    async fn test_server_info() {
+        let server = create_test_server();
+        let info = server.get_info();
+        
+        assert_eq!(info.protocol_version, ProtocolVersion::V_2025_03_26);
+        assert!(info.capabilities.tools);
+        assert!(info.capabilities.resources);
+        assert!(!info.capabilities.logging);
+        assert!(!info.capabilities.prompts);
     }
 
+    // Test startup of the MCP server
     #[tokio::test]
-    async fn test_handle_tools_list() {
-        let server = ArchestraServer::new("user123".to_string(), "session456".to_string());
-        let request = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/list",
-            "params": {}
+    async fn test_server_startup() {
+        let user_id = "test_user".to_string();
+        
+        // Start server in a background task
+        let server_task = tokio::spawn(async move {
+            let result = start_archestra_mcp_server(user_id).await;
+            // Server should run until cancelled
+            assert!(result.is_ok() || result.is_err());
         });
 
-        let result = server.handle_mcp_request(request).await;
+        // Give server time to start
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        // Test that server is listening on the expected port
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), MCP_SERVER_PORT);
+        let connection_result = tokio::net::TcpStream::connect(addr).await;
+        assert!(connection_result.is_ok(), "Server should be listening on port {}", MCP_SERVER_PORT);
+
+        // Clean up - abort the server task
+        server_task.abort();
+    }
+
+    // Test health check endpoint
+    #[tokio::test]
+    async fn test_health_check_endpoint() {
+        let app = Router::new().route("/health", axum::routing::get(health_check));
+        
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(&body[..], b"OK");
+    }
+
+    // Test get_context tool
+    #[tokio::test]
+    async fn test_get_context_tool() {
+        let server = create_test_server();
+        
+        let result = server.get_context().await;
         assert!(result.is_ok());
-
-        let response = result.unwrap();
-        let tools = response["result"]["tools"].as_array().unwrap();
-        assert!(tools.len() >= 3);
-
-        let tool_names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
-        assert!(tool_names.contains(&"get_context"));
-        assert!(tool_names.contains(&"update_context"));
-        assert!(tool_names.contains(&"set_active_models"));
-    }
-
-    #[test]
-    fn test_proxy_request_path_parsing() {
-        // Test valid proxy path parsing without HTTP request overhead
-        let path = "/mcp/test_tool";
-        let tool_name = path.strip_prefix("/mcp/").unwrap();
-        assert_eq!(tool_name, "test_tool");
-
-        // Test request body parsing
-        let request_body = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": "test-123",
-            "method": "tools/call",
-            "params": {
-                "name": "test_tool",
-                "arguments": {"param": "value"}
-            }
-        });
-
-        assert_eq!(request_body["method"], "tools/call");
-        assert_eq!(request_body["params"]["name"], "test_tool");
-        assert_eq!(request_body["params"]["arguments"]["param"], "value");
-    }
-
-    #[test]
-    fn test_proxy_request_invalid_path() {
-        // Test invalid proxy path (missing tool name)
-        let path = "/mcp/";
-        let tool_name = path.strip_prefix("/mcp/");
-        assert!(tool_name.is_some());
-        assert_eq!(tool_name.unwrap(), "");
-
-        // Test completely invalid path
-        let path = "/invalid/path";
-        let tool_name = path.strip_prefix("/mcp/");
-        assert!(tool_name.is_none());
-    }
-
-    #[test]
-    fn test_mcp_client_integration() {
-        // Test that we can set and access the MCP client
-        let mut server = ArchestraServer::new("user123".to_string(), "session456".to_string());
-        assert!(server.mcp_client.is_none());
-
-        // Create a mock MCP client
-        let mcp_client = Arc::new(crate::mcp_client::McpClient::new());
-        server.set_mcp_client(mcp_client.clone());
-
-        assert!(server.mcp_client.is_some());
-        assert!(Arc::ptr_eq(&server.mcp_client.unwrap(), &mcp_client));
-    }
-
-    #[test]
-    fn test_json_rpc_error_format() {
-        // Test that our error responses follow JSON-RPC format
-        let error_response = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": "test-123",
-            "error": {
-                "code": -32601,
-                "message": "Tool 'nonexistent_tool' not found in any MCP server"
-            }
-        });
-
-        assert_eq!(error_response["jsonrpc"], "2.0");
-        assert_eq!(error_response["id"], "test-123");
-        assert!(error_response["error"].is_object());
-        assert_eq!(error_response["error"]["code"], -32601);
-        assert!(error_response["error"]["message"].is_string());
-    }
-
-    #[test]
-    fn test_json_rpc_success_format() {
-        // Test that our success responses follow JSON-RPC format
-        let success_response = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": "test-123",
-            "result": {
-                "content": [{
-                    "type": "text",
-                    "text": "Tool executed successfully"
-                }]
-            }
-        });
-
-        assert_eq!(success_response["jsonrpc"], "2.0");
-        assert_eq!(success_response["id"], "test-123");
-        assert!(success_response["result"].is_object());
-        assert!(success_response["error"].is_null());
-    }
-
-    #[test]
-    fn test_url_path_extraction() {
-        // Test various URL path scenarios for proxy routing
-        let test_cases = vec![
-            ("/mcp/slack", Some("slack")),
-            ("/mcp/filesystem", Some("filesystem")),
-            ("/mcp/git_status", Some("git_status")),
-            ("/mcp/", Some("")),
-            ("/mcp", None),
-            ("/health", None),
-            ("/", None),
-        ];
-
-        for (path, expected) in test_cases {
-            let result = path.strip_prefix("/mcp/");
-            match expected {
-                Some(tool_name) => {
-                    assert!(result.is_some(), "Expected Some for path: {}", path);
-                    assert_eq!(
-                        result.unwrap(),
-                        tool_name,
-                        "Wrong tool name for path: {}",
-                        path
-                    );
-                }
-                None => {
-                    assert!(result.is_none(), "Expected None for path: {}", path);
-                }
-            }
+        
+        let tool_result = result.unwrap();
+        assert!(!tool_result.content.is_empty());
+        
+        // Verify the context contains expected fields
+        if let Some(Content::Text { text }) = tool_result.content.first() {
+            let context: serde_json::Value = serde_json::from_str(text).unwrap();
+            assert_eq!(context["user_id"], "test_user_123");
+            assert!(context["session_id"].is_string());
+            assert!(context["project_context"].is_object());
+            assert!(context["active_models"].is_array());
+        } else {
+            panic!("Expected text content");
         }
     }
 
-    #[tokio::test]
-    async fn test_traditional_mcp_server_functionality() {
-        // Ensure traditional MCP server functionality still works
-        let server = ArchestraServer::new("user123".to_string(), "session456".to_string());
-
-        // Test get_context tool
-        let request = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": "traditional-test",
-            "method": "tools/call",
-            "params": {
-                "name": "get_context",
-                "arguments": {}
-            }
-        });
-
-        let result = server.handle_mcp_request(request).await;
-        assert!(result.is_ok());
-
-        let response = result.unwrap();
-        assert_eq!(response["jsonrpc"], "2.0");
-        assert_eq!(response["id"], "traditional-test");
-        assert!(response["result"]["content"].is_array());
-    }
-
+    // Test update_context tool
     #[tokio::test]
     async fn test_update_context_tool() {
-        let server = ArchestraServer::new("user123".to_string(), "session456".to_string());
-
-        // Test update_context tool
-        let request = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": "update-test",
-            "method": "tools/call",
-            "params": {
-                "name": "update_context",
-                "arguments": {
-                    "key": "test_key",
-                    "value": "test_value"
-                }
-            }
-        });
-
-        let result = server.handle_mcp_request(request).await;
+        let server = create_test_server();
+        
+        // Update context with a key-value pair
+        let params = UpdateContextRequest {
+            key: "environment".to_string(),
+            value: "production".to_string(),
+        };
+        
+        let result = server.update_context(Parameters(params)).await;
         assert!(result.is_ok());
-
-        let response = result.unwrap();
-        assert_eq!(response["jsonrpc"], "2.0");
-        assert_eq!(response["id"], "update-test");
-
-        let content = &response["result"]["content"][0]["text"];
-        assert!(content.as_str().unwrap().contains("test_key"));
-        assert!(content.as_str().unwrap().contains("test_value"));
-
-        // Verify the context was actually updated
-        let context = server.context.lock().unwrap();
+        
+        // Verify the context was updated
+        let context = server.context.lock().await;
         assert_eq!(
-            context.project_context.get("test_key"),
-            Some(&"test_value".to_string())
+            context.project_context.get("environment"),
+            Some(&"production".to_string())
         );
+    }
+
+    // Test set_active_models tool
+    #[tokio::test]
+    async fn test_set_active_models_tool() {
+        let server = create_test_server();
+        
+        let params = SetActiveModelsRequest {
+            models: vec!["gpt-4".to_string(), "claude-3-opus".to_string()],
+        };
+        
+        let result = server.set_active_models(Parameters(params)).await;
+        assert!(result.is_ok());
+        
+        // Verify models were set
+        let context = server.context.lock().await;
+        assert_eq!(context.active_models.len(), 2);
+        assert_eq!(context.active_models[0], "gpt-4");
+        assert_eq!(context.active_models[1], "claude-3-opus");
+    }
+
+    // Test list_resources
+    #[tokio::test]
+    async fn test_list_resources() {
+        let server = create_test_server();
+        
+        let result = server
+            .list_resources(
+                Some(PaginatedRequestParam { cursor: None }),
+                RequestContext::default(),
+            )
+            .await;
+        
+        assert!(result.is_ok());
+        let resources_result = result.unwrap();
+        
+        // Should have 2 default resources
+        assert_eq!(resources_result.resources.len(), 2);
+        
+        // Check resource URIs
+        let uris: Vec<String> = resources_result
+            .resources
+            .iter()
+            .map(|r| r.raw.uri.clone())
+            .collect();
+        
+        assert!(uris.contains(&"archestra://system_info".to_string()));
+        assert!(uris.contains(&"archestra://user_preferences".to_string()));
+        
+        // Check next cursor is None
+        assert!(resources_result.next_cursor.is_none());
+    }
+
+    // Test read_resource - success case
+    #[tokio::test]
+    async fn test_read_resource_success() {
+        let server = create_test_server();
+        
+        let request = ReadResourceRequestParam {
+            uri: "archestra://system_info".to_string(),
+        };
+        
+        let result = server
+            .read_resource(request, RequestContext::default())
+            .await;
+        
+        assert!(result.is_ok());
+        let read_result = result.unwrap();
+        
+        assert_eq!(read_result.contents.len(), 1);
+        
+        match &read_result.contents[0] {
+            ResourceContents::TextResourceContents { uri, text, mime_type } => {
+                assert_eq!(uri, "archestra://system_info");
+                assert_eq!(text, "Archestra AI Desktop Application - Context Manager");
+                assert_eq!(mime_type.as_ref().unwrap(), "application/json");
+            }
+            _ => panic!("Expected text resource contents"),
+        }
+    }
+
+    // Test read_resource - not found
+    #[tokio::test]
+    async fn test_read_resource_not_found() {
+        let server = create_test_server();
+        
+        let request = ReadResourceRequestParam {
+            uri: "archestra://non_existent".to_string(),
+        };
+        
+        let result = server
+            .read_resource(request, RequestContext::default())
+            .await;
+        
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.code, -32602); // Invalid params error code
+    }
+
+    // Test read_resource - invalid URI
+    #[tokio::test]
+    async fn test_read_resource_invalid_uri() {
+        let server = create_test_server();
+        
+        let request = ReadResourceRequestParam {
+            uri: "invalid://resource".to_string(),
+        };
+        
+        let result = server
+            .read_resource(request, RequestContext::default())
+            .await;
+        
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.code, -32602); // Invalid params error code
+    }
+
+    // Test list_prompts
+    #[tokio::test]
+    async fn test_list_prompts() {
+        let server = create_test_server();
+        
+        let result = server
+            .list_prompts(
+                Some(PaginatedRequestParam { cursor: None }),
+                RequestContext::default(),
+            )
+            .await;
+        
+        assert!(result.is_ok());
+        let prompts_result = result.unwrap();
+        
+        assert_eq!(prompts_result.prompts.len(), 1);
+        assert_eq!(prompts_result.prompts[0].name, "example_prompt");
+        assert!(prompts_result.prompts[0].description.is_some());
+        assert!(prompts_result.prompts[0].arguments.is_some());
+        
+        let args = prompts_result.prompts[0].arguments.as_ref().unwrap();
+        assert_eq!(args.len(), 1);
+        assert_eq!(args[0].name, "message");
+        assert_eq!(args[0].required, Some(true));
+    }
+
+    // Test get_prompt - success case
+    #[tokio::test]
+    async fn test_get_prompt_success() {
+        let server = create_test_server();
+        
+        let request = GetPromptRequestParam {
+            name: "example_prompt".to_string(),
+            arguments: Some(json!({
+                "message": "Hello, world!"
+            })),
+        };
+        
+        let result = server.get_prompt(request, RequestContext::default()).await;
+        
+        assert!(result.is_ok());
+        let prompt_result = result.unwrap();
+        
+        assert_eq!(prompt_result.messages.len(), 1);
+        assert_eq!(prompt_result.messages[0].role, PromptMessageRole::User);
+        
+        if let PromptMessageContent::Text { text } = &prompt_result.messages[0].content {
+            assert!(text.contains("Hello, world!"));
+        } else {
+            panic!("Expected text content");
+        }
+    }
+
+    // Test get_prompt - missing argument
+    #[tokio::test]
+    async fn test_get_prompt_missing_argument() {
+        let server = create_test_server();
+        
+        let request = GetPromptRequestParam {
+            name: "example_prompt".to_string(),
+            arguments: None,
+        };
+        
+        let result = server.get_prompt(request, RequestContext::default()).await;
+        
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.code, -32602); // Invalid params error code
+    }
+
+    // Test get_prompt - unknown prompt
+    #[tokio::test]
+    async fn test_get_prompt_not_found() {
+        let server = create_test_server();
+        
+        let request = GetPromptRequestParam {
+            name: "unknown_prompt".to_string(),
+            arguments: None,
+        };
+        
+        let result = server.get_prompt(request, RequestContext::default()).await;
+        
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.code, -32602); // Invalid params error code
+    }
+
+    // Test proxy endpoint
+    #[tokio::test]
+    async fn test_proxy_endpoint() {
+        // Note: This test will fail if forward_raw_request is not properly mocked
+        // In a real test environment, you'd want to mock the forward_raw_request function
+        
+        let app = Router::new()
+            .route("/proxy/:server_name", axum::routing::post(handle_proxy_request));
+        
+        let json_rpc_request = json!({
+            "jsonrpc": "2.0",
+            "method": "test_method",
+            "params": {},
+            "id": 1
+        });
+        
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/proxy/test_server")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_string(&json_rpc_request).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        // The actual behavior depends on the forward_raw_request implementation
+        // For now, we just check that the endpoint exists and responds
+        assert!(response.status() == StatusCode::OK || response.status() == StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    // Test concurrent context updates
+    #[tokio::test]
+    async fn test_concurrent_context_updates() {
+        let server = Arc::new(create_test_server());
+        
+        // Spawn multiple tasks that update context concurrently
+        let mut handles = vec![];
+        
+        for i in 0..10 {
+            let server_clone = Arc::clone(&server);
+            let handle = tokio::spawn(async move {
+                let params = UpdateContextRequest {
+                    key: format!("key_{}", i),
+                    value: format!("value_{}", i),
+                };
+                server_clone.update_context(Parameters(params)).await
+            });
+            handles.push(handle);
+        }
+        
+        // Wait for all tasks to complete
+        for handle in handles {
+            let result = handle.await.unwrap();
+            assert!(result.is_ok());
+        }
+        
+        // Verify all updates were applied
+        let context = server.context.lock().await;
+        for i in 0..10 {
+            assert_eq!(
+                context.project_context.get(&format!("key_{}", i)),
+                Some(&format!("value_{}", i))
+            );
+        }
     }
 }

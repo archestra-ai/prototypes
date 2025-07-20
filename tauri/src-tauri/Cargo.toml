@@ -23,6 +23,7 @@ tauri-plugin-single-instance = { version = "2.0.0", features = ["deep-link"] }
 
 [dependencies]
 tokio = { version = "1.37", features = ["process", "io-util", "macros", "rt-multi-thread", "io-std"] }
+tokio-util = "0.7"
 tauri = { version = "2", features = ["test"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
@@ -34,19 +35,15 @@ reqwest = { version = "0.12", features = ["json", "stream", "blocking"] }
 futures-util = "0.3"
 tauri-plugin-deep-link = "2.4.0"
 url = "2.5"
-axum = "0.8.4"
-hyper-util = "0.1.15"
-tracing = "0.1.41"
+hyper-util = { version = "0.1.15", features = ["server"] }
 hyper = "1.6.0"
-once_cell = "1.21.3"
-hex = "0.4.3"
 lazy_static = "1.4"
-bytes = "1.10.1"
-async-stream = "0.3.6"
 http-body-util = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 sea-orm = { version = "1.0", features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros", "with-chrono"] }
 sea-orm-migration = { version = "1.0", features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
+rmcp = { version = "0.3.0", features = ["server", "macros", "transport-sse-server"] }
+axum = "0.8.4"
 
 [dev-dependencies]
 tauri-mcp = "0.1"

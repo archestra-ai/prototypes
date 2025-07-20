@@ -6,7 +6,6 @@
   "bin": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "build": "pkg . && node build.js",
     "dev": "nodemon src/server.js"
   },
   "dependencies": {
@@ -16,15 +15,6 @@
     "googleapis": "^128.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1",
-    "pkg": "^5.8.1"
-  },
-  "pkg": {
-    "scripts": "server.js",
-    "assets": "public/**/*",
-    "targets": [
-      "node18-macos-arm64"
-    ],
-    "outputPath": "dist"
+    "nodemon": "^3.0.1"
   }
 }
