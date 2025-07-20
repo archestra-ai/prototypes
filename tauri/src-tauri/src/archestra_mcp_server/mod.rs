@@ -387,11 +387,11 @@ mod tests {
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use rmcp::model::{
-        CallToolRequestParam, CallToolResult, PaginatedRequestParam, ReadResourceRequestParam,
+        PaginatedRequestParam, ReadResourceRequestParam,
     };
     use serde_json::json;
     use std::net::{IpAddr, Ipv4Addr};
-    use tower::ServiceExt;
+    use tower::util::ServiceExt;
 
     // Helper function to create a test server instance
     fn create_test_server() -> ArchestraMcpServer {
@@ -413,10 +413,10 @@ mod tests {
         let info = server.get_info();
         
         assert_eq!(info.protocol_version, ProtocolVersion::V_2025_03_26);
-        assert!(info.capabilities.tools);
-        assert!(info.capabilities.resources);
-        assert!(!info.capabilities.logging);
-        assert!(!info.capabilities.prompts);
+        assert!(info.capabilities.tools.is_some());
+        assert!(info.capabilities.resources.is_some());
+        assert!(info.capabilities.logging.is_none());
+        assert!(info.capabilities.prompts.is_none());
     }
 
     // Test startup of the MCP server
@@ -477,14 +477,16 @@ mod tests {
         assert!(!tool_result.content.is_empty());
         
         // Verify the context contains expected fields
-        if let Some(Content::Text { text }) = tool_result.content.first() {
-            let context: serde_json::Value = serde_json::from_str(text).unwrap();
-            assert_eq!(context["user_id"], "test_user_123");
-            assert!(context["session_id"].is_string());
-            assert!(context["project_context"].is_object());
-            assert!(context["active_models"].is_array());
-        } else {
-            panic!("Expected text content");
+        let first_content = tool_result.content.first().unwrap();
+        match &first_content.0 {
+            rmcp::model::RawContent::Text { text } => {
+                let context: serde_json::Value = serde_json::from_str(text).unwrap();
+                assert_eq!(context["user_id"], "test_user_123");
+                assert!(context["session_id"].is_string());
+                assert!(context["project_context"].is_object());
+                assert!(context["active_models"].is_array());
+            }
+            _ => panic!("Expected text content"),
         }
     }
 
@@ -537,7 +539,7 @@ mod tests {
         let result = server
             .list_resources(
                 Some(PaginatedRequestParam { cursor: None }),
-                RequestContext::default(),
+                RequestContext::<RoleServer>::new(None),
             )
             .await;
         
@@ -571,7 +573,7 @@ mod tests {
         };
         
         let result = server
-            .read_resource(request, RequestContext::default())
+            .read_resource(request, RequestContext::<RoleServer>::new(None))
             .await;
         
         assert!(result.is_ok());
@@ -599,12 +601,12 @@ mod tests {
         };
         
         let result = server
-            .read_resource(request, RequestContext::default())
+            .read_resource(request, RequestContext::<RoleServer>::new(None))
             .await;
         
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, -32602); // Invalid params error code
+        assert_eq!(error.code, rmcp::model::ErrorCode::from(-32602)); // Invalid params error code
     }
 
     // Test read_resource - invalid URI
@@ -617,12 +619,12 @@ mod tests {
         };
         
         let result = server
-            .read_resource(request, RequestContext::default())
+            .read_resource(request, RequestContext::<RoleServer>::new(None))
             .await;
         
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, -32602); // Invalid params error code
+        assert_eq!(error.code, rmcp::model::ErrorCode::from(-32602)); // Invalid params error code
     }
 
     // Test list_prompts
@@ -633,7 +635,7 @@ mod tests {
         let result = server
             .list_prompts(
                 Some(PaginatedRequestParam { cursor: None }),
-                RequestContext::default(),
+                RequestContext::<RoleServer>::new(None),
             )
             .await;
         
@@ -658,12 +660,12 @@ mod tests {
         
         let request = GetPromptRequestParam {
             name: "example_prompt".to_string(),
-            arguments: Some(json!({
+            arguments: Some(serde_json::from_value(json!({
                 "message": "Hello, world!"
-            })),
+            })).unwrap()),
         };
         
-        let result = server.get_prompt(request, RequestContext::default()).await;
+        let result = server.get_prompt(request, RequestContext::<RoleServer>::new(None)).await;
         
         assert!(result.is_ok());
         let prompt_result = result.unwrap();
@@ -671,10 +673,11 @@ mod tests {
         assert_eq!(prompt_result.messages.len(), 1);
         assert_eq!(prompt_result.messages[0].role, PromptMessageRole::User);
         
-        if let PromptMessageContent::Text { text } = &prompt_result.messages[0].content {
-            assert!(text.contains("Hello, world!"));
-        } else {
-            panic!("Expected text content");
+        match &prompt_result.messages[0].content {
+            PromptMessageContent::Text { text } => {
+                assert!(text.contains("Hello, world!"));
+            }
+            _ => panic!("Expected text content"),
         }
     }
 
@@ -688,11 +691,11 @@ mod tests {
             arguments: None,
         };
         
-        let result = server.get_prompt(request, RequestContext::default()).await;
+        let result = server.get_prompt(request, RequestContext::<RoleServer>::new(None)).await;
         
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, -32602); // Invalid params error code
+        assert_eq!(error.code, rmcp::model::ErrorCode::from(-32602)); // Invalid params error code
     }
 
     // Test get_prompt - unknown prompt
@@ -705,11 +708,11 @@ mod tests {
             arguments: None,
         };
         
-        let result = server.get_prompt(request, RequestContext::default()).await;
+        let result = server.get_prompt(request, RequestContext::<RoleServer>::new(None)).await;
         
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.code, -32602); // Invalid params error code
+        assert_eq!(error.code, rmcp::model::ErrorCode::from(-32602)); // Invalid params error code
     }
 
     // Test proxy endpoint
