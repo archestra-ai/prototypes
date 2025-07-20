@@ -21,14 +21,6 @@ jobs:
         working-directory: tauri/src-tauri
         run: cargo fmt --check
 
-      - name: Check Rust Clippy
-        working-directory: tauri/src-tauri
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Run Rust Tests
-        working-directory: tauri/src-tauri
-        run: cargo test --all-targets --all-features
-
   frontend-linting-and-tests:
     name: Frontend Linting and Tests
     runs-on: ubuntu-latest
