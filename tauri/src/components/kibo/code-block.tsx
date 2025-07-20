@@ -85,7 +85,7 @@ import { type BundledLanguage, type CodeOptionsMultipleThemes, codeToHtml } from
 import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { cn } from "../../lib/utils";
-export type { BundledLanguage } from "shiki";
+
 const filenameIconMap = {
   ".env": SiDotenv,
   "*.astro": SiAstro,
@@ -226,6 +226,7 @@ const codeBlockClassName = cn(
   "[&_.line]:w-full",
   "[&_.line]:relative"
 );
+
 const highlight = (html: string, language?: BundledLanguage, themes?: CodeOptionsMultipleThemes["themes"]) =>
   codeToHtml(html, {
     lang: language ?? "typescript",
@@ -251,27 +252,32 @@ const highlight = (html: string, language?: BundledLanguage, themes?: CodeOption
       }),
     ],
   });
+
 type CodeBlockData = {
   language: string;
   filename: string;
   code: string;
 };
+
 type CodeBlockContextType = {
   value: string | undefined;
   onValueChange: ((value: string) => void) | undefined;
   data: CodeBlockData[];
 };
+
 const CodeBlockContext = createContext<CodeBlockContextType>({
   value: undefined,
   onValueChange: undefined,
   data: [],
 });
+
 export type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
   defaultValue?: string;
   value?: string;
   onValueChange?: (value: string) => void;
   data: CodeBlockData[];
 };
+
 export const CodeBlock = ({
   value: controlledValue,
   onValueChange: controlledOnValueChange,
@@ -291,10 +297,12 @@ export const CodeBlock = ({
     </CodeBlockContext.Provider>
   );
 };
+
 export type CodeBlockHeaderProps = HTMLAttributes<HTMLDivElement>;
 export const CodeBlockHeader = ({ className, ...props }: CodeBlockHeaderProps) => (
   <div className={cn("flex flex-row items-center border-b bg-secondary p-1", className)} {...props} />
 );
+
 export type CodeBlockFilesProps = Omit<HTMLAttributes<HTMLDivElement>, "children"> & {
   children: (item: CodeBlockData) => ReactNode;
 };
@@ -306,6 +314,7 @@ export const CodeBlockFiles = ({ className, children, ...props }: CodeBlockFiles
     </div>
   );
 };
+
 export type CodeBlockFilenameProps = HTMLAttributes<HTMLDivElement> & {
   icon?: IconType;
   value?: string;
@@ -327,17 +336,21 @@ export const CodeBlockFilename = ({ className, icon, value, children, ...props }
     </div>
   );
 };
+
 export type CodeBlockSelectProps = ComponentProps<typeof Select>;
 export const CodeBlockSelect = (props: CodeBlockSelectProps) => {
   const { value, onValueChange } = useContext(CodeBlockContext);
   return <Select onValueChange={onValueChange} value={value} {...props} />;
 };
+
 export type CodeBlockSelectTriggerProps = ComponentProps<typeof SelectTrigger>;
 export const CodeBlockSelectTrigger = ({ className, ...props }: CodeBlockSelectTriggerProps) => (
   <SelectTrigger className={cn("w-fit border-none text-muted-foreground text-xs shadow-none", className)} {...props} />
 );
+
 export type CodeBlockSelectValueProps = ComponentProps<typeof SelectValue>;
 export const CodeBlockSelectValue = (props: CodeBlockSelectValueProps) => <SelectValue {...props} />;
+
 export type CodeBlockSelectContentProps = Omit<ComponentProps<typeof SelectContent>, "children"> & {
   children: (item: CodeBlockData) => ReactNode;
 };
@@ -345,10 +358,12 @@ export const CodeBlockSelectContent = ({ children, ...props }: CodeBlockSelectCo
   const { data } = useContext(CodeBlockContext);
   return <SelectContent {...props}>{data.map(children)}</SelectContent>;
 };
+
 export type CodeBlockSelectItemProps = ComponentProps<typeof SelectItem>;
 export const CodeBlockSelectItem = ({ className, ...props }: CodeBlockSelectItemProps) => (
   <SelectItem className={cn("text-sm", className)} {...props} />
 );
+
 export type CodeBlockCopyButtonProps = ComponentProps<typeof Button> & {
   onCopy?: () => void;
   onError?: (error: Error) => void;
@@ -388,6 +403,7 @@ export const CodeBlockCopyButton = ({
     </Button>
   );
 };
+
 type CodeBlockFallbackProps = HTMLAttributes<HTMLDivElement>;
 const CodeBlockFallback = ({ children, ...props }: CodeBlockFallbackProps) => (
   <div {...props}>
@@ -405,6 +421,7 @@ const CodeBlockFallback = ({ children, ...props }: CodeBlockFallbackProps) => (
     </pre>
   </div>
 );
+
 export type CodeBlockBodyProps = Omit<HTMLAttributes<HTMLDivElement>, "children"> & {
   children: (item: CodeBlockData) => ReactNode;
 };
@@ -412,6 +429,7 @@ export const CodeBlockBody = ({ children, ...props }: CodeBlockBodyProps) => {
   const { data } = useContext(CodeBlockContext);
   return <div {...props}>{data.map(children)}</div>;
 };
+
 export type CodeBlockItemProps = HTMLAttributes<HTMLDivElement> & {
   value: string;
   lineNumbers?: boolean;
@@ -439,6 +457,7 @@ export const CodeBlockItem = ({ children, lineNumbers = true, className, value, 
     </div>
   );
 };
+
 export type CodeBlockContentProps = HTMLAttributes<HTMLDivElement> & {
   themes?: CodeOptionsMultipleThemes["themes"];
   language?: BundledLanguage;
@@ -473,3 +492,5 @@ export const CodeBlockContent = ({
     />
   );
 };
+
+export type { BundledLanguage } from "shiki";

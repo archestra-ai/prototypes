@@ -8,11 +8,11 @@ import {
   Settings,
 } from "lucide-react";
 
-import { ChatContainer } from "./modules/chat/components/chat-container";
-import { MCPCatalog } from "./modules/mcp-catalog/components/mcp-catalog";
-import { ModelsManager } from "./modules/models/components/models-manager";
-import { SettingsPage } from "./components/settings/settings-page";
-import { useMcpClient } from "./hooks/use-mcp-client";
+import ChatPage from "./pages/ChatPage";
+import ConnectorCatalogPage from "./pages/ConnectorCatalogPage";
+import LLMProvidersPage from "./pages/LLMProvidersPage";
+import SettingsPage from "./pages/SettingsPage";
+import { useArchestraMcpClient } from "./hooks/use-archestra-mcp-client";
 
 import {
   Sidebar,
@@ -41,21 +41,11 @@ function App() {
       };
     };
   }>({});
-  const [, setMcpServerStatus] = useState<{
-    [key: string]: string;
-  }>({});
-  
-  // Use the MCP client hook
-  const { 
-    mcpTools, 
-    isLoading: isLoadingMcpTools,
-    executeTool,
-    getServerStatus 
-  } = useMcpClient();
-  const [activeView, setActiveView] = useState<
-    "chat" | "mcp" | "models" | "settings"
-  >("chat");
-  const [activeSubView, setActiveSubView] = useState<"ollama" | null>(null);
+  const [, setMcpServerStatus] = useState<{[key: string]: string}>({});
+
+  const { mcpTools, isLoadingMcpTools, executeTool } = useArchestraMcpClient();
+  const [activeView, setActiveView] = useState<"chat" | "mcp" | "llm-providers" | "settings">("chat");
+  const [activeSubView, setActiveSubView] = useState<"ollama">("ollama");
 
   const navigationItems = [
     {
@@ -66,7 +56,7 @@ function App() {
     {
       title: "LLM Providers",
       icon: Download,
-      key: "models" as const,
+      key: "llm-providers" as const,
     },
     {
       title: "Connectors",
@@ -107,18 +97,18 @@ function App() {
       case "chat":
         return (
           <div className="space-y-6">
-            <ChatContainer
+            <ChatPage
               mcpTools={mcpTools}
               isLoadingTools={isLoadingMcpTools}
               executeTool={executeTool}
             />
           </div>
         );
-      case "models":
-        return <ModelsManager />;
+      case "llm-providers":
+        return <LLMProvidersPage activeProvider={activeSubView} />;
       case "mcp":
         return (
-          <MCPCatalog
+          <ConnectorCatalogPage
             mcpServers={mcpServers}
             setMcpServers={setMcpServers}
             setMcpServerStatus={setMcpServerStatus}
@@ -156,10 +146,9 @@ function App() {
                       <SidebarMenuButton
                         onClick={() => {
                           setActiveView(item.key);
-                          if (item.key === "models") {
+                          // TODO: when we add more LLM providers, we need to add a proper sub-navigation here
+                          if (item.key === "llm-providers") {
                             setActiveSubView("ollama");
-                          } else {
-                            setActiveSubView(null);
                           }
                         }}
                         isActive={activeView === item.key}
@@ -169,8 +158,7 @@ function App() {
                         <span>{item.title}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                    {/* Sub-navigation for LLM Providers */}
-                    {item.key === "models" && activeView === "models" && (
+                    {item.key === "llm-providers" && activeView === "llm-providers" && (
                       <SidebarMenuItem className="ml-6">
                         <SidebarMenuButton
                           onClick={() => setActiveSubView("ollama")}
@@ -195,7 +183,7 @@ function App() {
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold">
               {navigationItems.find((item) => item.key === activeView)?.title}
-              {activeView === "models" && activeSubView && (
+              {activeView === "llm-providers" && activeSubView && (
                 <span className="text-muted-foreground ml-2">
                   /{" "}
                   {activeSubView.charAt(0).toUpperCase() +

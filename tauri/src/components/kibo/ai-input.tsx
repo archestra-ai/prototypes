@@ -6,10 +6,12 @@ import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import { cn } from "../../lib/utils";
+
 type UseAutoResizeTextareaProps = {
   minHeight: number;
   maxHeight?: number;
 };
+
 const useAutoResizeTextarea = ({ minHeight, maxHeight }: UseAutoResizeTextareaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const adjustHeight = useCallback(
@@ -45,6 +47,7 @@ const useAutoResizeTextarea = ({ minHeight, maxHeight }: UseAutoResizeTextareaPr
   }, [adjustHeight]);
   return { textareaRef, adjustHeight };
 };
+
 export type AIInputProps = HTMLAttributes<HTMLFormElement>;
 export const AIInput = ({ className, ...props }: AIInputProps) => (
   <form
@@ -52,6 +55,7 @@ export const AIInput = ({ className, ...props }: AIInputProps) => (
     {...props}
   />
 );
+
 export type AIInputTextareaProps = ComponentProps<typeof Textarea> & {
   minHeight?: number;
   maxHeight?: number;
@@ -97,14 +101,17 @@ export const AIInputTextarea = ({
     />
   );
 };
+
 export type AIInputToolbarProps = HTMLAttributes<HTMLDivElement>;
 export const AIInputToolbar = ({ className, ...props }: AIInputToolbarProps) => (
   <div className={cn("flex items-center justify-between p-1", className)} {...props} />
 );
+
 export type AIInputToolsProps = HTMLAttributes<HTMLDivElement>;
 export const AIInputTools = ({ className, ...props }: AIInputToolsProps) => (
   <div className={cn("flex items-center gap-1", "[&_button:first-child]:rounded-bl-xl", className)} {...props} />
 );
+
 export type AIInputButtonProps = ComponentProps<typeof Button>;
 export const AIInputButton = ({ variant = "ghost", className, size, ...props }: AIInputButtonProps) => {
   const newSize = size ?? Children.count(props.children) > 1 ? "default" : "icon";
@@ -123,6 +130,7 @@ export const AIInputButton = ({ variant = "ghost", className, size, ...props }: 
     />
   );
 };
+
 export type AIInputSubmitProps = ComponentProps<typeof Button> & {
   status?: "submitted" | "streaming" | "ready" | "error";
 };
@@ -154,8 +162,10 @@ export const AIInputSubmit = ({
     </Button>
   );
 };
+
 export type AIInputModelSelectProps = ComponentProps<typeof Select>;
 export const AIInputModelSelect = (props: AIInputModelSelectProps) => <Select {...props} />;
+
 export type AIInputModelSelectTriggerProps = ComponentProps<typeof SelectTrigger>;
 export const AIInputModelSelectTrigger = ({ className, ...props }: AIInputModelSelectTriggerProps) => (
   <SelectTrigger
@@ -167,14 +177,17 @@ export const AIInputModelSelectTrigger = ({ className, ...props }: AIInputModelS
     {...props}
   />
 );
+
 export type AIInputModelSelectContentProps = ComponentProps<typeof SelectContent>;
 export const AIInputModelSelectContent = ({ className, ...props }: AIInputModelSelectContentProps) => (
   <SelectContent className={cn(className)} {...props} />
 );
+
 export type AIInputModelSelectItemProps = ComponentProps<typeof SelectItem>;
 export const AIInputModelSelectItem = ({ className, ...props }: AIInputModelSelectItemProps) => (
   <SelectItem className={cn(className)} {...props} />
 );
+
 export type AIInputModelSelectValueProps = ComponentProps<typeof SelectValue>;
 export const AIInputModelSelectValue = ({ className, ...props }: AIInputModelSelectValueProps) => (
   <SelectValue className={cn(className)} {...props} />

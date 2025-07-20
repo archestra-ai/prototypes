@@ -6,13 +6,16 @@ import type { ComponentProps } from "react";
 import { createContext, memo, useContext, useEffect, useState } from "react";
 import { cn } from "../../lib/utils";
 import { AIResponse } from "./ai-response";
+
 type AIReasoningContextValue = {
   isStreaming: boolean;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   duration: number;
 };
+
 const AIReasoningContext = createContext<AIReasoningContextValue | null>(null);
+
 const useAIReasoning = () => {
   const context = useContext(AIReasoningContext);
   if (!context) {
@@ -20,6 +23,7 @@ const useAIReasoning = () => {
   }
   return context;
 };
+
 export type AIReasoningProps = ComponentProps<typeof Collapsible> & {
   isStreaming?: boolean;
   open?: boolean;
@@ -27,6 +31,7 @@ export type AIReasoningProps = ComponentProps<typeof Collapsible> & {
   onOpenChange?: (open: boolean) => void;
   duration?: number;
 };
+
 export const AIReasoning = memo(
   ({
     className,
@@ -90,6 +95,7 @@ export const AIReasoning = memo(
     );
   }
 );
+
 export type AIReasoningTriggerProps = ComponentProps<typeof CollapsibleTrigger> & {
   title?: string;
 };
@@ -110,6 +116,7 @@ export const AIReasoningTrigger = memo(
     );
   }
 );
+
 export type AIReasoningContentProps = ComponentProps<typeof CollapsibleContent> & {
   children: string;
 };
@@ -118,6 +125,7 @@ export const AIReasoningContent = memo(({ className, children, ...props }: AIRea
     <AIResponse className="grid gap-2">{children}</AIResponse>
   </CollapsibleContent>
 ));
+
 AIReasoning.displayName = "AIReasoning";
 AIReasoningTrigger.displayName = "AIReasoningTrigger";
 AIReasoningContent.displayName = "AIReasoningContent";
