@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PaperclipIcon, MicIcon, Settings, ChevronDown, Wrench } from "lucide-react";
+import { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 import { Badge } from "../../../components/ui/badge";
 import {
@@ -30,40 +31,34 @@ import {
   AIInputModelSelectValue,
 } from "../../../components/kibo/ai-input";
 import { useOllamaClient } from "../../../hooks/llm-providers/ollama/use-ollama-client";
+import { useMCPServers } from "../../../hooks/use-mcp-servers";
+import { useChat } from "../../../hooks/use-chat";
 
-interface MCPTool {
-  serverName: string;
-  tool: {
-    name: string;
-    description?: string;
-    inputSchema: any;
-  };
-}
+interface ChatInputProps {}
 
-interface ChatInputProps {
-  clearChatHistory: () => void;
-  onSubmit: (message: string, model: string) => Promise<void>;
-  onStop?: () => void;
-  disabled: boolean;
-  mcpTools: MCPTool[];
-  isLoadingTools?: boolean;
-  isStreaming?: boolean;
-}
+export default function ChatInput(_props: ChatInputProps) {
+  const { installedMCPServers, loadingInstalledMCPServers } = useMCPServers();
+  const {
+    isChatLoading,
+    isStreaming,
+    sendChatMessage,
+    clearChatHistory,
+    cancelStreaming,
+  } = useChat();
 
-export default function ChatInput({
-  onSubmit,
-  clearChatHistory,
-  disabled,
-  mcpTools,
-  isLoadingTools = false,
-  onStop,
-  isStreaming,
-}: ChatInputProps) {
+  const {
+    installedModels,
+    loadingInstalledModels,
+    loadingInstalledModelsError,
+    selectedModel,
+    setSelectedModel,
+  } = useOllamaClient();
+
   const [message, setMessage] = useState("");
-  const [selectedModel, setSelectedModel] = useState<string>("");
   const [status, setStatus] = useState<"submitted" | "streaming" | "ready" | "error">("ready");
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
-  const { installedModels, loadingInstalledModels, loadingInstalledModelsError } = useOllamaClient();
+
+  const disabled = isStreaming || isChatLoading;
 
   useEffect(() => {
     if (isStreaming) {
@@ -72,12 +67,6 @@ export default function ChatInput({
       setStatus("ready");
     }
   }, [isStreaming]);
-
-  useEffect(() => {
-    if (installedModels.length > 0 && !selectedModel) {
-      setSelectedModel(installedModels[0].name);
-    }
-  }, [installedModels, selectedModel]);
 
   const handleSubmit = async (e?: React.FormEvent<HTMLFormElement>) => {
     if (e) {
@@ -91,7 +80,7 @@ export default function ChatInput({
     setStatus("submitted");
 
     try {
-      await onSubmit(message.trim(), selectedModel);
+      await sendChatMessage(message.trim(), selectedModel);
       setMessage("");
       setStatus("ready");
     } catch (error) {
@@ -126,20 +115,19 @@ export default function ChatInput({
   };
 
   // Group tools by server
-  const toolsByServer = mcpTools.reduce((acc, tool) => {
-    if (!acc[tool.serverName]) {
-      acc[tool.serverName] = [];
-    }
-    acc[tool.serverName].push(tool.tool);
+  const toolsByServer = installedMCPServers.reduce((acc, mcpServer) => {
+    acc[mcpServer.name] = mcpServer.tools;
     return acc;
-  }, {} as Record<string, Array<{name: string; description?: string; inputSchema: any}>>);
+  }, {} as Record<string, Tool[]>);
+  const totalNumberOfTools = installedMCPServers.reduce((acc, mcpServer) => acc + mcpServer.tools.length, 0);
 
   return (
-    <div className="space-y-2">
+    <TooltipProvider>
+      <div className="space-y-2">
       {/* Tools Menu */}
-      {isToolsMenuOpen && (mcpTools.length > 0 || isLoadingTools) && (
+      {isToolsMenuOpen && (totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
         <div className="border rounded-lg p-3 bg-muted/50">
-          {isLoadingTools ? (
+          {loadingInstalledMCPServers ? (
             <div className="flex items-center gap-2">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               <span className="text-sm text-muted-foreground">Loading available tools...</span>
@@ -150,49 +138,45 @@ export default function ChatInput({
                 <Wrench className="h-4 w-4 text-blue-600" />
                 <span className="text-sm font-medium">Available Tools</span>
                 <Badge variant="secondary" className="text-xs">
-                  Total: {mcpTools.length}
+                  Total: {totalNumberOfTools}
                 </Badge>
               </div>
               {Object.entries(toolsByServer).map(([serverName, tools]) => (
                 <Collapsible key={serverName}>
-                  <CollapsibleTrigger asChild>
-                    <div className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{serverName}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {tools.length} tool{tools.length !== 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-                      <ChevronDown className="h-4 w-4 transition-transform" />
+                  <CollapsibleTrigger className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer w-full">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{serverName}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {tools.length} tool{tools.length !== 1 ? 's' : ''}
+                      </Badge>
                     </div>
+                    <ChevronDown className="h-4 w-4 transition-transform" />
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="ml-4 space-y-1">
                       {tools.map((tool, idx) => (
-                        <TooltipProvider key={idx}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="p-2 hover:bg-muted rounded text-sm cursor-help">
-                                <span className="font-mono text-primary">{tool.name}</span>
-                                {tool.description && (
-                                  <div className="text-muted-foreground text-xs mt-1">
-                                    {tool.description}
-                                  </div>
-                                )}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-sm">
-                              <div className="space-y-1">
-                                <div className="font-medium">{tool.name}</div>
-                                {tool.description && (
-                                  <div className="text-sm text-muted-foreground">
-                                    {tool.description}
-                                  </div>
-                                )}
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <Tooltip key={idx}>
+                          <TooltipTrigger asChild>
+                            <div className="p-2 hover:bg-muted rounded text-sm cursor-help">
+                              <span className="font-mono text-primary">{tool.name}</span>
+                              {tool.description && (
+                                <div className="text-muted-foreground text-xs mt-1">
+                                  {tool.description}
+                                </div>
+                              )}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-sm">
+                            <div className="space-y-1">
+                              <div className="font-medium">{tool.name}</div>
+                              {tool.description && (
+                                <div className="text-sm text-muted-foreground">
+                                  {tool.description}
+                                </div>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
                       ))}
                     </div>
                   </CollapsibleContent>
@@ -216,6 +200,7 @@ export default function ChatInput({
         <AIInputToolbar>
           <AIInputTools>
             <AIInputModelSelect
+              defaultValue={selectedModel}
               value={selectedModel}
               onValueChange={handleModelChange}
               disabled={loadingInstalledModels || !!loadingInstalledModelsError}
@@ -247,33 +232,32 @@ export default function ChatInput({
             <AIInputButton>
               <MicIcon size={16} />
             </AIInputButton>
-            {(mcpTools.length > 0 || isLoadingTools) && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AIInputButton
-                      onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)}
-                      className={isToolsMenuOpen ? "bg-primary/20" : ""}
-                    >
-                      <Settings size={16} />
-                    </AIInputButton>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <span>
-                      {isLoadingTools ? "Loading tools..." : `${mcpTools.length} tools available`}
-                    </span>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            {(totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AIInputButton
+                    onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)}
+                    className={isToolsMenuOpen ? "bg-primary/20" : ""}
+                  >
+                    <Settings size={16} />
+                  </AIInputButton>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <span>
+                    {loadingInstalledMCPServers ? "Loading tools..." : `${totalNumberOfTools} tools available`}
+                  </span>
+                </TooltipContent>
+              </Tooltip>
             )}
           </AIInputTools>
           <AIInputSubmit
             status={status}
             disabled={disabled || (!message.trim() && status !== "streaming")}
-            onClick={status === "streaming" ? onStop : undefined}
+            onClick={status === "streaming" ? cancelStreaming : undefined}
           />
         </AIInputToolbar>
-      </AIInput>
-    </div>
+        </AIInput>
+      </div>
+    </TooltipProvider>
   );
 }

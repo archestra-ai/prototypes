@@ -1,16 +1,13 @@
 use sea_orm::entity::prelude::*;
 use sea_orm::Set;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
-use std::collections::HashMap;
+use serde_json::Value;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
-#[sea_orm(table_name = "client_connections")]
+#[sea_orm(table_name = "external_mcp_clients")]
 pub struct Model {
-    #[sea_orm(primary_key)]
-    pub id: i32,
-    #[sea_orm(unique)]
+    #[sea_orm(unique, primary_key)]
     pub client_name: String,
     pub is_connected: bool,
     pub last_connected: Option<DateTimeUtc>,
@@ -30,24 +27,13 @@ pub struct McpServerConfig {
     pub args: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ClientMcpConfig {
-    #[serde(rename = "mcpServers")]
-    pub mcp_servers: HashMap<String, McpServerConfig>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ClaudeDesktopConfig {
-    #[serde(rename = "mcpServers")]
-    pub mcp_servers: HashMap<String, McpServerConfig>,
-    // Claude Desktop config may have other fields
-    #[serde(flatten)]
-    pub other: Map<String, Value>,
-}
+const CLAUDE_DESKTOP_CLIENT_NAME: &str = "claude";
+const CURSOR_CLIENT_NAME: &str = "cursor";
+const VSCODE_CLIENT_NAME: &str = "vscode";
 
 impl Model {
-    /// Save the client connection state to the database
-    pub async fn save_connection_state(
+    /// Save the external MCP client to the database
+    pub async fn save_external_mcp_client(
         db: &DatabaseConnection,
         client_name: &str,
         is_connected: bool,
@@ -84,47 +70,43 @@ impl Model {
         Ok(result)
     }
 
-    /// Get the connection state for a specific client
-    pub async fn get_connection_state(
+    /// Delete an external MCP client from the database
+    pub async fn delete_external_mcp_client(
         db: &DatabaseConnection,
         client_name: &str,
-    ) -> Result<Option<bool>, DbErr> {
-        let model = Entity::find()
-            .filter(Column::ClientName.eq(client_name))
-            .one(db)
-            .await?;
-
-        Ok(model.map(|m| m.is_connected))
+    ) -> Result<(), String> {
+        Entity::delete_by_id(client_name)
+            .exec(db)
+            .await
+            .map_err(|e| {
+                let err_msg = format!("Failed to delete external MCP client: {}", e);
+                println!("❌ {}", err_msg);
+                err_msg
+            })?;
+        Ok(())
     }
 
-    /// Get all connected clients
-    pub async fn get_connected_clients(db: &DatabaseConnection) -> Result<Vec<String>, DbErr> {
+    /// Get all connected external MCP clients
+    pub async fn get_connected_external_mcp_clients(
+        db: &DatabaseConnection,
+    ) -> Result<Vec<Model>, DbErr> {
         let models = Entity::find()
             .filter(Column::IsConnected.eq(true))
             .all(db)
             .await?;
 
-        Ok(models.into_iter().map(|m| m.client_name).collect())
-    }
-
-    /// Check if a client is connected
-    pub async fn is_client_connected(
-        db: &DatabaseConnection,
-        client_name: &str,
-    ) -> Result<bool, DbErr> {
-        let state = Self::get_connection_state(db, client_name).await?;
-        Ok(state.unwrap_or(false))
+        Ok(models)
     }
 
     /// Get the config path for a specific client
-    pub fn get_config_path_for_client(client_name: &str) -> Result<PathBuf, String> {
+    pub fn get_config_path_for_external_mcp_client(client_name: &str) -> Result<PathBuf, String> {
         match client_name {
-            "cursor" => {
+            CURSOR_CLIENT_NAME => {
                 let home_dir =
                     std::env::var("HOME").map_err(|_| "Could not determine home directory")?;
                 Ok(PathBuf::from(home_dir).join(".cursor").join("mcp.json"))
             }
-            "claude" => {
+            CLAUDE_DESKTOP_CLIENT_NAME => {
                 let home_dir =
                     std::env::var("HOME").map_err(|_| "Could not determine home directory")?;
                 Ok(PathBuf::from(home_dir)
@@ -133,7 +115,7 @@ impl Model {
                     .join("Claude")
                     .join("claude_desktop_config.json"))
             }
-            "vscode" => {
+            VSCODE_CLIENT_NAME => {
                 let home_dir =
                     std::env::var("HOME").map_err(|_| "Could not determine home directory")?;
                 Ok(PathBuf::from(home_dir).join(".vscode").join("mcp.json"))
@@ -142,9 +124,12 @@ impl Model {
         }
     }
 
-    /// Connect a client to Archestra MCP servers
-    pub async fn connect_client(db: &DatabaseConnection, client_name: &str) -> Result<(), String> {
-        let config_path = Self::get_config_path_for_client(client_name)?;
+    /// Connect an external MCP client to Archestra MCP servers
+    pub async fn connect_external_mcp_client(
+        db: &DatabaseConnection,
+        client_name: &str,
+    ) -> Result<(), String> {
+        let config_path = Self::get_config_path_for_external_mcp_client(client_name)?;
 
         println!("🔌 Connecting {} client...", client_name);
         println!("📍 Config path: {}", config_path.display());
@@ -186,15 +171,15 @@ impl Model {
         println!("📝 Writing config to: {}", config_path.display());
         write_config_file(&config_path, &config)?;
 
-        // Save connection state to database
-        Self::save_connection_state(
+        // Save external MCP client to database
+        Self::save_external_mcp_client(
             db,
             client_name,
             true,
             Some(config_path.to_string_lossy().to_string()),
         )
         .await
-        .map_err(|e| format!("Failed to save client connection state: {}", e))?;
+        .map_err(|e| format!("Failed to save external MCP client: {}", e))?;
 
         println!(
             "✅ Updated {} MCP config at {}",
@@ -205,12 +190,12 @@ impl Model {
         Ok(())
     }
 
-    /// Disconnect a client from Archestra MCP servers
-    pub async fn disconnect_client(
+    /// Disconnect an external MCP client from Archestra MCP servers
+    pub async fn disconnect_external_mcp_client(
         db: &DatabaseConnection,
         client_name: &str,
     ) -> Result<(), String> {
-        let config_path = Self::get_config_path_for_client(client_name)?;
+        let config_path = Self::get_config_path_for_external_mcp_client(client_name)?;
 
         println!("🔌 Disconnecting {} client...", client_name);
         let mut config = read_config_file(&config_path)?;
@@ -231,15 +216,10 @@ impl Model {
 
         write_config_file(&config_path, &config)?;
 
-        // Save disconnection state to database
-        Self::save_connection_state(
-            db,
-            client_name,
-            false,
-            Some(config_path.to_string_lossy().to_string()),
-        )
-        .await
-        .map_err(|e| format!("Failed to save client connection state: {}", e))?;
+        // Delete external MCP client from database
+        Self::delete_external_mcp_client(db, client_name)
+            .await
+            .map_err(|e| format!("Failed to delete external MCP client: {}", e))?;
 
         println!("✅ Removed Archestra tools from {} MCP config", client_name);
 
@@ -345,9 +325,34 @@ pub fn create_archestra_server_config(server_name: &str) -> McpServerConfig {
     }
 }
 
-// Tauri commands
 #[tauri::command]
-pub async fn connect_mcp_client(
+pub async fn get_supported_external_mcp_client_names() -> Result<Vec<String>, String> {
+    Ok(vec![
+        CURSOR_CLIENT_NAME.to_string(),
+        CLAUDE_DESKTOP_CLIENT_NAME.to_string(),
+        VSCODE_CLIENT_NAME.to_string(),
+    ])
+}
+
+#[tauri::command]
+pub async fn get_connected_external_mcp_clients(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<Model>, String> {
+    use crate::database::connection::get_database_connection_with_app;
+
+    let db = get_database_connection_with_app(&app_handle)
+        .await
+        .map_err(|e| format!("Failed to get database connection: {}", e))?;
+
+    let models = Model::get_connected_external_mcp_clients(&db)
+        .await
+        .map_err(|e| format!("Failed to get connected external MCP clients: {}", e))?;
+
+    Ok(models)
+}
+
+#[tauri::command]
+pub async fn connect_external_mcp_client(
     app_handle: tauri::AppHandle,
     client_name: String,
 ) -> Result<(), String> {
@@ -357,11 +362,11 @@ pub async fn connect_mcp_client(
         .await
         .map_err(|e| format!("Failed to get database connection: {}", e))?;
 
-    Model::connect_client(&db, &client_name).await
+    Model::connect_external_mcp_client(&db, &client_name).await
 }
 
 #[tauri::command]
-pub async fn disconnect_mcp_client(
+pub async fn disconnect_external_mcp_client(
     app_handle: tauri::AppHandle,
     client_name: String,
 ) -> Result<(), String> {
@@ -371,149 +376,25 @@ pub async fn disconnect_mcp_client(
         .await
         .map_err(|e| format!("Failed to get database connection: {}", e))?;
 
-    Model::disconnect_client(&db, &client_name).await
-}
-
-#[tauri::command]
-pub async fn check_client_connection_status(
-    app_handle: tauri::AppHandle,
-    client: String,
-) -> Result<bool, String> {
-    use crate::database::connection::get_database_connection_with_app;
-
-    let db = get_database_connection_with_app(&app_handle)
-        .await
-        .map_err(|e| format!("Failed to get database connection: {}", e))?;
-
-    // Check database first, fall back to config file verification
-    let state = Model::get_connection_state(&db, &client)
-        .await
-        .map_err(|e| format!("Failed to get client connection state: {}", e))?;
-
-    if let Some(is_connected) = state {
-        // Double-check by verifying config file has archestra tools
-        if is_connected {
-            let config_path = Model::get_config_path_for_client(&client)?;
-            let config = read_config_file(&config_path)?;
-
-            if let Some(mcp_servers) = config["mcpServers"].as_object() {
-                let has_archestra_tools = mcp_servers
-                    .keys()
-                    .any(|key| key.ends_with(" (archestra.ai)"));
-
-                // If database says connected but config doesn't have tools, update database
-                if !has_archestra_tools {
-                    Model::save_connection_state(
-                        &db,
-                        &client,
-                        false,
-                        Some(config_path.to_string_lossy().to_string()),
-                    )
-                    .await
-                    .map_err(|e| format!("Failed to update client connection state: {}", e))?;
-                    return Ok(false);
-                }
-
-                Ok(has_archestra_tools)
-            } else {
-                // No mcpServers section, definitely not connected
-                Model::save_connection_state(
-                    &db,
-                    &client,
-                    false,
-                    Some(config_path.to_string_lossy().to_string()),
-                )
-                .await
-                .map_err(|e| format!("Failed to update client connection state: {}", e))?;
-                Ok(false)
-            }
-        } else {
-            Ok(false)
-        }
-    } else {
-        // No database record, fall back to config file check
-        let config_path = Model::get_config_path_for_client(&client)?;
-        let config = read_config_file(&config_path)?;
-
-        if let Some(mcp_servers) = config["mcpServers"].as_object() {
-            let has_archestra_tools = mcp_servers
-                .keys()
-                .any(|key| key.ends_with(" (archestra.ai)"));
-            Ok(has_archestra_tools)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
-// Function to be called when new MCP servers are started
-#[tauri::command]
-pub async fn notify_new_mcp_tools_available(app_handle: tauri::AppHandle) -> Result<(), String> {
-    use crate::database::connection::get_database_connection_with_app;
-
-    let db = get_database_connection_with_app(&app_handle)
-        .await
-        .map_err(|e| format!("Failed to get database connection: {}", e))?;
-
-    // Get all available MCP servers
-    let servers = get_available_mcp_servers().await?;
-
-    // Get connected clients from database
-    let clients = Model::get_connected_clients(&db)
-        .await
-        .map_err(|e| format!("Failed to get connected clients: {}", e))?;
-
-    // Update each connected client
-    for client in clients {
-        println!("Updating {} with new MCP servers: {:?}", client, servers);
-
-        let config_path = Model::get_config_path_for_client(&client)?;
-        let mut config = read_config_file(&config_path)?;
-
-        // Ensure mcpServers object exists
-        if !config.is_object() {
-            config = serde_json::json!({});
-        }
-        if !config.get("mcpServers").is_some() {
-            config["mcpServers"] = serde_json::json!({});
-        }
-
-        let mcp_servers = config["mcpServers"]
-            .as_object_mut()
-            .ok_or("mcpServers is not an object")?;
-
-        // Add new MCP servers
-        for server in &servers {
-            let server_key = format!("{} (archestra.ai)", server);
-            if !mcp_servers.contains_key(&server_key) {
-                let server_config = create_archestra_server_config(server);
-                mcp_servers.insert(server_key, serde_json::to_value(server_config).unwrap());
-                println!("Added MCP server '{}' to {}", server, client);
-            }
-        }
-
-        write_config_file(&config_path, &config)?;
-    }
-
-    Ok(())
+    Model::disconnect_external_mcp_client(&db, &client_name).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Test utilities
+    use crate::database::migration::Migrator;
+    use sea_orm_migration::MigratorTrait;
+    use tempfile::NamedTempFile;
 
     #[tokio::test]
-    async fn test_save_connection_state() {
+    async fn test_save_external_mcp_client() {
         // Use in-memory database for testing
         let db = sea_orm::Database::connect("sqlite::memory:").await.unwrap();
 
         // Run migrations
-        use crate::database::migration::Migrator;
-        use sea_orm_migration::MigratorTrait;
         Migrator::up(&db, None).await.unwrap();
 
-        let result = Model::save_connection_state(
+        let result = Model::save_external_mcp_client(
             &db,
             "test_client",
             true,
@@ -523,37 +404,18 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_get_connection_state() {
-        // Use in-memory database for testing
-        let db = sea_orm::Database::connect("sqlite::memory:").await.unwrap();
-
-        // Run migrations
-        use crate::database::migration::Migrator;
-        use sea_orm_migration::MigratorTrait;
-        Migrator::up(&db, None).await.unwrap();
-
-        // First save a connection state
-        Model::save_connection_state(&db, "test_client", true, Some("path/to/config".to_string()))
-            .await
-            .unwrap();
-
-        let result = Model::get_connection_state(&db, "test_client").await;
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), Some(true));
-    }
-
     #[test]
-    fn test_get_config_path_for_client() {
+    fn test_get_config_path_for_external_mcp_client() {
         // Test cursor config path
-        let cursor_path = Model::get_config_path_for_client("cursor");
+        let cursor_path = Model::get_config_path_for_external_mcp_client(CURSOR_CLIENT_NAME);
         assert!(cursor_path.is_ok());
         let path = cursor_path.unwrap();
         assert!(path.to_string_lossy().contains(".cursor"));
         assert!(path.to_string_lossy().ends_with("mcp.json"));
 
         // Test claude config path
-        let claude_path = Model::get_config_path_for_client("claude");
+        let claude_path =
+            Model::get_config_path_for_external_mcp_client(CLAUDE_DESKTOP_CLIENT_NAME);
         assert!(claude_path.is_ok());
         let path = claude_path.unwrap();
         assert!(path.to_string_lossy().contains("Claude"));
@@ -562,14 +424,14 @@ mod tests {
             .ends_with("claude_desktop_config.json"));
 
         // Test vscode config path
-        let vscode_path = Model::get_config_path_for_client("vscode");
+        let vscode_path = Model::get_config_path_for_external_mcp_client(VSCODE_CLIENT_NAME);
         assert!(vscode_path.is_ok());
         let path = vscode_path.unwrap();
         assert!(path.to_string_lossy().contains(".vscode"));
         assert!(path.to_string_lossy().ends_with("mcp.json"));
 
         // Test unknown client
-        let unknown_path = Model::get_config_path_for_client("unknown");
+        let unknown_path = Model::get_config_path_for_external_mcp_client("unknown");
         assert!(unknown_path.is_err());
         assert!(unknown_path.unwrap_err().contains("Unknown client"));
     }
@@ -590,7 +452,6 @@ mod tests {
 
     #[test]
     fn test_read_config_file_nonexistent() {
-        use std::path::PathBuf;
         let nonexistent_path = PathBuf::from("/tmp/nonexistent_config.json");
         let result = read_config_file(&nonexistent_path);
 
@@ -601,27 +462,7 @@ mod tests {
     }
 
     #[test]
-    fn test_client_mcp_config_serialization() {
-        let mut servers = HashMap::new();
-        servers.insert(
-            "GitHub (archestra.ai)".to_string(),
-            create_archestra_server_config("GitHub"),
-        );
-
-        let config = ClientMcpConfig {
-            mcp_servers: servers,
-        };
-
-        let json = serde_json::to_string(&config).unwrap();
-        assert!(json.contains("mcpServers"));
-        assert!(json.contains("GitHub (archestra.ai)"));
-        assert!(json.contains("curl"));
-    }
-
-    #[test]
     fn test_write_config_file() {
-        use tempfile::NamedTempFile;
-
         // Create a temporary file for the config
         let temp_file = NamedTempFile::new().unwrap();
         let config_path = temp_file.path().to_path_buf();
@@ -647,25 +488,8 @@ mod tests {
         assert_eq!(read_config, test_config);
     }
 
-    #[test]
-    fn test_read_empty_file() {
-        use tempfile::NamedTempFile;
-
-        // Create an empty file
-        let temp_file = NamedTempFile::new().unwrap();
-        let config_path = temp_file.path().to_path_buf();
-        std::fs::write(&config_path, "").unwrap();
-
-        // Should return default config for empty file
-        let result = read_config_file(&config_path).unwrap();
-        assert!(result["mcpServers"].is_object());
-        assert_eq!(result["mcpServers"].as_object().unwrap().len(), 0);
-    }
-
     #[tokio::test]
     async fn test_config_file_operations() {
-        use tempfile::NamedTempFile;
-
         // Create a temporary file for the config
         let temp_file = NamedTempFile::new().unwrap();
         let config_path = temp_file.path().to_path_buf();
@@ -720,8 +544,6 @@ mod tests {
 
     #[test]
     fn test_disconnect_client_removes_archestra_servers() {
-        use tempfile::NamedTempFile;
-
         // Create a temporary file for the config
         let temp_file = NamedTempFile::new().unwrap();
         let config_path = temp_file.path().to_path_buf();

@@ -62,6 +62,7 @@ pub async fn init_database(app: &tauri::AppHandle) -> Result<DatabaseConnection,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::database::migration::Migrator;
 
     #[tokio::test]
     async fn test_in_memory_database() {
@@ -69,12 +70,11 @@ mod tests {
         let db = Database::connect("sqlite::memory:").await.unwrap();
 
         // Run migrations on in-memory database
-        use crate::database::migration::Migrator;
         Migrator::up(&db, None).await.unwrap();
 
         // Verify tables were created by trying to query them
         use sea_orm::EntityTrait;
-        let result = crate::models::client_connection_config::Entity::find()
+        let result = crate::models::external_mcp_client::Entity::find()
             .all(&db)
             .await;
         assert!(result.is_ok());

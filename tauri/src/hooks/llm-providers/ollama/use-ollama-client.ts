@@ -11,6 +11,8 @@ export function useOllamaClient() {
   const [loadingInstalledModels, setLoadingInstalledModels] = useState(false);
   const [loadingInstalledModelsError, setLoadingInstalledModelsError] = useState<Error | null>(null);
 
+  const [selectedModel, setSelectedModel] = useState<string>("");
+
   /**
    * Ollama is spun up on the backend on a dynamic port
    */
@@ -42,6 +44,9 @@ export function useOllamaClient() {
           setLoadingInstalledModels(true);
           const { models } = await ollamaClient.list();
           setInstalledModels(models);
+
+          // TODO: persist this to local storage instead
+          setSelectedModel(models[0].model);
         } catch (error) {
           setLoadingInstalledModelsError(error as Error);
         } finally {
@@ -57,12 +62,12 @@ export function useOllamaClient() {
 
   return {
     ollamaClient,
-    // TODO: don't expose ollamaPort, just doing it now as we remove use-post-chat-message...
-    ollamaPort,
     installedModels,
     loadingInstalledModels,
     loadingInstalledModelsError,
     availableModels: AVAILABLE_MODELS,
     allAvailableModelLabels,
+    selectedModel,
+    setSelectedModel,
   }
 }

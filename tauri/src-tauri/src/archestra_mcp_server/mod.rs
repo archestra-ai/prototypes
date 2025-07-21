@@ -1,10 +1,5 @@
-use crate::models::mcp_server::sandbox::forward_raw_request;
-use axum::{
-    body::Body,
-    extract::Path,
-    routing::{get, post},
-    Router,
-};
+use crate::models::mcp_server::{sandbox::forward_raw_request, Model as McpServerModel};
+use axum::{body::Body, extract::Path, routing::post, Router};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
     model::{
@@ -17,9 +12,12 @@ use rmcp::{
     schemars,
     service::RequestContext,
     tool, tool_handler, tool_router,
-    transport::sse_server::{SseServer, SseServerConfig},
+    transport::streamable_http_server::{
+        session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
+    },
     ErrorData as McpError, RoleServer, ServerHandler,
 };
+use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::future::Future;
@@ -27,7 +25,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
-use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 // Fixed port for MCP server
@@ -66,11 +63,7 @@ pub struct ArchestraMcpServer {
     context: Arc<Mutex<ArchestraContext>>,
     resources: Arc<Mutex<HashMap<String, ArchestraResource>>>,
     tool_router: ToolRouter<ArchestraMcpServer>,
-}
-
-// Health check endpoint
-async fn health_check() -> &'static str {
-    "OK"
+    db: Arc<DatabaseConnection>,
 }
 
 // Proxy request endpoint
@@ -79,14 +72,18 @@ async fn handle_proxy_request(
     req: axum::http::Request<Body>,
 ) -> axum::http::Response<Body> {
     println!(
-        "MCP Server Proxy: Forwarding raw request to server '{}'",
+        "🚀 MCP Server Proxy: Starting request to server '{}'",
         server_name
     );
 
     // Read the request body
     let body_bytes = match axum::body::to_bytes(req.into_body(), usize::MAX).await {
-        Ok(bytes) => bytes,
-        Err(_) => {
+        Ok(bytes) => {
+            println!("📥 Successfully read request body ({} bytes)", bytes.len());
+            bytes
+        }
+        Err(e) => {
+            println!("❌ Failed to read request body: {}", e);
             return axum::http::Response::builder()
                 .status(axum::http::StatusCode::BAD_REQUEST)
                 .header("Content-Type", "application/json")
@@ -97,8 +94,12 @@ async fn handle_proxy_request(
 
     // Convert bytes to string
     let request_body = match String::from_utf8(body_bytes.to_vec()) {
-        Ok(body) => body,
-        Err(_) => {
+        Ok(body) => {
+            println!("📝 Request body: {}", body);
+            body
+        }
+        Err(e) => {
+            println!("❌ Invalid UTF-8 in request body: {}", e);
             return axum::http::Response::builder()
                 .status(axum::http::StatusCode::BAD_REQUEST)
                 .header("Content-Type", "application/json")
@@ -107,16 +108,24 @@ async fn handle_proxy_request(
         }
     };
 
+    println!("🔄 Forwarding request to forward_raw_request function...");
     // Forward the raw JSON-RPC request to the McpServerManager
     match forward_raw_request(&server_name, request_body).await {
-        Ok(raw_response) => axum::http::Response::builder()
-            .status(axum::http::StatusCode::OK)
-            .header("Content-Type", "application/json")
-            .body(Body::from(raw_response))
-            .unwrap(),
+        Ok(raw_response) => {
+            println!(
+                "✅ Successfully received response from server '{}'",
+                server_name
+            );
+            println!("📤 Response: {}", raw_response);
+            axum::http::Response::builder()
+                .status(axum::http::StatusCode::OK)
+                .header("Content-Type", "application/json")
+                .body(Body::from(raw_response))
+                .unwrap()
+        }
         Err(e) => {
             println!(
-                "MCP Server Proxy: Failed to forward request to '{}': {}",
+                "❌ MCP Server Proxy: Failed to forward request to '{}': {}",
                 server_name, e
             );
 
@@ -141,7 +150,7 @@ async fn handle_proxy_request(
 
 #[tool_router]
 impl ArchestraMcpServer {
-    pub fn new(user_id: String) -> Self {
+    pub fn new(user_id: String, db: DatabaseConnection) -> Self {
         let mut resources = HashMap::new();
 
         // Add default resources
@@ -176,6 +185,7 @@ impl ArchestraMcpServer {
             })),
             resources: Arc::new(Mutex::new(resources)),
             tool_router: Self::tool_router(),
+            db: Arc::new(db),
         }
     }
 
@@ -217,6 +227,51 @@ impl ArchestraMcpServer {
             "Active models set to: {:?}",
             models
         ))]))
+    }
+
+    #[tool(description = "List all installed MCP servers that can be proxied")]
+    async fn list_installed_mcp_servers(&self) -> Result<CallToolResult, McpError> {
+        println!("Listing installed MCP servers");
+
+        match McpServerModel::load_installed_mcp_servers(&*self.db).await {
+            Ok(servers) => {
+                let server_list: Vec<_> = servers
+                    .into_iter()
+                    .filter_map(|model| {
+                        let name = model.name.clone();
+                        match model.to_definition() {
+                            Ok(definition) => Some(serde_json::json!({
+                                "name": name,
+                                "transport": definition.server_config.transport,
+                                "command": definition.server_config.command,
+                                "args": definition.server_config.args,
+                                "env_count": definition.server_config.env.len(),
+                                "has_meta": definition.meta.is_some()
+                            })),
+                            Err(e) => {
+                                eprintln!("Failed to convert model to definition: {}", e);
+                                None
+                            }
+                        }
+                    })
+                    .collect();
+
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "servers": server_list,
+                        "total_count": server_list.len()
+                    }))
+                    .unwrap_or_else(|_| "{}".to_string()),
+                )]))
+            }
+            Err(e) => {
+                println!("Failed to load MCP servers: {}", e);
+                Err(McpError::internal_error(
+                    format!("Failed to load MCP servers: {}", e),
+                    None,
+                ))
+            }
+        }
     }
 }
 
@@ -333,30 +388,39 @@ impl ServerHandler for ArchestraMcpServer {
     }
 }
 
-pub async fn start_archestra_mcp_server(user_id: String) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn start_archestra_mcp_server(
+    user_id: String,
+    db: DatabaseConnection,
+) -> Result<(), Box<dyn std::error::Error>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], MCP_SERVER_PORT));
 
-    // Configure SSE server for MCP
-    let config = SseServerConfig {
-        bind: addr,
-        sse_path: "/mcp".to_string(),
-        post_path: "/mcp".to_string(),
+    // Configure StreamableHTTP server for MCP
+    let config = StreamableHttpServerConfig {
         sse_keep_alive: Some(std::time::Duration::from_secs(30)),
-        ct: CancellationToken::new(),
+        stateful_mode: true, // Enable stateful mode for session management
     };
 
-    // Create SSE server and router
-    let (sse_mcp_server, sse_mcp_router) = SseServer::new(config);
-    let archestra_mcp_server = ArchestraMcpServer::new(user_id);
+    // Create StreamableHTTP service with a factory closure
+    let db_for_closure = Arc::new(db);
+    let streamable_service = StreamableHttpService::new(
+        move || {
+            Ok(ArchestraMcpServer::new(
+                user_id.clone(),
+                (*db_for_closure).clone(),
+            ))
+        },
+        Arc::new(LocalSessionManager::default()),
+        config,
+    );
+
+    // Convert to axum service
+    let mcp_service = axum::routing::any_service(streamable_service);
 
     // Create main router
     let app = Router::new()
-        .route("/health", get(health_check))
         .route("/proxy/{server_name}", post(handle_proxy_request))
-        .merge(sse_mcp_router);
+        .route("/mcp", mcp_service);
 
-    let ct = sse_mcp_server.with_service(move || archestra_mcp_server.clone());
-    let addr = SocketAddr::from(([127, 0, 0, 1], MCP_SERVER_PORT));
     let listener = TcpListener::bind(addr).await?;
 
     println!(
@@ -365,13 +429,8 @@ pub async fn start_archestra_mcp_server(user_id: String) -> Result<(), Box<dyn s
     );
     println!("  - MCP endpoint (streamable HTTP): http://{}/mcp", addr);
     println!("  - Proxy endpoints: http://{}/proxy/<server_name>", addr);
-    println!("  - Health check: http://{}/health", addr);
 
-    let server = axum::serve(listener, app).with_graceful_shutdown(async move {
-        // Wait for cancellation signal
-        ct.cancelled().await;
-        println!("Archestra MCP Server is shutting down...");
-    });
+    let server = axum::serve(listener, app);
 
     if let Err(e) = server.await {
         eprintln!("Server error: {}", e);
@@ -391,14 +450,22 @@ mod tests {
     use tower::util::ServiceExt;
 
     // Helper function to create a test server instance
-    fn create_test_server() -> ArchestraMcpServer {
-        ArchestraMcpServer::new("test_user_123".to_string())
+    async fn create_test_server() -> ArchestraMcpServer {
+        use sea_orm::Database;
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+
+        // Run migrations on in-memory database
+        use crate::database::migration::Migrator;
+        use sea_orm_migration::MigratorTrait;
+        Migrator::up(&db, None).await.unwrap();
+
+        ArchestraMcpServer::new("test_user_123".to_string(), db)
     }
 
     // Test server creation and initialization
-    #[test]
-    fn test_server_creation() {
-        let server = create_test_server();
+    #[tokio::test]
+    async fn test_server_creation() {
+        let server = create_test_server().await;
         // Server should be created successfully with default resources
         let _ = server; // Ensure server is created without panic
     }
@@ -406,7 +473,7 @@ mod tests {
     // Test server info
     #[tokio::test]
     async fn test_server_info() {
-        let server = create_test_server();
+        let server = create_test_server().await;
         let info = server.get_info();
 
         assert_eq!(info.protocol_version, ProtocolVersion::V_2025_03_26);
@@ -421,9 +488,16 @@ mod tests {
     async fn test_server_startup() {
         let user_id = "test_user".to_string();
 
+        // Create in-memory database
+        use sea_orm::Database;
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        use crate::database::migration::Migrator;
+        use sea_orm_migration::MigratorTrait;
+        Migrator::up(&db, None).await.unwrap();
+
         // Start server in a background task
         let server_task = tokio::spawn(async move {
-            let result = start_archestra_mcp_server(user_id).await;
+            let result = start_archestra_mcp_server(user_id, db).await;
             // Server should run until cancelled
             assert!(result.is_ok() || result.is_err());
         });
@@ -444,32 +518,10 @@ mod tests {
         server_task.abort();
     }
 
-    // Test health check endpoint
-    #[tokio::test]
-    async fn test_health_check_endpoint() {
-        let app = Router::new().route("/health", axum::routing::get(health_check));
-
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/health")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        assert_eq!(&body[..], b"OK");
-    }
-
     // Test get_context tool
     #[tokio::test]
     async fn test_get_context_tool() {
-        let server = create_test_server();
+        let server = create_test_server().await;
 
         let result = server.get_context().await;
         assert!(result.is_ok());
@@ -494,7 +546,7 @@ mod tests {
     // Test update_context tool
     #[tokio::test]
     async fn test_update_context_tool() {
-        let server = create_test_server();
+        let server = create_test_server().await;
 
         // Update context with a key-value pair
         let params = UpdateContextRequest {
@@ -516,7 +568,7 @@ mod tests {
     // Test set_active_models tool
     #[tokio::test]
     async fn test_set_active_models_tool() {
-        let server = create_test_server();
+        let server = create_test_server().await;
 
         let params = SetActiveModelsRequest {
             models: vec!["gpt-4".to_string(), "claude-3-opus".to_string()],
@@ -575,7 +627,7 @@ mod tests {
     // Test concurrent context updates
     #[tokio::test]
     async fn test_concurrent_context_updates() {
-        let server = Arc::new(create_test_server());
+        let server = Arc::new(create_test_server().await);
 
         // Spawn multiple tasks that update context concurrently
         let mut handles = vec![];
@@ -605,6 +657,31 @@ mod tests {
                 context.project_context.get(&format!("key_{}", i)),
                 Some(&format!("value_{}", i))
             );
+        }
+    }
+
+    // Test list_installed_mcp_servers tool
+    #[tokio::test]
+    async fn test_list_installed_mcp_servers_tool() {
+        let server = create_test_server().await;
+
+        let result = server.list_installed_mcp_servers().await;
+        assert!(result.is_ok());
+
+        let tool_result = result.unwrap();
+        assert!(!tool_result.content.is_empty());
+
+        // Verify the response contains expected fields
+        let first_content = tool_result.content.first().unwrap();
+        match &first_content.raw {
+            rmcp::model::RawContent::Text(text) => {
+                let servers_response: serde_json::Value = serde_json::from_str(&text.text).unwrap();
+                assert!(servers_response["servers"].is_array());
+                assert!(servers_response["total_count"].is_number());
+                // Empty database should have 0 servers
+                assert_eq!(servers_response["total_count"], 0);
+            }
+            _ => panic!("Expected text content"),
         }
     }
 }

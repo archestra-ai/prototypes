@@ -1,3 +1,4 @@
+use crate::database::connection::get_database_connection_with_app;
 use sea_orm::entity::prelude::*;
 use sea_orm::{DeleteResult, Set};
 use serde::{Deserialize, Serialize};
@@ -6,7 +7,15 @@ use std::collections::HashMap;
 pub mod oauth;
 pub mod sandbox;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerConfig {
+    pub transport: String, // "stdio" or "http"
+    pub command: String,
+    pub args: Vec<String>,
+    pub env: HashMap<String, String>,
+}
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "mcp_servers")]
 pub struct Model {
     #[sea_orm(primary_key)]
@@ -24,18 +33,16 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServerConfig {
-    pub transport: String, // "stdio" or "http"
-    pub command: String,
-    pub args: Vec<String>,
-    pub env: HashMap<String, String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServerDefinition {
     pub name: String,
     pub server_config: ServerConfig,
     pub meta: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectorCatalogEntryOauth {
+    pub provider: String,
+    pub required: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,12 +57,8 @@ pub struct ConnectorCatalogEntry {
     pub version: String,
     pub homepage: String,
     pub repository: String,
+    pub oauth: Option<ConnectorCatalogEntryOauth>,
     pub server_config: ServerConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConnectorCatalog {
-    pub connectors: Vec<ConnectorCatalogEntry>,
 }
 
 impl Model {
@@ -123,51 +126,19 @@ impl Model {
         Ok(result)
     }
 
-    /// Load all MCP servers from the database
-    pub async fn load_all_servers(
-        db: &DatabaseConnection,
-    ) -> Result<HashMap<String, McpServerDefinition>, DbErr> {
-        let models = Entity::find().all(db).await?;
-        let mut servers = HashMap::new();
-
-        for model in models {
-            let server_config: ServerConfig =
-                serde_json::from_str(&model.server_config).map_err(|e| {
-                    DbErr::Custom(format!(
-                        "Failed to parse server_config for {}: {}",
-                        model.name, e
-                    ))
-                })?;
-
-            let meta = if let Some(meta_json) = &model.meta {
-                Some(serde_json::from_str(meta_json).map_err(|e| {
-                    DbErr::Custom(format!("Failed to parse meta for {}: {}", model.name, e))
-                })?)
-            } else {
-                None
-            };
-
-            let definition = McpServerDefinition {
-                name: model.name.clone(),
-                server_config,
-                meta,
-            };
-
-            servers.insert(model.name, definition);
-        }
-
-        Ok(servers)
+    /// Load installed MCP servers from the database
+    pub async fn load_installed_mcp_servers(db: &DatabaseConnection) -> Result<Vec<Model>, DbErr> {
+        Ok(Entity::find().all(db).await?)
     }
 
-    /// Delete an MCP server by name and stop it
-    pub async fn delete_by_name(
+    /// Uninstall an MCP server - stop its process running in the sandbox and delete it from the database
+    pub async fn uninstall_mcp_server(
         db: &DatabaseConnection,
         server_name: &str,
     ) -> Result<DeleteResult, DbErr> {
-        // Stop the server before deleting
-        if let Err(e) = sandbox::stop_mcp_server(server_name).await {
-            eprintln!("Warning: Failed to stop server before deletion: {}", e);
-        }
+        // Stop the server before deleting.. if there's an error stopping the server
+        // that's fine, we don't want to block the uninstallation
+        let _ = sandbox::stop_mcp_server(server_name).await;
 
         Entity::delete_many()
             .filter(Column::Name.eq(server_name))
@@ -246,54 +217,16 @@ impl From<McpServerDefinition> for ActiveModel {
     }
 }
 
-// Tauri commands for MCP server management
-#[tauri::command]
-pub async fn save_mcp_server(
-    app: tauri::AppHandle,
-    name: String,
-    command: String,
-    args: Vec<String>,
-    env: std::collections::HashMap<String, String>,
-) -> Result<(), String> {
-    use crate::database::connection::get_database_connection_with_app;
-
-    let db = get_database_connection_with_app(&app)
-        .await
-        .map_err(|e| format!("Failed to connect to database: {}", e))?;
-
-    let server_config = ServerConfig {
-        transport: "stdio".to_string(),
-        command,
-        args,
-        env,
-    };
-
-    let definition = McpServerDefinition {
-        name,
-        server_config,
-        meta: None,
-    };
-
-    Model::save_server(&db, &definition)
-        .await
-        .map_err(|e| format!("Failed to save MCP server: {}", e))?;
-
-    Ok(())
-}
-
 #[tauri::command]
 pub async fn save_mcp_server_from_catalog(
     app: tauri::AppHandle,
     connector_id: String,
-) -> Result<(), String> {
-    use crate::database::connection::get_database_connection_with_app;
-
+) -> Result<McpServerDefinition, String> {
     // Load the catalog
     let catalog = get_mcp_connector_catalog().await?;
 
     // Find the connector by ID
     let connector = catalog
-        .connectors
         .iter()
         .find(|c| c.id == connector_id)
         .ok_or_else(|| format!("Connector with ID '{}' not found in catalog", connector_id))?;
@@ -308,45 +241,48 @@ pub async fn save_mcp_server_from_catalog(
         meta: None,
     };
 
-    Model::save_server(&db, &definition)
+    let result = Model::save_server(&db, &definition)
         .await
         .map_err(|e| format!("Failed to save MCP server: {}", e))?;
 
-    Ok(())
+    Ok(result.to_definition().unwrap())
 }
 
 #[tauri::command]
-pub async fn load_mcp_servers(
+pub async fn load_installed_mcp_servers(
     app: tauri::AppHandle,
-) -> Result<std::collections::HashMap<String, McpServerDefinition>, String> {
-    use crate::database::connection::get_database_connection_with_app;
-
+) -> Result<Vec<McpServerDefinition>, String> {
     let db = get_database_connection_with_app(&app)
         .await
         .map_err(|e| format!("Failed to connect to database: {}", e))?;
 
-    Model::load_all_servers(&db)
+    let models = Model::load_installed_mcp_servers(&db)
         .await
-        .map_err(|e| format!("Failed to load MCP servers: {}", e))
+        .map_err(|e| format!("Failed to load MCP servers: {}", e))?;
+
+    let definitions = models
+        .into_iter()
+        .map(|m| m.to_definition().unwrap())
+        .collect();
+
+    Ok(definitions)
 }
 
 #[tauri::command]
-pub async fn delete_mcp_server(app: tauri::AppHandle, name: String) -> Result<(), String> {
-    use crate::database::connection::get_database_connection_with_app;
-
+pub async fn uninstall_mcp_server(app: tauri::AppHandle, name: String) -> Result<(), String> {
     let db = get_database_connection_with_app(&app)
         .await
         .map_err(|e| format!("Failed to connect to database: {}", e))?;
 
-    Model::delete_by_name(&db, &name)
+    Model::uninstall_mcp_server(&db, &name)
         .await
-        .map_err(|e| format!("Failed to delete MCP server: {}", e))?;
+        .map_err(|e| format!("Failed to uninstall MCP server: {}", e))?;
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn get_mcp_connector_catalog() -> Result<ConnectorCatalog, String> {
+pub async fn get_mcp_connector_catalog() -> Result<Vec<ConnectorCatalogEntry>, String> {
     let catalog_json = include_str!("catalog.json");
     serde_json::from_str(catalog_json).map_err(|e| format!("Failed to parse catalog: {}", e))
 }
@@ -354,7 +290,8 @@ pub async fn get_mcp_connector_catalog() -> Result<ConnectorCatalog, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Tests use in-memory database instead of mocks
+    use crate::database::migration::Migrator;
+    use sea_orm_migration::MigratorTrait;
 
     #[tokio::test]
     async fn test_save_server() {
@@ -362,8 +299,6 @@ mod tests {
         let db = sea_orm::Database::connect("sqlite::memory:").await.unwrap();
 
         // Run migrations
-        use crate::database::migration::Migrator;
-        use sea_orm_migration::MigratorTrait;
         Migrator::up(&db, None).await.unwrap();
 
         let server_config = ServerConfig {

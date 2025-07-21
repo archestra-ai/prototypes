@@ -1,8 +1,9 @@
-use super::McpServerDefinition;
+use super::{McpServerDefinition, ServerConfig};
 use crate::database::connection::get_database_connection_with_app;
 use crate::models::mcp_server::Model;
 use crate::utils::node;
-use rmcp::model::{JsonRpcRequest, JsonRpcResponse, Resource as McpResource, Tool as McpTool};
+use rmcp::model::{JsonRpcResponse, Resource as McpResource, Tool as McpTool};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::process::Stdio;
 use std::sync::Arc;
@@ -15,6 +16,14 @@ use tokio::sync::{mpsc, Mutex as TokioMutex, RwLock};
 const MAX_BUFFER_SIZE: usize = 1000;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const CHANNEL_CAPACITY: usize = 100;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlexibleJsonRpcRequest {
+    pub jsonrpc: String,
+    pub method: String,
+    pub params: Option<serde_json::Value>,
+    pub id: Option<serde_json::Value>, // Make ID optional to handle notifications
+}
 
 #[derive(Debug, Clone)]
 pub enum ServerType {
@@ -340,13 +349,32 @@ impl McpServerManager {
         server_name: &str,
         request_body: String,
     ) -> Result<String, String> {
+        println!("🔍 Looking up server '{}' in manager", server_name);
         let servers = self.servers.read().await;
+        println!("📊 Total servers in manager: {}", servers.len());
+        
+        // List all available servers for debugging
+        for (name, _) in servers.iter() {
+            println!("   - Available server: '{}'", name);
+        }
+        
         let server = servers
             .get(server_name)
-            .ok_or_else(|| format!("Server '{}' not found", server_name))?;
+            .ok_or_else(|| {
+                println!("❌ Server '{}' not found in manager", server_name);
+                format!("Server '{}' not found", server_name)
+            })?;
+            
+        println!("✅ Found server '{}', type: {:?}", server_name, 
+            match &server.server_type {
+                ServerType::Http { url, .. } => format!("HTTP ({})", url),
+                ServerType::Process => "Process".to_string(),
+            }
+        );
 
         match &server.server_type {
             ServerType::Http { url, headers } => {
+                println!("🌐 Forwarding HTTP request to: {}", url);
                 // For HTTP servers, forward the request as-is
                 let mut req = self
                     .http_client
@@ -355,52 +383,136 @@ impl McpServerManager {
                     .header("Content-Type", "application/json");
 
                 for (key, value) in headers {
+                    println!("📎 Adding header: {} = {}", key, value);
                     req = req.header(key, value);
                 }
 
+                println!("📡 Sending HTTP request...");
                 let response = req
                     .send()
                     .await
-                    .map_err(|e| format!("HTTP request failed: {}", e))?;
+                    .map_err(|e| {
+                        println!("❌ HTTP request failed: {}", e);
+                        format!("HTTP request failed: {}", e)
+                    })?;
 
+                println!("📨 Received HTTP response, status: {}", response.status());
                 let response_text = response
                     .text()
                     .await
-                    .map_err(|e| format!("Failed to read response: {}", e))?;
+                    .map_err(|e| {
+                        println!("❌ Failed to read HTTP response: {}", e);
+                        format!("Failed to read response: {}", e)
+                    })?;
 
+                println!("✅ HTTP response received successfully");
                 Ok(response_text)
             }
             ServerType::Process => {
+                println!("🔧 Processing request for process-based server");
                 // For process servers, send via stdin and wait for response
                 let stdin_tx = server
                     .stdin_tx
                     .as_ref()
-                    .ok_or_else(|| "No stdin channel available".to_string())?;
+                    .ok_or_else(|| {
+                        println!("❌ No stdin channel available for server '{}'", server_name);
+                        "No stdin channel available".to_string()
+                    })?;
 
+                println!("📤 Sending request to process stdin...");
+                println!("📋 Raw request body: {}", request_body);
+                println!("📏 Request body length: {} bytes", request_body.len());
+                
+                // Let's also try to parse as generic JSON first to see what fields are present
+                if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&request_body) {
+                    println!("📊 Parsed as JSON. Keys present: {:?}", 
+                        json_value.as_object().map(|obj| obj.keys().collect::<Vec<_>>()));
+                    println!("📝 Full JSON structure: {}", serde_json::to_string_pretty(&json_value).unwrap_or_default());
+                } else {
+                    println!("❌ Request body is not valid JSON");
+                }
+                
                 stdin_tx
                     .send(format!("{}\n", request_body))
                     .await
-                    .map_err(|e| format!("Failed to send request: {}", e))?;
+                    .map_err(|e| {
+                        println!("❌ Failed to send request to stdin: {}", e);
+                        format!("Failed to send request: {}", e)
+                    })?;
 
-                // Parse request to get ID for response matching
-                let request: JsonRpcRequest = serde_json::from_str(&request_body)
-                    .map_err(|e| format!("Failed to parse request: {}", e))?;
+                // Parse request using our flexible structure
+                let request: FlexibleJsonRpcRequest = serde_json::from_str(&request_body)
+                    .map_err(|e| {
+                        println!("❌ Failed to parse JSON-RPC request: {}", e);
+                        format!("Failed to parse request: {}", e)
+                    })?;
 
+                println!("🔍 Parsed request - method: {}, id: {:?}", request.method, request.id);
+                
+                // Check if this is a notification (no ID) or a regular request
+                if request.id.is_none() {
+                    println!("📢 This is a JSON-RPC notification (no response expected)");
+                    return Ok("".to_string()); // Notifications don't expect responses
+                }
+
+                println!("🕐 Waiting for response with ID: {:?}", request.id);
                 // Wait for response with matching ID
                 let start_time = Instant::now();
+                let mut iteration_count = 0;
                 loop {
-                    if start_time.elapsed() > REQUEST_TIMEOUT {
+                    iteration_count += 1;
+                    let elapsed = start_time.elapsed();
+                    
+                    if elapsed > REQUEST_TIMEOUT {
+                        println!("⏰ Request timeout after {} iterations ({:?})", iteration_count, elapsed);
                         return Err("Request timeout".to_string());
                     }
 
+                    if iteration_count % 100 == 0 {
+                        println!("⏳ Still waiting... iteration {}, elapsed: {:?}", iteration_count, elapsed);
+                    }
+
                     let mut buffer = server.response_buffer.lock().await;
+                    let buffer_size = buffer.len();
+                    
+                    if iteration_count % 100 == 0 && buffer_size > 0 {
+                        println!("📋 Response buffer size: {}", buffer_size);
+                    }
+                    
                     while let Some(entry) = buffer.pop_front() {
+                        println!("📨 Processing buffer entry: {}", entry.content);
                         if let Ok(response) =
                             serde_json::from_str::<JsonRpcResponse>(&entry.content)
                         {
-                            if response.id == request.id {
+                            println!("✅ Parsed JSON-RPC response with ID: {:?}", response.id);
+                            
+                            // Convert request.id to match response.id format for comparison
+                            let ids_match = match &request.id {
+                                Some(req_id) => {
+                                    // Convert serde_json::Value to string for comparison
+                                    match req_id {
+                                        serde_json::Value::Number(n) => {
+                                            response.id.to_string() == n.to_string()
+                                        }
+                                        serde_json::Value::String(s) => {
+                                            response.id.to_string() == *s
+                                        }
+                                        _ => {
+                                            response.id.to_string() == req_id.to_string()
+                                        }
+                                    }
+                                }
+                                None => false, // Should not happen since we checked earlier
+                            };
+                            
+                            if ids_match {
+                                println!("🎯 Found matching response for ID: {:?}", request.id);
                                 return Ok(entry.content);
+                            } else {
+                                println!("🔄 Response ID {:?} doesn't match request ID {:?}", response.id, request.id);
                             }
+                        } else {
+                            println!("❌ Failed to parse response as JSON-RPC: {}", entry.content);
                         }
                         // Put it back if it's not our response
                         buffer.push_front(entry);
@@ -413,6 +525,7 @@ impl McpServerManager {
             }
         }
     }
+
 }
 
 // Create a global instance of the manager
@@ -428,42 +541,45 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
         .await
         .map_err(|e| format!("Failed to connect to database: {}", e))?;
 
-    let servers = Model::load_all_servers(&db)
+    let installed_mcp_servers = Model::load_installed_mcp_servers(&db)
         .await
         .map_err(|e| format!("Failed to load MCP servers: {}", e))?;
 
-    if servers.is_empty() {
-        println!("No persisted MCP servers found to start.");
+    if installed_mcp_servers.is_empty() {
+        println!("No installed MCP servers found to start.");
         return Ok(());
     }
 
-    println!("Found {} MCP servers to start", servers.len());
+    println!("Found {} MCP servers to start", installed_mcp_servers.len());
 
-    for (server_name, config) in servers {
-        let server_name_clone = server_name.clone();
-        let config_clone = config.clone();
+    for server in installed_mcp_servers {
+        let server_name = server.name.clone();
+
+        let config: ServerConfig = serde_json::from_str(&server.server_config)
+            .map_err(|e| format!("Failed to parse server config for {}: {}", server_name, e))?;
 
         println!(
             "🚀 Starting MCP server '{}' with persistent connection",
-            server_name_clone
+            server_name
         );
         println!(
             "📋 Server config - Command: '{}', Args: {:?}",
-            config_clone.server_config.command, config_clone.server_config.args
+            config.command, config.args
         );
 
         tauri::async_runtime::spawn(async move {
+            let name = server_name.clone();
             match MCP_SERVER_MANAGER
                 .start_server(
-                    server_name_clone,
-                    config_clone.server_config.command,
-                    config_clone.server_config.args,
-                    Some(config_clone.server_config.env),
+                    server_name.clone(),
+                    config.command,
+                    config.args,
+                    Some(config.env),
                 )
                 .await
             {
-                Ok(_) => println!("✅ MCP server '{}' started successfully", server_name),
-                Err(e) => eprintln!("❌ Failed to start MCP server '{}': {}", server_name, e),
+                Ok(_) => println!("✅ MCP server '{}' started successfully", name),
+                Err(e) => eprintln!("❌ Failed to start MCP server '{}': {}", name, e),
             }
         });
     }
