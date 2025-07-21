@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react';
 import {
   Search,
   Download,
@@ -8,32 +8,32 @@ import {
   Cpu,
   Clock,
   Type,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { Button } from "../../../../components/ui/button";
-import { Input } from "../../../../components/ui/input";
+import { Button } from '../../../../components/ui/button';
+import { Input } from '../../../../components/ui/input';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "../../../../components/ui/card";
-import { Badge } from "../../../../components/ui/badge";
-import { ScrollArea } from "../../../../components/ui/scroll-area";
+} from '../../../../components/ui/card';
+import { Badge } from '../../../../components/ui/badge';
+import { ScrollArea } from '../../../../components/ui/scroll-area';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../../../components/ui/select";
-import { useOllamaContext } from "../../../../contexts/llm-providers/ollama/ollama-context";
+} from '../../../../components/ui/select';
+import { useOllamaContext } from '../../../../contexts/llm-providers/ollama/ollama-context';
 
 interface ModelsCatalogProps {}
 
 export default function ModelsCatalog({}: ModelsCatalogProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedLabel, setSelectedLabel] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLabel, setSelectedLabel] = useState<string>('all');
 
   const {
     installedModels,
@@ -53,7 +53,7 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
       );
 
     const matchesLabel =
-      selectedLabel === "all" || model.labels.includes(selectedLabel);
+      selectedLabel === 'all' || model.labels.includes(selectedLabel);
 
     return matchesSearch && matchesLabel;
   });
@@ -64,7 +64,7 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
 
   const formatFileSize = (sizeStr: string) => {
     // Convert size strings like "7b", "13b", "70b" to more readable format
-    if (sizeStr.endsWith("b")) {
+    if (sizeStr.endsWith('b')) {
       const num = parseFloat(sizeStr.slice(0, -1));
       if (num >= 1000) {
         return `${(num / 1000).toFixed(1)}T`;
@@ -147,7 +147,8 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
                     {model.tags.map(({ tag, context, size, inputs }) => {
                       const fullModelName = `${model.name}:${tag}`;
                       const progress = downloadProgress[fullModelName];
-                      const isDownloading = modelsBeingDownloaded.has(fullModelName);
+                      const isDownloading =
+                        modelsBeingDownloaded.has(fullModelName);
                       const isInstalled = isModelInstalled(fullModelName);
 
                       return (
@@ -162,7 +163,7 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
 
                             <Button
                               size="sm"
-                              variant={isInstalled ? "secondary" : "default"}
+                              variant={isInstalled ? 'secondary' : 'default'}
                               disabled={isDownloading}
                               onClick={() => downloadModel(fullModelName)}
                               className="h-8 px-3"
@@ -171,7 +172,7 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
                                 <div className="flex items-center gap-1">
                                   <Loader2 className="h-3 w-3 animate-spin" />
                                   <span className="text-xs">
-                                    {progress ? `${progress}%` : "..."}
+                                    {progress ? `${progress}%` : '...'}
                                   </span>
                                 </div>
                               ) : isInstalled ? (
@@ -204,7 +205,7 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
                             {inputs && inputs.length > 0 && (
                               <div className="flex items-center gap-1">
                                 <Type className="h-3 w-3" />
-                                <span>Inputs: {inputs.join(", ")}</span>
+                                <span>Inputs: {inputs.join(', ')}</span>
                               </div>
                             )}
                           </div>

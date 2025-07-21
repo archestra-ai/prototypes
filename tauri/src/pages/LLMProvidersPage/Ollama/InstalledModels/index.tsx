@@ -1,30 +1,30 @@
-import { useState } from "react";
-import { HardDrive, Package, ChevronDown, RefreshCw } from "lucide-react";
+import { useState } from 'react';
+import { HardDrive, Package, ChevronDown, RefreshCw } from 'lucide-react';
 
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "../../../../components/ui/card";
-import { Badge } from "../../../../components/ui/badge";
-import { ScrollArea } from "../../../../components/ui/scroll-area";
+} from '../../../../components/ui/card';
+import { Badge } from '../../../../components/ui/badge';
+import { ScrollArea } from '../../../../components/ui/scroll-area';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "../../../../components/ui/collapsible";
-import { useOllamaContext } from "../../../../contexts/llm-providers/ollama/ollama-context";
+} from '../../../../components/ui/collapsible';
+import { useOllamaContext } from '../../../../contexts/llm-providers/ollama/ollama-context';
 
 export const formatBytes = (bytes: number) => {
   if (bytes === 0) {
-    return "0 Bytes";
+    return '0 Bytes';
   }
 
   const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
 interface InstalledModelsProps {}
@@ -34,10 +34,10 @@ export default function InstalledModels({}: InstalledModelsProps) {
   const { installedModels, loadingInstalledModels } = useOllamaContext();
 
   const parseModelName = (fullName: string) => {
-    const parts = fullName.split(":");
+    const parts = fullName.split(':');
     return {
       name: parts[0],
-      tag: parts[1] || "latest",
+      tag: parts[1] || 'latest',
     };
   };
 
@@ -55,12 +55,12 @@ export default function InstalledModels({}: InstalledModelsProps) {
                     <div className="flex items-center gap-2 ml-2">
                       <Badge variant="outline" className="text-xs">
                         {installedModels.length} model
-                        {installedModels.length !== 1 ? "s" : ""}
+                        {installedModels.length !== 1 ? 's' : ''}
                       </Badge>
                     </div>
                   )}
                   <ChevronDown
-                    className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                    className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                   />
                 </div>
               </div>
@@ -125,13 +125,13 @@ export default function InstalledModels({}: InstalledModelsProps) {
                                   <div>
                                     <span className="font-medium">
                                       Parameters:
-                                    </span>{" "}
+                                    </span>{' '}
                                     {modelDetails.parameter_size}
                                   </div>
                                   <div>
                                     <span className="font-medium">
                                       Quantization:
-                                    </span>{" "}
+                                    </span>{' '}
                                     {modelDetails.quantization_level}
                                   </div>
                                 </div>

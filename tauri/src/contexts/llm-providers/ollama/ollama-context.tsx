@@ -1,7 +1,14 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { ModelResponse, Ollama } from "ollama/browser";
-import { AVAILABLE_MODELS } from "./available_models";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+} from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { ModelResponse, Ollama } from 'ollama/browser';
+import { AVAILABLE_MODELS } from './available_models';
 
 interface OllamaContextType {
   ollamaClient: Ollama | null;
@@ -24,19 +31,24 @@ export function OllamaProvider({ children }: { children: React.ReactNode }) {
   const [ollamaPort, setOllamaPort] = useState<number | null>(null);
   const [installedModels, setInstalledModels] = useState<ModelResponse[]>([]);
   const [loadingInstalledModels, setLoadingInstalledModels] = useState(false);
-  const [loadingInstalledModelsError, setLoadingInstalledModelsError] = useState<Error | null>(null);
-  const [modelsBeingDownloaded, setModelsBeingDownloaded] = useState<Set<string>>(new Set());
-  const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
-  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [loadingInstalledModelsError, setLoadingInstalledModelsError] =
+    useState<Error | null>(null);
+  const [modelsBeingDownloaded, setModelsBeingDownloaded] = useState<
+    Set<string>
+  >(new Set());
+  const [downloadProgress, setDownloadProgress] = useState<
+    Record<string, number>
+  >({});
+  const [selectedModel, setSelectedModel] = useState<string>('');
 
   useEffect(() => {
     (async () => {
       try {
-        const port = await invoke<number>("get_ollama_port");
+        const port = await invoke<number>('get_ollama_port');
         setOllamaPort(port);
         return port;
       } catch (error) {
-        console.error("Failed to get Ollama port:", error);
+        console.error('Failed to get Ollama port:', error);
         throw error;
       }
     })();
@@ -135,13 +147,15 @@ export function OllamaProvider({ children }: { children: React.ReactNode }) {
     setSelectedModel,
   };
 
-  return <OllamaContext.Provider value={value}>{children}</OllamaContext.Provider>;
+  return (
+    <OllamaContext.Provider value={value}>{children}</OllamaContext.Provider>
+  );
 }
 
 export function useOllamaContext() {
   const context = useContext(OllamaContext);
   if (context === undefined) {
-    throw new Error("useOllamaContext must be used within an OllamaProvider");
+    throw new Error('useOllamaContext must be used within an OllamaProvider');
   }
   return context;
 }
