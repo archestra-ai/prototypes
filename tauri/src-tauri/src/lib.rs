@@ -119,16 +119,15 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             ollama::get_ollama_port,
-            models::mcp_server::save_mcp_server,
             models::mcp_server::save_mcp_server_from_catalog,
-            models::mcp_server::load_mcp_servers,
-            models::mcp_server::delete_mcp_server,
+            models::mcp_server::load_installed_mcp_servers,
+            models::mcp_server::uninstall_mcp_server,
             models::mcp_server::get_mcp_connector_catalog,
             models::mcp_server::oauth::start_oauth_auth,
-            models::client_connection_config::connect_mcp_client,
-            models::client_connection_config::disconnect_mcp_client,
-            models::client_connection_config::check_client_connection_status,
-            models::client_connection_config::notify_new_mcp_tools_available,
+            models::external_mcp_client::get_supported_external_mcp_client_names,
+            models::external_mcp_client::get_connected_external_mcp_clients,
+            models::external_mcp_client::connect_external_mcp_client,
+            models::external_mcp_client::disconnect_external_mcp_client,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

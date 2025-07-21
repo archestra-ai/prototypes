@@ -1,19 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useState, useCallback, useEffect } from "react";
-import { IChatMessage, ToolCallInfo, MCPTool } from "./types";
+import { IChatMessage, ToolCallInfo } from "./types";
 import { parseThinkingContent, markMessageAsCancelled } from "./utils";
 
-interface IArgs {
-  ollamaPort: number | null;
-  mcpTools: MCPTool[];
-}
+import { useConnectorCatalog } from "../../hooks/use-connector-catalog";
+import { useOllamaClient } from "../../hooks/llm-providers/ollama/use-ollama-client";
 
 // TODO: remove these constants
 export const CHAT_SCROLL_AREA_ID = "chat-scroll-area";
 export const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-area-viewport]`;
 
-export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
+export function usePostChatMessage() {
+  const { ollamaClient: _ollamaClient, ollamaPort } = useOllamaClient()
+  const { installedMcpServers } = useConnectorCatalog();
+
   const [chatHistory, setChatHistory] = useState<IChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
@@ -279,7 +280,7 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
 
   const sendChatMessage = useCallback(
     async (message: string, model: string) => {
-      if (!message.trim() || !ollamaPort) return;
+      if (!message.trim()) return;
 
       setIsChatLoading(true);
 
@@ -321,16 +322,16 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
             model.includes("granite"));
 
         console.log("🔧 Tool calling debug:", {
-          mcpToolsCount: mcpTools.length,
+          mcpToolsCount: installedMcpServers.length,
           modelSupportsTools,
           model,
-          willUseMcpTools: mcpTools.length > 0 && modelSupportsTools,
+          willUseMcpTools: installedMcpServers.length > 0 && modelSupportsTools,
         });
 
-        if (mcpTools.length > 0 && modelSupportsTools) {
+        if (installedMcpServers.length > 0 && modelSupportsTools) {
           console.log(
             "🎯 Using streaming tool-enabled chat with",
-            mcpTools.length,
+            installedMcpServers.length,
             "tools",
           );
 
@@ -352,15 +353,16 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
           );
 
           // Use the streaming tool-enabled chat
-          const messages = [
-            { role: "user", content: currentMessage, tool_calls: null },
-          ];
+          // const messages = [
+          //   { role: "user", content: currentMessage, tool_calls: null },
+          // ];
 
-          await invoke("ollama_chat_with_tools_streaming", {
-            port: ollamaPort,
-            model: model,
-            messages: messages,
-          });
+          // TODO: this has been removed, use ollama client instead
+          // await invoke("ollama_chat_with_tools_streaming", {
+          //   port: ollamaPort,
+          //   model: model,
+          //   messages: messages,
+          // });
 
           // The response will be handled by the event listeners
         } else {
@@ -369,7 +371,7 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
           );
 
           // Add warning if tools are available but model doesn't support them
-          if (mcpTools.length > 0 && !modelSupportsTools) {
+          if (installedMcpServers.length > 0 && !modelSupportsTools) {
             const warningMessage = {
               id: (Date.now() + Math.random()).toString(),
               role: "system",
@@ -388,6 +390,7 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
           setAbortController(controller);
 
           // Use streaming Ollama chat with thinking content parsing
+          // TODO: use ollama client instead...
           const response = await fetch(
             `http://localhost:${ollamaPort}/api/chat`,
             {
@@ -515,7 +518,7 @@ export function usePostChatMessage({ ollamaPort, mcpTools }: IArgs) {
 
       setIsChatLoading(false);
     },
-    [ollamaPort, mcpTools, chatHistory],
+    [ollamaPort, installedMcpServers, chatHistory],
   );
 
   const isStreaming = streamingMessageId !== null;

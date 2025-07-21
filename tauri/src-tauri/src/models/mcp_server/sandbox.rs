@@ -428,7 +428,7 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
         .await
         .map_err(|e| format!("Failed to connect to database: {}", e))?;
 
-    let servers = Model::load_all_servers(&db)
+    let servers = Model::load_installed_mcp_servers(&db)
         .await
         .map_err(|e| format!("Failed to load MCP servers: {}", e))?;
 

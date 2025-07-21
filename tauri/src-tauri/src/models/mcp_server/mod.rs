@@ -1,3 +1,4 @@
+use rmcp::model::Tool;
 use sea_orm::entity::prelude::*;
 use sea_orm::{DeleteResult, Set};
 use serde::{Deserialize, Serialize};
@@ -51,6 +52,7 @@ pub struct ConnectorCatalogEntry {
     pub homepage: String,
     pub repository: String,
     pub server_config: ServerConfig,
+    pub tools: Vec<Tool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,8 +125,8 @@ impl Model {
         Ok(result)
     }
 
-    /// Load all MCP servers from the database
-    pub async fn load_all_servers(
+    /// Load installed MCP servers from the database
+    pub async fn load_installed_mcp_servers(
         db: &DatabaseConnection,
     ) -> Result<HashMap<String, McpServerDefinition>, DbErr> {
         let models = Entity::find().all(db).await?;
@@ -159,8 +161,8 @@ impl Model {
         Ok(servers)
     }
 
-    /// Delete an MCP server by name and stop it
-    pub async fn delete_by_name(
+    /// Uninstall an MCP server - stop its process running in the sandbox and delete it from the database
+    pub async fn uninstall_mcp_server(
         db: &DatabaseConnection,
         server_name: &str,
     ) -> Result<DeleteResult, DbErr> {
@@ -230,57 +232,6 @@ impl Model {
     }
 }
 
-impl From<McpServerDefinition> for ActiveModel {
-    fn from(definition: McpServerDefinition) -> Self {
-        let meta_json = definition
-            .meta
-            .map(|meta| serde_json::to_string(&meta).unwrap_or_default());
-
-        ActiveModel {
-            name: Set(definition.name),
-            server_config: Set(serde_json::to_string(&definition.server_config).unwrap_or_default()),
-            meta: Set(meta_json),
-            created_at: Set(chrono::Utc::now()),
-            ..Default::default()
-        }
-    }
-}
-
-// Tauri commands for MCP server management
-#[tauri::command]
-pub async fn save_mcp_server(
-    app: tauri::AppHandle,
-    name: String,
-    command: String,
-    args: Vec<String>,
-    env: std::collections::HashMap<String, String>,
-) -> Result<(), String> {
-    use crate::database::connection::get_database_connection_with_app;
-
-    let db = get_database_connection_with_app(&app)
-        .await
-        .map_err(|e| format!("Failed to connect to database: {}", e))?;
-
-    let server_config = ServerConfig {
-        transport: "stdio".to_string(),
-        command,
-        args,
-        env,
-    };
-
-    let definition = McpServerDefinition {
-        name,
-        server_config,
-        meta: None,
-    };
-
-    Model::save_server(&db, &definition)
-        .await
-        .map_err(|e| format!("Failed to save MCP server: {}", e))?;
-
-    Ok(())
-}
-
 #[tauri::command]
 pub async fn save_mcp_server_from_catalog(
     app: tauri::AppHandle,
@@ -316,7 +267,7 @@ pub async fn save_mcp_server_from_catalog(
 }
 
 #[tauri::command]
-pub async fn load_mcp_servers(
+pub async fn load_installed_mcp_servers(
     app: tauri::AppHandle,
 ) -> Result<std::collections::HashMap<String, McpServerDefinition>, String> {
     use crate::database::connection::get_database_connection_with_app;
@@ -325,22 +276,22 @@ pub async fn load_mcp_servers(
         .await
         .map_err(|e| format!("Failed to connect to database: {}", e))?;
 
-    Model::load_all_servers(&db)
+    Model::load_installed_mcp_servers(&db)
         .await
         .map_err(|e| format!("Failed to load MCP servers: {}", e))
 }
 
 #[tauri::command]
-pub async fn delete_mcp_server(app: tauri::AppHandle, name: String) -> Result<(), String> {
+pub async fn uninstall_mcp_server(app: tauri::AppHandle, name: String) -> Result<(), String> {
     use crate::database::connection::get_database_connection_with_app;
 
     let db = get_database_connection_with_app(&app)
         .await
         .map_err(|e| format!("Failed to connect to database: {}", e))?;
 
-    Model::delete_by_name(&db, &name)
+    Model::uninstall_mcp_server(&db, &name)
         .await
-        .map_err(|e| format!("Failed to delete MCP server: {}", e))?;
+        .map_err(|e| format!("Failed to uninstall MCP server: {}", e))?;
 
     Ok(())
 }

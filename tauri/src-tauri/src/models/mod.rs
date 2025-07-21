@@ -1,6 +1,6 @@
-pub mod client_connection_config;
+pub mod external_mcp_client;
 pub mod mcp_server;
 
 // Re-export the main types for convenience
-pub use client_connection_config::Model as ClientConnectionConfig;
+pub use external_mcp_client::Model as ClientConnectionConfig;
 pub use mcp_server::{McpServerDefinition, Model as McpServer};

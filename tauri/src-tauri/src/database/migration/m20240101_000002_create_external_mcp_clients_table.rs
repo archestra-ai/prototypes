@@ -9,40 +9,34 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(ClientConnections::Table)
+                    .table(ExternalMcpClients::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(ClientConnections::Id)
-                            .integer()
+                        ColumnDef::new(ExternalMcpClients::ClientName)
+                            .string()
                             .not_null()
-                            .auto_increment()
+                            .unique_key()
                             .primary_key(),
                     )
                     .col(
-                        ColumnDef::new(ClientConnections::ClientName)
-                            .string()
-                            .not_null()
-                            .unique_key(),
-                    )
-                    .col(
-                        ColumnDef::new(ClientConnections::IsConnected)
+                        ColumnDef::new(ExternalMcpClients::IsConnected)
                             .boolean()
                             .not_null()
                             .default(false),
                     )
                     .col(
-                        ColumnDef::new(ClientConnections::LastConnected)
+                        ColumnDef::new(ExternalMcpClients::LastConnected)
                             .timestamp_with_time_zone()
                             .null(),
                     )
-                    .col(ColumnDef::new(ClientConnections::ConfigPath).text().null())
+                    .col(ColumnDef::new(ExternalMcpClients::ConfigPath).text().null())
                     .col(
-                        ColumnDef::new(ClientConnections::CreatedAt)
+                        ColumnDef::new(ExternalMcpClients::CreatedAt)
                             .timestamp_with_time_zone()
                             .default(Expr::current_timestamp()),
                     )
                     .col(
-                        ColumnDef::new(ClientConnections::UpdatedAt)
+                        ColumnDef::new(ExternalMcpClients::UpdatedAt)
                             .timestamp_with_time_zone()
                             .default(Expr::current_timestamp()),
                     )
@@ -53,15 +47,14 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(ClientConnections::Table).to_owned())
+            .drop_table(Table::drop().table(ExternalMcpClients::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum ClientConnections {
+enum ExternalMcpClients {
     Table,
-    Id,
     ClientName,
     IsConnected,
     LastConnected,

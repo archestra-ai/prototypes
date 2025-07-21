@@ -74,7 +74,7 @@ mod tests {
 
         // Verify tables were created by trying to query them
         use sea_orm::EntityTrait;
-        let result = crate::models::client_connection_config::Entity::find()
+        let result = crate::models::external_mcp_client::Entity::find()
             .all(&db)
             .await;
         assert!(result.is_ok());
