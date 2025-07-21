@@ -104,9 +104,7 @@ impl McpServerManager {
 
             if !node_info.is_available() {
                 let instructions = node::get_node_installation_instructions();
-                return Err(format!(
-                    "Cannot start MCP server '{name}': {instructions}"
-                ));
+                return Err(format!("Cannot start MCP server '{name}': {instructions}"));
             }
 
             if args.is_empty() {
@@ -124,11 +122,7 @@ impl McpServerManager {
                     all_args.extend(remaining_args);
                     (cmd, all_args)
                 }
-                Err(e) => {
-                    return Err(format!(
-                        "Failed to prepare npm execution for '{name}': {e}"
-                    ))
-                }
+                Err(e) => return Err(format!("Failed to prepare npm execution for '{name}': {e}")),
             }
         } else if command == "http" {
             // Handle HTTP-based MCP server
@@ -137,9 +131,7 @@ impl McpServerManager {
             (command.clone(), args.clone())
         };
 
-        println!(
-            "🔧 Executing command: {actual_command} with args: {actual_args:?}"
-        );
+        println!("🔧 Executing command: {actual_command} with args: {actual_args:?}");
 
         let env_vars = env.unwrap_or_default();
         if !env_vars.is_empty() {
@@ -564,9 +556,7 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
         let config: ServerConfig = serde_json::from_str(&server.server_config)
             .map_err(|e| format!("Failed to parse server config for {server_name}: {e}"))?;
 
-        println!(
-            "🚀 Starting MCP server '{server_name}' with persistent connection"
-        );
+        println!("🚀 Starting MCP server '{server_name}' with persistent connection");
         println!(
             "📋 Server config - Command: '{}', Args: {:?}",
             config.command, config.args

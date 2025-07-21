@@ -122,7 +122,9 @@ fn get_common_node_locations() -> Vec<PathBuf> {
 
 /// Find Node.js in common installation locations
 fn find_node_in_common_locations() -> Option<PathBuf> {
-    get_common_node_locations().into_iter().find(|path| path.exists() && path.is_file())
+    get_common_node_locations()
+        .into_iter()
+        .find(|path| path.exists() && path.is_file())
 }
 
 /// Find npm in common installation locations

@@ -71,9 +71,7 @@ async fn handle_proxy_request(
     Path(server_name): Path<String>,
     req: axum::http::Request<Body>,
 ) -> axum::http::Response<Body> {
-    println!(
-        "🚀 MCP Server Proxy: Starting request to server '{server_name}'"
-    );
+    println!("🚀 MCP Server Proxy: Starting request to server '{server_name}'");
 
     // Read the request body
     let body_bytes = match axum::body::to_bytes(req.into_body(), usize::MAX).await {
@@ -111,9 +109,7 @@ async fn handle_proxy_request(
     // Forward the raw JSON-RPC request to the McpServerManager
     match forward_raw_request(&server_name, request_body).await {
         Ok(raw_response) => {
-            println!(
-                "✅ Successfully received response from server '{server_name}'"
-            );
+            println!("✅ Successfully received response from server '{server_name}'");
             println!("📤 Response: {raw_response}");
             axum::http::Response::builder()
                 .status(axum::http::StatusCode::OK)
@@ -122,9 +118,7 @@ async fn handle_proxy_request(
                 .unwrap()
         }
         Err(e) => {
-            println!(
-                "❌ MCP Server Proxy: Failed to forward request to '{server_name}': {e}"
-            );
+            println!("❌ MCP Server Proxy: Failed to forward request to '{server_name}': {e}");
 
             // Return a JSON-RPC error response
             let error_response = serde_json::json!({
@@ -398,12 +392,7 @@ pub async fn start_mcp_gateway(
     // Create StreamableHTTP service with a factory closure
     let db_for_closure = Arc::new(db);
     let streamable_service = StreamableHttpService::new(
-        move || {
-            Ok(MCPGateway::new(
-                user_id.clone(),
-                (*db_for_closure).clone(),
-            ))
-        },
+        move || Ok(MCPGateway::new(user_id.clone(), (*db_for_closure).clone())),
         Arc::new(LocalSessionManager::default()),
         config,
     );
