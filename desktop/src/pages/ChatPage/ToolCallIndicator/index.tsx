@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Settings, CheckCircle, AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Settings } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
 import { Badge } from '../../../components/ui/badge';
 import { ToolCallInfo } from '../../../types';
 
@@ -8,10 +9,7 @@ interface ToolCallIndicatorProps {
   isExecuting: boolean;
 }
 
-export default function ToolCallIndicator({
-  toolCalls,
-  isExecuting,
-}: ToolCallIndicatorProps) {
+export default function ToolCallIndicator({ toolCalls, isExecuting }: ToolCallIndicatorProps) {
   const [dots, setDots] = useState('');
 
   useEffect(() => {
@@ -26,12 +24,8 @@ export default function ToolCallIndicator({
 
   if (toolCalls.length === 0) return null;
 
-  const pendingCalls = toolCalls.filter(
-    (call) => call.status === 'pending' || call.status === 'executing',
-  );
-  const completedCalls = toolCalls.filter(
-    (call) => call.status === 'completed',
-  );
+  const pendingCalls = toolCalls.filter((call) => call.status === 'pending' || call.status === 'executing');
+  const completedCalls = toolCalls.filter((call) => call.status === 'completed');
   const errorCalls = toolCalls.filter((call) => call.status === 'error');
 
   return (
@@ -48,11 +42,7 @@ export default function ToolCallIndicator({
           </span>
           <div className="flex gap-1 ml-auto">
             {pendingCalls.map((call) => (
-              <Badge
-                key={call.id}
-                variant="outline"
-                className="text-xs bg-blue-100 dark:bg-blue-900"
-              >
+              <Badge key={call.id} variant="outline" className="text-xs bg-blue-100 dark:bg-blue-900">
                 {call.serverName}.{call.toolName}
               </Badge>
             ))}
@@ -64,8 +54,7 @@ export default function ToolCallIndicator({
         <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <span className="text-sm text-green-700 dark:text-green-300">
-            {completedCalls.length} tool{completedCalls.length !== 1 ? 's' : ''}{' '}
-            completed successfully
+            {completedCalls.length} tool{completedCalls.length !== 1 ? 's' : ''} completed successfully
           </span>
         </div>
       )}

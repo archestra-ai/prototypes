@@ -1,18 +1,13 @@
 // import { useCallback } from "react";
 import { Wrench } from 'lucide-react';
 
-import { ScrollArea } from '../../../components/ui/scroll-area';
-import {
-  AIReasoning,
-  AIReasoningTrigger,
-  AIReasoningContent,
-} from '../../../components/kibo/ai-reasoning';
+import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '../../../components/kibo/ai-reasoning';
 import { AIResponse } from '../../../components/kibo/ai-response';
+import { ScrollArea } from '../../../components/ui/scroll-area';
+import { cn } from '../../../lib/utils';
+import { useChatStore } from '../../../stores/chat-store';
 import ToolCallIndicator from '../ToolCallIndicator';
 import ToolExecutionResult from '../ToolExecutionResult';
-import { useChatContext } from '../../../contexts/chat-context';
-
-import { cn } from '../../../lib/utils';
 
 const CHAT_SCROLL_AREA_ID = 'chat-scroll-area';
 // const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-area-viewport]`;
@@ -38,13 +33,10 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   //   return () => clearTimeout(timeoutId);
   // }, [scrollToBottom]);
 
-  const { chatHistory } = useChatContext();
+  const { chatHistory } = useChatStore();
 
   return (
-    <ScrollArea
-      id={CHAT_SCROLL_AREA_ID}
-      className="h-96 w-full rounded-md border p-4"
-    >
+    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-96 w-full rounded-md border p-4">
       <div className="space-y-4">
         {chatHistory.map((msg, index) => (
           <div
@@ -61,21 +53,16 @@ export default function ChatHistory(_props: ChatHistoryProps) {
                       ? 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-600'
                       : msg.role === 'tool'
                         ? 'bg-blue-500/10 border border-blue-500/20 text-blue-600'
-                        : 'bg-muted border',
+                        : 'bg-muted border'
             )}
           >
-            <div className="text-xs font-medium mb-1 opacity-70 capitalize">
-              {msg.role}
-            </div>
+            <div className="text-xs font-medium mb-1 opacity-70 capitalize">{msg.role}</div>
             {msg.role === 'user' ? (
               <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
             ) : msg.role === 'assistant' ? (
               <div className="relative">
                 {(msg.isToolExecuting || msg.toolCalls) && (
-                  <ToolCallIndicator
-                    toolCalls={msg.toolCalls || []}
-                    isExecuting={!!msg.isToolExecuting}
-                  />
+                  <ToolCallIndicator toolCalls={msg.toolCalls || []} isExecuting={!!msg.isToolExecuting} />
                 )}
 
                 {msg.toolCalls && msg.toolCalls.length > 0 && (
@@ -96,14 +83,9 @@ export default function ChatHistory(_props: ChatHistoryProps) {
                 )}
 
                 {msg.thinkingContent && (
-                  <AIReasoning
-                    isStreaming={msg.isThinkingStreaming}
-                    className="mb-4"
-                  >
+                  <AIReasoning isStreaming={msg.isThinkingStreaming} className="mb-4">
                     <AIReasoningTrigger />
-                    <AIReasoningContent>
-                      {msg.thinkingContent}
-                    </AIReasoningContent>
+                    <AIReasoningContent>{msg.thinkingContent}</AIReasoningContent>
                   </AIReasoning>
                 )}
 
@@ -113,9 +95,7 @@ export default function ChatHistory(_props: ChatHistoryProps) {
                   <div className="flex items-center space-x-2 mt-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                     <p className="text-muted-foreground text-sm">
-                      {msg.isToolExecuting
-                        ? 'Executing tools...'
-                        : 'Loading...'}
+                      {msg.isToolExecuting ? 'Executing tools...' : 'Loading...'}
                     </p>
                   </div>
                 )}
@@ -124,14 +104,10 @@ export default function ChatHistory(_props: ChatHistoryProps) {
               <div className="space-y-2">
                 <div className="flex items-center gap-2 mb-2">
                   <Wrench className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                    Tool Result
-                  </span>
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Tool Result</span>
                 </div>
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="text-sm whitespace-pre-wrap font-mono">
-                    {msg.content}
-                  </div>
+                  <div className="text-sm whitespace-pre-wrap font-mono">{msg.content}</div>
                 </div>
               </div>
             ) : (

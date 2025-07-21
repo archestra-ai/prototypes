@@ -1,70 +1,41 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  PaperclipIcon,
-  MicIcon,
-  Settings,
-  ChevronDown,
-  Wrench,
-} from 'lucide-react';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-
-import { Badge } from '../../../components/ui/badge';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '../../../components/ui/collapsible';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-} from '../../../components/ui/tooltip';
+import { ChevronDown, MicIcon, PaperclipIcon, Settings, Wrench } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import {
   AIInput,
+  AIInputButton,
+  AIInputModelSelect,
+  AIInputModelSelectContent,
+  AIInputModelSelectItem,
+  AIInputModelSelectTrigger,
+  AIInputModelSelectValue,
+  AIInputSubmit,
   AIInputTextarea,
   AIInputToolbar,
   AIInputTools,
-  AIInputButton,
-  AIInputSubmit,
-  AIInputModelSelect,
-  AIInputModelSelectTrigger,
-  AIInputModelSelectContent,
-  AIInputModelSelectItem,
-  AIInputModelSelectValue,
 } from '../../../components/kibo/ai-input';
-import { useOllamaContext } from '../../../contexts/llm-providers/ollama/ollama-context';
-import { useMCPServersContext } from '../../../contexts/mcp-servers-context';
-import { useChatContext } from '../../../contexts/chat-context';
+import { Badge } from '../../../components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../../components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../components/ui/tooltip';
+import { useChatStore, useIsStreaming } from '../../../stores/chat-store';
+import { useMCPServersStore } from '../../../stores/mcp-servers-store';
+import { useOllamaStore } from '../../../stores/ollama-store';
 
 interface ChatInputProps {}
 
 export default function ChatInput(_props: ChatInputProps) {
-  const { installedMCPServers, loadingInstalledMCPServers } =
-    useMCPServersContext();
-  const {
-    isChatLoading,
-    isStreaming,
-    sendChatMessage,
-    clearChatHistory,
-    cancelStreaming,
-  } = useChatContext();
+  const { installedMCPServers, loadingInstalledMCPServers } = useMCPServersStore();
+  const { isChatLoading, sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
+  const isStreaming = useIsStreaming();
 
-  const {
-    installedModels,
-    loadingInstalledModels,
-    loadingInstalledModelsError,
-    selectedModel,
-    setSelectedModel,
-  } = useOllamaContext();
+  const { installedModels, loadingInstalledModels, loadingInstalledModelsError, selectedModel, setSelectedModel } =
+    useOllamaStore();
 
   const [message, setMessage] = useState('');
-  const [status, setStatus] = useState<
-    'submitted' | 'streaming' | 'ready' | 'error'
-  >('ready');
+  const [status, setStatus] = useState<'submitted' | 'streaming' | 'ready' | 'error'>('ready');
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
 
   const disabled = isStreaming || isChatLoading;
@@ -105,8 +76,7 @@ export default function ChatInput(_props: ChatInputProps) {
         const textarea = e.currentTarget;
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
-        const newMessage =
-          message.substring(0, start) + '\n' + message.substring(end);
+        const newMessage = message.substring(0, start) + '\n' + message.substring(end);
         setMessage(newMessage);
 
         setTimeout(() => {
@@ -130,84 +100,70 @@ export default function ChatInput(_props: ChatInputProps) {
       acc[mcpServer.name] = mcpServer.tools;
       return acc;
     },
-    {} as Record<string, Tool[]>,
+    {} as Record<string, Tool[]>
   );
-  const totalNumberOfTools = installedMCPServers.reduce(
-    (acc, mcpServer) => acc + mcpServer.tools.length,
-    0,
-  );
+  const totalNumberOfTools = installedMCPServers.reduce((acc, mcpServer) => acc + mcpServer.tools.length, 0);
 
   return (
     <TooltipProvider>
       <div className="space-y-2">
-        {isToolsMenuOpen &&
-          (totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
-            <div className="border rounded-lg p-3 bg-muted/50">
-              {loadingInstalledMCPServers ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  <span className="text-sm text-muted-foreground">
-                    Loading available tools...
-                  </span>
+        {isToolsMenuOpen && (totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
+          <div className="border rounded-lg p-3 bg-muted/50">
+            {loadingInstalledMCPServers ? (
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <span className="text-sm text-muted-foreground">Loading available tools...</span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-3">
+                  <Wrench className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium">Available Tools</span>
+                  <Badge variant="secondary" className="text-xs">
+                    Total: {totalNumberOfTools}
+                  </Badge>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Wrench className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium">Available Tools</span>
-                    <Badge variant="secondary" className="text-xs">
-                      Total: {totalNumberOfTools}
-                    </Badge>
-                  </div>
-                  {Object.entries(toolsByServer).map(([serverName, tools]) => (
-                    <Collapsible key={serverName}>
-                      <CollapsibleTrigger className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer w-full">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">
-                            {serverName}
-                          </span>
-                          <Badge variant="outline" className="text-xs">
-                            {tools.length} tool{tools.length !== 1 ? 's' : ''}
-                          </Badge>
-                        </div>
-                        <ChevronDown className="h-4 w-4 transition-transform" />
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="ml-4 space-y-1">
-                          {tools.map((tool, idx) => (
-                            <Tooltip key={idx}>
-                              <TooltipTrigger asChild>
-                                <div className="p-2 hover:bg-muted rounded text-sm cursor-help">
-                                  <span className="font-mono text-primary">
-                                    {tool.name}
-                                  </span>
-                                  {tool.description && (
-                                    <div className="text-muted-foreground text-xs mt-1">
-                                      {tool.description}
-                                    </div>
-                                  )}
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-sm">
-                                <div className="space-y-1">
-                                  <div className="font-medium">{tool.name}</div>
-                                  {tool.description && (
-                                    <div className="text-sm text-muted-foreground">
-                                      {tool.description}
-                                    </div>
-                                  )}
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          ))}
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                {Object.entries(toolsByServer).map(([serverName, tools]) => (
+                  <Collapsible key={serverName}>
+                    <CollapsibleTrigger className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer w-full">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{serverName}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {tools.length} tool{tools.length !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                      <ChevronDown className="h-4 w-4 transition-transform" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="ml-4 space-y-1">
+                        {tools.map((tool, idx) => (
+                          <Tooltip key={idx}>
+                            <TooltipTrigger asChild>
+                              <div className="p-2 hover:bg-muted rounded text-sm cursor-help">
+                                <span className="font-mono text-primary">{tool.name}</span>
+                                {tool.description && (
+                                  <div className="text-muted-foreground text-xs mt-1">{tool.description}</div>
+                                )}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-sm">
+                              <div className="space-y-1">
+                                <div className="font-medium">{tool.name}</div>
+                                {tool.description && (
+                                  <div className="text-sm text-muted-foreground">{tool.description}</div>
+                                )}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <AIInput onSubmit={handleSubmit} className="bg-inherit">
           <AIInputTextarea
@@ -225,9 +181,7 @@ export default function ChatInput(_props: ChatInputProps) {
                 defaultValue={selectedModel}
                 value={selectedModel}
                 onValueChange={handleModelChange}
-                disabled={
-                  loadingInstalledModels || !!loadingInstalledModelsError
-                }
+                disabled={loadingInstalledModels || !!loadingInstalledModelsError}
               >
                 <AIInputModelSelectTrigger>
                   <AIInputModelSelectValue
@@ -268,9 +222,7 @@ export default function ChatInput(_props: ChatInputProps) {
                   </TooltipTrigger>
                   <TooltipContent>
                     <span>
-                      {loadingInstalledMCPServers
-                        ? 'Loading tools...'
-                        : `${totalNumberOfTools} tools available`}
+                      {loadingInstalledMCPServers ? 'Loading tools...' : `${totalNumberOfTools} tools available`}
                     </span>
                   </TooltipContent>
                 </Tooltip>

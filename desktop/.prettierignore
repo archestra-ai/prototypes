@@ -1,4 +1,5 @@
-# Ignore artifacts:
 build
 coverage
+dist
+target
 pnpm-lock.yaml

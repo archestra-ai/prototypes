@@ -1,20 +1,11 @@
+import { ChevronDown, HardDrive, Package, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
-import { HardDrive, Package, ChevronDown, RefreshCw } from 'lucide-react';
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '../../../../components/ui/card';
 import { Badge } from '../../../../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../../../components/ui/collapsible';
 import { ScrollArea } from '../../../../components/ui/scroll-area';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '../../../../components/ui/collapsible';
-import { useOllamaContext } from '../../../../contexts/llm-providers/ollama/ollama-context';
+import { useOllamaStore } from '../../../../stores/ollama-store';
 
 export const formatBytes = (bytes: number) => {
   if (bytes === 0) {
@@ -31,7 +22,7 @@ interface InstalledModelsProps {}
 
 export default function InstalledModels({}: InstalledModelsProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { installedModels, loadingInstalledModels } = useOllamaContext();
+  const { installedModels, loadingInstalledModels } = useOllamaStore();
 
   const parseModelName = (fullName: string) => {
     const parts = fullName.split(':');
@@ -59,9 +50,7 @@ export default function InstalledModels({}: InstalledModelsProps) {
                       </Badge>
                     </div>
                   )}
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                  />
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </div>
               </div>
             </CardHeader>
@@ -72,26 +61,18 @@ export default function InstalledModels({}: InstalledModelsProps) {
               {loadingInstalledModels ? (
                 <div className="text-center py-8">
                   <RefreshCw className="h-8 w-8 text-muted-foreground mx-auto mb-4 animate-spin" />
-                  <p className="text-muted-foreground">
-                    Loading installed models...
-                  </p>
+                  <p className="text-muted-foreground">Loading installed models...</p>
                 </div>
               ) : installedModels.length === 0 ? (
                 <div className="text-center py-8">
                   <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">
-                    No Models Installed
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Download some models from the Model Library to get started
-                  </p>
+                  <h3 className="text-lg font-medium mb-2">No Models Installed</h3>
+                  <p className="text-muted-foreground">Download some models from the Model Library to get started</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>
-                      Total models installed: {installedModels.length}
-                    </span>
+                    <span>Total models installed: {installedModels.length}</span>
                   </div>
 
                   <ScrollArea className="h-[400px]">
@@ -110,10 +91,7 @@ export default function InstalledModels({}: InstalledModelsProps) {
                               <div className="space-y-2">
                                 <div className="flex items-center gap-2">
                                   <h3 className="font-semibold">{name}</h3>
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
+                                  <Badge variant="secondary" className="text-xs">
                                     {tag}
                                   </Badge>
                                 </div>
@@ -123,16 +101,10 @@ export default function InstalledModels({}: InstalledModelsProps) {
                                     <span>Size: {formatBytes(model.size)}</span>
                                   </div>
                                   <div>
-                                    <span className="font-medium">
-                                      Parameters:
-                                    </span>{' '}
-                                    {modelDetails.parameter_size}
+                                    <span className="font-medium">Parameters:</span> {modelDetails.parameter_size}
                                   </div>
                                   <div>
-                                    <span className="font-medium">
-                                      Quantization:
-                                    </span>{' '}
-                                    {modelDetails.quantization_level}
+                                    <span className="font-medium">Quantization:</span> {modelDetails.quantization_level}
                                   </div>
                                 </div>
                               </div>

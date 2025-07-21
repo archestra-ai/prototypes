@@ -11,17 +11,13 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
 
 const REDIRECT_URL = process.env.REDIRECT_URL || `http://localhost:${process.env.PORT}/oauth-callback/gmail`;
 
-const oauth2Client = new google.auth.OAuth2(
-  CLIENT_ID,
-  CLIENT_SECRET,
-  REDIRECT_URL
-);
+const oauth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URL);
 
 // Gmail-specific OAuth scopes
 const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/gmail.modify'
+  'https://www.googleapis.com/auth/gmail.modify',
 ];
 
 /**
@@ -37,7 +33,7 @@ async function generateAuthUrl(state) {
     access_type: 'offline',
     scope: GMAIL_SCOPES,
     state: state,
-    prompt: 'consent' // Force consent to get refresh token
+    prompt: 'consent', // Force consent to get refresh token
   });
 
   return authUrl;
@@ -51,11 +47,11 @@ async function generateAuthUrl(state) {
 async function exchangeCodeForTokens(code) {
   try {
     const { tokens } = await oauth2Client.getToken(code);
-    
+
     return {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
-      expiry_date: tokens.expiry_date
+      expiry_date: tokens.expiry_date,
     };
   } catch (error) {
     console.error('Gmail token exchange error:', error);
@@ -71,15 +67,15 @@ async function exchangeCodeForTokens(code) {
 async function refreshAccessToken(refreshToken) {
   try {
     oauth2Client.setCredentials({
-      refresh_token: refreshToken
+      refresh_token: refreshToken,
     });
 
     const { credentials } = await oauth2Client.refreshAccessToken();
-    
+
     return {
       access_token: credentials.access_token,
       refresh_token: credentials.refresh_token || refreshToken,
-      expiry_date: credentials.expiry_date
+      expiry_date: credentials.expiry_date,
     };
   } catch (error) {
     console.error('Gmail token refresh error:', error);
@@ -90,5 +86,5 @@ async function refreshAccessToken(refreshToken) {
 module.exports = {
   generateAuthUrl,
   exchangeCodeForTokens,
-  refreshAccessToken
+  refreshAccessToken,
 };

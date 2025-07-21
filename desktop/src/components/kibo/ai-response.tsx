@@ -1,4 +1,11 @@
 'use client';
+
+import type { HTMLAttributes } from 'react';
+import { memo } from 'react';
+import ReactMarkdown, { type Options } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+import { cn } from '../../lib/utils';
 import {
   type BundledLanguage,
   CodeBlock,
@@ -16,11 +23,6 @@ import {
   CodeBlockSelectTrigger,
   CodeBlockSelectValue,
 } from './code-block';
-import type { HTMLAttributes } from 'react';
-import { memo } from 'react';
-import ReactMarkdown, { type Options } from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { cn } from '../../lib/utils';
 
 export type AIResponseProps = HTMLAttributes<HTMLDivElement> & {
   options?: Options;
@@ -49,28 +51,17 @@ const components: Options['components'] = {
     </span>
   ),
   a: ({ node, children, className, ...props }) => (
-    <a
-      className={cn('font-medium text-primary underline', className)}
-      rel="noreferrer"
-      target="_blank"
-      {...props}
-    >
+    <a className={cn('font-medium text-primary underline', className)} rel="noreferrer" target="_blank" {...props}>
       {children}
     </a>
   ),
   h1: ({ node, children, className, ...props }) => (
-    <h1
-      className={cn('mt-6 mb-2 font-semibold text-3xl', className)}
-      {...props}
-    >
+    <h1 className={cn('mt-6 mb-2 font-semibold text-3xl', className)} {...props}>
       {children}
     </h1>
   ),
   h2: ({ node, children, className, ...props }) => (
-    <h2
-      className={cn('mt-6 mb-2 font-semibold text-2xl', className)}
-      {...props}
-    >
+    <h2 className={cn('mt-6 mb-2 font-semibold text-2xl', className)} {...props}>
       {children}
     </h2>
   ),
@@ -85,10 +76,7 @@ const components: Options['components'] = {
     </h4>
   ),
   h5: ({ node, children, className, ...props }) => (
-    <h5
-      className={cn('mt-6 mb-2 font-semibold text-base', className)}
-      {...props}
-    >
+    <h5 className={cn('mt-6 mb-2 font-semibold text-base', className)} {...props}>
       {children}
     </h5>
   ),
@@ -103,10 +91,7 @@ const components: Options['components'] = {
       language = node.properties.className.replace('language-', '');
     }
     const childrenIsCode =
-      typeof children === 'object' &&
-      children !== null &&
-      'type' in children &&
-      children.type === 'code';
+      typeof children === 'object' && children !== null && 'type' in children && children.type === 'code';
     if (!childrenIsCode) {
       return <pre>{children}</pre>;
     }
@@ -118,11 +103,7 @@ const components: Options['components'] = {
       },
     ];
     return (
-      <CodeBlock
-        className={cn('my-4 h-auto', className)}
-        data={data}
-        defaultValue={data[0].language}
-      >
+      <CodeBlock className={cn('my-4 h-auto', className)} data={data} defaultValue={data[0].language}>
         <CodeBlockHeader>
           <CodeBlockFiles>
             {(item) => (
@@ -151,9 +132,7 @@ const components: Options['components'] = {
         <CodeBlockBody>
           {(item) => (
             <CodeBlockItem key={item.language} value={item.language}>
-              <CodeBlockContent language={item.language as BundledLanguage}>
-                {item.code}
-              </CodeBlockContent>
+              <CodeBlockContent language={item.language as BundledLanguage}>{item.code}</CodeBlockContent>
             </CodeBlockItem>
           )}
         </CodeBlockBody>
@@ -164,21 +143,11 @@ const components: Options['components'] = {
 
 export const AIResponse = memo(
   ({ className, options, children, ...props }: AIResponseProps) => (
-    <div
-      className={cn(
-        'size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
-        className,
-      )}
-      {...props}
-    >
-      <ReactMarkdown
-        components={components}
-        remarkPlugins={[remarkGfm]}
-        {...options}
-      >
+    <div className={cn('size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0', className)} {...props}>
+      <ReactMarkdown components={components} remarkPlugins={[remarkGfm]} {...options}>
         {children}
       </ReactMarkdown>
     </div>
   ),
-  (prevProps, nextProps) => prevProps.children === nextProps.children,
+  (prevProps, nextProps) => prevProps.children === nextProps.children
 );

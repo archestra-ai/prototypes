@@ -1,15 +1,9 @@
 import { Loader2 } from 'lucide-react';
 
-import { Button } from '../../../components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
-import { useExternalMcpClientContext } from '../../../contexts/external-mcp-clients-context';
+import { Button } from '../../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
+import { useExternalMCPClientsStore } from '../../../stores/external-mcp-clients-store';
 
 export default function ExternalClients() {
   const {
@@ -19,13 +13,13 @@ export default function ExternalClients() {
     isDisconnectingExternalMcpClient,
     connectExternalMcpClient,
     disconnectExternalMcpClient,
-  } = useExternalMcpClientContext();
+  } = useExternalMCPClientsStore();
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {supportedExternalMcpClientNames.map((clientName) => {
         const connectedExternalMcpClient = connectedExternalMcpClients.find(
-          (client) => client.client_name === clientName,
+          (client) => client.client_name === clientName
         );
 
         return (
@@ -37,53 +31,37 @@ export default function ExternalClients() {
                 </div>
                 <span className="text-lg font-medium">{clientName}</span>
               </CardTitle>
-              <CardDescription>
-                Connect {clientName} to your Archestra MCP server.
-              </CardDescription>
+              <CardDescription>Connect {clientName} to your Archestra MCP server.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     {connectedExternalMcpClient?.is_connected ? (
-                      <Badge
-                        variant="outline"
-                        className="bg-green-50 text-green-700 border-green-200"
-                      >
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                         Connected
                       </Badge>
                     ) : (
-                      <Badge
-                        variant="outline"
-                        className="bg-gray-50 text-gray-700 border-gray-200"
-                      >
+                      <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
                         Disconnected
                       </Badge>
                     )}
                   </div>
                   {connectedExternalMcpClient?.last_connected && (
                     <p className="text-xs text-muted-foreground">
-                      Last connected:{' '}
-                      {connectedExternalMcpClient.last_connected}
+                      Last connected: {connectedExternalMcpClient.last_connected}
                     </p>
                   )}
                 </div>
                 <Button
-                  variant={
-                    connectedExternalMcpClient?.is_connected
-                      ? 'destructive'
-                      : 'outline'
-                  }
+                  variant={connectedExternalMcpClient?.is_connected ? 'destructive' : 'outline'}
                   size="sm"
                   onClick={() =>
                     connectedExternalMcpClient?.is_connected
                       ? disconnectExternalMcpClient(clientName)
                       : connectExternalMcpClient(clientName)
                   }
-                  disabled={
-                    isConnectingExternalMcpClient ||
-                    isDisconnectingExternalMcpClient
-                  }
+                  disabled={isConnectingExternalMcpClient || isDisconnectingExternalMcpClient}
                 >
                   {isConnectingExternalMcpClient ? (
                     <>

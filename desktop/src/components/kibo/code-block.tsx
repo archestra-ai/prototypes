@@ -1,4 +1,5 @@
 'use client';
+
 import {
   type IconType,
   SiAstro,
@@ -79,33 +80,13 @@ import {
   transformerNotationWordHighlight,
 } from '@shikijs/transformers';
 import { CheckIcon, CopyIcon } from 'lucide-react';
-import type {
-  ComponentProps,
-  HTMLAttributes,
-  ReactElement,
-  ReactNode,
-} from 'react';
-import {
-  cloneElement,
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
-import {
-  type BundledLanguage,
-  type CodeOptionsMultipleThemes,
-  codeToHtml,
-} from 'shiki';
-import { Button } from '../ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
+import type { ComponentProps, HTMLAttributes, ReactElement, ReactNode } from 'react';
+import { cloneElement, createContext, useContext, useEffect, useState } from 'react';
+import { type BundledLanguage, type CodeOptionsMultipleThemes, codeToHtml } from 'shiki';
+
 import { cn } from '../../lib/utils';
+import { Button } from '../ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const filenameIconMap = {
   '.env': SiDotenv,
@@ -194,7 +175,7 @@ const lineNumberClassNames = cn(
   '[&_.line]:before:text-right',
   '[&_.line]:before:text-muted-foreground/50',
   '[&_.line]:before:font-mono',
-  '[&_.line]:before:select-none',
+  '[&_.line]:before:select-none'
 );
 const darkModeClassNames = cn(
   'dark:[&_.shiki]:!text-[var(--shiki-dark)]',
@@ -205,7 +186,7 @@ const darkModeClassNames = cn(
   'dark:[&_.shiki_span]:!text-[var(--shiki-dark)]',
   'dark:[&_.shiki_span]:![font-style:var(--shiki-dark-font-style)]',
   'dark:[&_.shiki_span]:![font-weight:var(--shiki-dark-font-weight)]',
-  'dark:[&_.shiki_span]:![text-decoration:var(--shiki-dark-text-decoration)]',
+  'dark:[&_.shiki_span]:![text-decoration:var(--shiki-dark-text-decoration)]'
 );
 const lineHighlightClassNames = cn(
   '[&_.line.highlighted]:bg-blue-50',
@@ -215,7 +196,7 @@ const lineHighlightClassNames = cn(
   '[&_.line.highlighted]:after:top-0',
   '[&_.line.highlighted]:after:bottom-0',
   '[&_.line.highlighted]:after:w-0.5',
-  'dark:[&_.line.highlighted]:!bg-blue-500/10',
+  'dark:[&_.line.highlighted]:!bg-blue-500/10'
 );
 const lineDiffClassNames = cn(
   '[&_.line.diff]:after:absolute',
@@ -228,16 +209,13 @@ const lineDiffClassNames = cn(
   '[&_.line.diff.remove]:bg-rose-50',
   '[&_.line.diff.remove]:after:bg-rose-500',
   'dark:[&_.line.diff.add]:!bg-emerald-500/10',
-  'dark:[&_.line.diff.remove]:!bg-rose-500/10',
+  'dark:[&_.line.diff.remove]:!bg-rose-500/10'
 );
 const lineFocusedClassNames = cn(
   '[&_code:has(.focused)_.line]:blur-[2px]',
-  '[&_code:has(.focused)_.line.focused]:blur-none',
+  '[&_code:has(.focused)_.line.focused]:blur-none'
 );
-const wordHighlightClassNames = cn(
-  '[&_.highlighted-word]:bg-blue-50',
-  'dark:[&_.highlighted-word]:!bg-blue-500/10',
-);
+const wordHighlightClassNames = cn('[&_.highlighted-word]:bg-blue-50', 'dark:[&_.highlighted-word]:!bg-blue-500/10');
 const codeBlockClassName = cn(
   'mt-0 bg-background text-sm',
   '[&_pre]:py-4',
@@ -248,14 +226,10 @@ const codeBlockClassName = cn(
   '[&_code]:bg-transparent',
   '[&_.line]:px-4',
   '[&_.line]:w-full',
-  '[&_.line]:relative',
+  '[&_.line]:relative'
 );
 
-const highlight = (
-  html: string,
-  language?: BundledLanguage,
-  themes?: CodeOptionsMultipleThemes['themes'],
-) =>
+const highlight = (html: string, language?: BundledLanguage, themes?: CodeOptionsMultipleThemes['themes']) =>
   codeToHtml(html, {
     lang: language ?? 'typescript',
     themes: themes ?? {
@@ -321,45 +295,23 @@ export const CodeBlock = ({
   });
   return (
     <CodeBlockContext.Provider value={{ value, onValueChange, data }}>
-      <div
-        className={cn('size-full overflow-hidden rounded-md border', className)}
-        {...props}
-      />
+      <div className={cn('size-full overflow-hidden rounded-md border', className)} {...props} />
     </CodeBlockContext.Provider>
   );
 };
 
 export type CodeBlockHeaderProps = HTMLAttributes<HTMLDivElement>;
-export const CodeBlockHeader = ({
-  className,
-  ...props
-}: CodeBlockHeaderProps) => (
-  <div
-    className={cn(
-      'flex flex-row items-center border-b bg-secondary p-1',
-      className,
-    )}
-    {...props}
-  />
+export const CodeBlockHeader = ({ className, ...props }: CodeBlockHeaderProps) => (
+  <div className={cn('flex flex-row items-center border-b bg-secondary p-1', className)} {...props} />
 );
 
-export type CodeBlockFilesProps = Omit<
-  HTMLAttributes<HTMLDivElement>,
-  'children'
-> & {
+export type CodeBlockFilesProps = Omit<HTMLAttributes<HTMLDivElement>, 'children'> & {
   children: (item: CodeBlockData) => ReactNode;
 };
-export const CodeBlockFiles = ({
-  className,
-  children,
-  ...props
-}: CodeBlockFilesProps) => {
+export const CodeBlockFiles = ({ className, children, ...props }: CodeBlockFilesProps) => {
   const { data } = useContext(CodeBlockContext);
   return (
-    <div
-      className={cn('flex grow flex-row items-center gap-2', className)}
-      {...props}
-    >
+    <div className={cn('flex grow flex-row items-center gap-2', className)} {...props}>
       {data.map(children)}
     </div>
   );
@@ -369,18 +321,10 @@ export type CodeBlockFilenameProps = HTMLAttributes<HTMLDivElement> & {
   icon?: IconType;
   value?: string;
 };
-export const CodeBlockFilename = ({
-  className,
-  icon,
-  value,
-  children,
-  ...props
-}: CodeBlockFilenameProps) => {
+export const CodeBlockFilename = ({ className, icon, value, children, ...props }: CodeBlockFilenameProps) => {
   const { value: activeValue } = useContext(CodeBlockContext);
   const defaultIcon = Object.entries(filenameIconMap).find(([pattern]) => {
-    const regex = new RegExp(
-      `^${pattern.replace(/\\/g, '\\\\').replace(/\./g, '\\.').replace(/\*/g, '.*')}$`,
-    );
+    const regex = new RegExp(`^${pattern.replace(/\\/g, '\\\\').replace(/\./g, '\\.').replace(/\*/g, '.*')}$`);
     return regex.test(children as string);
   })?.[1];
   const Icon = icon ?? defaultIcon;
@@ -388,10 +332,7 @@ export const CodeBlockFilename = ({
     return null;
   }
   return (
-    <div
-      className="flex items-center gap-2 bg-secondary px-4 py-1.5 text-muted-foreground text-xs"
-      {...props}
-    >
+    <div className="flex items-center gap-2 bg-secondary px-4 py-1.5 text-muted-foreground text-xs" {...props}>
       {Icon && <Icon className="h-4 w-4 shrink-0" />}
       <span className="flex-1 truncate">{children}</span>
     </div>
@@ -405,43 +346,23 @@ export const CodeBlockSelect = (props: CodeBlockSelectProps) => {
 };
 
 export type CodeBlockSelectTriggerProps = ComponentProps<typeof SelectTrigger>;
-export const CodeBlockSelectTrigger = ({
-  className,
-  ...props
-}: CodeBlockSelectTriggerProps) => (
-  <SelectTrigger
-    className={cn(
-      'w-fit border-none text-muted-foreground text-xs shadow-none',
-      className,
-    )}
-    {...props}
-  />
+export const CodeBlockSelectTrigger = ({ className, ...props }: CodeBlockSelectTriggerProps) => (
+  <SelectTrigger className={cn('w-fit border-none text-muted-foreground text-xs shadow-none', className)} {...props} />
 );
 
 export type CodeBlockSelectValueProps = ComponentProps<typeof SelectValue>;
-export const CodeBlockSelectValue = (props: CodeBlockSelectValueProps) => (
-  <SelectValue {...props} />
-);
+export const CodeBlockSelectValue = (props: CodeBlockSelectValueProps) => <SelectValue {...props} />;
 
-export type CodeBlockSelectContentProps = Omit<
-  ComponentProps<typeof SelectContent>,
-  'children'
-> & {
+export type CodeBlockSelectContentProps = Omit<ComponentProps<typeof SelectContent>, 'children'> & {
   children: (item: CodeBlockData) => ReactNode;
 };
-export const CodeBlockSelectContent = ({
-  children,
-  ...props
-}: CodeBlockSelectContentProps) => {
+export const CodeBlockSelectContent = ({ children, ...props }: CodeBlockSelectContentProps) => {
   const { data } = useContext(CodeBlockContext);
   return <SelectContent {...props}>{data.map(children)}</SelectContent>;
 };
 
 export type CodeBlockSelectItemProps = ComponentProps<typeof SelectItem>;
-export const CodeBlockSelectItem = ({
-  className,
-  ...props
-}: CodeBlockSelectItemProps) => (
+export const CodeBlockSelectItem = ({ className, ...props }: CodeBlockSelectItemProps) => (
   <SelectItem className={cn('text-sm', className)} {...props} />
 );
 
@@ -463,11 +384,7 @@ export const CodeBlockCopyButton = ({
   const { data, value } = useContext(CodeBlockContext);
   const code = data.find((item) => item.language === value)?.code;
   const copyToClipboard = () => {
-    if (
-      typeof window === 'undefined' ||
-      !navigator.clipboard.writeText ||
-      !code
-    ) {
+    if (typeof window === 'undefined' || !navigator.clipboard.writeText || !code) {
       return;
     }
     navigator.clipboard.writeText(code).then(() => {
@@ -483,13 +400,7 @@ export const CodeBlockCopyButton = ({
   }
   const Icon = isCopied ? CheckIcon : CopyIcon;
   return (
-    <Button
-      className={cn('shrink-0', className)}
-      onClick={copyToClipboard}
-      size="icon"
-      variant="ghost"
-      {...props}
-    >
+    <Button className={cn('shrink-0', className)} onClick={copyToClipboard} size="icon" variant="ghost" {...props}>
       {children ?? <Icon className="text-muted-foreground" size={14} />}
     </Button>
   );
@@ -513,10 +424,7 @@ const CodeBlockFallback = ({ children, ...props }: CodeBlockFallbackProps) => (
   </div>
 );
 
-export type CodeBlockBodyProps = Omit<
-  HTMLAttributes<HTMLDivElement>,
-  'children'
-> & {
+export type CodeBlockBodyProps = Omit<HTMLAttributes<HTMLDivElement>, 'children'> & {
   children: (item: CodeBlockData) => ReactNode;
 };
 export const CodeBlockBody = ({ children, ...props }: CodeBlockBodyProps) => {
@@ -528,13 +436,7 @@ export type CodeBlockItemProps = HTMLAttributes<HTMLDivElement> & {
   value: string;
   lineNumbers?: boolean;
 };
-export const CodeBlockItem = ({
-  children,
-  lineNumbers = true,
-  className,
-  value,
-  ...props
-}: CodeBlockItemProps) => {
+export const CodeBlockItem = ({ children, lineNumbers = true, className, value, ...props }: CodeBlockItemProps) => {
   const { value: activeValue } = useContext(CodeBlockContext);
   if (value !== activeValue) {
     return null;
@@ -549,7 +451,7 @@ export const CodeBlockItem = ({
         wordHighlightClassNames,
         darkModeClassNames,
         lineNumbers && lineNumberClassNames,
-        className,
+        className
       )}
       {...props}
     >

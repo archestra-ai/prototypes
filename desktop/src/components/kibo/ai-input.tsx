@@ -1,31 +1,20 @@
 'use client';
+
 import { Loader2Icon, SendIcon, SquareIcon, XIcon } from 'lucide-react';
-import type {
-  ComponentProps,
-  HTMLAttributes,
-  KeyboardEventHandler,
-} from 'react';
+import type { ComponentProps, HTMLAttributes, KeyboardEventHandler } from 'react';
 import { Children, useCallback, useEffect, useRef } from 'react';
-import { Button } from '../ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
-import { Textarea } from '../ui/textarea';
+
 import { cn } from '../../lib/utils';
+import { Button } from '../ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Textarea } from '../ui/textarea';
 
 type UseAutoResizeTextareaProps = {
   minHeight: number;
   maxHeight?: number;
 };
 
-const useAutoResizeTextarea = ({
-  minHeight,
-  maxHeight,
-}: UseAutoResizeTextareaProps) => {
+const useAutoResizeTextarea = ({ minHeight, maxHeight }: UseAutoResizeTextareaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const adjustHeight = useCallback(
     (reset?: boolean) => {
@@ -40,13 +29,10 @@ const useAutoResizeTextarea = ({
       // Temporarily shrink to get the right scrollHeight
       textarea.style.height = `${minHeight}px`;
       // Calculate new height
-      const newHeight = Math.max(
-        minHeight,
-        Math.min(textarea.scrollHeight, maxHeight ?? Number.POSITIVE_INFINITY),
-      );
+      const newHeight = Math.max(minHeight, Math.min(textarea.scrollHeight, maxHeight ?? Number.POSITIVE_INFINITY));
       textarea.style.height = `${newHeight}px`;
     },
-    [minHeight, maxHeight],
+    [minHeight, maxHeight]
   );
   useEffect(() => {
     // Set initial height
@@ -67,10 +53,7 @@ const useAutoResizeTextarea = ({
 export type AIInputProps = HTMLAttributes<HTMLFormElement>;
 export const AIInput = ({ className, ...props }: AIInputProps) => (
   <form
-    className={cn(
-      'w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm',
-      className,
-    )}
+    className={cn('w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm', className)}
     {...props}
   />
 );
@@ -106,7 +89,7 @@ export const AIInputTextarea = ({
         'w-full resize-none rounded-none border-none p-3 shadow-none outline-none ring-0',
         'bg-transparent dark:bg-transparent',
         'focus-visible:ring-0',
-        className,
+        className
       )}
       name="message"
       onChange={(e) => {
@@ -122,44 +105,25 @@ export const AIInputTextarea = ({
 };
 
 export type AIInputToolbarProps = HTMLAttributes<HTMLDivElement>;
-export const AIInputToolbar = ({
-  className,
-  ...props
-}: AIInputToolbarProps) => (
-  <div
-    className={cn('flex items-center justify-between p-1', className)}
-    {...props}
-  />
+export const AIInputToolbar = ({ className, ...props }: AIInputToolbarProps) => (
+  <div className={cn('flex items-center justify-between p-1', className)} {...props} />
 );
 
 export type AIInputToolsProps = HTMLAttributes<HTMLDivElement>;
 export const AIInputTools = ({ className, ...props }: AIInputToolsProps) => (
-  <div
-    className={cn(
-      'flex items-center gap-1',
-      '[&_button:first-child]:rounded-bl-xl',
-      className,
-    )}
-    {...props}
-  />
+  <div className={cn('flex items-center gap-1', '[&_button:first-child]:rounded-bl-xl', className)} {...props} />
 );
 
 export type AIInputButtonProps = ComponentProps<typeof Button>;
-export const AIInputButton = ({
-  variant = 'ghost',
-  className,
-  size,
-  ...props
-}: AIInputButtonProps) => {
-  const newSize =
-    (size ?? Children.count(props.children) > 1) ? 'default' : 'icon';
+export const AIInputButton = ({ variant = 'ghost', className, size, ...props }: AIInputButtonProps) => {
+  const newSize = (size ?? Children.count(props.children) > 1) ? 'default' : 'icon';
   return (
     <Button
       className={cn(
         'shrink-0 gap-1.5 rounded-lg',
         variant === 'ghost' && 'text-muted-foreground',
         newSize === 'default' && 'px-3',
-        className,
+        className
       )}
       size={newSize}
       type="button"
@@ -202,49 +166,31 @@ export const AIInputSubmit = ({
 };
 
 export type AIInputModelSelectProps = ComponentProps<typeof Select>;
-export const AIInputModelSelect = (props: AIInputModelSelectProps) => (
-  <Select {...props} />
-);
+export const AIInputModelSelect = (props: AIInputModelSelectProps) => <Select {...props} />;
 
-export type AIInputModelSelectTriggerProps = ComponentProps<
-  typeof SelectTrigger
->;
-export const AIInputModelSelectTrigger = ({
-  className,
-  ...props
-}: AIInputModelSelectTriggerProps) => (
+export type AIInputModelSelectTriggerProps = ComponentProps<typeof SelectTrigger>;
+export const AIInputModelSelectTrigger = ({ className, ...props }: AIInputModelSelectTriggerProps) => (
   <SelectTrigger
     className={cn(
       'border-none bg-transparent font-medium text-muted-foreground shadow-none transition-colors',
       'hover:bg-accent hover:text-foreground [&[aria-expanded="true"]]:bg-accent [&[aria-expanded="true"]]:text-foreground',
-      className,
+      className
     )}
     {...props}
   />
 );
 
-export type AIInputModelSelectContentProps = ComponentProps<
-  typeof SelectContent
->;
-export const AIInputModelSelectContent = ({
-  className,
-  ...props
-}: AIInputModelSelectContentProps) => (
+export type AIInputModelSelectContentProps = ComponentProps<typeof SelectContent>;
+export const AIInputModelSelectContent = ({ className, ...props }: AIInputModelSelectContentProps) => (
   <SelectContent className={cn(className)} {...props} />
 );
 
 export type AIInputModelSelectItemProps = ComponentProps<typeof SelectItem>;
-export const AIInputModelSelectItem = ({
-  className,
-  ...props
-}: AIInputModelSelectItemProps) => (
+export const AIInputModelSelectItem = ({ className, ...props }: AIInputModelSelectItemProps) => (
   <SelectItem className={cn(className)} {...props} />
 );
 
 export type AIInputModelSelectValueProps = ComponentProps<typeof SelectValue>;
-export const AIInputModelSelectValue = ({
-  className,
-  ...props
-}: AIInputModelSelectValueProps) => (
+export const AIInputModelSelectValue = ({ className, ...props }: AIInputModelSelectValueProps) => (
   <SelectValue className={cn(className)} {...props} />
 );

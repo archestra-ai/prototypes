@@ -1,33 +1,13 @@
+import { Check, Clock, Cpu, Download, HardDrive, Loader2, Search, Type } from 'lucide-react';
 import { useState } from 'react';
-import {
-  Search,
-  Download,
-  Check,
-  Loader2,
-  HardDrive,
-  Cpu,
-  Clock,
-  Type,
-} from 'lucide-react';
 
-import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '../../../../components/ui/card';
 import { Badge } from '../../../../components/ui/badge';
+import { Button } from '../../../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
+import { Input } from '../../../../components/ui/input';
 import { ScrollArea } from '../../../../components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../../components/ui/select';
-import { useOllamaContext } from '../../../../contexts/llm-providers/ollama/ollama-context';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
+import { useAllAvailableModelLabels, useAvailableModels, useOllamaStore } from '../../../../stores/ollama-store';
 
 interface ModelsCatalogProps {}
 
@@ -35,25 +15,18 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLabel, setSelectedLabel] = useState<string>('all');
 
-  const {
-    installedModels,
-    downloadModel,
-    downloadProgress,
-    availableModels,
-    modelsBeingDownloaded,
-    allAvailableModelLabels,
-  } = useOllamaContext();
+  const { installedModels, downloadModel, downloadProgress, modelsBeingDownloaded } = useOllamaStore();
+
+  const availableModels = useAvailableModels();
+  const allAvailableModelLabels = useAllAvailableModelLabels();
 
   const filteredModels = availableModels.filter((model) => {
     const matchesSearch =
       model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       model.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      model.labels.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
+      model.labels.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesLabel =
-      selectedLabel === 'all' || model.labels.includes(selectedLabel);
+    const matchesLabel = selectedLabel === 'all' || model.labels.includes(selectedLabel);
 
     return matchesSearch && matchesLabel;
   });
@@ -79,9 +52,7 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
       <div className="flex flex-col gap-4">
         <div>
           <h1 className="text-2xl font-bold">Ollama Model Library</h1>
-          <p className="text-muted-foreground">
-            Discover and download AI models from the Ollama library
-          </p>
+          <p className="text-muted-foreground">Discover and download AI models from the Ollama library</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
@@ -114,19 +85,14 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
       <ScrollArea className="h-[600px]">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
           {filteredModels.map((model) => (
-            <Card
-              key={model.name}
-              className="hover:shadow-md transition-shadow"
-            >
+            <Card key={model.name} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-lg">{model.name}</CardTitle>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {model.description}
-                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{model.description}</p>
               </CardHeader>
 
               <CardContent className="space-y-4">
@@ -147,8 +113,7 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
                     {model.tags.map(({ tag, context, size, inputs }) => {
                       const fullModelName = `${model.name}:${tag}`;
                       const progress = downloadProgress[fullModelName];
-                      const isDownloading =
-                        modelsBeingDownloaded.has(fullModelName);
+                      const isDownloading = modelsBeingDownloaded.has(fullModelName);
                       const isInstalled = isModelInstalled(fullModelName);
 
                       return (
@@ -156,9 +121,7 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <Cpu className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-mono font-medium">
-                                {tag}
-                              </span>
+                              <span className="text-sm font-mono font-medium">{tag}</span>
                             </div>
 
                             <Button
@@ -171,9 +134,7 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
                               {isDownloading ? (
                                 <div className="flex items-center gap-1">
                                   <Loader2 className="h-3 w-3 animate-spin" />
-                                  <span className="text-xs">
-                                    {progress ? `${progress}%` : '...'}
-                                  </span>
+                                  <span className="text-xs">{progress ? `${progress}%` : '...'}</span>
                                 </div>
                               ) : isInstalled ? (
                                 <div className="flex items-center gap-1">
@@ -223,9 +184,7 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
           <div className="text-center py-12">
             <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">No models found</h3>
-            <p className="text-muted-foreground">
-              Try adjusting your search terms or category filter
-            </p>
+            <p className="text-muted-foreground">Try adjusting your search terms or category filter</p>
           </div>
         )}
       </ScrollArea>

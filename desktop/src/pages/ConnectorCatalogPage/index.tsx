@@ -1,32 +1,26 @@
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card';
-import {
-  Download,
-  Settings,
   CheckCircle,
   Code,
-  Globe,
   Database,
+  Download,
   FileText,
-  Search,
+  Globe,
   MessageSquare,
   Package,
+  Search,
+  Settings,
 } from 'lucide-react';
-import { useConnectorCatalogContext } from '../../contexts/connector-catalog-context';
-import { useMCPServersContext } from '../../contexts/mcp-servers-context';
+
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { useConnectorCatalogStore } from '../../stores/connector-catalog-store';
+import { useMCPServersStore } from '../../stores/mcp-servers-store';
 
 interface ConnectorCatalogPageProps {}
 
-export default function ConnectorCatalogPage(
-  _props: ConnectorCatalogPageProps,
-) {
-  const { installedMCPServers } = useMCPServersContext();
+export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) {
+  const { installedMCPServers } = useMCPServersStore();
   const {
     connectorCatalog,
     loadingConnectorCatalog,
@@ -34,7 +28,7 @@ export default function ConnectorCatalogPage(
     uninstallingMcpServerName,
     installMcpServerFromConnectorCatalog,
     uninstallMcpServer,
-  } = useConnectorCatalogContext();
+  } = useConnectorCatalogStore();
 
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {
@@ -74,18 +68,9 @@ export default function ConnectorCatalogPage(
           {!loadingConnectorCatalog && connectorCatalog.length > 0 && (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {connectorCatalog.map((mcpServer) => {
-                const {
-                  id,
-                  title,
-                  description,
-                  category,
-                  server_config,
-                  oauth,
-                } = mcpServer;
+                const { id, title, description, category, server_config, oauth } = mcpServer;
 
-                const isInstalled = installedMCPServers.some(
-                  (server) => server.name === title,
-                );
+                const isInstalled = installedMCPServers.some((server) => server.name === title);
                 const isInstalling = installingMcpServerName === title;
 
                 return (
@@ -103,9 +88,7 @@ export default function ConnectorCatalogPage(
                               {getCategoryIcon(category)}
                               <h4 className="font-semibold">{title}</h4>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {description}
-                            </p>
+                            <p className="text-sm text-muted-foreground">{description}</p>
                             <div className="flex gap-2">
                               <Badge variant="secondary" className="text-xs">
                                 {category.replace('-', ' ')}
@@ -153,9 +136,7 @@ export default function ConnectorCatalogPage(
                           ) : (
                             <Button
                               size="sm"
-                              onClick={() =>
-                                installMcpServerFromConnectorCatalog(mcpServer)
-                              }
+                              onClick={() => installMcpServerFromConnectorCatalog(mcpServer)}
                               disabled={isInstalling}
                               className="flex items-center gap-2"
                             >

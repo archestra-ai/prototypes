@@ -2,9 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": [
-    "main"
-  ],
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "opener:default",
@@ -14,16 +12,11 @@
         {
           "name": "binaries/ollama",
           "sidecar": true,
-          "args": [
-            "serve"
-          ]
+          "args": ["serve"]
         },
         {
           "name": "pkill",
-          "args": [
-            "-f",
-            "ollama"
-          ]
+          "args": ["-f", "ollama"]
         }
       ]
     },
@@ -61,17 +54,13 @@
     },
     {
       "identifier": "fs:allow-mkdir",
-      "allow": [
-        "$HOME/.cursor",
-        "$HOME/.vscode",
-        "$HOME/Library/Application Support/Claude"
-      ]
+      "allow": ["$HOME/.cursor", "$HOME/.vscode", "$HOME/Library/Application Support/Claude"]
     },
     {
       "identifier": "http:default",
       "allow": [
         {
-          "url":"http://localhost:*"
+          "url": "http://localhost:*"
         }
       ]
     }

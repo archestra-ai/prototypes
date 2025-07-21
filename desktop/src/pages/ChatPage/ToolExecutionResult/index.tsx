@@ -1,19 +1,9 @@
+import { AlertTriangle, CheckCircle, ChevronDown, ChevronRight, Clock, Wrench } from 'lucide-react';
 import { useState } from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  Wrench,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-} from 'lucide-react';
+
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '../../../components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../../components/ui/collapsible';
 
 interface ToolExecutionResultProps {
   serverName: string;
@@ -82,23 +72,14 @@ export default function ToolExecutionResult({
       {Object.keys(toolArguments).length > 0 && (
         <Collapsible open={showArguments} onOpenChange={setShowArguments}>
           <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              className="h-6 p-0 text-xs text-muted-foreground hover:text-foreground"
-            >
-              {showArguments ? (
-                <ChevronDown className="h-3 w-3 mr-1" />
-              ) : (
-                <ChevronRight className="h-3 w-3 mr-1" />
-              )}
+            <Button variant="ghost" className="h-6 p-0 text-xs text-muted-foreground hover:text-foreground">
+              {showArguments ? <ChevronDown className="h-3 w-3 mr-1" /> : <ChevronRight className="h-3 w-3 mr-1" />}
               Arguments ({Object.keys(toolArguments).length})
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="mt-2 p-2 bg-muted/50 rounded text-xs font-mono">
-              <pre className="whitespace-pre-wrap">
-                {formatArguments(toolArguments)}
-              </pre>
+              <pre className="whitespace-pre-wrap">{formatArguments(toolArguments)}</pre>
             </div>
           </CollapsibleContent>
         </Collapsible>
@@ -116,14 +97,9 @@ export default function ToolExecutionResult({
               {result.length > 200 ? (
                 <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
                   <div>
-                    <p className="whitespace-pre-wrap">
-                      {isExpanded ? result : truncateResult(result)}
-                    </p>
+                    <p className="whitespace-pre-wrap">{isExpanded ? result : truncateResult(result)}</p>
                     <CollapsibleTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="h-6 p-0 mt-1 text-xs text-blue-600 hover:text-blue-800"
-                      >
+                      <Button variant="ghost" className="h-6 p-0 mt-1 text-xs text-blue-600 hover:text-blue-800">
                         {isExpanded ? (
                           <>
                             <ChevronDown className="h-3 w-3 mr-1" />

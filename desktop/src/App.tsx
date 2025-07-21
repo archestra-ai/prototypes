@@ -1,32 +1,32 @@
-import { useState } from 'react';
+import { Bot, Download, MessageCircle, Settings } from 'lucide-react';
 import * as React from 'react';
-import { MessageCircle, Bot, Download, Settings } from 'lucide-react';
-
-import ChatPage from './pages/ChatPage';
-import ConnectorCatalogPage from './pages/ConnectorCatalogPage';
-import LLMProvidersPage from './pages/LLMProvidersPage';
-import SettingsPage from './pages/SettingsPage';
+import { useState } from 'react';
 
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
   SidebarMenu,
-  SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
-  SidebarInset,
-  SidebarHeader,
 } from './components/ui/sidebar';
+import ChatPage from './pages/ChatPage';
+import ConnectorCatalogPage from './pages/ConnectorCatalogPage';
+import LLMProvidersPage from './pages/LLMProvidersPage';
+import SettingsPage from './pages/SettingsPage';
+import { useThemeStore } from './stores/theme-store';
 
 import './index.css';
 
 function App() {
-  const [activeView, setActiveView] = useState<
-    'chat' | 'mcp' | 'llm-providers' | 'settings'
-  >('chat');
+  useThemeStore();
+
+  const [activeView, setActiveView] = useState<'chat' | 'mcp' | 'llm-providers' | 'settings'>('chat');
   const [activeSubView, setActiveSubView] = useState<'ollama'>('ollama');
 
   const navigationItems = [
@@ -80,9 +80,7 @@ function App() {
               A
             </div>
             <div className="group-data-[collapsible=icon]:hidden overflow-hidden">
-              <h2 className="text-lg font-semibold whitespace-nowrap">
-                archestra.ai
-              </h2>
+              <h2 className="text-lg font-semibold whitespace-nowrap">archestra.ai</h2>
             </div>
           </div>
         </SidebarHeader>
@@ -108,19 +106,18 @@ function App() {
                         <span>{item.title}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                    {item.key === 'llm-providers' &&
-                      activeView === 'llm-providers' && (
-                        <SidebarMenuItem className="ml-6">
-                          <SidebarMenuButton
-                            onClick={() => setActiveSubView('ollama')}
-                            isActive={activeSubView === 'ollama'}
-                            size="sm"
-                            className="text-sm"
-                          >
-                            <span>Ollama</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      )}
+                    {item.key === 'llm-providers' && activeView === 'llm-providers' && (
+                      <SidebarMenuItem className="ml-6">
+                        <SidebarMenuButton
+                          onClick={() => setActiveSubView('ollama')}
+                          isActive={activeSubView === 'ollama'}
+                          size="sm"
+                          className="text-sm"
+                        >
+                          <span>Ollama</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
                   </React.Fragment>
                 ))}
               </SidebarMenu>
@@ -136,9 +133,7 @@ function App() {
               {navigationItems.find((item) => item.key === activeView)?.title}
               {activeView === 'llm-providers' && activeSubView && (
                 <span className="text-muted-foreground ml-2">
-                  /{' '}
-                  {activeSubView.charAt(0).toUpperCase() +
-                    activeSubView.slice(1)}
+                  / {activeSubView.charAt(0).toUpperCase() + activeSubView.slice(1)}
                 </span>
               )}
             </h1>

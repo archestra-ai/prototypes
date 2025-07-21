@@ -89,8 +89,7 @@ export const AVAILABLE_MODELS: OllamaModel[] = [
   },
   {
     name: 'llama3.1',
-    description:
-      'Llama 3.1 is a new state-of-the-art model from Meta available in 8B, 70B and 405B parameter sizes',
+    description: 'Llama 3.1 is a new state-of-the-art model from Meta available in 8B, 70B and 405B parameter sizes',
     labels: ['tools', 'meta', 'general'],
     tags: [
       {
@@ -159,8 +158,7 @@ export const AVAILABLE_MODELS: OllamaModel[] = [
   },
   {
     name: 'mixtral',
-    description:
-      'A sparse mixture of experts (MoE) model with open weights by Mistral AI',
+    description: 'A sparse mixture of experts (MoE) model with open weights by Mistral AI',
     labels: ['moe', 'mistral', 'efficient'],
     tags: [
       {
@@ -230,8 +228,7 @@ export const AVAILABLE_MODELS: OllamaModel[] = [
   },
   {
     name: 'phi3',
-    description:
-      'Phi-3 Mini is a lightweight, state-of-the-art open model by Microsoft',
+    description: 'Phi-3 Mini is a lightweight, state-of-the-art open model by Microsoft',
     labels: ['microsoft', 'efficient', 'lightweight'],
     tags: [
       {
@@ -263,8 +260,7 @@ export const AVAILABLE_MODELS: OllamaModel[] = [
   },
   {
     name: 'codellama',
-    description:
-      'A large language model that can use text prompts to generate and discuss code',
+    description: 'A large language model that can use text prompts to generate and discuss code',
     labels: ['coding', 'meta', 'programming'],
     tags: [
       {

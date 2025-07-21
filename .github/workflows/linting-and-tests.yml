@@ -21,6 +21,14 @@ jobs:
         working-directory: desktop/src-tauri
         run: cargo fmt --check
 
+      - name: Run Clippy Linting
+        working-directory: desktop/src-tauri
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        working-directory: desktop/src-tauri
+        run: cargo test
+
   frontend-linting-and-tests:
     name: Frontend Linting and Tests
     runs-on: ubuntu-latest
@@ -35,7 +43,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24.4.1"
           cache: "pnpm"
           cache-dependency-path: desktop/pnpm-lock.yaml
 
@@ -43,6 +51,14 @@ jobs:
         working-directory: desktop
         run: pnpm install --frozen-lockfile
 
-      - name: Check TypeScript formatting
+      - name: Check prettier formatting
         working-directory: desktop
-        run: pnpm prettier --check "src/**/*.{ts,tsx,js,jsx}"
+        run: pnpm prettier --check .
+
+      - name: Run tests
+        working-directory: desktop
+        run: pnpm test
+
+      - name: Build
+        working-directory: desktop
+        run: pnpm build
