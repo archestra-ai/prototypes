@@ -1,9 +1,9 @@
 import { AlertTriangle, CheckCircle, ChevronDown, ChevronRight, Clock, Wrench } from 'lucide-react';
 import { useState } from 'react';
 
-import { Badge } from '../../../components/ui/badge';
-import { Button } from '../../../components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../../components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface ToolExecutionResultProps {
   serverName: string;

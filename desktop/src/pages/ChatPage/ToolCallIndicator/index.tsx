@@ -1,8 +1,8 @@
 import { AlertCircle, CheckCircle, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { Badge } from '../../../components/ui/badge';
-import { ToolCallInfo } from '../../../types';
+import { Badge } from '@/components/ui/badge';
+import { ToolCallInfo } from '@/types';
 
 interface ToolCallIndicatorProps {
   toolCalls: ToolCallInfo[];

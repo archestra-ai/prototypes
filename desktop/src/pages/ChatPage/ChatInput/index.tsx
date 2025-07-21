@@ -16,13 +16,13 @@ import {
   AIInputTextarea,
   AIInputToolbar,
   AIInputTools,
-} from '../../../components/kibo/ai-input';
-import { Badge } from '../../../components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../../components/ui/collapsible';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../components/ui/tooltip';
-import { useChatStore, useIsStreaming } from '../../../stores/chat-store';
-import { useMCPServersStore } from '../../../stores/mcp-servers-store';
-import { useOllamaStore } from '../../../stores/ollama-store';
+} from '@/components/kibo/ai-input';
+import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useChatStore, useIsStreaming } from '@/stores/chat-store';
+import { useMCPServersStore } from '@/stores/mcp-servers-store';
+import { useOllamaStore } from '@/stores/ollama-store';
 
 interface ChatInputProps {}
 

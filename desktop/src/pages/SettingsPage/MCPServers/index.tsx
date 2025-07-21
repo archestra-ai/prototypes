@@ -1,11 +1,11 @@
 import { AlertCircle, CheckCircle, ChevronDown, Loader2, Server, Wrench } from 'lucide-react';
 
-import { Badge } from '../../../components/ui/badge';
-import { Button } from '../../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../../components/ui/collapsible';
-import { useMCPServersStore } from '../../../stores/mcp-servers-store';
-import type { ConnectedMCPServer } from '../../../types';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useMCPServersStore } from '@/stores/mcp-servers-store';
+import type { ConnectedMCPServer } from '@/types';
 
 interface MCPServersProps {}
 

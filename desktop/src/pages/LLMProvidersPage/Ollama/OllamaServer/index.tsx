@@ -1,8 +1,8 @@
 import { Bot, CheckCircle } from 'lucide-react';
 
-import { Alert, AlertDescription } from '../../../../components/ui/alert';
-import { Badge } from '../../../../components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function OllamaServer() {
   return (

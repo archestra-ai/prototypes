@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { create } from 'zustand';
 
-import { MCPServer, ServerConfig } from '../types';
+import { MCPServer, ServerConfig } from '@/types';
+
 import { useMCPServersStore } from './mcp-servers-store';
 
 interface OAuthConfig {

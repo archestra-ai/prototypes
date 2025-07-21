@@ -1,11 +1,12 @@
 // import { useCallback } from "react";
 import { Wrench } from 'lucide-react';
 
-import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '../../../components/kibo/ai-reasoning';
-import { AIResponse } from '../../../components/kibo/ai-response';
-import { ScrollArea } from '../../../components/ui/scroll-area';
-import { cn } from '../../../lib/utils';
-import { useChatStore } from '../../../stores/chat-store';
+import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
+import { AIResponse } from '@/components/kibo/ai-response';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { useChatStore } from '@/stores/chat-store';
+
 import ToolCallIndicator from '../ToolCallIndicator';
 import ToolExecutionResult from '../ToolExecutionResult';
 

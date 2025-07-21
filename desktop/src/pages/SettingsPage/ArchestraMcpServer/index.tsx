@@ -1,10 +1,10 @@
 import { Server, Zap } from 'lucide-react';
 
-import { Badge } from '../../../components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
-import { Input } from '../../../components/ui/input';
-import { Label } from '../../../components/ui/label';
-import { useMCPServersStore } from '../../../stores/mcp-servers-store';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useMCPServersStore } from '@/stores/mcp-servers-store';
 
 export default function ArchestraMCPServer() {
   const { archestraMCPServer } = useMCPServersStore();

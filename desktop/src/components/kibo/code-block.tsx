@@ -84,9 +84,9 @@ import type { ComponentProps, HTMLAttributes, ReactElement, ReactNode } from 're
 import { cloneElement, createContext, useContext, useEffect, useState } from 'react';
 import { type BundledLanguage, type CodeOptionsMultipleThemes, codeToHtml } from 'shiki';
 
-import { cn } from '../../lib/utils';
-import { Button } from '../ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 const filenameIconMap = {
   '.env': SiDotenv,

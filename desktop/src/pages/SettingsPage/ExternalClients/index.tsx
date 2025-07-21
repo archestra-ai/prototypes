@@ -1,9 +1,9 @@
 import { Loader2 } from 'lucide-react';
 
-import { Badge } from '../../../components/ui/badge';
-import { Button } from '../../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
-import { useExternalMCPClientsStore } from '../../../stores/external-mcp-clients-store';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useExternalMCPClientsStore } from '@/stores/external-mcp-clients-store';
 
 export default function ExternalClients() {
   const {

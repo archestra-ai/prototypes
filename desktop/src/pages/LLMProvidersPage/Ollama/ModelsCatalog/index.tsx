@@ -1,13 +1,13 @@
 import { Check, Clock, Cpu, Download, HardDrive, Loader2, Search, Type } from 'lucide-react';
 import { useState } from 'react';
 
-import { Badge } from '../../../../components/ui/badge';
-import { Button } from '../../../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Input } from '../../../../components/ui/input';
-import { ScrollArea } from '../../../../components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
-import { useAllAvailableModelLabels, useAvailableModels, useOllamaStore } from '../../../../stores/ollama-store';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAllAvailableModelLabels, useAvailableModels, useOllamaStore } from '@/stores/ollama-store';
 
 interface ModelsCatalogProps {}
 

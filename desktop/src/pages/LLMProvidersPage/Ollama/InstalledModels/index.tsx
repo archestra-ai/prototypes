@@ -1,11 +1,11 @@
 import { ChevronDown, HardDrive, Package, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 
-import { Badge } from '../../../../components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../../../components/ui/collapsible';
-import { ScrollArea } from '../../../../components/ui/scroll-area';
-import { useOllamaStore } from '../../../../stores/ollama-store';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useOllamaStore } from '@/stores/ollama-store';
 
 export const formatBytes = (bytes: number) => {
   if (bytes === 0) {

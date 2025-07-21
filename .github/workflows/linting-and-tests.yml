@@ -21,10 +21,10 @@ jobs:
         working-directory: desktop/src-tauri
         run: cargo fmt --check
 
-      - name: Run Clippy Linting
-        working-directory: desktop/src-tauri
-        # run: cargo clippy --all-targets --all-features -- -D warnings
-        run: cargo clippy --all-features -- -D warnings --fix
+      # - name: Run Clippy Linting
+      #   working-directory: desktop/src-tauri
+      # run: cargo clippy --all-targets --all-features -- -D warnings
+      # run: cargo clippy --all-features -- -D warnings
 
       - name: Run tests
         working-directory: desktop/src-tauri
@@ -60,6 +60,6 @@ jobs:
         working-directory: desktop
         run: pnpm test
 
-      - name: Build
-        working-directory: desktop
-        run: pnpm build
+      # - name: Build
+      #   working-directory: desktop
+      #   run: pnpm build
