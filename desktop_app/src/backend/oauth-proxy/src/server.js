@@ -26,7 +26,7 @@ function generateState() {
 
 function storeState(state, data) {
   authStates.set(state, { ...data, timestamp: Date.now() });
-  
+
   // Clean up old states (older than 10 minutes)
   const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
   for (const [key, value] of authStates.entries()) {
@@ -62,27 +62,27 @@ app.get('/', (req, res) => {
 // Generic OAuth initiation endpoint
 app.get('/auth/:service', async (req, res) => {
   const { service } = req.params;
-  
+
   console.log(`Received /auth/${service} request`);
 
   try {
     const serviceHandler = getServiceHandler(service);
-    
+
     const state = generateState();
     const userId = req.query.userId || 'default';
-    
+
     console.log('Generated state:', state);
     console.log(`Initiating ${service} OAuth flow`);
-    
+
     // Store state for verification
     storeState(state, { userId, service });
-    
+
     // Delegate to service-specific handler
     const authUrl = await serviceHandler.generateAuthUrl(state);
-    
+
     console.log('Generated auth URL:', authUrl);
     console.log('Sending response:', { auth_url: authUrl, state });
-    
+
     res.json({ auth_url: authUrl, state });
   } catch (error) {
     console.error(`Error in /auth/${service}:`, error);
@@ -95,11 +95,16 @@ app.get('/oauth-callback/:service', async (req, res) => {
   const { service } = req.params;
   const { code, state } = req.query;
 
-  console.log(`OAuth callback received for ${service}:`, { code: code ? 'present' : 'missing', state: state || 'missing' });
+  console.log(`OAuth callback received for ${service}:`, {
+    code: code ? 'present' : 'missing',
+    state: state || 'missing',
+  });
 
   if (!code || !state) {
     console.log('Missing code or state, redirecting to error');
-    return res.redirect(`/oauth-callback.html?service=${service}&error=${encodeURIComponent('Missing authorization code or state')}`);
+    return res.redirect(
+      `/oauth-callback.html?service=${service}&error=${encodeURIComponent('Missing authorization code or state')}`
+    );
   }
 
   // Verify state
@@ -107,7 +112,9 @@ app.get('/oauth-callback/:service', async (req, res) => {
 
   if (!storedState) {
     console.log('Invalid or expired state, redirecting to error');
-    return res.redirect(`/oauth-callback.html?service=${service}&error=${encodeURIComponent('Invalid or expired state')}`);
+    return res.redirect(
+      `/oauth-callback.html?service=${service}&error=${encodeURIComponent('Invalid or expired state')}`
+    );
   }
 
   // Verify service matches
@@ -118,7 +125,7 @@ app.get('/oauth-callback/:service', async (req, res) => {
 
   try {
     const serviceHandler = getServiceHandler(service);
-    
+
     // Exchange code for tokens using service-specific handler
     const tokens = await serviceHandler.exchangeCodeForTokens(code);
 
