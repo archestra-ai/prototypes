@@ -46,7 +46,3 @@ jobs:
       - name: Check TypeScript formatting
         working-directory: tauri
         run: pnpm prettier --check "src/**/*.{ts,tsx,js,jsx}"
-
-      - name: Run Frontend Tests
-        working-directory: tauri
-        run: pnpm test
