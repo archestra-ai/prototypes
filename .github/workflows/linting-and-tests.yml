@@ -40,9 +40,9 @@ jobs:
           cache-dependency-path: desktop/pnpm-lock.yaml
 
       - name: Install dependencies
-        working-directory: tauri
+        working-directory: desktop
         run: pnpm install --frozen-lockfile
 
       - name: Check TypeScript formatting
-        working-directory: tauri
+        working-directory: desktop
         run: pnpm prettier --check "src/**/*.{ts,tsx,js,jsx}"
