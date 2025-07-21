@@ -18,15 +18,15 @@ import {
   MessageSquare,
   Package,
 } from 'lucide-react';
-import { useConnectorCatalog } from '../../contexts/connector-catalog-context';
-import { useMCPServers } from '../../contexts/mcp-servers-context';
+import { useConnectorCatalogContext } from '../../contexts/connector-catalog-context';
+import { useMCPServersContext } from '../../contexts/mcp-servers-context';
 
 interface ConnectorCatalogPageProps {}
 
 export default function ConnectorCatalogPage(
   _props: ConnectorCatalogPageProps,
 ) {
-  const { installedMCPServers } = useMCPServers();
+  const { installedMCPServers } = useMCPServersContext();
   const {
     connectorCatalog,
     loadingConnectorCatalog,
@@ -34,7 +34,7 @@ export default function ConnectorCatalogPage(
     uninstallingMcpServerName,
     installMcpServerFromConnectorCatalog,
     uninstallMcpServer,
-  } = useConnectorCatalog();
+  } = useConnectorCatalogContext();
 
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {

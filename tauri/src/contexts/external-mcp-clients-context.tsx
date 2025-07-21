@@ -155,7 +155,7 @@ export function ExternalMCPClientsProvider({
   );
 }
 
-export function useExternalMcpClientContexts() {
+export function useExternalMcpClientContext() {
   const context = useContext(ExternalMCPClientsContext);
   if (context === undefined) {
     throw new Error(

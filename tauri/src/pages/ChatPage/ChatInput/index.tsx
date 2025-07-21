@@ -37,13 +37,14 @@ import {
   AIInputModelSelectValue,
 } from '../../../components/kibo/ai-input';
 import { useOllamaContext } from '../../../contexts/llm-providers/ollama/ollama-context';
-import { useMCPServers } from '../../../contexts/mcp-servers-context';
+import { useMCPServersContext } from '../../../contexts/mcp-servers-context';
 import { useChatContext } from '../../../contexts/chat-context';
 
 interface ChatInputProps {}
 
 export default function ChatInput(_props: ChatInputProps) {
-  const { installedMCPServers, loadingInstalledMCPServers } = useMCPServers();
+  const { installedMCPServers, loadingInstalledMCPServers } =
+    useMCPServersContext();
   const {
     isChatLoading,
     isStreaming,

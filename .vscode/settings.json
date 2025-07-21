@@ -1,9 +1,11 @@
 {
-    "rust-analyzer.linkedProjects": [
-        "tauri/src-tauri/Cargo.toml"
-    ],
-    "[javascript, javascriptreact, typescript, typescriptreact]": {
-        "editor.defaultFormatter": "esbenp.prettier-vscode"
-      }
-
+  "rust-analyzer.linkedProjects": ["tauri/src-tauri/Cargo.toml"],
+  "[javascript, javascriptreact, typescript, typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
+  }
 }

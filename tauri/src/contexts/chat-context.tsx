@@ -9,7 +9,7 @@ import { Message as OllamaMessage, Tool as OllamaTool } from 'ollama/browser';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ChatMessage, ToolCallInfo } from '../types';
 import { useOllamaContext } from './llm-providers/ollama/ollama-context';
-import { useMCPServers } from './mcp-servers-context';
+import { useMCPServersContext } from './mcp-servers-context';
 
 interface ParsedContent {
   thinking: string;
@@ -135,7 +135,7 @@ export function ChatProvider({
   onChatUpdate?: () => void;
 }) {
   const { ollamaClient: ollamaClient } = useOllamaContext();
-  const { installedMCPServers, executeTool } = useMCPServers();
+  const { installedMCPServers, executeTool } = useMCPServersContext();
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(

@@ -315,7 +315,7 @@ export function MCPServersProvider({
   );
 }
 
-export function useMCPServers() {
+export function useMCPServersContext() {
   const context = useContext(MCPServersContext);
   if (context === undefined) {
     throw new Error('useMCPServers must be used within a MCPServersProvider');

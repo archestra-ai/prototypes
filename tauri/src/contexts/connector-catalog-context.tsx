@@ -171,7 +171,7 @@ export function ConnectorCatalogProvider({
   );
 }
 
-export function useConnectorCatalog() {
+export function useConnectorCatalogContext() {
   const context = useContext(ConnectorCatalogContext);
   if (context === undefined) {
     throw new Error(

@@ -20,7 +20,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import type { ConnectedMCPServer } from '../../../types';
-import { useMCPServers } from '../../../contexts/mcp-servers-context';
+import { useMCPServersContext } from '../../../contexts/mcp-servers-context';
 
 interface MCPServersProps {}
 
@@ -29,7 +29,7 @@ export default function MCPServers(_props: MCPServersProps) {
     installedMCPServers,
     loadingInstalledMCPServers,
     errorLoadingInstalledMCPServers,
-  } = useMCPServers();
+  } = useMCPServersContext();
 
   const getStatusIcon = (status: ConnectedMCPServer['status']) => {
     switch (status) {
