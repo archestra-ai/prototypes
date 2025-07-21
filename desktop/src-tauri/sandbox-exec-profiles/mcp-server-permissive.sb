@@ -35,7 +35,7 @@
 (allow network-outbound)
 
 ;; Allow reading from current directory and user home
-(allow file-read-data (regex "^/Users/.*/coding/archestra\\.ai/prototypes/tauri/"))
+(allow file-read-data (regex "^/Users/.*/coding/archestra\\.ai/archestra/desktop/"))
 (allow file-read-data (regex "^/Users/.*/"))
 
 ;; Allow reading system libraries
