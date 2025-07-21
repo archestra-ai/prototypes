@@ -1,11 +1,11 @@
-import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "../../components/ui/card";
+} from '../../components/ui/card';
 import {
   Download,
   Settings,
@@ -17,13 +17,15 @@ import {
   Search,
   MessageSquare,
   Package,
-} from "lucide-react";
-import { useConnectorCatalog } from "../../hooks/use-connector-catalog";
-import { useMCPServers } from "../../hooks/use-mcp-servers";
+} from 'lucide-react';
+import { useConnectorCatalog } from '../../hooks/use-connector-catalog';
+import { useMCPServers } from '../../hooks/use-mcp-servers';
 
 interface ConnectorCatalogPageProps {}
 
-export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) {
+export default function ConnectorCatalogPage(
+  _props: ConnectorCatalogPageProps,
+) {
   const { installedMCPServers } = useMCPServers();
   const {
     connectorCatalog,
@@ -36,17 +38,17 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
 
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {
-      case "documentation":
+      case 'documentation':
         return <FileText className="h-5 w-5" />;
-      case "database":
+      case 'database':
         return <Database className="h-5 w-5" />;
-      case "web":
+      case 'web':
         return <Globe className="h-5 w-5" />;
-      case "search":
+      case 'search':
         return <Search className="h-5 w-5" />;
-      case "communication":
+      case 'communication':
         return <MessageSquare className="h-5 w-5" />;
-      case "developer-tools":
+      case 'developer-tools':
         return <Code className="h-5 w-5" />;
       default:
         return <Package className="h-5 w-5" />;
@@ -72,16 +74,25 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
           {!loadingConnectorCatalog && connectorCatalog.length > 0 && (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {connectorCatalog.map((mcpServer) => {
-                const { id, title, description, category, server_config, oauth } = mcpServer;
+                const {
+                  id,
+                  title,
+                  description,
+                  category,
+                  server_config,
+                  oauth,
+                } = mcpServer;
 
-                const isInstalled = installedMCPServers.some((server) => server.name === title);
+                const isInstalled = installedMCPServers.some(
+                  (server) => server.name === title,
+                );
                 const isInstalling = installingMcpServerName === title;
 
                 return (
                   <Card
                     key={id}
                     className={`transition-all duration-200 hover:shadow-md ${
-                      isInstalled ? "border-green-500/50 bg-green-50/50" : ""
+                      isInstalled ? 'border-green-500/50 bg-green-50/50' : ''
                     }`}
                   >
                     <CardContent className="pt-6">
@@ -90,16 +101,14 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                           <div className="space-y-2 flex-1">
                             <div className="flex items-center gap-2">
                               {getCategoryIcon(category)}
-                              <h4 className="font-semibold">
-                                {title}
-                              </h4>
+                              <h4 className="font-semibold">{title}</h4>
                             </div>
                             <p className="text-sm text-muted-foreground">
                               {description}
                             </p>
                             <div className="flex gap-2">
                               <Badge variant="secondary" className="text-xs">
-                                {category.replace("-", " ")}
+                                {category.replace('-', ' ')}
                               </Badge>
                               <Badge variant="outline" className="text-xs">
                                 {server_config.transport}
@@ -144,7 +153,9 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                           ) : (
                             <Button
                               size="sm"
-                              onClick={() => installMcpServerFromConnectorCatalog(mcpServer)}
+                              onClick={() =>
+                                installMcpServerFromConnectorCatalog(mcpServer)
+                              }
                               disabled={isInstalling}
                               className="flex items-center gap-2"
                             >

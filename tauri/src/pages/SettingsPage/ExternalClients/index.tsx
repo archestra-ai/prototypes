@@ -1,11 +1,15 @@
-import { Loader2 } from "lucide-react";
+import { Loader2 } from 'lucide-react';
 
-import { Button } from "../../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
-import { Badge } from "../../../components/ui/badge";
-import { useExternalMcpClients } from "../../../hooks/use-external-mcp-clients";
-
-
+import { Button } from '../../../components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../../components/ui/card';
+import { Badge } from '../../../components/ui/badge';
+import { useExternalMcpClients } from '../../../hooks/use-external-mcp-clients';
 
 export default function ExternalClients() {
   const {
@@ -20,7 +24,9 @@ export default function ExternalClients() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {supportedExternalMcpClientNames.map((clientName) => {
-        const connectedExternalMcpClient = connectedExternalMcpClients.find((client) => client.client_name === clientName);
+        const connectedExternalMcpClient = connectedExternalMcpClients.find(
+          (client) => client.client_name === clientName,
+        );
 
         return (
           <Card key={clientName}>
@@ -40,25 +46,44 @@ export default function ExternalClients() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     {connectedExternalMcpClient?.is_connected ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Connected</Badge>
+                      <Badge
+                        variant="outline"
+                        className="bg-green-50 text-green-700 border-green-200"
+                      >
+                        Connected
+                      </Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">Disconnected</Badge>
+                      <Badge
+                        variant="outline"
+                        className="bg-gray-50 text-gray-700 border-gray-200"
+                      >
+                        Disconnected
+                      </Badge>
                     )}
                   </div>
                   {connectedExternalMcpClient?.last_connected && (
                     <p className="text-xs text-muted-foreground">
-                    Last connected: {connectedExternalMcpClient.last_connected}
+                      Last connected:{' '}
+                      {connectedExternalMcpClient.last_connected}
                     </p>
                   )}
                 </div>
                 <Button
-                  variant={connectedExternalMcpClient?.is_connected ? "destructive" : "outline"}
+                  variant={
+                    connectedExternalMcpClient?.is_connected
+                      ? 'destructive'
+                      : 'outline'
+                  }
                   size="sm"
-                  onClick={() => connectedExternalMcpClient?.is_connected
+                  onClick={() =>
+                    connectedExternalMcpClient?.is_connected
                       ? disconnectExternalMcpClient(clientName)
                       : connectExternalMcpClient(clientName)
                   }
-                  disabled={isConnectingExternalMcpClient || isDisconnectingExternalMcpClient}
+                  disabled={
+                    isConnectingExternalMcpClient ||
+                    isDisconnectingExternalMcpClient
+                  }
                 >
                   {isConnectingExternalMcpClient ? (
                     <>
@@ -66,9 +91,9 @@ export default function ExternalClients() {
                       Connecting...
                     </>
                   ) : connectedExternalMcpClient?.is_connected ? (
-                    "Disconnect"
+                    'Disconnect'
                   ) : (
-                    "Connect"
+                    'Connect'
                   )}
                 </Button>
               </div>

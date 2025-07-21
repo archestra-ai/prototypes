@@ -1,7 +1,16 @@
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
-import { Badge } from "../../../components/ui/badge";
-import { Button } from "../../../components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../../components/ui/collapsible";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '../../../components/ui/card';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '../../../components/ui/collapsible';
 import {
   Server,
   Wrench,
@@ -9,14 +18,18 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
-} from "lucide-react";
-import type { ConnectedMCPServer } from "../../../types";
-import { useMCPServers } from "../../../hooks/use-mcp-servers";
+} from 'lucide-react';
+import type { ConnectedMCPServer } from '../../../types';
+import { useMCPServers } from '../../../hooks/use-mcp-servers';
 
 interface MCPServersProps {}
 
 export default function MCPServers(_props: MCPServersProps) {
-  const { installedMCPServers, loadingInstalledMCPServers, errorLoadingInstalledMCPServers } = useMCPServers();
+  const {
+    installedMCPServers,
+    loadingInstalledMCPServers,
+    errorLoadingInstalledMCPServers,
+  } = useMCPServers();
 
   const getStatusIcon = (status: ConnectedMCPServer['status']) => {
     switch (status) {
@@ -32,15 +45,33 @@ export default function MCPServers(_props: MCPServersProps) {
   const getStatusBadge = (status: ConnectedMCPServer['status']) => {
     switch (status) {
       case 'connecting':
-        return <Badge variant="outline" className="text-yellow-600 border-yellow-500">Connecting</Badge>;
+        return (
+          <Badge
+            variant="outline"
+            className="text-yellow-600 border-yellow-500"
+          >
+            Connecting
+          </Badge>
+        );
       case 'connected':
-        return <Badge variant="outline" className="text-green-600 border-green-500">Connected</Badge>;
+        return (
+          <Badge variant="outline" className="text-green-600 border-green-500">
+            Connected
+          </Badge>
+        );
       case 'error':
-        return <Badge variant="outline" className="text-red-600 border-red-500">Error</Badge>;
+        return (
+          <Badge variant="outline" className="text-red-600 border-red-500">
+            Error
+          </Badge>
+        );
     }
   };
 
-  const totalNumberOfMCPTools = installedMCPServers.reduce((acc, server) => acc + server.tools.length, 0);
+  const totalNumberOfMCPTools = installedMCPServers.reduce(
+    (acc, server) => acc + server.tools.length,
+    0,
+  );
 
   return (
     <Collapsible defaultOpen>
@@ -54,7 +85,9 @@ export default function MCPServers(_props: MCPServersProps) {
               <CardTitle className="flex items-center gap-2">
                 <Server className="h-5 w-5" />
                 MCP Servers & Tools
-                {loadingInstalledMCPServers && <Loader2 className="h-4 w-4 animate-spin" />}
+                {loadingInstalledMCPServers && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
               </CardTitle>
               <div className="flex items-center gap-2">
                 <ChevronDown className="h-4 w-4" />
@@ -68,7 +101,9 @@ export default function MCPServers(_props: MCPServersProps) {
             {errorLoadingInstalledMCPServers && (
               <div className="text-center py-4 text-muted-foreground">
                 <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>Error loading MCP servers: {errorLoadingInstalledMCPServers}</p>
+                <p>
+                  Error loading MCP servers: {errorLoadingInstalledMCPServers}
+                </p>
               </div>
             )}
             {loadingInstalledMCPServers && (
@@ -77,7 +112,9 @@ export default function MCPServers(_props: MCPServersProps) {
                 <p>Loading MCP servers...</p>
               </div>
             )}
-            {installedMCPServers.length === 0 && !loadingInstalledMCPServers && !errorLoadingInstalledMCPServers ? (
+            {installedMCPServers.length === 0 &&
+            !loadingInstalledMCPServers &&
+            !errorLoadingInstalledMCPServers ? (
               <div className="text-center py-4 text-muted-foreground">
                 <Server className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>No MCP servers configured</p>
@@ -86,7 +123,10 @@ export default function MCPServers(_props: MCPServersProps) {
               <div className="space-y-3">
                 {installedMCPServers.map((server) => {
                   return (
-                    <Card key={server.name} className="border-l-4 border-l-blue-500/20">
+                    <Card
+                      key={server.name}
+                      className="border-l-4 border-l-blue-500/20"
+                    >
                       <CardContent className="pt-4">
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
@@ -96,7 +136,8 @@ export default function MCPServers(_props: MCPServersProps) {
                               {getStatusBadge(server.status)}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {server.tools.length} tool{server.tools.length !== 1 ? 's' : ''}
+                              {server.tools.length} tool
+                              {server.tools.length !== 1 ? 's' : ''}
                             </div>
                           </div>
 
@@ -140,11 +181,12 @@ export default function MCPServers(_props: MCPServersProps) {
                             </div>
                           )}
 
-                          {server.status === 'connected' && server.tools.length === 0 && (
-                            <div className="text-sm text-muted-foreground italic">
-                              No tools available from this server
-                            </div>
-                          )}
+                          {server.status === 'connected' &&
+                            server.tools.length === 0 && (
+                              <div className="text-sm text-muted-foreground italic">
+                                No tools available from this server
+                              </div>
+                            )}
                         </div>
                       </CardContent>
                     </Card>
@@ -157,10 +199,18 @@ export default function MCPServers(_props: MCPServersProps) {
               <div className="border-t pt-3 mt-4">
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>
-                    Total: {installedMCPServers.length} server{installedMCPServers.length !== 1 ? 's' : ''}, {totalNumberOfMCPTools} tool{totalNumberOfMCPTools !== 1 ? 's' : ''}
+                    Total: {installedMCPServers.length} server
+                    {installedMCPServers.length !== 1 ? 's' : ''},{' '}
+                    {totalNumberOfMCPTools} tool
+                    {totalNumberOfMCPTools !== 1 ? 's' : ''}
                   </span>
                   <span>
-                    {installedMCPServers.filter(s => s.status === 'connected').length} connected
+                    {
+                      installedMCPServers.filter(
+                        (s) => s.status === 'connected',
+                      ).length
+                    }{' '}
+                    connected
                   </span>
                 </div>
               </div>

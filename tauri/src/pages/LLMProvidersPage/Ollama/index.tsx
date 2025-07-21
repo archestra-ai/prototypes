@@ -1,5 +1,5 @@
-import OllamaServer from "./OllamaServer";
-import OllamaModelsManager from "./OllamaModelsManager";
+import OllamaServer from './OllamaServer';
+import OllamaModelsManager from './OllamaModelsManager';
 
 interface OllamaProps {}
 

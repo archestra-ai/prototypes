@@ -1,8 +1,13 @@
-import { Server, Users } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import ExternalClients from "./ExternalClients";
-import ArchestraMCPServer from "./ArchestraMCPServer";
-import MCPServers from "./MCPServers";
+import { Server, Users } from 'lucide-react';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '../../components/ui/tabs';
+import ExternalClients from './ExternalClients';
+import ArchestraMCPServer from './ArchestraMCPServer';
+import MCPServers from './MCPServers';
 
 export default function SettingsPage() {
   return (

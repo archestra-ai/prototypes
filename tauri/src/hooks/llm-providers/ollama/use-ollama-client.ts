@@ -9,9 +9,10 @@ export function useOllamaClient() {
 
   const [installedModels, setInstalledModels] = useState<ModelResponse[]>([]);
   const [loadingInstalledModels, setLoadingInstalledModels] = useState(false);
-  const [loadingInstalledModelsError, setLoadingInstalledModelsError] = useState<Error | null>(null);
+  const [loadingInstalledModelsError, setLoadingInstalledModelsError] =
+    useState<Error | null>(null);
 
-  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [selectedModel, setSelectedModel] = useState<string>('');
 
   /**
    * Ollama is spun up on the backend on a dynamic port
@@ -26,8 +27,7 @@ export function useOllamaClient() {
         console.error('Failed to get Ollama port:', error);
         throw error;
       }
-    }
-    )();
+    })();
   }, []);
 
   // Create Ollama client instance
@@ -57,7 +57,9 @@ export function useOllamaClient() {
   }, [ollamaClient]);
 
   const allAvailableModelLabels = useMemo(() => {
-    return Array.from(new Set(AVAILABLE_MODELS.flatMap((model) => model.labels)));
+    return Array.from(
+      new Set(AVAILABLE_MODELS.flatMap((model) => model.labels)),
+    );
   }, []);
 
   return {
@@ -69,5 +71,5 @@ export function useOllamaClient() {
     allAvailableModelLabels,
     selectedModel,
     setSelectedModel,
-  }
+  };
 }

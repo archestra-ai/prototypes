@@ -1,6 +1,11 @@
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import ChatInput from "./ChatInput";
-import ChatHistory from "./ChatHistory";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '../../components/ui/card';
+import ChatInput from './ChatInput';
+import ChatHistory from './ChatHistory';
 
 interface ChatPageProps {}
 

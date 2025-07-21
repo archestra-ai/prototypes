@@ -1,5 +1,5 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 export interface ServerConfig {
   transport: string;
@@ -13,7 +13,7 @@ export interface MCPServer {
   server_config?: ServerConfig;
   meta?: { [key: string]: any };
 }
-export interface ConnectedMCPServer extends MCPServer{
+export interface ConnectedMCPServer extends MCPServer {
   url: string;
   client: Client | null;
   tools: Tool[];
@@ -28,7 +28,7 @@ export interface ToolCallInfo {
   arguments: Record<string, any>;
   result?: string;
   error?: string;
-  status: "pending" | "executing" | "completed" | "error";
+  status: 'pending' | 'executing' | 'completed' | 'error';
   executionTime?: number;
   startTime: Date;
   endTime?: Date;
