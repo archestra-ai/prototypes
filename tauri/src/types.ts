@@ -10,22 +10,16 @@ export interface ServerConfig {
 
 export interface MCPServer {
   name: string;
-  url: string;
   server_config?: ServerConfig;
   meta?: { [key: string]: any };
 }
-
-export interface MCPServerWithClientAndTools extends MCPServer {
+export interface ConnectedMCPServer extends MCPServer{
+  url: string;
   client: Client | null;
   tools: Tool[];
-}
-
-export interface MCPServerStatusAndError {
   status: 'connecting' | 'connected' | 'error';
   error?: string;
 }
-
-export type MCPServerWithClientAndToolsAndStatus = MCPServerWithClientAndTools & MCPServerStatusAndError;
 
 export interface ToolCallInfo {
   id: string;

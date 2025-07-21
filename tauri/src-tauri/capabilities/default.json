@@ -69,7 +69,11 @@
     },
     {
       "identifier": "http:default",
-      "allow": [{ "url": "http://localhost:54587/*" }]
+      "allow": [
+        {
+          "url":"http://localhost:*"
+        }
+      ]
     }
   ]
 }

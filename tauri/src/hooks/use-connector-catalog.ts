@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useState } from "react";
 import { useMCPServers } from "./use-mcp-servers";
-import { MCPServer, ServerConfig } from "../types";
+import { MCPServer, ConnectedMCPServer, ServerConfig } from "../types";
+import { constructProxiedMCPServerUrl } from "../lib/utils";
 
 interface OAuthConfig {
   provider: string;
@@ -30,10 +31,10 @@ export function useConnectorCatalog() {
   const [loadingConnectorCatalog, setLoadingConnectorCatalog] = useState(false);
   const [errorFetchingConnectorCatalog, setErrorFetchingConnectorCatalog] = useState<string | null>(null);
 
-  const [installingMcpServer, setInstallingMcpServer] = useState<ConnectorCatalogEntry | null>(null);
+  const [installingMcpServerName, setInstallingMcpServerName] = useState<string | null>(null);
   const [errorInstallingMcpServer, setErrorInstallingMcpServer] = useState<string | null>(null);
 
-  const [uninstallingMcpServer, setUninstallingMcpServer] = useState<boolean>(false);
+  const [uninstallingMcpServerName, setUninstallingMcpServerName] = useState<string | null>(null);
   const [errorUninstallingMcpServer, setErrorUninstallingMcpServer] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,7 +60,7 @@ export function useConnectorCatalog() {
     const { oauth, title, id } = mcpServer;
 
     try {
-      setInstallingMcpServer(mcpServer);
+      setInstallingMcpServerName(mcpServer.title);
 
       // Check if OAuth is required
       if (oauth?.required) {
@@ -75,32 +76,48 @@ export function useConnectorCatalog() {
       } else {
         const result = await invoke<MCPServer>("save_mcp_server_from_catalog", { connectorId: id });
 
-        setInstalledMCPServers((prev) => [
-          ...prev,
-          {
-            ...result,
-            tools: [],
-            client: null,
-            status: 'connecting',
-          }]);
+        console.log(`Installing MCP server ${title} from catalog`);
+        console.log(`Result:`, result);
+
+        setInstalledMCPServers((prev) => {
+          console.log(`Previous state:`, prev);
+          const newState = [
+            ...prev,
+            {
+              ...result,
+              url: constructProxiedMCPServerUrl(result.name),
+              tools: [],
+              client: null,
+              status: 'connecting',
+            }
+          ] as ConnectedMCPServer[];
+          console.log(`New state:`, newState);
+          return newState;
+        });
       }
     } catch (error) {
       setErrorInstallingMcpServer(error as string);
     } finally {
-      setInstallingMcpServer(null);
+      setInstallingMcpServerName(null);
     }
   }, []);
 
   const uninstallMcpServer = useCallback(async (mcpServerName: string) => {
     (async () => {
       try {
-        setUninstallingMcpServer(true);
+        setUninstallingMcpServerName(mcpServerName);
         await invoke("uninstall_mcp_server", { name: mcpServerName });
-        setInstalledMCPServers((prev) => prev.filter((mcpServer) => mcpServer.name !== mcpServerName));
+        setInstalledMCPServers((prev) => {
+          console.log(`Uninstalling MCP server ${mcpServerName}`);
+          console.log(`Previous state:`, prev);
+          const newState = prev.filter((mcpServer) => mcpServer.name !== mcpServerName);
+          console.log(`New state:`, newState);
+          return newState;
+        });
       } catch (error) {
         setErrorUninstallingMcpServer(error as string);
       } finally {
-        setUninstallingMcpServer(false);
+        setUninstallingMcpServerName(null);
       }
     })();
   }, []);
@@ -109,9 +126,9 @@ export function useConnectorCatalog() {
     connectorCatalog,
     loadingConnectorCatalog,
     errorFetchingConnectorCatalog,
-    installingMcpServer,
+    installingMcpServerName,
     errorInstallingMcpServer,
-    uninstallingMcpServer,
+    uninstallingMcpServerName,
     errorUninstallingMcpServer,
     installMcpServerFromConnectorCatalog,
     uninstallMcpServer,

@@ -7,7 +7,7 @@ import { Label } from "../../../components/ui/label";
 import { useMCPServers } from "../../../hooks/use-mcp-servers";
 
 
-export default function ArchestraMcpServer() {
+export default function ArchestraMCPServer() {
   const { archestraMCPServer } = useMCPServers();
 
   const getStatusBadge = () => {

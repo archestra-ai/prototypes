@@ -5,7 +5,9 @@ import { ClientCapabilities, CallToolRequest } from "@modelcontextprotocol/sdk/t
 import { fetch } from '@tauri-apps/plugin-http';
 import { invoke } from '@tauri-apps/api/core';
 
-import type { MCPServer, MCPServerStatusAndError, MCPServerWithClientAndToolsAndStatus } from '../types';
+import type { MCPServer, ConnectedMCPServer } from '../types';
+import { ARCHESTRA_SERVER_MCP_URL } from '../consts';
+import { constructProxiedMCPServerUrl } from '../lib/utils';
 
 
 const configureMCPClient = async (
@@ -33,16 +35,16 @@ const configureMCPClient = async (
 
 
 export function useMCPServers() {
-  const [archestraMCPServer, setArchestraMCPServer] = useState<MCPServerWithClientAndToolsAndStatus>({
+  const [archestraMCPServer, setArchestraMCPServer] = useState<ConnectedMCPServer>({
     name: "Archestra",
-    url: "http://127.0.0.1:54587/mcp",
+    url: ARCHESTRA_SERVER_MCP_URL,
     client: null,
     tools: [],
     status: 'connecting',
     error: undefined,
   });
 
-  const [installedMCPServers, setInstalledMCPServers] = useState<MCPServerWithClientAndToolsAndStatus[]>([]);
+  const [installedMCPServers, setInstalledMCPServers] = useState<ConnectedMCPServer[]>([]);
   const [loadingInstalledMCPServers, setLoadingInstalledMCPServers] = useState(false);
   const [errorLoadingInstalledMCPServers, setErrorLoadingInstalledMCPServers] = useState<string | null>(null);
 
@@ -57,6 +59,7 @@ export function useMCPServers() {
         setInstalledMCPServers(installedMCPServers.map((mcpServer) => ({
           ...mcpServer,
           tools: [],
+          url: constructProxiedMCPServerUrl(mcpServer.name),
           status: 'connecting',
           error: undefined,
           client: null,
@@ -70,6 +73,18 @@ export function useMCPServers() {
   }, []);
 
   const connectToMCPServer = useCallback(async (serverName: string, url: string) => {
+    console.log(`Connecting to MCP server ${serverName} at ${url}`);
+    
+    if (!url) {
+      console.error(`No URL provided for MCP server ${serverName}`);
+      setInstalledMCPServers(prev => prev.map(server =>
+        server.name === serverName
+          ? { ...server, client: null, status: 'error', error: 'No URL configured' }
+          : server
+      ));
+      return null;
+    }
+    
     try {
       const client = await configureMCPClient(
         `${serverName}-client`,
@@ -116,113 +131,92 @@ export function useMCPServers() {
     }
   }, []);
 
-  const pingMCPServer = useCallback(async (serverName: string) => {
-    let server: MCPServerWithClientAndToolsAndStatus | undefined;
-    if (serverName === "archestra") {
-      server = archestraMCPServer;
-    } else {
-      server = installedMCPServers.find(s => s.name === serverName);
-    }
-
-    if (!server?.client) {
-      throw new Error(`No connection to server ${serverName}`);
-    }
-
-    try {
-      const pingResponse = await server.client.ping();
-      console.log(`${serverName} MCP server is running:`, pingResponse);
-
-      if (serverName === "archestra") {
-        setArchestraMCPServer(prev => ({
-          ...prev,
-          status: 'connected',
-          error: undefined,
-        }));
-      } else {
-        setInstalledMCPServers(prev => prev.map(s =>
-          s.name === serverName
-            ? { ...s, status: 'connected' }
-            : s
-        ));
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const errorInfo: MCPServerStatusAndError = { status: 'error', error: errorMessage };
-
-      if (serverName === "archestra") {
-        setArchestraMCPServer(prev => ({ ...prev, ...errorInfo }));
-      } else {
-        setInstalledMCPServers(prev => prev.map(s =>
-          s.name === serverName
-            ? { ...s, ...errorInfo }
-            : s
-        ));
-      }
-    }
-  }, [archestraMCPServer, installedMCPServers]);
-
   const executeTool = useCallback(async (
     serverName: string,
     toolCallRequest: CallToolRequest["params"]
   ) => {
-    let server: MCPServerWithClientAndToolsAndStatus | undefined;
+    let client: Client | null = null;
     if (serverName === "archestra") {
-      server = archestraMCPServer;
+      client = archestraMCPServer.client;
     } else {
-      server = installedMCPServers.find(s => s.name === serverName);
+      const server = installedMCPServers.find(s => s.name === serverName);
+      client = server?.client || null;
     }
 
-    if (!server?.client) {
+    if (!client) {
       throw new Error(`No connection to server ${serverName}`);
     }
 
     try {
-      const result = await server.client.callTool(toolCallRequest);
+      const result = await client.callTool(toolCallRequest);
       return result;
     } catch (error) {
       console.error(`Failed to execute tool ${toolCallRequest.name} on ${serverName}:`, error);
       throw error;
     }
-  }, [archestraMCPServer, installedMCPServers]);
-
-  const initializeMCPServers = useCallback(async () => {
-    /**
-     * Connect to the archestra MCP server + all installed MCP servers, in parallel
-     */
-    const connectionPromises = installedMCPServers.map(server =>
-      connectToMCPServer(server.name, server.url)
-    );
-    connectionPromises.push(connectToMCPServer(archestraMCPServer.name, archestraMCPServer.url));
-
-    await Promise.allSettled(connectionPromises);
-
-    /**
-     * Periodically ping the servers to check their status
-     */
-    const archestraMCPServerStatusCheckInterval = setInterval(() => pingMCPServer("archestra"), 5000);
-    const installedMCPServerStatusCheckIntervals = installedMCPServers.map(server => {
-      const statusCheckInterval = setInterval(() => pingMCPServer(server.name), 5000);
-      return () => clearInterval(statusCheckInterval);
-    });
-
-    return () => {
-      clearInterval(archestraMCPServerStatusCheckInterval);
-      installedMCPServerStatusCheckIntervals.forEach(interval => interval());
-    };
-  }, [connectToMCPServer, pingMCPServer]);
+  }, []);
 
   /**
-   * Initialize the MCP servers
+   * Connect to Archestra MCP server on mount
    */
   useEffect(() => {
-    initializeMCPServers();
+    (async () => {
+      try {
+        const client = await configureMCPClient(
+          "Archestra-client",
+          archestraMCPServer.url,
+          { tools: {} }
+        );
 
-    // Cleanup function to disconnect clients
+        if (client) {
+          const { tools } = await client.listTools();
+          console.log(`Found ${tools.length} tools for Archestra:`, tools);
+          
+          setArchestraMCPServer(prev => ({
+            ...prev,
+            client,
+            tools,
+            status: 'connected',
+            error: undefined
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to connect to Archestra MCP server:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        setArchestraMCPServer(prev => ({
+          ...prev,
+          status: 'error',
+          error: errorMessage
+        }));
+      }
+    })();
+
     return () => {
       archestraMCPServer.client?.close();
-      installedMCPServers.forEach(server => server.client?.close());
     };
   }, []);
+
+  /**
+   * Connect to installed MCP servers after they're loaded
+   */
+  useEffect(() => {
+    if (installedMCPServers.length === 0) {
+      return;
+    }
+
+    (async () => {
+      const connectionPromises = installedMCPServers.map(server =>
+        connectToMCPServer(server.name, server.url)
+      );
+
+      await Promise.allSettled(connectionPromises);
+    })();
+
+    return () => {
+      installedMCPServers.forEach(server => server.client?.close());
+    };
+  }, [installedMCPServers.length]);
+
 
   return {
     archestraMCPServer,

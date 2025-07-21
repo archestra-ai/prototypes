@@ -10,7 +10,7 @@ import {
   CheckCircle,
   Loader2,
 } from "lucide-react";
-import type { MCPServerWithClientAndToolsAndStatus } from "../../../types";
+import type { ConnectedMCPServer } from "../../../types";
 import { useMCPServers } from "../../../hooks/use-mcp-servers";
 
 interface MCPServersProps {}
@@ -18,7 +18,7 @@ interface MCPServersProps {}
 export default function MCPServers(_props: MCPServersProps) {
   const { installedMCPServers, loadingInstalledMCPServers, errorLoadingInstalledMCPServers } = useMCPServers();
 
-  const getStatusIcon = (status: MCPServerWithClientAndToolsAndStatus['status']) => {
+  const getStatusIcon = (status: ConnectedMCPServer['status']) => {
     switch (status) {
       case 'connecting':
         return <Loader2 className="h-4 w-4 animate-spin text-yellow-500" />;
@@ -29,7 +29,7 @@ export default function MCPServers(_props: MCPServersProps) {
     }
   };
 
-  const getStatusBadge = (status: MCPServerWithClientAndToolsAndStatus['status']) => {
+  const getStatusBadge = (status: ConnectedMCPServer['status']) => {
     switch (status) {
       case 'connecting':
         return <Badge variant="outline" className="text-yellow-600 border-yellow-500">Connecting</Badge>;

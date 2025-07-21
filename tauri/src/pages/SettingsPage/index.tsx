@@ -1,7 +1,8 @@
 import { Server, Users } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import ExternalClients from "./ExternalClients";
-import ArchestraMcpServer from "./ArchestraMcpServer";
+import ArchestraMCPServer from "./ArchestraMCPServer";
+import MCPServers from "./MCPServers";
 
 export default function SettingsPage() {
   return (
@@ -27,7 +28,8 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="servers" className="space-y-6">
-          <ArchestraMcpServer />
+          <ArchestraMCPServer />
+          <MCPServers />
         </TabsContent>
 
         <TabsContent value="clients" className="space-y-6">

@@ -122,7 +122,8 @@ export default function ChatInput(_props: ChatInputProps) {
   const totalNumberOfTools = installedMCPServers.reduce((acc, mcpServer) => acc + mcpServer.tools.length, 0);
 
   return (
-    <div className="space-y-2">
+    <TooltipProvider>
+      <div className="space-y-2">
       {/* Tools Menu */}
       {isToolsMenuOpen && (totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
         <div className="border rounded-lg p-3 bg-muted/50">
@@ -154,30 +155,28 @@ export default function ChatInput(_props: ChatInputProps) {
                   <CollapsibleContent>
                     <div className="ml-4 space-y-1">
                       {tools.map((tool, idx) => (
-                        <TooltipProvider key={idx}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="p-2 hover:bg-muted rounded text-sm cursor-help">
-                                <span className="font-mono text-primary">{tool.name}</span>
-                                {tool.description && (
-                                  <div className="text-muted-foreground text-xs mt-1">
-                                    {tool.description}
-                                  </div>
-                                )}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-sm">
-                              <div className="space-y-1">
-                                <div className="font-medium">{tool.name}</div>
-                                {tool.description && (
-                                  <div className="text-sm text-muted-foreground">
-                                    {tool.description}
-                                  </div>
-                                )}
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <Tooltip key={idx}>
+                          <TooltipTrigger asChild>
+                            <div className="p-2 hover:bg-muted rounded text-sm cursor-help">
+                              <span className="font-mono text-primary">{tool.name}</span>
+                              {tool.description && (
+                                <div className="text-muted-foreground text-xs mt-1">
+                                  {tool.description}
+                                </div>
+                              )}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-sm">
+                            <div className="space-y-1">
+                              <div className="font-medium">{tool.name}</div>
+                              {tool.description && (
+                                <div className="text-sm text-muted-foreground">
+                                  {tool.description}
+                                </div>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
                       ))}
                     </div>
                   </CollapsibleContent>
@@ -201,6 +200,7 @@ export default function ChatInput(_props: ChatInputProps) {
         <AIInputToolbar>
           <AIInputTools>
             <AIInputModelSelect
+              defaultValue={selectedModel}
               value={selectedModel}
               onValueChange={handleModelChange}
               disabled={loadingInstalledModels || !!loadingInstalledModelsError}
@@ -233,23 +233,21 @@ export default function ChatInput(_props: ChatInputProps) {
               <MicIcon size={16} />
             </AIInputButton>
             {(totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AIInputButton
-                      onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)}
-                      className={isToolsMenuOpen ? "bg-primary/20" : ""}
-                    >
-                      <Settings size={16} />
-                    </AIInputButton>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <span>
-                      {loadingInstalledMCPServers ? "Loading tools..." : `${totalNumberOfTools} tools available`}
-                    </span>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AIInputButton
+                    onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)}
+                    className={isToolsMenuOpen ? "bg-primary/20" : ""}
+                  >
+                    <Settings size={16} />
+                  </AIInputButton>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <span>
+                    {loadingInstalledMCPServers ? "Loading tools..." : `${totalNumberOfTools} tools available`}
+                  </span>
+                </TooltipContent>
+              </Tooltip>
             )}
           </AIInputTools>
           <AIInputSubmit
@@ -258,7 +256,8 @@ export default function ChatInput(_props: ChatInputProps) {
             onClick={status === "streaming" ? cancelStreaming : undefined}
           />
         </AIInputToolbar>
-      </AIInput>
-    </div>
+        </AIInput>
+      </div>
+    </TooltipProvider>
   );
 }

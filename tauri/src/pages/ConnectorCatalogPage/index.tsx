@@ -28,8 +28,8 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
   const {
     connectorCatalog,
     loadingConnectorCatalog,
-    installingMcpServer,
-    uninstallingMcpServer,
+    installingMcpServerName,
+    uninstallingMcpServerName,
     installMcpServerFromConnectorCatalog,
     uninstallMcpServer,
   } = useConnectorCatalog();
@@ -75,7 +75,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                 const { id, title, description, category, server_config, oauth } = mcpServer;
 
                 const isInstalled = installedMCPServers.some((server) => server.name === title);
-                const isInstalling = installingMcpServer?.id === id;
+                const isInstalling = installingMcpServerName === title;
 
                 return (
                   <Card
@@ -126,10 +126,10 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                               size="sm"
                               variant="outline"
                               onClick={() => uninstallMcpServer(title)}
-                              disabled={uninstallingMcpServer}
+                              disabled={uninstallingMcpServerName === title}
                               className="flex items-center gap-2"
                             >
-                              {uninstallingMcpServer ? (
+                              {uninstallingMcpServerName === title ? (
                                 <>
                                   <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                                   Uninstalling...
