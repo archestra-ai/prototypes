@@ -355,6 +355,7 @@ export function useChat(onChatUpdate?: () => void) {
                 : msg,
             ),
           );
+          console.log('Somethign:', finalMessage.tool_calls);
 
           // Execute tools and collect results
           const toolResults: ToolCallInfo[] = [];
