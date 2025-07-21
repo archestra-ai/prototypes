@@ -29,18 +29,6 @@ import {
 import "./index.css";
 
 function App() {
-  const [mcpServers, setMcpServers] = useState<{
-    [key: string]: {
-      server_config: {
-        transport: string;
-        command: string;
-        args: string[];
-        env: { [key: string]: string };
-      };
-    };
-  }>({});
-  const [, setMcpServerStatus] = useState<{[key: string]: string}>({});
-
   const [activeView, setActiveView] = useState<"chat" | "mcp" | "llm-providers" | "settings">("chat");
   const [activeSubView, setActiveSubView] = useState<"ollama">("ollama");
 
@@ -72,10 +60,7 @@ function App() {
       case "chat":
         return (
           <div className="space-y-6">
-            <ChatPage
-              mcpTools={[]}
-              isLoadingTools={false}
-            />
+            <ChatPage />
           </div>
         );
       case "llm-providers":

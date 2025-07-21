@@ -1,13 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useState } from "react";
-import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-
-interface ServerConfig {
-  transport: string;
-  command: string;
-  args: string[];
-  env: { [key: string]: string };
-}
+import { useMCPServers } from "./use-mcp-servers";
+import { MCPServer, ServerConfig } from "../types";
 
 interface OAuthConfig {
   provider: string;
@@ -29,37 +23,18 @@ interface ConnectorCatalogEntry {
   image?: string;
 }
 
-interface ConnectorCatalogEntryWithTools extends ConnectorCatalogEntry {
-  tools: Tool[];
-}
-
-interface McpServer {
-  name: string;
-  server_config: ServerConfig;
-  meta: { [key: string]: any };
-}
-
-export interface McpServerWithTools extends McpServer {
-  tools: Tool[];
-}
-
 export function useConnectorCatalog() {
-  const [connectorCatalog, setConnectorCatalog] = useState<ConnectorCatalogEntryWithTools[]>([]);
+  const { setInstalledMCPServers } = useMCPServers();
+
+  const [connectorCatalog, setConnectorCatalog] = useState<ConnectorCatalogEntry[]>([]);
   const [loadingConnectorCatalog, setLoadingConnectorCatalog] = useState(false);
   const [errorFetchingConnectorCatalog, setErrorFetchingConnectorCatalog] = useState<string | null>(null);
 
   const [installingMcpServer, setInstallingMcpServer] = useState<ConnectorCatalogEntry | null>(null);
   const [errorInstallingMcpServer, setErrorInstallingMcpServer] = useState<string | null>(null);
 
-  const [installedMcpServers, setInstalledMcpServers] = useState<McpServerWithTools[]>([]);
-  const [loadingInstalledMcpServers, setLoadingInstalledMcpServers] = useState(false);
-  const [errorLoadingInstalledMcpServers, setErrorLoadingInstalledMcpServers] = useState<string | null>(null);
-
   const [uninstallingMcpServer, setUninstallingMcpServer] = useState<boolean>(false);
   const [errorUninstallingMcpServer, setErrorUninstallingMcpServer] = useState<string | null>(null);
-
-  const [isLoadingMcpServerTools, _setIsLoadingMcpServerTools] = useState<boolean>(false);
-  const [errorLoadingMcpServerTools, _setErrorLoadingMcpServerTools] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -76,20 +51,6 @@ export function useConnectorCatalog() {
         setErrorFetchingConnectorCatalog(error as string);
       } finally {
         setLoadingConnectorCatalog(false);
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoadingInstalledMcpServers(true);
-        const installedMcpServers = await invoke<McpServer[]>("load_installed_mcp_servers");
-        setInstalledMcpServers(installedMcpServers.map((mcpServer) => ({ ...mcpServer, tools: [] })));
-      } catch (error) {
-        setErrorLoadingInstalledMcpServers(error as string);
-      } finally {
-        setLoadingInstalledMcpServers(false);
       }
     })();
   }, []);
@@ -112,8 +73,16 @@ export function useConnectorCatalog() {
           setErrorInstallingMcpServer(error as string);
         }
       } else {
-        const result = await invoke<McpServer>("save_mcp_server_from_catalog", { connectorId: id });
-        setInstalledMcpServers((prev) => [...prev, { ...result, tools: [] }]);
+        const result = await invoke<MCPServer>("save_mcp_server_from_catalog", { connectorId: id });
+
+        setInstalledMCPServers((prev) => [
+          ...prev,
+          {
+            ...result,
+            tools: [],
+            client: null,
+            status: 'connecting',
+          }]);
       }
     } catch (error) {
       setErrorInstallingMcpServer(error as string);
@@ -127,7 +96,7 @@ export function useConnectorCatalog() {
       try {
         setUninstallingMcpServer(true);
         await invoke("uninstall_mcp_server", { name: mcpServerName });
-        setInstalledMcpServers((prev) => prev.filter((mcpServer) => mcpServer.name !== mcpServerName));
+        setInstalledMCPServers((prev) => prev.filter((mcpServer) => mcpServer.name !== mcpServerName));
       } catch (error) {
         setErrorUninstallingMcpServer(error as string);
       } finally {
@@ -136,22 +105,14 @@ export function useConnectorCatalog() {
     })();
   }, []);
 
-  // TODO: tool calling.. we should have McpServerManager polling the mcp servers for their tools and emitting
-  // events to the frontend (which it is subscribed for) and updating installedMcpServers and connectorCatalog
-
   return {
     connectorCatalog,
-    installedMcpServers,
     loadingConnectorCatalog,
     errorFetchingConnectorCatalog,
-    loadingInstalledMcpServers,
-    errorLoadingInstalledMcpServers,
     installingMcpServer,
     errorInstallingMcpServer,
     uninstallingMcpServer,
     errorUninstallingMcpServer,
-    isLoadingMcpServerTools,
-    errorLoadingMcpServerTools,
     installMcpServerFromConnectorCatalog,
     uninstallMcpServer,
   };

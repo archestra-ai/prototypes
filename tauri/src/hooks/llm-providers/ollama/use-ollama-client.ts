@@ -62,8 +62,6 @@ export function useOllamaClient() {
 
   return {
     ollamaClient,
-    // TODO: don't expose ollamaPort, just doing it now as we remove use-post-chat-message...
-    ollamaPort,
     installedModels,
     loadingInstalledModels,
     loadingInstalledModelsError,

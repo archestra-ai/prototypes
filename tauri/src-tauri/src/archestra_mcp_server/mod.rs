@@ -1,11 +1,5 @@
 use crate::models::mcp_server::{sandbox::forward_raw_request, Model as McpServerModel};
-use sea_orm::DatabaseConnection;
-use axum::{
-    body::Body,
-    extract::Path,
-    routing::{get, post},
-    Router,
-};
+use axum::{body::Body, extract::Path, routing::post, Router};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
     model::{
@@ -23,6 +17,7 @@ use rmcp::{
     },
     ErrorData as McpError, RoleServer, ServerHandler,
 };
+use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::future::Future;
@@ -71,12 +66,6 @@ pub struct ArchestraMcpServer {
     db: Arc<DatabaseConnection>,
 }
 
-// Health check endpoint
-async fn health_check() -> &'static str {
-    "OK"
-}
-
-
 // Proxy request endpoint
 async fn handle_proxy_request(
     Path(server_name): Path<String>,
@@ -123,7 +112,10 @@ async fn handle_proxy_request(
     // Forward the raw JSON-RPC request to the McpServerManager
     match forward_raw_request(&server_name, request_body).await {
         Ok(raw_response) => {
-            println!("✅ Successfully received response from server '{}'", server_name);
+            println!(
+                "✅ Successfully received response from server '{}'",
+                server_name
+            );
             println!("📤 Response: {}", raw_response);
             axum::http::Response::builder()
                 .status(axum::http::StatusCode::OK)
@@ -268,7 +260,8 @@ impl ArchestraMcpServer {
                     serde_json::to_string_pretty(&serde_json::json!({
                         "servers": server_list,
                         "total_count": server_list.len()
-                    })).unwrap_or_else(|_| "{}".to_string()),
+                    }))
+                    .unwrap_or_else(|_| "{}".to_string()),
                 )]))
             }
             Err(e) => {
@@ -395,7 +388,10 @@ impl ServerHandler for ArchestraMcpServer {
     }
 }
 
-pub async fn start_archestra_mcp_server(user_id: String, db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn start_archestra_mcp_server(
+    user_id: String,
+    db: DatabaseConnection,
+) -> Result<(), Box<dyn std::error::Error>> {
     let addr = SocketAddr::from(([127, 0, 0, 1], MCP_SERVER_PORT));
 
     // Configure StreamableHTTP server for MCP
@@ -407,7 +403,12 @@ pub async fn start_archestra_mcp_server(user_id: String, db: DatabaseConnection)
     // Create StreamableHTTP service with a factory closure
     let db_for_closure = Arc::new(db);
     let streamable_service = StreamableHttpService::new(
-        move || Ok(ArchestraMcpServer::new(user_id.clone(), (*db_for_closure).clone())),
+        move || {
+            Ok(ArchestraMcpServer::new(
+                user_id.clone(),
+                (*db_for_closure).clone(),
+            ))
+        },
         Arc::new(LocalSessionManager::default()),
         config,
     );
@@ -417,7 +418,6 @@ pub async fn start_archestra_mcp_server(user_id: String, db: DatabaseConnection)
 
     // Create main router
     let app = Router::new()
-        .route("/health", get(health_check))
         .route("/proxy/{server_name}", post(handle_proxy_request))
         .route("/mcp", mcp_service);
 
@@ -429,7 +429,6 @@ pub async fn start_archestra_mcp_server(user_id: String, db: DatabaseConnection)
     );
     println!("  - MCP endpoint (streamable HTTP): http://{}/mcp", addr);
     println!("  - Proxy endpoints: http://{}/proxy/<server_name>", addr);
-    println!("  - Health check: http://{}/health", addr);
 
     let server = axum::serve(listener, app);
 
@@ -454,12 +453,12 @@ mod tests {
     async fn create_test_server() -> ArchestraMcpServer {
         use sea_orm::Database;
         let db = Database::connect("sqlite::memory:").await.unwrap();
-        
+
         // Run migrations on in-memory database
         use crate::database::migration::Migrator;
         use sea_orm_migration::MigratorTrait;
         Migrator::up(&db, None).await.unwrap();
-        
+
         ArchestraMcpServer::new("test_user_123".to_string(), db)
     }
 
@@ -488,7 +487,7 @@ mod tests {
     #[tokio::test]
     async fn test_server_startup() {
         let user_id = "test_user".to_string();
-        
+
         // Create in-memory database
         use sea_orm::Database;
         let db = Database::connect("sqlite::memory:").await.unwrap();
@@ -517,28 +516,6 @@ mod tests {
 
         // Clean up - abort the server task
         server_task.abort();
-    }
-
-    // Test health check endpoint
-    #[tokio::test]
-    async fn test_health_check_endpoint() {
-        let app = Router::new().route("/health", axum::routing::get(health_check));
-
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/health")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        assert_eq!(&body[..], b"OK");
     }
 
     // Test get_context tool

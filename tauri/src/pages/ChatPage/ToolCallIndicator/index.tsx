@@ -1,21 +1,10 @@
 import { useState, useEffect } from "react";
 import { Settings, CheckCircle, AlertCircle } from "lucide-react";
 import { Badge } from "../../../components/ui/badge";
-
-interface ToolCall {
-  id: string;
-  toolName: string;
-  serverName: string;
-  arguments: Record<string, any>;
-  status: "pending" | "executing" | "completed" | "error";
-  result?: string;
-  error?: string;
-  startTime: Date;
-  endTime?: Date;
-}
+import { ToolCallInfo } from "../../../types";
 
 interface ToolCallIndicatorProps {
-  toolCalls: ToolCall[];
+  toolCalls: ToolCallInfo[];
   isExecuting: boolean;
 }
 

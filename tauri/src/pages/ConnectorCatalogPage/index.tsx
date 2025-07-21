@@ -19,15 +19,16 @@ import {
   Package,
 } from "lucide-react";
 import { useConnectorCatalog } from "../../hooks/use-connector-catalog";
+import { useMCPServers } from "../../hooks/use-mcp-servers";
 
 interface ConnectorCatalogPageProps {}
 
 export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) {
+  const { installedMCPServers } = useMCPServers();
   const {
     connectorCatalog,
     loadingConnectorCatalog,
     installingMcpServer,
-    installedMcpServers,
     uninstallingMcpServer,
     installMcpServerFromConnectorCatalog,
     uninstallMcpServer,
@@ -73,7 +74,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
               {connectorCatalog.map((mcpServer) => {
                 const { id, title, description, category, server_config, oauth } = mcpServer;
 
-                const isInstalled = installedMcpServers.some((server) => server.name === title);
+                const isInstalled = installedMCPServers.some((server) => server.name === title);
                 const isInstalling = installingMcpServer?.id === id;
 
                 return (
