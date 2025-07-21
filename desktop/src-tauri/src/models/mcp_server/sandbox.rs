@@ -486,7 +486,7 @@ impl McpServerManager {
                         println!("📋 Response buffer size: {buffer_size}");
                     }
 
-                    while let Some(entry) = buffer.pop_front() {
+                    if let Some(entry) = buffer.pop_front() {
                         println!("📨 Processing buffer entry: {}", entry.content);
                         if let Ok(response) =
                             serde_json::from_str::<JsonRpcResponse>(&entry.content)
@@ -524,7 +524,6 @@ impl McpServerManager {
                         }
                         // Put it back if it's not our response
                         buffer.push_front(entry);
-                        break;
                     }
 
                     drop(buffer);
