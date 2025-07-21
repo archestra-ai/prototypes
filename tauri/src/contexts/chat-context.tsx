@@ -1,9 +1,9 @@
-import { useState, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { Message as OllamaMessage, Tool as OllamaTool } from "ollama/browser";
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { ChatMessage, ToolCallInfo } from "../types";
-import { useOllamaClient } from "./llm-providers/ollama/use-ollama-client";
-import { useMCPServers } from "./use-mcp-servers";
+import { useOllamaContext } from "./llm-providers/ollama/ollama-context";
+import { useMCPServers } from "./mcp-servers-context";
 
 interface ParsedContent {
   thinking: string;
@@ -15,6 +15,17 @@ interface ToolWithServerName {
   serverName: string;
   tool: Tool;
 }
+
+interface ChatContextType {
+  chatHistory: ChatMessage[];
+  isChatLoading: boolean;
+  isStreaming: boolean;
+  sendChatMessage: (message: string, model: string) => Promise<void>;
+  clearChatHistory: () => void;
+  cancelStreaming: () => void;
+}
+
+const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 /**
  * TODO: figure out a better way to do this...
@@ -108,14 +119,16 @@ export function parseThinkingContent(content: string): ParsedContent {
     response,
     isThinkingStreaming,
   };
-};
+}
 
-export function useChat(onChatUpdate?: () => void) {
-  const { ollamaClient: ollamaClient } = useOllamaClient()
+export function ChatProvider({ children, onChatUpdate }: { children: React.ReactNode; onChatUpdate?: () => void }) {
+  const { ollamaClient: ollamaClient } = useOllamaContext();
   const { installedMCPServers, executeTool } = useMCPServers();
-  const [chatHistory, setChatHistory] = useState<ChatMessage  []>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
-  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null,);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
+    null,
+  );
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const clearChatHistory = useCallback(() => {
@@ -171,8 +184,8 @@ export function useChat(onChatUpdate?: () => void) {
 
   const allTools: ToolWithServerName[] = useMemo(() => {
     const tools: ToolWithServerName[] = [];
-    installedMCPServers.forEach(server => {
-      server.tools.forEach(tool => {
+    installedMCPServers.forEach((server) => {
+      server.tools.forEach((tool) => {
         tools.push({
           serverName: server.name,
           tool,
@@ -184,22 +197,25 @@ export function useChat(onChatUpdate?: () => void) {
   }, [installedMCPServers]);
 
   // Helper function to update streaming message content
-  const updateStreamingMessage = useCallback((messageId: string, content: string) => {
-    const parsed = parseThinkingContent(content);
-    setChatHistory((prev) =>
-      prev.map((msg) =>
-        msg.id === messageId && msg.isStreaming
-          ? {
-              ...msg,
-              content: parsed.response,
-              thinkingContent: parsed.thinking,
-              isThinkingStreaming: parsed.isThinkingStreaming,
-            }
-          : msg,
-      ),
-    );
-    onChatUpdate?.();
-  }, [onChatUpdate]);
+  const updateStreamingMessage = useCallback(
+    (messageId: string, content: string) => {
+      const parsed = parseThinkingContent(content);
+      setChatHistory((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId && msg.isStreaming
+            ? {
+                ...msg,
+                content: parsed.response,
+                thinkingContent: parsed.thinking,
+                isThinkingStreaming: parsed.isThinkingStreaming,
+              }
+            : msg,
+        ),
+      );
+      onChatUpdate?.();
+    },
+    [onChatUpdate],
+  );
 
   const sendChatMessage = useCallback(
     async (message: string, model: string) => {
@@ -263,19 +279,26 @@ export function useChat(onChatUpdate?: () => void) {
         ];
 
         // Convert MCP tools to Ollama tool format
-        const tools = allTools.length > 0 && modelSupportsTools
-          ? allTools.map(({ serverName, tool }) => ({
-              type: 'function',
-              function: {
-                name: `${serverName}_${tool.name}`,
-                description: tool.description || `Tool from ${serverName}`,
-                parameters: tool.inputSchema as OllamaTool['function']['parameters'],
-              }
-            }))
-          : undefined;
+        const tools =
+          allTools.length > 0 && modelSupportsTools
+            ? allTools.map(({ serverName, tool }) => ({
+                type: "function",
+                function: {
+                  name: `${serverName}_${tool.name}`,
+                  description: tool.description || `Tool from ${serverName}`,
+                  parameters:
+                    tool.inputSchema as OllamaTool["function"]["parameters"],
+                },
+              }))
+            : undefined;
 
         console.log("📡 Starting Ollama SDK streaming chat...");
-        console.log("🔧 Tools available:", tools?.length || 0, tools?.map(t => t.function.name) || []);
+        console.log(
+          "🔧 Tools available:",
+          tools?.length || 0,
+          tools?.map((t) => t.function.name) || [],
+          tools,
+        );
         console.log("🔧 Full tools schema:", JSON.stringify(tools, null, 2));
 
         const controller = new AbortController();
@@ -311,13 +334,23 @@ export function useChat(onChatUpdate?: () => void) {
 
           if (part.done) {
             finalMessage = part.message;
-            console.log("🏁 Final message received:", JSON.stringify(finalMessage, null, 2));
+            console.log(
+              "🏁 Final message received:",
+              JSON.stringify(finalMessage, null, 2),
+            );
             break;
           }
         }
 
         // Handle tool calls if present
-        console.log("🔍 Checking for tool calls. finalMessage:", !!finalMessage, "tool_calls:", finalMessage?.tool_calls, "executeTool:", !!executeTool);
+        console.log(
+          "🔍 Checking for tool calls. finalMessage:",
+          !!finalMessage,
+          "tool_calls:",
+          finalMessage?.tool_calls,
+          "executeTool:",
+          !!executeTool,
+        );
         if (finalMessage?.tool_calls && executeTool) {
           console.log("🔧 Tool calls received:", finalMessage.tool_calls);
 
@@ -339,29 +372,48 @@ export function useChat(onChatUpdate?: () => void) {
           for (const toolCall of finalMessage.tool_calls) {
             try {
               const functionName = toolCall.function.name;
-              const args = typeof toolCall.function.arguments === 'string'
-                ? JSON.parse(toolCall.function.arguments)
-                : toolCall.function.arguments;
+              const args =
+                typeof toolCall.function.arguments === "string"
+                  ? JSON.parse(toolCall.function.arguments)
+                  : toolCall.function.arguments;
 
-              console.log("🚀 Executing tool:", functionName, "with args:", args);
-              console.log("🔍 Available MCP tools:", allTools.map(t => `${t.serverName}_${t.tool.name}`));
+              console.log(
+                "🚀 Executing tool:",
+                functionName,
+                "with args:",
+                args,
+              );
+              console.log(
+                "🔍 Available MCP tools:",
+                allTools.map((t) => `${t.serverName}_${t.tool.name}`),
+              );
 
               // Extract server name and tool name
               // Find the matching MCP tool to get the correct server name
-              const matchingTool = allTools.find(tool =>
-                `${tool.serverName}_${tool.tool.name}` === functionName
+              const matchingTool = allTools.find(
+                (tool) =>
+                  `${tool.serverName}_${tool.tool.name}` === functionName,
               );
 
               console.log("🎯 Matching tool found:", matchingTool);
 
-              const serverName = matchingTool?.serverName || 'unknown';
+              const serverName = matchingTool?.serverName || "unknown";
               const toolName = matchingTool?.tool.name || functionName;
 
-              console.log("🎯 Resolved server name:", serverName, "tool name:", toolName);
+              console.log(
+                "🎯 Resolved server name:",
+                serverName,
+                "tool name:",
+                toolName,
+              );
 
               // Execute the MCP tool
-              const result = await executeTool(serverName, { name: toolName, arguments: args });
-              const toolResultContent = typeof result === 'string' ? result : JSON.stringify(result);
+              const result = await executeTool(serverName, {
+                name: toolName,
+                arguments: args,
+              });
+              const toolResultContent =
+                typeof result === "string" ? result : JSON.stringify(result);
 
               toolResults.push({
                 id: toolCall.id,
@@ -369,7 +421,7 @@ export function useChat(onChatUpdate?: () => void) {
                 toolName,
                 arguments: args,
                 result: toolResultContent,
-                status: 'completed' as const,
+                status: "completed" as const,
                 executionTime: 0,
                 startTime: new Date(),
                 endTime: new Date(),
@@ -378,33 +430,37 @@ export function useChat(onChatUpdate?: () => void) {
               // Add tool result to conversation
               ollamaMessages.push(finalMessage);
               ollamaMessages.push({
-                role: 'tool',
+                role: "tool",
                 content: toolResultContent,
               });
-
             } catch (error) {
               console.error("❌ Tool execution error:", error);
-              const errorMsg = error instanceof Error ? error.message : String(error);
+              const errorMsg =
+                error instanceof Error ? error.message : String(error);
               const errorFunctionName = toolCall.function.name;
 
               // Find the matching MCP tool to get the correct server name
-              const errorMatchingTool = allTools.find(tool =>
-                `${tool.serverName}_${tool.tool.name}` === errorFunctionName
+              const errorMatchingTool = allTools.find(
+                (tool) =>
+                  `${tool.serverName}_${tool.tool.name}` === errorFunctionName,
               );
 
-              const errorServerName = errorMatchingTool?.serverName || 'unknown';
-              const errorToolName = errorMatchingTool?.tool.name || errorFunctionName;
+              const errorServerName =
+                errorMatchingTool?.serverName || "unknown";
+              const errorToolName =
+                errorMatchingTool?.tool.name || errorFunctionName;
 
               toolResults.push({
                 id: toolCall.id,
                 serverName: errorServerName,
                 toolName: errorToolName,
-                arguments: typeof toolCall.function.arguments === 'string'
-                  ? JSON.parse(toolCall.function.arguments)
-                  : toolCall.function.arguments,
-                result: '',
+                arguments:
+                  typeof toolCall.function.arguments === "string"
+                    ? JSON.parse(toolCall.function.arguments)
+                    : toolCall.function.arguments,
+                result: "",
                 error: errorMsg,
-                status: 'error' as const,
+                status: "error" as const,
                 executionTime: 0,
                 startTime: new Date(),
                 endTime: new Date(),
@@ -426,7 +482,7 @@ export function useChat(onChatUpdate?: () => void) {
           );
 
           // Get final response from model after tool execution
-          if (toolResults.some(tr => tr.status === 'completed')) {
+          if (toolResults.some((tr) => tr.status === "completed")) {
             console.log("🔄 Getting final response after tool execution...");
 
             const finalResponse = await ollamaClient.chat({
@@ -447,7 +503,10 @@ export function useChat(onChatUpdate?: () => void) {
 
               if (part.message?.content) {
                 finalContent += part.message.content;
-                updateStreamingMessage(aiMsgId, accumulatedContent + "\n\n" + finalContent);
+                updateStreamingMessage(
+                  aiMsgId,
+                  accumulatedContent + "\n\n" + finalContent,
+                );
               }
 
               if (part.done) {
@@ -519,12 +578,19 @@ export function useChat(onChatUpdate?: () => void) {
 
       setIsChatLoading(false);
     },
-    [installedMCPServers, ollamaClient, chatHistory, updateStreamingMessage, onChatUpdate, executeTool],
+    [
+      installedMCPServers,
+      ollamaClient,
+      chatHistory,
+      updateStreamingMessage,
+      onChatUpdate,
+      executeTool,
+    ],
   );
 
   const isStreaming = streamingMessageId !== null;
 
-  return {
+  const value: ChatContextType = {
     chatHistory,
     isChatLoading,
     isStreaming,
@@ -532,4 +598,14 @@ export function useChat(onChatUpdate?: () => void) {
     clearChatHistory,
     cancelStreaming,
   };
+
+  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
+}
+
+export function useChatContext() {
+  const context = useContext(ChatContext);
+  if (context === undefined) {
+    throw new Error("useChatContext must be used within a ChatProvider");
+  }
+  return context;
 }

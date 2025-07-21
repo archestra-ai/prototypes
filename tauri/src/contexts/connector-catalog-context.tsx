@@ -1,8 +1,7 @@
+import React, { createContext, useContext, useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useState } from "react";
-import { useMCPServers } from "./use-mcp-servers";
-import { MCPServer, ConnectedMCPServer, ServerConfig } from "../types";
-import { constructProxiedMCPServerUrl } from "../lib/utils";
+import { useMCPServers } from "./mcp-servers-context";
+import { MCPServer, ServerConfig } from "../types";
 
 interface OAuthConfig {
   provider: string;
@@ -24,8 +23,22 @@ interface ConnectorCatalogEntry {
   image?: string;
 }
 
-export function useConnectorCatalog() {
-  const { setInstalledMCPServers } = useMCPServers();
+interface ConnectorCatalogContextType {
+  connectorCatalog: ConnectorCatalogEntry[];
+  loadingConnectorCatalog: boolean;
+  errorFetchingConnectorCatalog: string | null;
+  installingMcpServerName: string | null;
+  errorInstallingMcpServer: string | null;
+  uninstallingMcpServerName: string | null;
+  errorUninstallingMcpServer: string | null;
+  installMcpServerFromConnectorCatalog: (mcpServer: ConnectorCatalogEntry) => void;
+  uninstallMcpServer: (mcpServerName: string) => void;
+}
+
+const ConnectorCatalogContext = createContext<ConnectorCatalogContextType | undefined>(undefined);
+
+export function ConnectorCatalogProvider({ children }: { children: React.ReactNode }) {
+  const { addMCPServerToInstalledMCPServers, removeMCPServerFromInstalledMCPServers } = useMCPServers();
 
   const [connectorCatalog, setConnectorCatalog] = useState<ConnectorCatalogEntry[]>([]);
   const [loadingConnectorCatalog, setLoadingConnectorCatalog] = useState(false);
@@ -76,24 +89,7 @@ export function useConnectorCatalog() {
       } else {
         const result = await invoke<MCPServer>("save_mcp_server_from_catalog", { connectorId: id });
 
-        console.log(`Installing MCP server ${title} from catalog`);
-        console.log(`Result:`, result);
-
-        setInstalledMCPServers((prev) => {
-          console.log(`Previous state:`, prev);
-          const newState = [
-            ...prev,
-            {
-              ...result,
-              url: constructProxiedMCPServerUrl(result.name),
-              tools: [],
-              client: null,
-              status: 'connecting',
-            }
-          ] as ConnectedMCPServer[];
-          console.log(`New state:`, newState);
-          return newState;
-        });
+        addMCPServerToInstalledMCPServers(result);
       }
     } catch (error) {
       setErrorInstallingMcpServer(error as string);
@@ -107,13 +103,7 @@ export function useConnectorCatalog() {
       try {
         setUninstallingMcpServerName(mcpServerName);
         await invoke("uninstall_mcp_server", { name: mcpServerName });
-        setInstalledMCPServers((prev) => {
-          console.log(`Uninstalling MCP server ${mcpServerName}`);
-          console.log(`Previous state:`, prev);
-          const newState = prev.filter((mcpServer) => mcpServer.name !== mcpServerName);
-          console.log(`New state:`, newState);
-          return newState;
-        });
+        removeMCPServerFromInstalledMCPServers(mcpServerName);
       } catch (error) {
         setErrorUninstallingMcpServer(error as string);
       } finally {
@@ -122,7 +112,7 @@ export function useConnectorCatalog() {
     })();
   }, []);
 
-  return {
+  const value: ConnectorCatalogContextType = {
     connectorCatalog,
     loadingConnectorCatalog,
     errorFetchingConnectorCatalog,
@@ -133,4 +123,14 @@ export function useConnectorCatalog() {
     installMcpServerFromConnectorCatalog,
     uninstallMcpServer,
   };
+
+  return <ConnectorCatalogContext.Provider value={value}>{children}</ConnectorCatalogContext.Provider>;
+}
+
+export function useConnectorCatalog() {
+  const context = useContext(ConnectorCatalogContext);
+  if (context === undefined) {
+    throw new Error('useConnectorCatalog must be used within a ConnectorCatalogProvider');
+  }
+  return context;
 }

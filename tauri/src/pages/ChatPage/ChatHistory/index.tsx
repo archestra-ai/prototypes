@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+// import { useCallback } from "react";
 import { Wrench } from "lucide-react";
 
 import { ScrollArea } from "../../../components/ui/scroll-area";
@@ -6,34 +6,35 @@ import { AIReasoning, AIReasoningTrigger, AIReasoningContent } from "../../../co
 import { AIResponse } from "../../../components/kibo/ai-response";
 import ToolCallIndicator from "../ToolCallIndicator";
 import ToolExecutionResult from "../ToolExecutionResult";
-import { useChat } from "../../../hooks/use-chat";
+import { useChatContext } from "../../../contexts/chat-context";
 
 import { cn } from "../../../lib/utils";
 
 const CHAT_SCROLL_AREA_ID = "chat-scroll-area";
-const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-area-viewport]`;
+// const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-area-viewport]`;
 
 interface ChatHistoryProps {}
 
 export default function ChatHistory(_props: ChatHistoryProps) {
+  // TODO: figure out how to pass a function into a context.. maybe this portion needs to be moved to hooks?
   // Scroll to bottom when new messages are added or content changes
-  const scrollToBottom = useCallback(() => {
-    const scrollArea = document.querySelector(CHAT_SCROLL_AREA_SELECTOR);
-    if (scrollArea) {
-      scrollArea.scrollTo({
-        top: scrollArea.scrollHeight,
-        behavior: "smooth",
-      });
-    }
-  }, []);
+  // const scrollToBottom = useCallback(() => {
+  //   const scrollArea = document.querySelector(CHAT_SCROLL_AREA_SELECTOR);
+  //   if (scrollArea) {
+  //     scrollArea.scrollTo({
+  //       top: scrollArea.scrollHeight,
+  //       behavior: "smooth",
+  //     });
+  //   }
+  // }, []);
 
-  // Trigger scroll after message changes
-  const triggerScroll = useCallback(() => {
-    const timeoutId = setTimeout(scrollToBottom, 50);
-    return () => clearTimeout(timeoutId);
-  }, [scrollToBottom]);
+  // // Trigger scroll after message changes
+  // const triggerScroll = useCallback(() => {
+  //   const timeoutId = setTimeout(scrollToBottom, 50);
+  //   return () => clearTimeout(timeoutId);
+  // }, [scrollToBottom]);
 
-  const { chatHistory } = useChat(triggerScroll);
+  const { chatHistory } = useChatContext();
 
   return (
     <ScrollArea

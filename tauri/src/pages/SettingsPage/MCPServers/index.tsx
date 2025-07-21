@@ -11,7 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import type { ConnectedMCPServer } from "../../../types";
-import { useMCPServers } from "../../../hooks/use-mcp-servers";
+import { useMCPServers } from "../../../contexts/mcp-servers-context";
 
 interface MCPServersProps {}
 

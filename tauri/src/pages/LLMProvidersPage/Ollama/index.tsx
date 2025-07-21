@@ -1,13 +1,15 @@
 import OllamaServer from "./OllamaServer";
-import OllamaModelsManager from "./OllamaModelsManager";
+import ModelsCatalog from "./ModelsCatalog";
+import InstalledModels from "./InstalledModels";
 
 interface OllamaProps {}
 
 export default function Ollama({}: OllamaProps) {
   return (
-    <>
+    <div className="space-y-6">
       <OllamaServer />
-      <OllamaModelsManager />
-    </>
+      <InstalledModels />
+      <ModelsCatalog />
+    </div>
   );
 }

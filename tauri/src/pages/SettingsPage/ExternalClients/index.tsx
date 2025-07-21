@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
-import { useExternalMcpClients } from "../../../hooks/use-external-mcp-clients";
+import { useExternalMcpClients } from "../../../contexts/external-mcp-clients-context";
 
 
 

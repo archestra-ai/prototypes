@@ -18,8 +18,8 @@ import {
   MessageSquare,
   Package,
 } from "lucide-react";
-import { useConnectorCatalog } from "../../hooks/use-connector-catalog";
-import { useMCPServers } from "../../hooks/use-mcp-servers";
+import { useConnectorCatalog } from "../../contexts/connector-catalog-context";
+import { useMCPServers } from "../../contexts/mcp-servers-context";
 
 interface ConnectorCatalogPageProps {}
 

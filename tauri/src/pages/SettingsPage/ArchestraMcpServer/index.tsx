@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Badge } from "../../../components/ui/badge";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-import { useMCPServers } from "../../../hooks/use-mcp-servers";
+import { useMCPServers } from "../../../contexts/mcp-servers-context";
 
 
 export default function ArchestraMCPServer() {
