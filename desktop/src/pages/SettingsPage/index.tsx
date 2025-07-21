@@ -5,8 +5,8 @@ import {
   TabsList,
   TabsTrigger,
 } from '../../components/ui/tabs';
-import ExternalClients from './ExternalClients';
 import ArchestraMCPServer from './ArchestraMCPServer';
+import ExternalClients from './ExternalClients';
 import MCPServers from './MCPServers';
 
 export default function SettingsPage() {

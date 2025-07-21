@@ -13,6 +13,9 @@ importers:
       "@modelcontextprotocol/sdk":
         specifier: ^1.16.0
         version: 1.16.0
+      "@openai/agents":
+        specifier: ^0.0.12
+        version: 0.0.12(ws@8.18.3)(zod@3.25.76)
       "@radix-ui/react-avatar":
         specifier: ^1.1.10
         version: 1.1.10(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -605,6 +608,35 @@ packages:
         integrity: sha512-8ofX7gkZcLj9H9rSd50mCgm3SSF8C7XoclxJuLoV0Cz3rEQ1tv9MZRYYvJtm9n1BiEQQMzSmE/w2AEkNacLYfg==,
       }
     engines: { node: ">=18" }
+
+  "@openai/agents-core@0.0.12":
+    resolution:
+      {
+        integrity: sha512-GZ3k+QvehH794OrWmXlHcLNX4OnYAQxd4zg7M3Dfk40Rhxl0p0v3CUjevLqO1Hp3rsfstbx8vGR9Qpmvmzuv3A==,
+      }
+    peerDependencies:
+      zod: 3.25.40 - 3.25.67
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
+  "@openai/agents-openai@0.0.12":
+    resolution:
+      {
+        integrity: sha512-frp3eJ4UwOpfX9gVSyTtbTif4e4oo+/SADpTLcG9HMv2ubEXcZlClngtqTQ97p7cmk9Pqvl5GLnQpq2tX36HZQ==,
+      }
+
+  "@openai/agents-realtime@0.0.12":
+    resolution:
+      {
+        integrity: sha512-P76qomYpNkHJ3vjzWhqhh4+m1REHhjy2ty7IglKBCf2QMk9k4CGFJw75YDffEVD/Z/8eT+ouiL+pho/6cAFCQg==,
+      }
+
+  "@openai/agents@0.0.12":
+    resolution:
+      {
+        integrity: sha512-36DBV9Z7zST2Do4Wcfeb/ku0HxMVXvRsHAoTwrEZlLl3tdJcVqzhjNf+ZBumFG1vpflHveCE8iuR/KTGmGoC6A==,
+      }
 
   "@radix-ui/number@1.1.1":
     resolution:
@@ -1800,6 +1832,12 @@ packages:
     resolution:
       {
         integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==,
+      }
+
+  "@types/ws@8.18.1":
+    resolution:
+      {
+        integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==,
       }
 
   "@ungap/structured-clone@1.3.0":
@@ -3148,6 +3186,21 @@ packages:
         integrity: sha512-rPiZhzC3wXwE59YQMRDodUwwT9FZ9nNBwQQfsd1wfdtlKEyCdRV0avrTcSZ5xlIvGRVPd/cx6ZN45ECmS39xvg==,
       }
 
+  openai@5.10.1:
+    resolution:
+      {
+        integrity: sha512-fq6xVfv1/gpLbsj8fArEt3b6B9jBxdhAK+VJ+bDvbUvNd+KTLlA3bnDeYZaBsGH9LUhJ1M1yXfp9sEyBLMx6eA==,
+      }
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.23.8
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
+
   parse-entities@4.0.2:
     resolution:
       {
@@ -3898,6 +3951,21 @@ packages:
         integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==,
       }
 
+  ws@8.18.3:
+    resolution:
+      {
+        integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==,
+      }
+    engines: { node: ">=10.0.0" }
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: ">=5.0.2"
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   yallist@3.1.1:
     resolution:
       {
@@ -3926,6 +3994,12 @@ packages:
       }
     peerDependencies:
       zod: ^3.24.1
+
+  zod@3.25.67:
+    resolution:
+      {
+        integrity: sha512-idA2YXwpCdqUSKRCACDE6ItZD9TZzy3OZMtpfLoh6oPR47lipysRrJfjzMqFxQ3uJuUPyUeWe1r9vLH33xO/Qw==,
+      }
 
   zod@3.25.76:
     resolution:
@@ -4190,6 +4264,56 @@ snapshots:
       zod-to-json-schema: 3.24.6(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
+
+  "@openai/agents-core@0.0.12(ws@8.18.3)(zod@3.25.76)":
+    dependencies:
+      "@openai/zod": zod@3.25.67
+      debug: 4.4.1
+      openai: 5.10.1(ws@8.18.3)(zod@3.25.76)
+    optionalDependencies:
+      "@modelcontextprotocol/sdk": 1.16.0
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - supports-color
+      - ws
+
+  "@openai/agents-openai@0.0.12(ws@8.18.3)(zod@3.25.76)":
+    dependencies:
+      "@openai/agents-core": 0.0.12(ws@8.18.3)(zod@3.25.76)
+      "@openai/zod": zod@3.25.67
+      debug: 4.4.1
+      openai: 5.10.1(ws@8.18.3)(zod@3.25.76)
+    transitivePeerDependencies:
+      - supports-color
+      - ws
+      - zod
+
+  "@openai/agents-realtime@0.0.12(zod@3.25.76)":
+    dependencies:
+      "@openai/agents-core": 0.0.12(ws@8.18.3)(zod@3.25.76)
+      "@openai/zod": zod@3.25.67
+      "@types/ws": 8.18.1
+      debug: 4.4.1
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+      - zod
+
+  "@openai/agents@0.0.12(ws@8.18.3)(zod@3.25.76)":
+    dependencies:
+      "@openai/agents-core": 0.0.12(ws@8.18.3)(zod@3.25.76)
+      "@openai/agents-openai": 0.0.12(ws@8.18.3)(zod@3.25.76)
+      "@openai/agents-realtime": 0.0.12(zod@3.25.76)
+      debug: 4.4.1
+      openai: 5.10.1(ws@8.18.3)(zod@3.25.76)
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+      - ws
+      - zod
 
   "@radix-ui/number@1.1.1": {}
 
@@ -4955,6 +5079,10 @@ snapshots:
   "@types/unist@2.0.11": {}
 
   "@types/unist@3.0.3": {}
+
+  "@types/ws@8.18.1":
+    dependencies:
+      "@types/node": 24.0.14
 
   "@ungap/structured-clone@1.3.0": {}
 
@@ -5904,6 +6032,11 @@ snapshots:
       regex: 6.0.1
       regex-recursion: 6.0.2
 
+  openai@5.10.1(ws@8.18.3)(zod@3.25.76):
+    optionalDependencies:
+      ws: 8.18.3
+      zod: 3.25.76
+
   parse-entities@4.0.2:
     dependencies:
       "@types/unist": 2.0.11
@@ -6396,6 +6529,8 @@ snapshots:
 
   wrappy@1.0.2: {}
 
+  ws@8.18.3: {}
+
   yallist@3.1.1: {}
 
   yallist@5.0.0: {}
@@ -6405,6 +6540,8 @@ snapshots:
   zod-to-json-schema@3.24.6(zod@3.25.76):
     dependencies:
       zod: 3.25.76
+
+  zod@3.25.67: {}
 
   zod@3.25.76: {}
 

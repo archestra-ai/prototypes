@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useMCPServers } from './mcp-servers-context';
+import { useMCPServersContext } from './mcp-servers-context';
 import { MCPServer, ServerConfig } from '../types';
 
 interface OAuthConfig {
@@ -55,7 +55,7 @@ export function ConnectorCatalogProvider({
   const {
     addMCPServerToInstalledMCPServers,
     removeMCPServerFromInstalledMCPServers,
-  } = useMCPServers();
+  } = useMCPServersContext();
 
   const [connectorCatalog, setConnectorCatalog] = useState<
     ConnectorCatalogEntry[]
