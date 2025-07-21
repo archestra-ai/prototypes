@@ -62,7 +62,7 @@ pub struct SetActiveModelsRequest {
 pub struct MCPGateway {
     context: Arc<Mutex<ArchestraContext>>,
     resources: Arc<Mutex<HashMap<String, ArchestraResource>>>,
-    tool_router: ToolRouter<ArchestraMcpServer>,
+    tool_router: ToolRouter<MCPGateway>,
     db: Arc<DatabaseConnection>,
 }
 
