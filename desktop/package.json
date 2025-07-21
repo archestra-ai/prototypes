@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "prepare": "cd .. && husky tauri/.husky"
+    "prepare": "cd .. && husky desktop/.husky"
   },
   "dependencies": {
     "@icons-pack/react-simple-icons": "^13.5.0",

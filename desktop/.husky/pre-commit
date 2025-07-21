@@ -1,2 +1,2 @@
-cd tauri
+cd desktop
 pnpm exec lint-staged
