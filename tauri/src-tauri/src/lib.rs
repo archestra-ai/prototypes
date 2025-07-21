@@ -79,7 +79,9 @@ pub fn run() {
             let user_id = "archestra_user".to_string();
             let db_for_mcp = db.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = archestra_mcp_server::start_archestra_mcp_server(user_id, db_for_mcp).await {
+                if let Err(e) =
+                    archestra_mcp_server::start_archestra_mcp_server(user_id, db_for_mcp).await
+                {
                     eprintln!("Failed to start Archestra MCP Server: {}", e);
                 }
             });
