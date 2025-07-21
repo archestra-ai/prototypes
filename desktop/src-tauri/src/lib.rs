@@ -1,11 +1,7 @@
 use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
-use tauri_plugin_opener;
-use tauri_plugin_shell;
-#[cfg(desktop)]
-use tauri_plugin_single_instance;
 
-pub mod archestra_mcp_server;
+pub mod mcp_gateway;
 pub mod database;
 pub mod models;
 pub mod ollama;
@@ -29,7 +25,7 @@ pub fn run() {
             // a second instance and processes the deep link in the existing app
             for arg in argv {
                 if arg.starts_with("archestra-ai://") {
-                    println!("SINGLE INSTANCE: Found deep link in argv: {}", arg);
+                    println!("SINGLE INSTANCE: Found deep link in argv: {arg}");
                     let app_handle = app.clone();
                     tauri::async_runtime::spawn(async move {
                         models::mcp_server::oauth::handle_oauth_callback(
@@ -55,7 +51,7 @@ pub fn run() {
             let db = tauri::async_runtime::block_on(async {
                 database::init_database(&app_handle)
                     .await
-                    .map_err(|e| format!("Database error: {}", e))
+                    .map_err(|e| format!("Database error: {e}"))
             })?;
 
             // Start all persisted MCP servers
@@ -63,7 +59,7 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = models::mcp_server::sandbox::start_all_mcp_servers(app_handle).await
                 {
-                    eprintln!("Failed to start MCP servers: {}", e);
+                    eprintln!("Failed to start MCP servers: {e}");
                 }
             });
 
@@ -71,18 +67,18 @@ pub fn run() {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = ollama::start_ollama_server_on_startup(app_handle).await {
-                    eprintln!("Failed to start Ollama server: {}", e);
+                    eprintln!("Failed to start Ollama server: {e}");
                 }
             });
 
-            // Start the Archestra MCP Server
+            // Start the MCP gateway
             let user_id = "archestra_user".to_string();
             let db_for_mcp = db.clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) =
-                    archestra_mcp_server::start_archestra_mcp_server(user_id, db_for_mcp).await
+                    mcp_gateway::start_mcp_gateway(user_id, db_for_mcp).await
                 {
-                    eprintln!("Failed to start Archestra MCP Server: {}", e);
+                    eprintln!("Failed to start MCP Gateway: {e}");
                 }
             });
 
@@ -95,9 +91,9 @@ pub fn run() {
             let app_handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 let urls = event.urls();
-                println!("DEEP LINK PLUGIN: Received URLs: {:?}", urls);
+                println!("DEEP LINK PLUGIN: Received URLs: {urls:?}");
                 for url in urls {
-                    println!("DEEP LINK PLUGIN: Processing URL: {}", url);
+                    println!("DEEP LINK PLUGIN: Processing URL: {url}");
                     let app_handle = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
                         models::mcp_server::oauth::handle_oauth_callback(

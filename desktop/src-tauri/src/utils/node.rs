@@ -122,12 +122,7 @@ fn get_common_node_locations() -> Vec<PathBuf> {
 
 /// Find Node.js in common installation locations
 fn find_node_in_common_locations() -> Option<PathBuf> {
-    for path in get_common_node_locations() {
-        if path.exists() && path.is_file() {
-            return Some(path);
-        }
-    }
-    None
+    get_common_node_locations().into_iter().find(|path| path.exists() && path.is_file())
 }
 
 /// Find npm in common installation locations
@@ -203,7 +198,7 @@ pub fn get_npm_execution_command(
         // Check if the package is installed globally
         if let Some(npm_path) = &node_info.npm_path {
             let output = Command::new(npm_path)
-                .args(&["list", "-g", package_name])
+                .args(["list", "-g", package_name])
                 .output();
 
             if let Ok(output) = output {
@@ -245,7 +240,7 @@ fn find_global_npm_binary(package_name: &str) -> Option<PathBuf> {
     // Extract the binary name from the package name
     // e.g., "@org/package-name" -> "package-name"
     let binary_name = if package_name.contains('/') {
-        package_name.split('/').last().unwrap_or(package_name)
+        package_name.split('/').next_back().unwrap_or(package_name)
     } else {
         package_name
     };

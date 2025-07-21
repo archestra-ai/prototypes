@@ -1,5 +1,5 @@
 {
-  "rust-analyzer.linkedProjects": [".vscode/settings.json/src-tauri/Cargo.toml"],
+  "rust-analyzer.linkedProjects": ["desktop/src-tauri/Cargo.toml"],
   "[javascript, javascriptreact, typescript, typescriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },

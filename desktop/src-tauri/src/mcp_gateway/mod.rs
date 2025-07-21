@@ -59,7 +59,7 @@ pub struct SetActiveModelsRequest {
 }
 
 #[derive(Clone)]
-pub struct ArchestraMcpServer {
+pub struct MCPGateway {
     context: Arc<Mutex<ArchestraContext>>,
     resources: Arc<Mutex<HashMap<String, ArchestraResource>>>,
     tool_router: ToolRouter<ArchestraMcpServer>,
@@ -72,8 +72,7 @@ async fn handle_proxy_request(
     req: axum::http::Request<Body>,
 ) -> axum::http::Response<Body> {
     println!(
-        "🚀 MCP Server Proxy: Starting request to server '{}'",
-        server_name
+        "🚀 MCP Server Proxy: Starting request to server '{server_name}'"
     );
 
     // Read the request body
@@ -83,7 +82,7 @@ async fn handle_proxy_request(
             bytes
         }
         Err(e) => {
-            println!("❌ Failed to read request body: {}", e);
+            println!("❌ Failed to read request body: {e}");
             return axum::http::Response::builder()
                 .status(axum::http::StatusCode::BAD_REQUEST)
                 .header("Content-Type", "application/json")
@@ -95,11 +94,11 @@ async fn handle_proxy_request(
     // Convert bytes to string
     let request_body = match String::from_utf8(body_bytes.to_vec()) {
         Ok(body) => {
-            println!("📝 Request body: {}", body);
+            println!("📝 Request body: {body}");
             body
         }
         Err(e) => {
-            println!("❌ Invalid UTF-8 in request body: {}", e);
+            println!("❌ Invalid UTF-8 in request body: {e}");
             return axum::http::Response::builder()
                 .status(axum::http::StatusCode::BAD_REQUEST)
                 .header("Content-Type", "application/json")
@@ -113,10 +112,9 @@ async fn handle_proxy_request(
     match forward_raw_request(&server_name, request_body).await {
         Ok(raw_response) => {
             println!(
-                "✅ Successfully received response from server '{}'",
-                server_name
+                "✅ Successfully received response from server '{server_name}'"
             );
-            println!("📤 Response: {}", raw_response);
+            println!("📤 Response: {raw_response}");
             axum::http::Response::builder()
                 .status(axum::http::StatusCode::OK)
                 .header("Content-Type", "application/json")
@@ -125,8 +123,7 @@ async fn handle_proxy_request(
         }
         Err(e) => {
             println!(
-                "❌ MCP Server Proxy: Failed to forward request to '{}': {}",
-                server_name, e
+                "❌ MCP Server Proxy: Failed to forward request to '{server_name}': {e}"
             );
 
             // Return a JSON-RPC error response
@@ -149,7 +146,7 @@ async fn handle_proxy_request(
 }
 
 #[tool_router]
-impl ArchestraMcpServer {
+impl MCPGateway {
     pub fn new(user_id: String, db: DatabaseConnection) -> Self {
         let mut resources = HashMap::new();
 
@@ -204,13 +201,12 @@ impl ArchestraMcpServer {
         &self,
         Parameters(UpdateContextRequest { key, value }): Parameters<UpdateContextRequest>,
     ) -> Result<CallToolResult, McpError> {
-        println!("Updating context: {} = {}", key, value);
+        println!("Updating context: {key} = {value}");
 
         let mut context = self.context.lock().await;
         context.project_context.insert(key.clone(), value.clone());
         Ok(CallToolResult::success(vec![Content::text(format!(
-            "Context updated: {} = {}",
-            key, value
+            "Context updated: {key} = {value}"
         ))]))
     }
 
@@ -219,13 +215,12 @@ impl ArchestraMcpServer {
         &self,
         Parameters(SetActiveModelsRequest { models }): Parameters<SetActiveModelsRequest>,
     ) -> Result<CallToolResult, McpError> {
-        println!("Setting active models: {:?}", models);
+        println!("Setting active models: {models:?}");
 
         let mut context = self.context.lock().await;
         context.active_models = models.clone();
         Ok(CallToolResult::success(vec![Content::text(format!(
-            "Active models set to: {:?}",
-            models
+            "Active models set to: {models:?}"
         ))]))
     }
 
@@ -233,7 +228,7 @@ impl ArchestraMcpServer {
     async fn list_installed_mcp_servers(&self) -> Result<CallToolResult, McpError> {
         println!("Listing installed MCP servers");
 
-        match McpServerModel::load_installed_mcp_servers(&*self.db).await {
+        match McpServerModel::load_installed_mcp_servers(&self.db).await {
             Ok(servers) => {
                 let server_list: Vec<_> = servers
                     .into_iter()
@@ -249,7 +244,7 @@ impl ArchestraMcpServer {
                                 "has_meta": definition.meta.is_some()
                             })),
                             Err(e) => {
-                                eprintln!("Failed to convert model to definition: {}", e);
+                                eprintln!("Failed to convert model to definition: {e}");
                                 None
                             }
                         }
@@ -265,9 +260,9 @@ impl ArchestraMcpServer {
                 )]))
             }
             Err(e) => {
-                println!("Failed to load MCP servers: {}", e);
+                println!("Failed to load MCP servers: {e}");
                 Err(McpError::internal_error(
-                    format!("Failed to load MCP servers: {}", e),
+                    format!("Failed to load MCP servers: {e}"),
                     None,
                 ))
             }
@@ -276,7 +271,7 @@ impl ArchestraMcpServer {
 }
 
 #[tool_handler]
-impl ServerHandler for ArchestraMcpServer {
+impl ServerHandler for MCPGateway {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             protocol_version: ProtocolVersion::V_2025_03_26,
@@ -332,7 +327,7 @@ impl ServerHandler for ArchestraMcpServer {
                 })
             } else {
                 Err(McpError::invalid_params(
-                    format!("Resource not found: {}", resource_id),
+                    format!("Resource not found: {resource_id}"),
                     None,
                 ))
             }
@@ -388,7 +383,7 @@ impl ServerHandler for ArchestraMcpServer {
     }
 }
 
-pub async fn start_archestra_mcp_server(
+pub async fn start_mcp_gateway(
     user_id: String,
     db: DatabaseConnection,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -404,7 +399,7 @@ pub async fn start_archestra_mcp_server(
     let db_for_closure = Arc::new(db);
     let streamable_service = StreamableHttpService::new(
         move || {
-            Ok(ArchestraMcpServer::new(
+            Ok(MCPGateway::new(
                 user_id.clone(),
                 (*db_for_closure).clone(),
             ))
@@ -423,17 +418,14 @@ pub async fn start_archestra_mcp_server(
 
     let listener = TcpListener::bind(addr).await?;
 
-    println!(
-        "Archestra MCP Server started successfully on http://{}",
-        addr
-    );
-    println!("  - MCP endpoint (streamable HTTP): http://{}/mcp", addr);
-    println!("  - Proxy endpoints: http://{}/proxy/<server_name>", addr);
+    println!("MCP Gateway started successfully on http://{addr}");
+    println!("  - MCP endpoint (streamable HTTP): http://{addr}/mcp");
+    println!("  - Proxy endpoints: http://{addr}/proxy/<server_name>");
 
     let server = axum::serve(listener, app);
 
     if let Err(e) = server.await {
-        eprintln!("Server error: {}", e);
+        eprintln!("Server error: {e}");
     }
 
     println!("Server has been shut down");
@@ -450,7 +442,7 @@ mod tests {
     use tower::util::ServiceExt;
 
     // Helper function to create a test server instance
-    async fn create_test_server() -> ArchestraMcpServer {
+    async fn create_test_server() -> MCPGateway {
         use sea_orm::Database;
         let db = Database::connect("sqlite::memory:").await.unwrap();
 
@@ -459,7 +451,7 @@ mod tests {
         use sea_orm_migration::MigratorTrait;
         Migrator::up(&db, None).await.unwrap();
 
-        ArchestraMcpServer::new("test_user_123".to_string(), db)
+        MCPGateway::new("test_user_123".to_string(), db)
     }
 
     // Test server creation and initialization
@@ -497,7 +489,7 @@ mod tests {
 
         // Start server in a background task
         let server_task = tokio::spawn(async move {
-            let result = start_archestra_mcp_server(user_id, db).await;
+            let result = start_mcp_gateway(user_id, db).await;
             // Server should run until cancelled
             assert!(result.is_ok() || result.is_err());
         });
@@ -510,8 +502,7 @@ mod tests {
         let connection_result = tokio::net::TcpStream::connect(addr).await;
         assert!(
             connection_result.is_ok(),
-            "Server should be listening on port {}",
-            MCP_SERVER_PORT
+            "Server should be listening on port {MCP_SERVER_PORT}"
         );
 
         // Clean up - abort the server task
@@ -636,8 +627,8 @@ mod tests {
             let server_clone = Arc::clone(&server);
             let handle = tokio::spawn(async move {
                 let params = UpdateContextRequest {
-                    key: format!("key_{}", i),
-                    value: format!("value_{}", i),
+                    key: format!("key_{i}"),
+                    value: format!("value_{i}"),
                 };
                 server_clone.update_context(Parameters(params)).await
             });
@@ -654,8 +645,8 @@ mod tests {
         let context = server.context.lock().await;
         for i in 0..10 {
             assert_eq!(
-                context.project_context.get(&format!("key_{}", i)),
-                Some(&format!("value_{}", i))
+                context.project_context.get(&format!("key_{i}")),
+                Some(&format!("value_{i}"))
             );
         }
     }

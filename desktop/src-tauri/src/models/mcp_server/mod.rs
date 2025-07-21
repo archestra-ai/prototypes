@@ -68,12 +68,12 @@ impl Model {
         definition: &McpServerDefinition,
     ) -> Result<Model, DbErr> {
         let server_config_json = serde_json::to_string(&definition.server_config)
-            .map_err(|e| DbErr::Custom(format!("Failed to serialize server_config: {}", e)))?;
+            .map_err(|e| DbErr::Custom(format!("Failed to serialize server_config: {e}")))?;
 
         let meta_json = if let Some(meta) = &definition.meta {
             Some(
                 serde_json::to_string(meta)
-                    .map_err(|e| DbErr::Custom(format!("Failed to serialize meta: {}", e)))?,
+                    .map_err(|e| DbErr::Custom(format!("Failed to serialize meta: {e}")))?,
             )
         } else {
             None
@@ -110,7 +110,7 @@ impl Model {
         // If updating, stop the existing server first
         if is_update {
             if let Err(e) = sandbox::stop_mcp_server(&definition.name).await {
-                eprintln!("Warning: Failed to stop server before update: {}", e);
+                eprintln!("Warning: Failed to stop server before update: {e}");
             }
         }
 
@@ -119,7 +119,7 @@ impl Model {
 
         // Start the server after saving
         if let Err(e) = sandbox::start_mcp_server(definition).await {
-            eprintln!("Warning: Failed to start server after save: {}", e);
+            eprintln!("Warning: Failed to start server after save: {e}");
             // Don't fail the save operation, but log the error
         }
 
@@ -128,7 +128,7 @@ impl Model {
 
     /// Load installed MCP servers from the database
     pub async fn load_installed_mcp_servers(db: &DatabaseConnection) -> Result<Vec<Model>, DbErr> {
-        Ok(Entity::find().all(db).await?)
+        Entity::find().all(db).await
     }
 
     /// Uninstall an MCP server - stop its process running in the sandbox and delete it from the database
@@ -158,12 +158,12 @@ impl Model {
 
         if let Some(model) = model {
             let server_config: ServerConfig = serde_json::from_str(&model.server_config)
-                .map_err(|e| DbErr::Custom(format!("Failed to parse server_config: {}", e)))?;
+                .map_err(|e| DbErr::Custom(format!("Failed to parse server_config: {e}")))?;
 
             let meta = if let Some(meta_json) = &model.meta {
                 Some(
                     serde_json::from_str(meta_json)
-                        .map_err(|e| DbErr::Custom(format!("Failed to parse meta: {}", e)))?,
+                        .map_err(|e| DbErr::Custom(format!("Failed to parse meta: {e}")))?,
                 )
             } else {
                 None
@@ -182,12 +182,12 @@ impl Model {
     /// Convert a Model to McpServerDefinition
     pub fn to_definition(self) -> Result<McpServerDefinition, String> {
         let server_config: ServerConfig = serde_json::from_str(&self.server_config)
-            .map_err(|e| format!("Failed to parse server_config: {}", e))?;
+            .map_err(|e| format!("Failed to parse server_config: {e}"))?;
 
         let meta = if let Some(meta_json) = &self.meta {
             Some(
                 serde_json::from_str(meta_json)
-                    .map_err(|e| format!("Failed to parse meta: {}", e))?,
+                    .map_err(|e| format!("Failed to parse meta: {e}"))?,
             )
         } else {
             None
@@ -229,11 +229,11 @@ pub async fn save_mcp_server_from_catalog(
     let connector = catalog
         .iter()
         .find(|c| c.id == connector_id)
-        .ok_or_else(|| format!("Connector with ID '{}' not found in catalog", connector_id))?;
+        .ok_or_else(|| format!("Connector with ID '{connector_id}' not found in catalog"))?;
 
     let db = get_database_connection_with_app(&app)
         .await
-        .map_err(|e| format!("Failed to connect to database: {}", e))?;
+        .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
     let definition = McpServerDefinition {
         name: connector.title.clone(),
@@ -243,7 +243,7 @@ pub async fn save_mcp_server_from_catalog(
 
     let result = Model::save_server(&db, &definition)
         .await
-        .map_err(|e| format!("Failed to save MCP server: {}", e))?;
+        .map_err(|e| format!("Failed to save MCP server: {e}"))?;
 
     Ok(result.to_definition().unwrap())
 }
@@ -254,11 +254,11 @@ pub async fn load_installed_mcp_servers(
 ) -> Result<Vec<McpServerDefinition>, String> {
     let db = get_database_connection_with_app(&app)
         .await
-        .map_err(|e| format!("Failed to connect to database: {}", e))?;
+        .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
     let models = Model::load_installed_mcp_servers(&db)
         .await
-        .map_err(|e| format!("Failed to load MCP servers: {}", e))?;
+        .map_err(|e| format!("Failed to load MCP servers: {e}"))?;
 
     let definitions = models
         .into_iter()
@@ -272,11 +272,11 @@ pub async fn load_installed_mcp_servers(
 pub async fn uninstall_mcp_server(app: tauri::AppHandle, name: String) -> Result<(), String> {
     let db = get_database_connection_with_app(&app)
         .await
-        .map_err(|e| format!("Failed to connect to database: {}", e))?;
+        .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
     Model::uninstall_mcp_server(&db, &name)
         .await
-        .map_err(|e| format!("Failed to uninstall MCP server: {}", e))?;
+        .map_err(|e| format!("Failed to uninstall MCP server: {e}"))?;
 
     Ok(())
 }
@@ -284,7 +284,7 @@ pub async fn uninstall_mcp_server(app: tauri::AppHandle, name: String) -> Result
 #[tauri::command]
 pub async fn get_mcp_connector_catalog() -> Result<Vec<ConnectorCatalogEntry>, String> {
     let catalog_json = include_str!("catalog.json");
-    serde_json::from_str(catalog_json).map_err(|e| format!("Failed to parse catalog: {}", e))
+    serde_json::from_str(catalog_json).map_err(|e| format!("Failed to parse catalog: {e}"))
 }
 
 #[cfg(test)]

@@ -79,8 +79,8 @@ impl Model {
             .exec(db)
             .await
             .map_err(|e| {
-                let err_msg = format!("Failed to delete external MCP client: {}", e);
-                println!("❌ {}", err_msg);
+                let err_msg = format!("Failed to delete external MCP client: {e}");
+                println!("❌ {err_msg}");
                 err_msg
             })?;
         Ok(())
@@ -120,7 +120,7 @@ impl Model {
                     std::env::var("HOME").map_err(|_| "Could not determine home directory")?;
                 Ok(PathBuf::from(home_dir).join(".vscode").join("mcp.json"))
             }
-            _ => Err(format!("Unknown client: {}", client_name)),
+            _ => Err(format!("Unknown client: {client_name}")),
         }
     }
 
@@ -131,20 +131,20 @@ impl Model {
     ) -> Result<(), String> {
         let config_path = Self::get_config_path_for_external_mcp_client(client_name)?;
 
-        println!("🔌 Connecting {} client...", client_name);
+        println!("🔌 Connecting {client_name} client...");
         println!("📍 Config path: {}", config_path.display());
 
         let mut config = read_config_file(&config_path)?;
 
         // Get available MCP servers
         let servers = get_available_mcp_servers().await?;
-        println!("🔧 Available MCP servers: {:?}", servers);
+        println!("🔧 Available MCP servers: {servers:?}");
 
         // Ensure mcpServers object exists
         if !config.is_object() {
             config = serde_json::json!({});
         }
-        if !config.get("mcpServers").is_some() {
+        if config.get("mcpServers").is_none() {
             config["mcpServers"] = serde_json::json!({});
         }
 
@@ -159,13 +159,13 @@ impl Model {
             client_name
         );
         for server in &servers {
-            let server_key = format!("{} (archestra.ai)", server);
-            let server_config = create_archestra_server_config(&server);
+            let server_key = format!("{server} (archestra.ai)");
+            let server_config = create_archestra_server_config(server);
             mcp_servers.insert(
                 server_key.clone(),
                 serde_json::to_value(server_config).unwrap(),
             );
-            println!("  ✅ Added MCP server: {}", server_key);
+            println!("  ✅ Added MCP server: {server_key}");
         }
 
         println!("📝 Writing config to: {}", config_path.display());
@@ -179,7 +179,7 @@ impl Model {
             Some(config_path.to_string_lossy().to_string()),
         )
         .await
-        .map_err(|e| format!("Failed to save external MCP client: {}", e))?;
+        .map_err(|e| format!("Failed to save external MCP client: {e}"))?;
 
         println!(
             "✅ Updated {} MCP config at {}",
@@ -197,7 +197,7 @@ impl Model {
     ) -> Result<(), String> {
         let config_path = Self::get_config_path_for_external_mcp_client(client_name)?;
 
-        println!("🔌 Disconnecting {} client...", client_name);
+        println!("🔌 Disconnecting {client_name} client...");
         let mut config = read_config_file(&config_path)?;
 
         if let Some(mcp_servers) = config["mcpServers"].as_object_mut() {
@@ -210,7 +210,7 @@ impl Model {
 
             for key in keys_to_remove {
                 mcp_servers.remove(&key);
-                println!("  ❌ Removed MCP server: {}", key);
+                println!("  ❌ Removed MCP server: {key}");
             }
         }
 
@@ -219,9 +219,9 @@ impl Model {
         // Delete external MCP client from database
         Self::delete_external_mcp_client(db, client_name)
             .await
-            .map_err(|e| format!("Failed to delete external MCP client: {}", e))?;
+            .map_err(|e| format!("Failed to delete external MCP client: {e}"))?;
 
-        println!("✅ Removed Archestra tools from {} MCP config", client_name);
+        println!("✅ Removed Archestra tools from {client_name} MCP config");
 
         Ok(())
     }
@@ -261,21 +261,21 @@ pub fn write_config_file(path: &PathBuf, config: &Value) -> Result<(), String> {
                 parent.display(),
                 e
             );
-            println!("❌ {}", err_msg);
+            println!("❌ {err_msg}");
             err_msg
         })?;
     }
 
     let content = serde_json::to_string_pretty(config).map_err(|e| {
-        let err_msg = format!("Failed to serialize config: {}", e);
-        println!("❌ {}", err_msg);
+        let err_msg = format!("Failed to serialize config: {e}");
+        println!("❌ {err_msg}");
         err_msg
     })?;
 
     println!("📄 Writing {} bytes to file", content.len());
     std::fs::write(path, &content).map_err(|e| {
         let err_msg = format!("Failed to write config file {}: {}", path.display(), e);
-        println!("❌ {}", err_msg);
+        println!("❌ {err_msg}");
         err_msg
     })?;
 
@@ -342,11 +342,11 @@ pub async fn get_connected_external_mcp_clients(
 
     let db = get_database_connection_with_app(&app_handle)
         .await
-        .map_err(|e| format!("Failed to get database connection: {}", e))?;
+        .map_err(|e| format!("Failed to get database connection: {e}"))?;
 
     let models = Model::get_connected_external_mcp_clients(&db)
         .await
-        .map_err(|e| format!("Failed to get connected external MCP clients: {}", e))?;
+        .map_err(|e| format!("Failed to get connected external MCP clients: {e}"))?;
 
     Ok(models)
 }
@@ -360,7 +360,7 @@ pub async fn connect_external_mcp_client(
 
     let db = get_database_connection_with_app(&app_handle)
         .await
-        .map_err(|e| format!("Failed to get database connection: {}", e))?;
+        .map_err(|e| format!("Failed to get database connection: {e}"))?;
 
     Model::connect_external_mcp_client(&db, &client_name).await
 }
@@ -374,7 +374,7 @@ pub async fn disconnect_external_mcp_client(
 
     let db = get_database_connection_with_app(&app_handle)
         .await
-        .map_err(|e| format!("Failed to get database connection: {}", e))?;
+        .map_err(|e| format!("Failed to get database connection: {e}"))?;
 
     Model::disconnect_external_mcp_client(&db, &client_name).await
 }

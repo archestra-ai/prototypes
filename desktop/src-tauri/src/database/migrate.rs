@@ -10,12 +10,12 @@ pub async fn init_database(app: tauri::AppHandle) -> Result<(), String> {
 
     let db = get_database_connection_with_app(&app)
         .await
-        .map_err(|e| format!("Failed to get database connection: {}", e))?;
+        .map_err(|e| format!("Failed to get database connection: {e}"))?;
 
     // Run SeaORM migrations using the migration crate we created
     run_migrations(&db)
         .await
-        .map_err(|e| format!("Failed to run database migrations: {}", e))?;
+        .map_err(|e| format!("Failed to run database migrations: {e}"))?;
 
     println!("✅ Database initialized successfully with SeaORM migrations");
 

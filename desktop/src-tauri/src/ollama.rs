@@ -9,20 +9,20 @@ pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Res
     use tauri_plugin_shell::process::CommandEvent;
 
     let port = get_free_port()?;
-    println!("Starting Ollama server as sidecar on port {}...", port);
+    println!("Starting Ollama server as sidecar on port {port}...");
 
     let sidecar_result = app_handle
         .shell()
         .sidecar("ollama")
-        .map_err(|e| format!("Failed to get sidecar: {:?}", e))?
-        .env("OLLAMA_HOST", format!("127.0.0.1:{}", port))
+        .map_err(|e| format!("Failed to get sidecar: {e:?}"))?
+        .env("OLLAMA_HOST", format!("127.0.0.1:{port}"))
         .env("OLLAMA_DEBUG", "0")
-        .args(&["serve"])
+        .args(["serve"])
         .spawn();
 
     match sidecar_result {
         Ok((mut rx, _child)) => {
-            println!("Ollama server started successfully on port {}!", port);
+            println!("Ollama server started successfully on port {port}!");
 
             // Store the port globally
             OLLAMA_PORT
@@ -35,11 +35,11 @@ pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Res
                     match event {
                         CommandEvent::Stdout(line_bytes) => {
                             let line = String::from_utf8_lossy(&line_bytes);
-                            print!("[Ollama stdout] {}", line);
+                            print!("[Ollama stdout] {line}");
                         }
                         CommandEvent::Stderr(line_bytes) => {
                             let line = String::from_utf8_lossy(&line_bytes);
-                            eprint!("[Ollama stderr] {}", line);
+                            eprint!("[Ollama stderr] {line}");
                         }
                         _ => {}
                     }
@@ -49,8 +49,8 @@ pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Res
             Ok(port)
         }
         Err(e) => {
-            let error_msg = format!("Failed to start Ollama server: {:?}", e);
-            eprintln!("{}", error_msg);
+            let error_msg = format!("Failed to start Ollama server: {e:?}");
+            eprintln!("{error_msg}");
             Err(error_msg)
         }
     }

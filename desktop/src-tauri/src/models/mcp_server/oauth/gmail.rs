@@ -13,7 +13,7 @@ pub struct GmailTokens {
 pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
     use url::Url;
 
-    println!("Received Gmail OAuth callback: {}", url);
+    println!("Received Gmail OAuth callback: {url}");
 
     if let Ok(parsed_url) = Url::parse(&url) {
         let query_params: std::collections::HashMap<String, String> = parsed_url
@@ -59,14 +59,14 @@ pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
             match get_database_connection_with_app(&app).await {
                 Ok(db) => {
                     if let Err(e) = McpServerModel::save_server(&db, &definition).await {
-                        eprintln!("Failed to save Gmail MCP server: {}", e);
-                        let _ = app.emit("oauth-error", format!("Failed to save server: {}", e));
+                        eprintln!("Failed to save Gmail MCP server: {e}");
+                        let _ = app.emit("oauth-error", format!("Failed to save server: {e}"));
                         return;
                     }
                 }
                 Err(e) => {
-                    eprintln!("Failed to get database connection: {}", e);
-                    let _ = app.emit("oauth-error", format!("Database error: {}", e));
+                    eprintln!("Failed to get database connection: {e}");
+                    let _ = app.emit("oauth-error", format!("Database error: {e}"));
                     return;
                 }
             }
@@ -82,9 +82,9 @@ pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
 
             println!("Gmail authentication completed successfully!");
         } else if let Some(error) = query_params.get("error") {
-            eprintln!("Gmail OAuth error: {}", error);
+            eprintln!("Gmail OAuth error: {error}");
             // Emit error to frontend
-            let _ = app.emit("oauth-error", format!("OAuth error: {}", error));
+            let _ = app.emit("oauth-error", format!("OAuth error: {error}"));
         }
     }
 }

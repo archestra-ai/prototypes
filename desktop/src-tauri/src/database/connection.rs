@@ -7,10 +7,10 @@ pub fn get_database_path(app: &tauri::AppHandle) -> std::result::Result<PathBuf,
     let data_dir = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+        .map_err(|e| format!("Failed to get app data directory: {e}"))?;
 
     std::fs::create_dir_all(&data_dir)
-        .map_err(|e| format!("Failed to create data directory: {}", e))?;
+        .map_err(|e| format!("Failed to create data directory: {e}"))?;
 
     Ok(data_dir.join("archestra.db"))
 }
@@ -19,7 +19,7 @@ pub async fn get_database_connection_with_app(
     app: &tauri::AppHandle,
 ) -> Result<DatabaseConnection, DbErr> {
     let db_path = get_database_path(app)
-        .map_err(|e| DbErr::Custom(format!("Failed to get database path: {}", e)))?;
+        .map_err(|e| DbErr::Custom(format!("Failed to get database path: {e}")))?;
 
     let db_url = format!("sqlite:{}?mode=rwc", db_path.to_string_lossy());
     Database::connect(&db_url).await
@@ -30,18 +30,18 @@ pub async fn get_database_connection(app: &tauri::AppHandle) -> Result<DatabaseC
     let db_path = get_database_path(app)?;
     let db_url = format!("sqlite:{}?mode=rwc", db_path.to_string_lossy());
 
-    println!("🗄️  Connecting to database: {}", db_url);
+    println!("🗄️  Connecting to database: {db_url}");
 
     let db = Database::connect(&db_url)
         .await
-        .map_err(|e| format!("Failed to connect to database: {}", e))?;
+        .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
     // Run migrations
     println!("📊 Running database migrations...");
     use crate::database::migration::Migrator;
     Migrator::up(&db, None)
         .await
-        .map_err(|e| format!("Failed to run migrations: {}", e))?;
+        .map_err(|e| format!("Failed to run migrations: {e}"))?;
 
     println!("✅ Database connection established and migrations completed");
 

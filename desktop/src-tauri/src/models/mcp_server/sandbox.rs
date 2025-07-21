@@ -61,6 +61,12 @@ pub struct McpServerManager {
     http_client: reqwest::Client,
 }
 
+impl Default for McpServerManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl McpServerManager {
     pub fn new() -> Self {
         let http_client = reqwest::Client::builder()
@@ -87,7 +93,7 @@ impl McpServerManager {
             let servers = self.servers.read().await;
             if let Some(existing) = servers.get(&name) {
                 if existing.is_running {
-                    return Err(format!("MCP server '{}' is already running", name));
+                    return Err(format!("MCP server '{name}' is already running"));
                 }
             }
         }
@@ -99,15 +105,13 @@ impl McpServerManager {
             if !node_info.is_available() {
                 let instructions = node::get_node_installation_instructions();
                 return Err(format!(
-                    "Cannot start MCP server '{}': {}",
-                    name, instructions
+                    "Cannot start MCP server '{name}': {instructions}"
                 ));
             }
 
             if args.is_empty() {
                 return Err(format!(
-                    "No package specified for npx command in server '{}'",
-                    name
+                    "No package specified for npx command in server '{name}'"
                 ));
             }
 
@@ -122,8 +126,7 @@ impl McpServerManager {
                 }
                 Err(e) => {
                     return Err(format!(
-                        "Failed to prepare npm execution for '{}': {}",
-                        name, e
+                        "Failed to prepare npm execution for '{name}': {e}"
                     ))
                 }
             }
@@ -135,15 +138,14 @@ impl McpServerManager {
         };
 
         println!(
-            "🔧 Executing command: {} with args: {:?}",
-            actual_command, actual_args
+            "🔧 Executing command: {actual_command} with args: {actual_args:?}"
         );
 
         let env_vars = env.unwrap_or_default();
         if !env_vars.is_empty() {
             println!("🌍 Environment variables:");
             for (key, value) in &env_vars {
-                println!("   {} = {}", key, value);
+                println!("   {key} = {value}");
             }
         }
 
@@ -178,7 +180,7 @@ impl McpServerManager {
 
         let mut child = cmd
             .spawn()
-            .map_err(|e| format!("Failed to spawn MCP server process: {}", e))?;
+            .map_err(|e| format!("Failed to spawn MCP server process: {e}"))?;
 
         let stdin = child
             .stdin
@@ -204,11 +206,11 @@ impl McpServerManager {
             let mut stdin = stdin;
             while let Some(message) = stdin_rx.recv().await {
                 if let Err(e) = stdin.write_all(message.as_bytes()).await {
-                    eprintln!("Failed to write to stdin: {}", e);
+                    eprintln!("Failed to write to stdin: {e}");
                     break;
                 }
                 if let Err(e) = stdin.flush().await {
-                    eprintln!("Failed to flush stdin: {}", e);
+                    eprintln!("Failed to flush stdin: {e}");
                     break;
                 }
             }
@@ -222,7 +224,7 @@ impl McpServerManager {
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                println!("[{}] stdout: {}", server_name_clone, line);
+                println!("[{server_name_clone}] stdout: {line}");
 
                 let mut buffer = buffer_clone.lock().await;
                 if buffer.len() >= MAX_BUFFER_SIZE {
@@ -242,7 +244,7 @@ impl McpServerManager {
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                eprintln!("[{}] stderr: {}", server_name_clone2, line);
+                eprintln!("[{server_name_clone2}] stderr: {line}");
             }
         });
 
@@ -278,13 +280,13 @@ impl McpServerManager {
         env: Option<HashMap<String, String>>,
     ) -> Result<(), String> {
         if args.is_empty() {
-            return Err(format!("No URL specified for HTTP MCP server '{}'", name));
+            return Err(format!("No URL specified for HTTP MCP server '{name}'"));
         }
 
         let url = args[0].clone();
         let headers = env.unwrap_or_default();
 
-        println!("🌐 Starting HTTP MCP server '{}' at URL: {}", name, url);
+        println!("🌐 Starting HTTP MCP server '{name}' at URL: {url}");
 
         let server = McpServer {
             name: name.clone(),
@@ -308,13 +310,13 @@ impl McpServerManager {
             servers.insert(name.clone(), server);
         }
 
-        println!("✅ HTTP MCP server '{}' started successfully", name);
+        println!("✅ HTTP MCP server '{name}' started successfully");
         Ok(())
     }
 
     /// Stop an MCP server
     pub async fn stop_server(&self, server_name: &str) -> Result<(), String> {
-        println!("🛑 Stopping MCP server '{}'", server_name);
+        println!("🛑 Stopping MCP server '{server_name}'");
 
         let server = {
             let mut servers = self.servers.write().await;
@@ -332,14 +334,14 @@ impl McpServerManager {
                 let mut child = process_handle.lock().await;
                 match child.kill().await {
                     Ok(_) => println!("✅ Process killed successfully"),
-                    Err(e) => eprintln!("⚠️ Failed to kill process: {}", e),
+                    Err(e) => eprintln!("⚠️ Failed to kill process: {e}"),
                 }
             }
 
-            println!("✅ MCP server '{}' stopped", server_name);
+            println!("✅ MCP server '{server_name}' stopped");
             Ok(())
         } else {
-            Err(format!("MCP server '{}' not found", server_name))
+            Err(format!("MCP server '{server_name}' not found"))
         }
     }
 
@@ -349,32 +351,32 @@ impl McpServerManager {
         server_name: &str,
         request_body: String,
     ) -> Result<String, String> {
-        println!("🔍 Looking up server '{}' in manager", server_name);
+        println!("🔍 Looking up server '{server_name}' in manager");
         let servers = self.servers.read().await;
         println!("📊 Total servers in manager: {}", servers.len());
 
         // List all available servers for debugging
         for (name, _) in servers.iter() {
-            println!("   - Available server: '{}'", name);
+            println!("   - Available server: '{name}'");
         }
 
         let server = servers.get(server_name).ok_or_else(|| {
-            println!("❌ Server '{}' not found in manager", server_name);
-            format!("Server '{}' not found", server_name)
+            println!("❌ Server '{server_name}' not found in manager");
+            format!("Server '{server_name}' not found")
         })?;
 
         println!(
             "✅ Found server '{}', type: {:?}",
             server_name,
             match &server.server_type {
-                ServerType::Http { url, .. } => format!("HTTP ({})", url),
+                ServerType::Http { url, .. } => format!("HTTP ({url})"),
                 ServerType::Process => "Process".to_string(),
             }
         );
 
         match &server.server_type {
             ServerType::Http { url, headers } => {
-                println!("🌐 Forwarding HTTP request to: {}", url);
+                println!("🌐 Forwarding HTTP request to: {url}");
                 // For HTTP servers, forward the request as-is
                 let mut req = self
                     .http_client
@@ -383,20 +385,20 @@ impl McpServerManager {
                     .header("Content-Type", "application/json");
 
                 for (key, value) in headers {
-                    println!("📎 Adding header: {} = {}", key, value);
+                    println!("📎 Adding header: {key} = {value}");
                     req = req.header(key, value);
                 }
 
                 println!("📡 Sending HTTP request...");
                 let response = req.send().await.map_err(|e| {
-                    println!("❌ HTTP request failed: {}", e);
-                    format!("HTTP request failed: {}", e)
+                    println!("❌ HTTP request failed: {e}");
+                    format!("HTTP request failed: {e}")
                 })?;
 
                 println!("📨 Received HTTP response, status: {}", response.status());
                 let response_text = response.text().await.map_err(|e| {
-                    println!("❌ Failed to read HTTP response: {}", e);
-                    format!("Failed to read response: {}", e)
+                    println!("❌ Failed to read HTTP response: {e}");
+                    format!("Failed to read response: {e}")
                 })?;
 
                 println!("✅ HTTP response received successfully");
@@ -406,12 +408,12 @@ impl McpServerManager {
                 println!("🔧 Processing request for process-based server");
                 // For process servers, send via stdin and wait for response
                 let stdin_tx = server.stdin_tx.as_ref().ok_or_else(|| {
-                    println!("❌ No stdin channel available for server '{}'", server_name);
+                    println!("❌ No stdin channel available for server '{server_name}'");
                     "No stdin channel available".to_string()
                 })?;
 
                 println!("📤 Sending request to process stdin...");
-                println!("📋 Raw request body: {}", request_body);
+                println!("📋 Raw request body: {request_body}");
                 println!("📏 Request body length: {} bytes", request_body.len());
 
                 // Let's also try to parse as generic JSON first to see what fields are present
@@ -431,18 +433,18 @@ impl McpServerManager {
                 }
 
                 stdin_tx
-                    .send(format!("{}\n", request_body))
+                    .send(format!("{request_body}\n"))
                     .await
                     .map_err(|e| {
-                        println!("❌ Failed to send request to stdin: {}", e);
-                        format!("Failed to send request: {}", e)
+                        println!("❌ Failed to send request to stdin: {e}");
+                        format!("Failed to send request: {e}")
                     })?;
 
                 // Parse request using our flexible structure
                 let request: FlexibleJsonRpcRequest =
                     serde_json::from_str(&request_body).map_err(|e| {
-                        println!("❌ Failed to parse JSON-RPC request: {}", e);
-                        format!("Failed to parse request: {}", e)
+                        println!("❌ Failed to parse JSON-RPC request: {e}");
+                        format!("Failed to parse request: {e}")
                     })?;
 
                 println!(
@@ -466,16 +468,14 @@ impl McpServerManager {
 
                     if elapsed > REQUEST_TIMEOUT {
                         println!(
-                            "⏰ Request timeout after {} iterations ({:?})",
-                            iteration_count, elapsed
+                            "⏰ Request timeout after {iteration_count} iterations ({elapsed:?})"
                         );
                         return Err("Request timeout".to_string());
                     }
 
                     if iteration_count % 100 == 0 {
                         println!(
-                            "⏳ Still waiting... iteration {}, elapsed: {:?}",
-                            iteration_count, elapsed
+                            "⏳ Still waiting... iteration {iteration_count}, elapsed: {elapsed:?}"
                         );
                     }
 
@@ -483,7 +483,7 @@ impl McpServerManager {
                     let buffer_size = buffer.len();
 
                     if iteration_count % 100 == 0 && buffer_size > 0 {
-                        println!("📋 Response buffer size: {}", buffer_size);
+                        println!("📋 Response buffer size: {buffer_size}");
                     }
 
                     while let Some(entry) = buffer.pop_front() {
@@ -504,7 +504,7 @@ impl McpServerManager {
                                         serde_json::Value::String(s) => {
                                             response.id.to_string() == *s
                                         }
-                                        _ => response.id.to_string() == req_id.to_string(),
+                                        _ => response.id.to_string() == *req_id,
                                     }
                                 }
                                 None => false, // Should not happen since we checked earlier
@@ -546,11 +546,11 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
 
     let db = get_database_connection_with_app(&app)
         .await
-        .map_err(|e| format!("Failed to connect to database: {}", e))?;
+        .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
     let installed_mcp_servers = Model::load_installed_mcp_servers(&db)
         .await
-        .map_err(|e| format!("Failed to load MCP servers: {}", e))?;
+        .map_err(|e| format!("Failed to load MCP servers: {e}"))?;
 
     if installed_mcp_servers.is_empty() {
         println!("No installed MCP servers found to start.");
@@ -563,11 +563,10 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
         let server_name = server.name.clone();
 
         let config: ServerConfig = serde_json::from_str(&server.server_config)
-            .map_err(|e| format!("Failed to parse server config for {}: {}", server_name, e))?;
+            .map_err(|e| format!("Failed to parse server config for {server_name}: {e}"))?;
 
         println!(
-            "🚀 Starting MCP server '{}' with persistent connection",
-            server_name
+            "🚀 Starting MCP server '{server_name}' with persistent connection"
         );
         println!(
             "📋 Server config - Command: '{}', Args: {:?}",
@@ -585,8 +584,8 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
                 )
                 .await
             {
-                Ok(_) => println!("✅ MCP server '{}' started successfully", name),
-                Err(e) => eprintln!("❌ Failed to start MCP server '{}': {}", name, e),
+                Ok(_) => println!("✅ MCP server '{name}' started successfully"),
+                Err(e) => eprintln!("❌ Failed to start MCP server '{name}': {e}"),
             }
         });
     }
