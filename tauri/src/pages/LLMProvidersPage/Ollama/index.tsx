@@ -1,6 +1,6 @@
-import OllamaServer from "./OllamaServer";
-import ModelsCatalog from "./ModelsCatalog";
-import InstalledModels from "./InstalledModels";
+import OllamaServer from './OllamaServer';
+import ModelsCatalog from './ModelsCatalog';
+import InstalledModels from './InstalledModels';
 
 interface OllamaProps {}
 

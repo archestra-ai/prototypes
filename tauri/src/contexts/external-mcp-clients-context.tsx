@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useCallback, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-
+import React, {
+  createContext,
+  useContext,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 interface ExternalMcpClient {
   id: number;
@@ -27,29 +32,60 @@ interface ExternalMCPClientsContextType {
   disconnectExternalMcpClient: (clientId: string) => Promise<void>;
 }
 
-const ExternalMCPClientsContext = createContext<ExternalMCPClientsContextType | undefined>(undefined);
+const ExternalMCPClientsContext = createContext<
+  ExternalMCPClientsContextType | undefined
+>(undefined);
 
+export function ExternalMCPClientsProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [supportedExternalMcpClientNames, setSupportedExternalMcpClientNames] =
+    useState<string[]>([]);
+  const [
+    isLoadingSupportedExternalMcpClientNames,
+    setIsLoadingSupportedExternalMcpClientNames,
+  ] = useState(true);
+  const [
+    errorLoadingSupportedExternalMcpClientNames,
+    setErrorLoadingSupportedExternalMcpClientNames,
+  ] = useState<string | null>(null);
 
-export function ExternalMCPClientsProvider({ children }: { children: React.ReactNode }) {
-  const [supportedExternalMcpClientNames, setSupportedExternalMcpClientNames] = useState<string[]>([]);
-  const [isLoadingSupportedExternalMcpClientNames, setIsLoadingSupportedExternalMcpClientNames] = useState(true);
-  const [errorLoadingSupportedExternalMcpClientNames, setErrorLoadingSupportedExternalMcpClientNames] = useState<string | null>(null);
+  const [connectedExternalMcpClients, setConnectedExternalMcpClients] =
+    useState<ExternalMcpClient[]>([]);
+  const [
+    isLoadingConnectedExternalMcpClients,
+    setIsLoadingConnectedExternalMcpClients,
+  ] = useState(true);
+  const [
+    errorLoadingConnectedExternalMcpClients,
+    setErrorLoadingConnectedExternalMcpClients,
+  ] = useState<string | null>(null);
 
-  const [connectedExternalMcpClients, setConnectedExternalMcpClients] = useState<ExternalMcpClient[]>([]);
-  const [isLoadingConnectedExternalMcpClients, setIsLoadingConnectedExternalMcpClients] = useState(true);
-  const [errorLoadingConnectedExternalMcpClients, setErrorLoadingConnectedExternalMcpClients] = useState<string | null>(null);
+  const [isConnectingExternalMcpClient, setIsConnectingExternalMcpClient] =
+    useState(false);
+  const [
+    errorConnectingExternalMcpClient,
+    setErrorConnectingExternalMcpClient,
+  ] = useState<string | null>(null);
 
-  const [isConnectingExternalMcpClient, setIsConnectingExternalMcpClient] = useState(false);
-  const [errorConnectingExternalMcpClient, setErrorConnectingExternalMcpClient] = useState<string | null>(null);
-
-  const [isDisconnectingExternalMcpClient, setIsDisconnectingExternalMcpClient] = useState(false);
-  const [errorDisconnectingExternalMcpClient, setErrorDisconnectingExternalMcpClient] = useState<string | null>(null);
+  const [
+    isDisconnectingExternalMcpClient,
+    setIsDisconnectingExternalMcpClient,
+  ] = useState(false);
+  const [
+    errorDisconnectingExternalMcpClient,
+    setErrorDisconnectingExternalMcpClient,
+  ] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
         setIsLoadingSupportedExternalMcpClientNames(true);
-        const clients = await invoke<string[]>("get_supported_external_mcp_client_names");
+        const clients = await invoke<string[]>(
+          'get_supported_external_mcp_client_names',
+        );
         setSupportedExternalMcpClientNames(clients);
       } catch (error) {
         setErrorLoadingSupportedExternalMcpClientNames(error as string);
@@ -63,7 +99,9 @@ export function ExternalMCPClientsProvider({ children }: { children: React.React
     (async () => {
       try {
         setIsLoadingConnectedExternalMcpClients(true);
-        const clients = await invoke<ExternalMcpClient[]>("get_connected_external_mcp_clients");
+        const clients = await invoke<ExternalMcpClient[]>(
+          'get_connected_external_mcp_clients',
+        );
         setConnectedExternalMcpClients(clients);
       } catch (error) {
         setErrorLoadingConnectedExternalMcpClients(error as string);
@@ -76,7 +114,7 @@ export function ExternalMCPClientsProvider({ children }: { children: React.React
   const connectExternalMcpClient = useCallback(async (clientId: string) => {
     try {
       setIsConnectingExternalMcpClient(true);
-      await invoke("connect_external_mcp_client", { clientId });
+      await invoke('connect_external_mcp_client', { clientId });
     } catch (error) {
       setErrorConnectingExternalMcpClient(error as string);
     } finally {
@@ -87,7 +125,7 @@ export function ExternalMCPClientsProvider({ children }: { children: React.React
   const disconnectExternalMcpClient = useCallback(async (clientId: string) => {
     try {
       setIsDisconnectingExternalMcpClient(true);
-      await invoke("disconnect_external_mcp_client", { clientId });
+      await invoke('disconnect_external_mcp_client', { clientId });
     } catch (error) {
       setErrorDisconnectingExternalMcpClient(error as string);
     } finally {
@@ -110,13 +148,19 @@ export function ExternalMCPClientsProvider({ children }: { children: React.React
     disconnectExternalMcpClient,
   };
 
-  return <ExternalMCPClientsContext.Provider value={value}>{children}</ExternalMCPClientsContext.Provider>;
+  return (
+    <ExternalMCPClientsContext.Provider value={value}>
+      {children}
+    </ExternalMCPClientsContext.Provider>
+  );
 }
 
-export function useExternalMcpClients() {
+export function useExternalMcpClientContexts() {
   const context = useContext(ExternalMCPClientsContext);
   if (context === undefined) {
-    throw new Error('useExternalMcpClients must be used within an ExternalMCPClientsProvider');
+    throw new Error(
+      'useExternalMcpClients must be used within an ExternalMCPClientsProvider',
+    );
   }
   return context;
 }

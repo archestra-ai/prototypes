@@ -1,13 +1,11 @@
-import Ollama from "./Ollama";
+import Ollama from './Ollama';
 
 interface LLMProvidersPageProps {
-  activeProvider: "ollama";
+  activeProvider: 'ollama';
 }
 
-export default function LLMProvidersPage({ activeProvider }: LLMProvidersPageProps) {
-  return (
-    <>
-      {activeProvider === "ollama" && <Ollama />}
-    </>
-  );
+export default function LLMProvidersPage({
+  activeProvider,
+}: LLMProvidersPageProps) {
+  return <>{activeProvider === 'ollama' && <Ollama />}</>;
 }

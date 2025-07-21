@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "prepare": "cd .. && husky tauri/.husky"
   },
   "dependencies": {
     "@icons-pack/react-simple-icons": "^13.5.0",
@@ -54,8 +55,14 @@
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.3.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2",
+    "prettier": "3.6.2",
     "typescript": "~5.6.2",
     "vite": "^6.0.3"
   },
-  "packageManager": "pnpm@10.13.1"
+  "packageManager": "pnpm@10.13.1",
+  "lint-staged": {
+    "**/*": "prettier --write --ignore-unknown"
+  }
 }

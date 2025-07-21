@@ -1,16 +1,11 @@
-import { useState } from "react";
-import * as React from "react";
-import {
-  MessageCircle,
-  Bot,
-  Download,
-  Settings,
-} from "lucide-react";
+import { useState } from 'react';
+import * as React from 'react';
+import { MessageCircle, Bot, Download, Settings } from 'lucide-react';
 
-import ChatPage from "./pages/ChatPage";
-import ConnectorCatalogPage from "./pages/ConnectorCatalogPage";
-import LLMProvidersPage from "./pages/LLMProvidersPage";
-import SettingsPage from "./pages/SettingsPage";
+import ChatPage from './pages/ChatPage';
+import ConnectorCatalogPage from './pages/ConnectorCatalogPage';
+import LLMProvidersPage from './pages/LLMProvidersPage';
+import SettingsPage from './pages/SettingsPage';
 
 import {
   Sidebar,
@@ -24,50 +19,52 @@ import {
   SidebarTrigger,
   SidebarInset,
   SidebarHeader,
-} from "./components/ui/sidebar";
+} from './components/ui/sidebar';
 
-import "./index.css";
+import './index.css';
 
 function App() {
-  const [activeView, setActiveView] = useState<"chat" | "mcp" | "llm-providers" | "settings">("chat");
-  const [activeSubView, setActiveSubView] = useState<"ollama">("ollama");
+  const [activeView, setActiveView] = useState<
+    'chat' | 'mcp' | 'llm-providers' | 'settings'
+  >('chat');
+  const [activeSubView, setActiveSubView] = useState<'ollama'>('ollama');
 
   const navigationItems = [
     {
-      title: "Chat",
+      title: 'Chat',
       icon: MessageCircle,
-      key: "chat" as const,
+      key: 'chat' as const,
     },
     {
-      title: "LLM Providers",
+      title: 'LLM Providers',
       icon: Download,
-      key: "llm-providers" as const,
+      key: 'llm-providers' as const,
     },
     {
-      title: "Connectors",
+      title: 'Connectors',
       icon: Bot,
-      key: "mcp" as const,
+      key: 'mcp' as const,
     },
     {
-      title: "Settings",
+      title: 'Settings',
       icon: Settings,
-      key: "settings" as const,
+      key: 'settings' as const,
     },
   ];
 
   const renderContent = () => {
     switch (activeView) {
-      case "chat":
+      case 'chat':
         return (
           <div className="space-y-6">
             <ChatPage />
           </div>
         );
-      case "llm-providers":
+      case 'llm-providers':
         return <LLMProvidersPage activeProvider={activeSubView} />;
-      case "mcp":
+      case 'mcp':
         return <ConnectorCatalogPage />;
-      case "settings":
+      case 'settings':
         return <SettingsPage />;
       default:
         return null;
@@ -100,8 +97,8 @@ function App() {
                         onClick={() => {
                           setActiveView(item.key);
                           // TODO: when we add more LLM providers, we need to add a proper sub-navigation here
-                          if (item.key === "llm-providers") {
-                            setActiveSubView("ollama");
+                          if (item.key === 'llm-providers') {
+                            setActiveSubView('ollama');
                           }
                         }}
                         isActive={activeView === item.key}
@@ -111,18 +108,19 @@ function App() {
                         <span>{item.title}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                    {item.key === "llm-providers" && activeView === "llm-providers" && (
-                      <SidebarMenuItem className="ml-6">
-                        <SidebarMenuButton
-                          onClick={() => setActiveSubView("ollama")}
-                          isActive={activeSubView === "ollama"}
-                          size="sm"
-                          className="text-sm"
-                        >
-                          <span>Ollama</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )}
+                    {item.key === 'llm-providers' &&
+                      activeView === 'llm-providers' && (
+                        <SidebarMenuItem className="ml-6">
+                          <SidebarMenuButton
+                            onClick={() => setActiveSubView('ollama')}
+                            isActive={activeSubView === 'ollama'}
+                            size="sm"
+                            className="text-sm"
+                          >
+                            <span>Ollama</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )}
                   </React.Fragment>
                 ))}
               </SidebarMenu>
@@ -136,9 +134,9 @@ function App() {
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold">
               {navigationItems.find((item) => item.key === activeView)?.title}
-              {activeView === "llm-providers" && activeSubView && (
+              {activeView === 'llm-providers' && activeSubView && (
                 <span className="text-muted-foreground ml-2">
-                  /{" "}
+                  /{' '}
                   {activeSubView.charAt(0).toUpperCase() +
                     activeSubView.slice(1)}
                 </span>

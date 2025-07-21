@@ -1,22 +1,34 @@
-import { Server, Zap } from "lucide-react";
+import { Server, Zap } from 'lucide-react';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
-import { Badge } from "../../../components/ui/badge";
-import { Input } from "../../../components/ui/input";
-import { Label } from "../../../components/ui/label";
-import { useMCPServers } from "../../../contexts/mcp-servers-context";
-
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../../components/ui/card';
+import { Badge } from '../../../components/ui/badge';
+import { Input } from '../../../components/ui/input';
+import { Label } from '../../../components/ui/label';
+import { useMCPServersContext } from '../../../contexts/mcp-servers-context';
 
 export default function ArchestraMCPServer() {
-  const { archestraMCPServer } = useMCPServers();
+  const { archestraMCPServer } = useMCPServersContext();
 
   const getStatusBadge = () => {
     switch (archestraMCPServer.status) {
-      case "connected":
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Running</Badge>;
-      case "error":
+      case 'connected':
+        return (
+          <Badge
+            variant="outline"
+            className="bg-green-50 text-green-700 border-green-200"
+          >
+            Running
+          </Badge>
+        );
+      case 'error':
         return <Badge variant="destructive">Error</Badge>;
-      case "connecting":
+      case 'connecting':
         return <Badge variant="outline">Loading...</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
@@ -31,17 +43,16 @@ export default function ArchestraMCPServer() {
           Archestra MCP Server
         </CardTitle>
         <CardDescription>
-          The Model Context Protocol (MCP) server enables external applications to access your Archestra AI context and tools.
-          Also serves as a proxy to route requests to other MCP servers running in sandboxes.
+          The Model Context Protocol (MCP) server enables external applications
+          to access your Archestra AI context and tools. Also serves as a proxy
+          to route requests to other MCP servers running in sandboxes.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <Label htmlFor="server-status">Server Status</Label>
-            <div className="flex items-center gap-2">
-              {getStatusBadge()}
-            </div>
+            <div className="flex items-center gap-2">{getStatusBadge()}</div>
           </div>
         </div>
         <div className="space-y-2">
@@ -65,14 +76,16 @@ export default function ArchestraMCPServer() {
               <Zap className="h-4 w-4" />
               Available Tools
             </h4>
-            {archestraMCPServer.status === "connecting" ? (
+            {archestraMCPServer.status === 'connecting' ? (
               <div className="space-y-1 text-sm">
                 <div>Loading tools...</div>
               </div>
             ) : (
               <div className="space-y-1 text-sm">
                 {archestraMCPServer.tools.map((tool) => (
-                  <div key={tool.name}>• {tool.name} - {tool.description}</div>
+                  <div key={tool.name}>
+                    • {tool.name} - {tool.description}
+                  </div>
                 ))}
               </div>
             )}

@@ -1,7 +1,13 @@
-import React, { createContext, useContext, useCallback, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { useMCPServers } from "./mcp-servers-context";
-import { MCPServer, ServerConfig } from "../types";
+import React, {
+  createContext,
+  useContext,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { useMCPServers } from './mcp-servers-context';
+import { MCPServer, ServerConfig } from '../types';
 
 interface OAuthConfig {
   provider: string;
@@ -31,24 +37,46 @@ interface ConnectorCatalogContextType {
   errorInstallingMcpServer: string | null;
   uninstallingMcpServerName: string | null;
   errorUninstallingMcpServer: string | null;
-  installMcpServerFromConnectorCatalog: (mcpServer: ConnectorCatalogEntry) => void;
+  installMcpServerFromConnectorCatalog: (
+    mcpServer: ConnectorCatalogEntry,
+  ) => void;
   uninstallMcpServer: (mcpServerName: string) => void;
 }
 
-const ConnectorCatalogContext = createContext<ConnectorCatalogContextType | undefined>(undefined);
+const ConnectorCatalogContext = createContext<
+  ConnectorCatalogContextType | undefined
+>(undefined);
 
-export function ConnectorCatalogProvider({ children }: { children: React.ReactNode }) {
-  const { addMCPServerToInstalledMCPServers, removeMCPServerFromInstalledMCPServers } = useMCPServers();
+export function ConnectorCatalogProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const {
+    addMCPServerToInstalledMCPServers,
+    removeMCPServerFromInstalledMCPServers,
+  } = useMCPServers();
 
-  const [connectorCatalog, setConnectorCatalog] = useState<ConnectorCatalogEntry[]>([]);
+  const [connectorCatalog, setConnectorCatalog] = useState<
+    ConnectorCatalogEntry[]
+  >([]);
   const [loadingConnectorCatalog, setLoadingConnectorCatalog] = useState(false);
-  const [errorFetchingConnectorCatalog, setErrorFetchingConnectorCatalog] = useState<string | null>(null);
+  const [errorFetchingConnectorCatalog, setErrorFetchingConnectorCatalog] =
+    useState<string | null>(null);
 
-  const [installingMcpServerName, setInstallingMcpServerName] = useState<string | null>(null);
-  const [errorInstallingMcpServer, setErrorInstallingMcpServer] = useState<string | null>(null);
+  const [installingMcpServerName, setInstallingMcpServerName] = useState<
+    string | null
+  >(null);
+  const [errorInstallingMcpServer, setErrorInstallingMcpServer] = useState<
+    string | null
+  >(null);
 
-  const [uninstallingMcpServerName, setUninstallingMcpServerName] = useState<string | null>(null);
-  const [errorUninstallingMcpServer, setErrorUninstallingMcpServer] = useState<string | null>(null);
+  const [uninstallingMcpServerName, setUninstallingMcpServerName] = useState<
+    string | null
+  >(null);
+  const [errorUninstallingMcpServer, setErrorUninstallingMcpServer] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     (async () => {
@@ -59,8 +87,12 @@ export function ConnectorCatalogProvider({ children }: { children: React.ReactNo
          * Tools are pushed to the UI as the mcp servers are spun up and we are able to fetch
          * the avaible tools from the running mcp servers.
          */
-        const catalogData = await invoke<ConnectorCatalogEntry[]>("get_mcp_connector_catalog");
-        setConnectorCatalog(catalogData.map((entry) => ({ ...entry, tools: [] })));
+        const catalogData = await invoke<ConnectorCatalogEntry[]>(
+          'get_mcp_connector_catalog',
+        );
+        setConnectorCatalog(
+          catalogData.map((entry) => ({ ...entry, tools: [] })),
+        );
       } catch (error) {
         setErrorFetchingConnectorCatalog(error as string);
       } finally {
@@ -69,40 +101,48 @@ export function ConnectorCatalogProvider({ children }: { children: React.ReactNo
     })();
   }, []);
 
-  const installMcpServerFromConnectorCatalog = useCallback(async (mcpServer: ConnectorCatalogEntry) => {
-    const { oauth, title, id } = mcpServer;
+  const installMcpServerFromConnectorCatalog = useCallback(
+    async (mcpServer: ConnectorCatalogEntry) => {
+      const { oauth, title, id } = mcpServer;
 
-    try {
-      setInstallingMcpServerName(mcpServer.title);
+      try {
+        setInstallingMcpServerName(mcpServer.title);
 
-      // Check if OAuth is required
-      if (oauth?.required) {
-        try {
-          // Start OAuth flow
-          await invoke("start_oauth_auth", { service: id });
+        // Check if OAuth is required
+        if (oauth?.required) {
+          try {
+            // Start OAuth flow
+            await invoke('start_oauth_auth', { service: id });
 
-          // For OAuth connectors, the backend will handle the installation after successful auth
-          alert(`OAuth setup started for ${title}. Please complete the authentication in your browser.`);
-        } catch (error) {
-          setErrorInstallingMcpServer(error as string);
+            // For OAuth connectors, the backend will handle the installation after successful auth
+            alert(
+              `OAuth setup started for ${title}. Please complete the authentication in your browser.`,
+            );
+          } catch (error) {
+            setErrorInstallingMcpServer(error as string);
+          }
+        } else {
+          const result = await invoke<MCPServer>(
+            'save_mcp_server_from_catalog',
+            { connectorId: id },
+          );
+
+          addMCPServerToInstalledMCPServers(result);
         }
-      } else {
-        const result = await invoke<MCPServer>("save_mcp_server_from_catalog", { connectorId: id });
-
-        addMCPServerToInstalledMCPServers(result);
+      } catch (error) {
+        setErrorInstallingMcpServer(error as string);
+      } finally {
+        setInstallingMcpServerName(null);
       }
-    } catch (error) {
-      setErrorInstallingMcpServer(error as string);
-    } finally {
-      setInstallingMcpServerName(null);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const uninstallMcpServer = useCallback(async (mcpServerName: string) => {
     (async () => {
       try {
         setUninstallingMcpServerName(mcpServerName);
-        await invoke("uninstall_mcp_server", { name: mcpServerName });
+        await invoke('uninstall_mcp_server', { name: mcpServerName });
         removeMCPServerFromInstalledMCPServers(mcpServerName);
       } catch (error) {
         setErrorUninstallingMcpServer(error as string);
@@ -124,13 +164,19 @@ export function ConnectorCatalogProvider({ children }: { children: React.ReactNo
     uninstallMcpServer,
   };
 
-  return <ConnectorCatalogContext.Provider value={value}>{children}</ConnectorCatalogContext.Provider>;
+  return (
+    <ConnectorCatalogContext.Provider value={value}>
+      {children}
+    </ConnectorCatalogContext.Provider>
+  );
 }
 
 export function useConnectorCatalog() {
   const context = useContext(ConnectorCatalogContext);
   if (context === undefined) {
-    throw new Error('useConnectorCatalog must be used within a ConnectorCatalogProvider');
+    throw new Error(
+      'useConnectorCatalog must be used within a ConnectorCatalogProvider',
+    );
   }
   return context;
 }

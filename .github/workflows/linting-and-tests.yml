@@ -1,0 +1,48 @@
+name: Linting and Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  rust-linting-and-tests:
+    name: Rust Linting and Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+
+      - name: Check Rust formatting
+        working-directory: tauri/src-tauri
+        run: cargo fmt --check
+
+  frontend-linting-and-tests:
+    name: Frontend Linting and Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: tauri/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: tauri
+        run: pnpm install --frozen-lockfile
+
+      - name: Check TypeScript formatting
+        working-directory: tauri
+        run: pnpm prettier --check "src/**/*.{ts,tsx,js,jsx}"
