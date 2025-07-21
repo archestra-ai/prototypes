@@ -23,6 +23,20 @@ pnpm dev
 pnpm preview
 ```
 
+### Testing
+
+```bash
+# Run tests (Vitest in watch mode)
+pnpm test
+```
+
+### Code Formatting
+
+```bash
+# Format code with Prettier
+pnpm prettier
+```
+
 ### OAuth Proxy Service
 
 ```bash
@@ -39,9 +53,11 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 ### Tech Stack
 
 - **Frontend**: React 18 + TypeScript + Vite + TailwindCSS + shadcn/ui components
+- **State Management**: Zustand
 - **Backend**: Rust with Tauri framework, SeaORM for SQLite database
 - **Services**: Node.js OAuth proxy for handling OAuth flows
 - **AI Integration**: Ollama for local LLM support, MCP for tool integration
+- **Testing**: Vitest + React Testing Library
 
 ### Key Directories
 
@@ -50,22 +66,23 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `components/`: Reusable UI components
   - `ui/`: Base UI components (shadcn/ui style)
   - `kibo/`: AI-specific components (messages, code blocks, reasoning)
-  - `settings/`: Settings page components
-- `modules/`: Feature modules
-  - `chat/`: Chat interface and AI interactions
-  - `mcp-catalog/`: MCP server catalog
-  - `models/`: LLM model management
-- `services/`: API layer for backend communication
+- `pages/`: Main application pages
+  - `ChatPage/`: AI chat interface
+  - `ConnectorCatalogPage/`: MCP server catalog
+  - `LLMProvidersPage/`: LLM model management
+  - `SettingsPage/`: Application settings
+- `stores/`: Zustand stores for state management
 - `hooks/`: Custom React hooks including MCP client hooks
+- `lib/`: Utility functions and helpers
 
 #### Backend (`/src-tauri`)
 
-- `src/archestra_mcp_server/`: Custom MCP server implementation
 - `src/database/`: Database layer with SeaORM entities and migrations
-- `src/llm_providers/`: LLM integrations (Ollama)
 - `src/models/`: Business logic and data models
-  - `client_connection_config/`: MCP client configurations
-  - `mcp_server/`: MCP server models including OAuth and sandbox support
+  - `mcp_server/`: MCP server models including OAuth support
+  - `external_mcp_client/`: External MCP client configurations
+- `src/mcp_gateway/`: MCP gateway implementation
+- `src/ollama.rs`: Ollama integration
 - `binaries/`: Embedded Ollama binary for macOS
 - `sandbox-exec-profiles/`: macOS sandbox profiles for security
 
@@ -79,11 +96,12 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 
 ### Key Patterns
 
-- **State Management**: Uses React hooks and contexts for state
+- **State Management**: Uses Zustand stores in `/src/stores/`
 - **API Communication**: Tauri commands for frontend-backend communication
 - **Database**: SQLite with SeaORM for persistence
 - **Error Handling**: Comprehensive error types in Rust backend
 - **Type Safety**: Full TypeScript on frontend, strong typing in Rust
+- **Testing**: Component tests with Vitest and React Testing Library
 
 ### Development Notes
 
@@ -92,3 +110,5 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - MCP servers can be sandboxed for security on macOS
 - The app supports deep linking with `archestra-ai://` protocol
 - Single instance enforcement prevents multiple app instances
+- TypeScript path alias: `@/` maps to `./src/`
+- Pre-commit hooks run Prettier formatting via Husky
