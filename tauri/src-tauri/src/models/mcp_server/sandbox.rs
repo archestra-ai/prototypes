@@ -1,4 +1,4 @@
-use super::McpServerDefinition;
+use super::{McpServerDefinition, ServerConfig};
 use crate::database::connection::get_database_connection_with_app;
 use crate::models::mcp_server::Model;
 use crate::utils::node;
@@ -428,42 +428,45 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
         .await
         .map_err(|e| format!("Failed to connect to database: {}", e))?;
 
-    let servers = Model::load_installed_mcp_servers(&db)
+    let installed_mcp_servers = Model::load_installed_mcp_servers(&db)
         .await
         .map_err(|e| format!("Failed to load MCP servers: {}", e))?;
 
-    if servers.is_empty() {
-        println!("No persisted MCP servers found to start.");
+    if installed_mcp_servers.is_empty() {
+        println!("No installed MCP servers found to start.");
         return Ok(());
     }
 
-    println!("Found {} MCP servers to start", servers.len());
+    println!("Found {} MCP servers to start", installed_mcp_servers.len());
 
-    for (server_name, config) in servers {
-        let server_name_clone = server_name.clone();
-        let config_clone = config.clone();
+    for server in installed_mcp_servers {
+        let server_name = server.name.clone();
+
+        let config: ServerConfig = serde_json::from_str(&server.server_config)
+            .map_err(|e| format!("Failed to parse server config for {}: {}", server_name, e))?;
 
         println!(
             "🚀 Starting MCP server '{}' with persistent connection",
-            server_name_clone
+            server_name
         );
         println!(
             "📋 Server config - Command: '{}', Args: {:?}",
-            config_clone.server_config.command, config_clone.server_config.args
+            config.command, config.args
         );
 
         tauri::async_runtime::spawn(async move {
+            let name = server_name.clone();
             match MCP_SERVER_MANAGER
                 .start_server(
-                    server_name_clone,
-                    config_clone.server_config.command,
-                    config_clone.server_config.args,
-                    Some(config_clone.server_config.env),
+                    server_name.clone(),
+                    config.command,
+                    config.args,
+                    Some(config.env),
                 )
                 .await
             {
-                Ok(_) => println!("✅ MCP server '{}' started successfully", server_name),
-                Err(e) => eprintln!("❌ Failed to start MCP server '{}': {}", server_name, e),
+                Ok(_) => println!("✅ MCP server '{}' started successfully", name),
+                Err(e) => eprintln!("❌ Failed to start MCP server '{}': {}", name, e),
             }
         });
     }

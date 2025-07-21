@@ -27,7 +27,10 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
     connectorCatalog,
     loadingConnectorCatalog,
     installingMcpServer,
+    installedMcpServers,
+    uninstallingMcpServer,
     installMcpServerFromConnectorCatalog,
+    uninstallMcpServer,
   } = useConnectorCatalog();
 
   const getCategoryIcon = (category: string) => {
@@ -70,7 +73,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
               {connectorCatalog.map((mcpServer) => {
                 const { id, title, description, category, server_config, oauth } = mcpServer;
 
-                const isInstalled = connectorCatalog.some((server) => server.id === id);
+                const isInstalled = installedMcpServers.some((server) => server.name === title);
                 const isInstalling = installingMcpServer?.id === id;
 
                 return (
@@ -116,35 +119,52 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                             </div>
                           </div>
                         </div>
-                        <div className="flex justify-end">
-                          <Button
-                            size="sm"
-                            onClick={() => installMcpServerFromConnectorCatalog(mcpServer)}
-                            disabled={isInstalled || isInstalling}
-                            className="flex items-center gap-2"
-                          >
-                            {isInstalling ? (
-                              <>
-                                <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                                Installing...
-                              </>
-                            ) : isInstalled ? (
-                              <>
-                                <CheckCircle className="h-3 w-3" />
-                                Installed
-                              </>
-                            ) : oauth?.required ? (
-                              <>
-                                <Settings className="h-4 w-4" />
-                                Setup OAuth
-                              </>
-                            ) : (
-                              <>
-                                <Download className="h-4 w-4" />
-                                Install
-                              </>
-                            )}
-                          </Button>
+                        <div className="flex justify-end gap-2">
+                          {isInstalled ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => uninstallMcpServer(title)}
+                              disabled={uninstallingMcpServer}
+                              className="flex items-center gap-2"
+                            >
+                              {uninstallingMcpServer ? (
+                                <>
+                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                  Uninstalling...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="h-3 w-3" />
+                                  Uninstall
+                                </>
+                              )}
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => installMcpServerFromConnectorCatalog(mcpServer)}
+                              disabled={isInstalling}
+                              className="flex items-center gap-2"
+                            >
+                              {isInstalling ? (
+                                <>
+                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                  Installing...
+                                </>
+                              ) : oauth?.required ? (
+                                <>
+                                  <Settings className="h-4 w-4" />
+                                  Setup OAuth
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="h-4 w-4" />
+                                  Install
+                                </>
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>

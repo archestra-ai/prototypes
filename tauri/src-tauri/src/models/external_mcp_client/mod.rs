@@ -382,6 +382,9 @@ pub async fn disconnect_external_mcp_client(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::database::migration::Migrator;
+    use sea_orm_migration::MigratorTrait;
+    use tempfile::NamedTempFile;
 
     #[tokio::test]
     async fn test_save_external_mcp_client() {
@@ -389,8 +392,6 @@ mod tests {
         let db = sea_orm::Database::connect("sqlite::memory:").await.unwrap();
 
         // Run migrations
-        use crate::database::migration::Migrator;
-        use sea_orm_migration::MigratorTrait;
         Migrator::up(&db, None).await.unwrap();
 
         let result = Model::save_external_mcp_client(
@@ -451,7 +452,6 @@ mod tests {
 
     #[test]
     fn test_read_config_file_nonexistent() {
-        use std::path::PathBuf;
         let nonexistent_path = PathBuf::from("/tmp/nonexistent_config.json");
         let result = read_config_file(&nonexistent_path);
 
@@ -463,8 +463,6 @@ mod tests {
 
     #[test]
     fn test_write_config_file() {
-        use tempfile::NamedTempFile;
-
         // Create a temporary file for the config
         let temp_file = NamedTempFile::new().unwrap();
         let config_path = temp_file.path().to_path_buf();
@@ -492,8 +490,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_config_file_operations() {
-        use tempfile::NamedTempFile;
-
         // Create a temporary file for the config
         let temp_file = NamedTempFile::new().unwrap();
         let config_path = temp_file.path().to_path_buf();
@@ -548,8 +544,6 @@ mod tests {
 
     #[test]
     fn test_disconnect_client_removes_archestra_servers() {
-        use tempfile::NamedTempFile;
-
         // Create a temporary file for the config
         let temp_file = NamedTempFile::new().unwrap();
         let config_path = temp_file.path().to_path_buf();

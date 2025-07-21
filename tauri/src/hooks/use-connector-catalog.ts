@@ -112,9 +112,8 @@ export function useConnectorCatalog() {
           setErrorInstallingMcpServer(error as string);
         }
       } else {
-        await invoke("save_mcp_server_from_catalog", { connectorId: id });
-
-        setConnectorCatalog((prev) => [...prev, { ...mcpServer, tools: [] }]);
+        const result = await invoke<McpServer>("save_mcp_server_from_catalog", { connectorId: id });
+        setInstalledMcpServers((prev) => [...prev, { ...result, tools: [] }]);
       }
     } catch (error) {
       setErrorInstallingMcpServer(error as string);
@@ -128,6 +127,7 @@ export function useConnectorCatalog() {
       try {
         setUninstallingMcpServer(true);
         await invoke("uninstall_mcp_server", { name: mcpServerName });
+        setInstalledMcpServers((prev) => prev.filter((mcpServer) => mcpServer.name !== mcpServerName));
       } catch (error) {
         setErrorUninstallingMcpServer(error as string);
       } finally {
