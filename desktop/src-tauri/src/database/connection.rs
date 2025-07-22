@@ -58,28 +58,3 @@ pub async fn init_database(app: &tauri::AppHandle) -> Result<DatabaseConnection,
 
     Ok(db)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::database::migration::Migrator;
-
-    #[tokio::test]
-    async fn test_in_memory_database() {
-        // Test SeaORM with in-memory SQLite as recommended in the docs
-        let db = Database::connect("sqlite::memory:").await.unwrap();
-
-        // Run migrations on in-memory database
-        Migrator::up(&db, None).await.unwrap();
-
-        // Verify tables were created by trying to query them
-        use sea_orm::EntityTrait;
-        let result = crate::models::external_mcp_client::Entity::find()
-            .all(&db)
-            .await;
-        assert!(result.is_ok());
-
-        let result = crate::models::mcp_server::Entity::find().all(&db).await;
-        assert!(result.is_ok());
-    }
-}

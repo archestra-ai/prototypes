@@ -1,4 +1,4 @@
-use crate::models::mcp_server::{sandbox::forward_raw_request, Model as McpServerModel};
+use crate::models::mcp_server::{sandbox::forward_raw_request, Model as MCPServerModel};
 use axum::{body::Body, extract::Path, routing::post, Router};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
@@ -15,7 +15,7 @@ use rmcp::{
     transport::streamable_http_server::{
         session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
     },
-    ErrorData as McpError, RoleServer, ServerHandler,
+    ErrorData as MCPError, RoleServer, ServerHandler,
 };
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 // Fixed port for MCP server
-const MCP_SERVER_PORT: u16 = 54587;
+pub const MCP_SERVER_PORT: u16 = 54587;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArchestraContext {
@@ -106,7 +106,7 @@ async fn handle_proxy_request(
     };
 
     println!("🔄 Forwarding request to forward_raw_request function...");
-    // Forward the raw JSON-RPC request to the McpServerManager
+    // Forward the raw JSON-RPC request to the MCPServerManager
     match forward_raw_request(&server_name, request_body).await {
         Ok(raw_response) => {
             println!("✅ Successfully received response from server '{server_name}'");
@@ -181,7 +181,7 @@ impl MCPGateway {
     }
 
     #[tool(description = "Get the current Archestra context")]
-    async fn get_context(&self) -> Result<CallToolResult, McpError> {
+    async fn get_context(&self) -> Result<CallToolResult, MCPError> {
         println!("Getting context");
 
         let context = self.context.lock().await;
@@ -194,7 +194,7 @@ impl MCPGateway {
     async fn update_context(
         &self,
         Parameters(UpdateContextRequest { key, value }): Parameters<UpdateContextRequest>,
-    ) -> Result<CallToolResult, McpError> {
+    ) -> Result<CallToolResult, MCPError> {
         println!("Updating context: {key} = {value}");
 
         let mut context = self.context.lock().await;
@@ -208,7 +208,7 @@ impl MCPGateway {
     async fn set_active_models(
         &self,
         Parameters(SetActiveModelsRequest { models }): Parameters<SetActiveModelsRequest>,
-    ) -> Result<CallToolResult, McpError> {
+    ) -> Result<CallToolResult, MCPError> {
         println!("Setting active models: {models:?}");
 
         let mut context = self.context.lock().await;
@@ -219,10 +219,10 @@ impl MCPGateway {
     }
 
     #[tool(description = "List all installed MCP servers that can be proxied")]
-    async fn list_installed_mcp_servers(&self) -> Result<CallToolResult, McpError> {
+    async fn list_installed_mcp_servers(&self) -> Result<CallToolResult, MCPError> {
         println!("Listing installed MCP servers");
 
-        match McpServerModel::load_installed_mcp_servers(&self.db).await {
+        match MCPServerModel::load_installed_mcp_servers(&self.db).await {
             Ok(servers) => {
                 let server_list: Vec<_> = servers
                     .into_iter()
@@ -255,12 +255,56 @@ impl MCPGateway {
             }
             Err(e) => {
                 println!("Failed to load MCP servers: {e}");
-                Err(McpError::internal_error(
+                Err(MCPError::internal_error(
                     format!("Failed to load MCP servers: {e}"),
                     None,
                 ))
             }
         }
+    }
+
+    pub async fn start_mcp_gateway(
+        user_id: String,
+        db: DatabaseConnection,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let addr = SocketAddr::from(([127, 0, 0, 1], MCP_SERVER_PORT));
+
+        // Configure StreamableHTTP server for MCP
+        let config = StreamableHttpServerConfig {
+            sse_keep_alive: Some(std::time::Duration::from_secs(30)),
+            stateful_mode: true, // Enable stateful mode for session management
+        };
+
+        // Create StreamableHTTP service with a factory closure
+        let db_for_closure = Arc::new(db);
+        let streamable_service = StreamableHttpService::new(
+            move || Ok(MCPGateway::new(user_id.clone(), (*db_for_closure).clone())),
+            Arc::new(LocalSessionManager::default()),
+            config,
+        );
+
+        // Convert to axum service
+        let mcp_service = axum::routing::any_service(streamable_service);
+
+        // Create main router
+        let app = Router::new()
+            .route("/proxy/{server_name}", post(handle_proxy_request))
+            .route("/mcp", mcp_service);
+
+        let listener = TcpListener::bind(addr).await?;
+
+        println!("MCP Gateway started successfully on http://{addr}");
+        println!("  - MCP endpoint (streamable HTTP): http://{addr}/mcp");
+        println!("  - Proxy endpoints: http://{addr}/proxy/<server_name>");
+
+        let server = axum::serve(listener, app);
+
+        if let Err(e) = server.await {
+            eprintln!("Server error: {e}");
+        }
+
+        println!("Server has been shut down");
+        Ok(())
     }
 }
 
@@ -282,7 +326,7 @@ impl ServerHandler for MCPGateway {
         &self,
         _request: Option<PaginatedRequestParam>,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ListResourcesResult, McpError> {
+    ) -> Result<ListResourcesResult, MCPError> {
         let resources = self.resources.lock().await;
         let resource_list: Vec<Resource> = resources
             .values()
@@ -308,7 +352,7 @@ impl ServerHandler for MCPGateway {
         &self,
         request: ReadResourceRequestParam,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ReadResourceResult, McpError> {
+    ) -> Result<ReadResourceResult, MCPError> {
         if let Some(resource_id) = request.uri.strip_prefix("archestra://") {
             let resources = self.resources.lock().await;
             if let Some(resource) = resources.get(resource_id) {
@@ -320,13 +364,13 @@ impl ServerHandler for MCPGateway {
                     }],
                 })
             } else {
-                Err(McpError::invalid_params(
+                Err(MCPError::invalid_params(
                     format!("Resource not found: {resource_id}"),
                     None,
                 ))
             }
         } else {
-            Err(McpError::invalid_params("Invalid resource URI", None))
+            Err(MCPError::invalid_params("Invalid resource URI", None))
         }
     }
 
@@ -334,7 +378,7 @@ impl ServerHandler for MCPGateway {
         &self,
         _request: Option<PaginatedRequestParam>,
         _: RequestContext<RoleServer>,
-    ) -> Result<ListPromptsResult, McpError> {
+    ) -> Result<ListPromptsResult, MCPError> {
         Ok(ListPromptsResult {
             next_cursor: None,
             prompts: vec![Prompt::new(
@@ -353,13 +397,13 @@ impl ServerHandler for MCPGateway {
         &self,
         GetPromptRequestParam { name, arguments }: GetPromptRequestParam,
         _: RequestContext<RoleServer>,
-    ) -> Result<GetPromptResult, McpError> {
+    ) -> Result<GetPromptResult, MCPError> {
         match name.as_str() {
             "example_prompt" => {
                 let message = arguments
                     .and_then(|json| json.get("message")?.as_str().map(|s| s.to_string()))
                     .ok_or_else(|| {
-                        McpError::invalid_params("No message provided to example_prompt", None)
+                        MCPError::invalid_params("No message provided to example_prompt", None)
                     })?;
 
                 let prompt =
@@ -372,90 +416,33 @@ impl ServerHandler for MCPGateway {
                     }],
                 })
             }
-            _ => Err(McpError::invalid_params("prompt not found", None)),
+            _ => Err(MCPError::invalid_params("prompt not found", None)),
         }
     }
-}
-
-pub async fn start_mcp_gateway(
-    user_id: String,
-    db: DatabaseConnection,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], MCP_SERVER_PORT));
-
-    // Configure StreamableHTTP server for MCP
-    let config = StreamableHttpServerConfig {
-        sse_keep_alive: Some(std::time::Duration::from_secs(30)),
-        stateful_mode: true, // Enable stateful mode for session management
-    };
-
-    // Create StreamableHTTP service with a factory closure
-    let db_for_closure = Arc::new(db);
-    let streamable_service = StreamableHttpService::new(
-        move || Ok(MCPGateway::new(user_id.clone(), (*db_for_closure).clone())),
-        Arc::new(LocalSessionManager::default()),
-        config,
-    );
-
-    // Convert to axum service
-    let mcp_service = axum::routing::any_service(streamable_service);
-
-    // Create main router
-    let app = Router::new()
-        .route("/proxy/{server_name}", post(handle_proxy_request))
-        .route("/mcp", mcp_service);
-
-    let listener = TcpListener::bind(addr).await?;
-
-    println!("MCP Gateway started successfully on http://{addr}");
-    println!("  - MCP endpoint (streamable HTTP): http://{addr}/mcp");
-    println!("  - Proxy endpoints: http://{addr}/proxy/<server_name>");
-
-    let server = axum::serve(listener, app);
-
-    if let Err(e) = server.await {
-        eprintln!("Server error: {e}");
-    }
-
-    println!("Server has been shut down");
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::body::Body;
-    use axum::http::{Request, StatusCode};
-    use serde_json::json;
+    use crate::test_fixtures::database;
+    use rstest::*;
     use std::net::{IpAddr, Ipv4Addr};
-    use tower::util::ServiceExt;
 
-    // Helper function to create a test server instance
-    async fn create_test_server() -> MCPGateway {
-        use sea_orm::Database;
-        let db = Database::connect("sqlite::memory:").await.unwrap();
-
-        // Run migrations on in-memory database
-        use crate::database::migration::Migrator;
-        use sea_orm_migration::MigratorTrait;
-        Migrator::up(&db, None).await.unwrap();
-
-        MCPGateway::new("test_user_123".to_string(), db)
-    }
-
-    // Test server creation and initialization
-    #[tokio::test]
-    async fn test_server_creation() {
-        let server = create_test_server().await;
-        // Server should be created successfully with default resources
-        let _ = server; // Ensure server is created without panic
+    #[fixture]
+    async fn mcp_gateway_and_db(
+        #[future] database: DatabaseConnection,
+    ) -> (MCPGateway, DatabaseConnection) {
+        let db = database.await;
+        let gateway = MCPGateway::new("test_user_123".to_string(), db.clone());
+        (gateway, db)
     }
 
     // Test server info
+    #[rstest]
     #[tokio::test]
-    async fn test_server_info() {
-        let server = create_test_server().await;
-        let info = server.get_info();
+    async fn test_server_info(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+        let (mcp_gateway, _) = mcp_gateway_and_db.await;
+        let info = <MCPGateway as ServerHandler>::get_info(&mcp_gateway);
 
         assert_eq!(info.protocol_version, ProtocolVersion::V_2025_03_26);
         assert!(info.capabilities.tools.is_some());
@@ -465,20 +452,15 @@ mod tests {
     }
 
     // Test startup of the MCP server
+    #[rstest]
     #[tokio::test]
-    async fn test_server_startup() {
+    async fn test_server_startup(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+        let (_mcp_gateway, db) = mcp_gateway_and_db.await;
         let user_id = "test_user".to_string();
-
-        // Create in-memory database
-        use sea_orm::Database;
-        let db = Database::connect("sqlite::memory:").await.unwrap();
-        use crate::database::migration::Migrator;
-        use sea_orm_migration::MigratorTrait;
-        Migrator::up(&db, None).await.unwrap();
 
         // Start server in a background task
         let server_task = tokio::spawn(async move {
-            let result = start_mcp_gateway(user_id, db).await;
+            let result = MCPGateway::start_mcp_gateway(user_id, db).await;
             // Server should run until cancelled
             assert!(result.is_ok() || result.is_err());
         });
@@ -499,11 +481,12 @@ mod tests {
     }
 
     // Test get_context tool
+    #[rstest]
     #[tokio::test]
-    async fn test_get_context_tool() {
-        let server = create_test_server().await;
+    async fn test_get_context_tool(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+        let (gateway, _) = mcp_gateway_and_db.await;
 
-        let result = server.get_context().await;
+        let result = gateway.get_context().await;
         assert!(result.is_ok());
 
         let tool_result = result.unwrap();
@@ -524,9 +507,12 @@ mod tests {
     }
 
     // Test update_context tool
+    #[rstest]
     #[tokio::test]
-    async fn test_update_context_tool() {
-        let server = create_test_server().await;
+    async fn test_update_context_tool(
+        #[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection),
+    ) {
+        let (gateway, _) = mcp_gateway_and_db.await;
 
         // Update context with a key-value pair
         let params = UpdateContextRequest {
@@ -534,11 +520,11 @@ mod tests {
             value: "production".to_string(),
         };
 
-        let result = server.update_context(Parameters(params)).await;
+        let result = gateway.update_context(Parameters(params)).await;
         assert!(result.is_ok());
 
         // Verify the context was updated
-        let context = server.context.lock().await;
+        let context = gateway.context.lock().await;
         assert_eq!(
             context.project_context.get("environment"),
             Some(&"production".to_string())
@@ -546,80 +532,46 @@ mod tests {
     }
 
     // Test set_active_models tool
+    #[rstest]
     #[tokio::test]
-    async fn test_set_active_models_tool() {
-        let server = create_test_server().await;
+    async fn test_set_active_models_tool(
+        #[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection),
+    ) {
+        let (gateway, _) = mcp_gateway_and_db.await;
 
         let params = SetActiveModelsRequest {
             models: vec!["gpt-4".to_string(), "claude-3-opus".to_string()],
         };
 
-        let result = server.set_active_models(Parameters(params)).await;
+        let result = gateway.set_active_models(Parameters(params)).await;
         assert!(result.is_ok());
 
         // Verify models were set
-        let context = server.context.lock().await;
+        let context = gateway.context.lock().await;
         assert_eq!(context.active_models.len(), 2);
         assert_eq!(context.active_models[0], "gpt-4");
         assert_eq!(context.active_models[1], "claude-3-opus");
     }
 
-    // Test proxy endpoint
-    #[tokio::test]
-    async fn test_proxy_endpoint() {
-        // Note: This test will fail if forward_raw_request is not properly mocked
-        // In a real test environment, you'd want to mock the forward_raw_request function
-
-        let app = Router::new().route(
-            "/proxy/{server_name}",
-            axum::routing::post(handle_proxy_request),
-        );
-
-        let json_rpc_request = json!({
-            "jsonrpc": "2.0",
-            "method": "test_method",
-            "params": {},
-            "id": 1
-        });
-
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/proxy/test_server")
-                    .header("Content-Type", "application/json")
-                    .body(Body::from(
-                        serde_json::to_string(&json_rpc_request).unwrap(),
-                    ))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        // The actual behavior depends on the forward_raw_request implementation
-        // For now, we just check that the endpoint exists and responds
-        assert!(
-            response.status() == StatusCode::OK
-                || response.status() == StatusCode::INTERNAL_SERVER_ERROR
-        );
-    }
-
     // Test concurrent context updates
+    #[rstest]
     #[tokio::test]
-    async fn test_concurrent_context_updates() {
-        let server = Arc::new(create_test_server().await);
+    async fn test_concurrent_context_updates(
+        #[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection),
+    ) {
+        let (gateway, _) = mcp_gateway_and_db.await;
 
         // Spawn multiple tasks that update context concurrently
         let mut handles = vec![];
 
         for i in 0..10 {
-            let server_clone = Arc::clone(&server);
+            let gateway_clone = gateway.clone();
             let handle = tokio::spawn(async move {
                 let params = UpdateContextRequest {
                     key: format!("key_{i}"),
                     value: format!("value_{i}"),
                 };
-                server_clone.update_context(Parameters(params)).await
+                gateway_clone.update_context(Parameters(params)).await
             });
             handles.push(handle);
         }
@@ -631,7 +583,7 @@ mod tests {
         }
 
         // Verify all updates were applied
-        let context = server.context.lock().await;
+        let context = gateway.context.lock().await;
         for i in 0..10 {
             assert_eq!(
                 context.project_context.get(&format!("key_{i}")),
@@ -641,11 +593,14 @@ mod tests {
     }
 
     // Test list_installed_mcp_servers tool
+    #[rstest]
     #[tokio::test]
-    async fn test_list_installed_mcp_servers_tool() {
-        let server = create_test_server().await;
+    async fn test_list_installed_mcp_servers_tool(
+        #[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection),
+    ) {
+        let (gateway, _) = mcp_gateway_and_db.await;
 
-        let result = server.list_installed_mcp_servers().await;
+        let result = gateway.list_installed_mcp_servers().await;
         assert!(result.is_ok());
 
         let tool_result = result.unwrap();

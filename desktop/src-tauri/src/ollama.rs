@@ -13,7 +13,7 @@ pub async fn start_ollama_server_on_startup(app_handle: tauri::AppHandle) -> Res
 
     let sidecar_result = app_handle
         .shell()
-        .sidecar("ollama")
+        .sidecar("ollama-v0.9.6")
         .map_err(|e| format!("Failed to get sidecar: {e:?}"))?
         .env("OLLAMA_HOST", format!("127.0.0.1:{port}"))
         .env("OLLAMA_DEBUG", "0")

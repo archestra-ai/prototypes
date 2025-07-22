@@ -232,7 +232,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         mcpToolsCount: installedMCPServers.length,
         modelSupportsTools,
         model,
-        willUseMcpTools: installedMCPServers.length > 0 && modelSupportsTools,
+        willUseMCPTools: installedMCPServers.length > 0 && modelSupportsTools,
       });
 
       // Add warning if tools are available but model doesn't support them

@@ -1,4 +1,5 @@
 use crate::database::connection::get_database_connection_with_app;
+use crate::models::external_mcp_client::Model as ExternalMCPClient;
 use sea_orm::entity::prelude::*;
 use sea_orm::{DeleteResult, Set};
 use serde::{Deserialize, Serialize};
@@ -33,7 +34,7 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct McpServerDefinition {
+pub struct MCPServerDefinition {
     pub name: String,
     pub server_config: ServerConfig,
     pub meta: Option<serde_json::Value>,
@@ -65,7 +66,7 @@ impl Model {
     /// Save an MCP server definition to the database (without starting it)
     pub async fn save_server_without_lifecycle(
         db: &DatabaseConnection,
-        definition: &McpServerDefinition,
+        definition: &MCPServerDefinition,
     ) -> Result<Model, DbErr> {
         let server_config_json = serde_json::to_string(&definition.server_config)
             .map_err(|e| DbErr::Custom(format!("Failed to serialize server_config: {e}")))?;
@@ -98,10 +99,10 @@ impl Model {
             .await
     }
 
-    /// Save an MCP server definition to the database and start it
+    /// Save an MCP server definition to the database, start it and sync all connected external MCP clients
     pub async fn save_server(
         db: &DatabaseConnection,
-        definition: &McpServerDefinition,
+        definition: &MCPServerDefinition,
     ) -> Result<Model, DbErr> {
         // Check if server exists to determine if this is an update
         let existing_server = Self::find_by_name(db, &definition.name).await?;
@@ -123,6 +124,11 @@ impl Model {
             // Don't fail the save operation, but log the error
         }
 
+        // Sync all connected external MCP clients
+        ExternalMCPClient::sync_all_connected_external_mcp_clients(db)
+            .await
+            .map_err(DbErr::Custom)?;
+
         Ok(result)
     }
 
@@ -131,26 +137,36 @@ impl Model {
         Entity::find().all(db).await
     }
 
-    /// Uninstall an MCP server - stop its process running in the sandbox and delete it from the database
+    /// Uninstall an MCP server - stop its process running in the sandbox, delete it from the database and sync all connected external MCP clients
     pub async fn uninstall_mcp_server(
         db: &DatabaseConnection,
         server_name: &str,
     ) -> Result<DeleteResult, DbErr> {
-        // Stop the server before deleting.. if there's an error stopping the server
-        // that's fine, we don't want to block the uninstallation
-        let _ = sandbox::stop_mcp_server(server_name).await;
+        // Stop the server, in the background, before deleting
+        // if there's an error stopping the server, that's fine (for now)
+        let server_name_for_bg = server_name.to_string();
+        tokio::spawn(async move {
+            let _ = sandbox::stop_mcp_server(&server_name_for_bg).await;
+        });
 
-        Entity::delete_many()
+        let delete_result = Entity::delete_many()
             .filter(Column::Name.eq(server_name))
             .exec(db)
+            .await?;
+
+        // Sync all connected external MCP clients
+        ExternalMCPClient::sync_all_connected_external_mcp_clients(db)
             .await
+            .map_err(DbErr::Custom)?;
+
+        Ok(delete_result)
     }
 
     /// Find an MCP server by name
     pub async fn find_by_name(
         db: &DatabaseConnection,
         server_name: &str,
-    ) -> Result<Option<McpServerDefinition>, DbErr> {
+    ) -> Result<Option<MCPServerDefinition>, DbErr> {
         let model = Entity::find()
             .filter(Column::Name.eq(server_name))
             .one(db)
@@ -169,7 +185,7 @@ impl Model {
                 None
             };
 
-            Ok(Some(McpServerDefinition {
+            Ok(Some(MCPServerDefinition {
                 name: model.name,
                 server_config,
                 meta,
@@ -179,8 +195,8 @@ impl Model {
         }
     }
 
-    /// Convert a Model to McpServerDefinition
-    pub fn to_definition(self) -> Result<McpServerDefinition, String> {
+    /// Convert a Model to MCPServerDefinition
+    pub fn to_definition(self) -> Result<MCPServerDefinition, String> {
         let server_config: ServerConfig = serde_json::from_str(&self.server_config)
             .map_err(|e| format!("Failed to parse server_config: {e}"))?;
 
@@ -193,7 +209,7 @@ impl Model {
             None
         };
 
-        Ok(McpServerDefinition {
+        Ok(MCPServerDefinition {
             name: self.name,
             server_config,
             meta,
@@ -201,8 +217,8 @@ impl Model {
     }
 }
 
-impl From<McpServerDefinition> for ActiveModel {
-    fn from(definition: McpServerDefinition) -> Self {
+impl From<MCPServerDefinition> for ActiveModel {
+    fn from(definition: MCPServerDefinition) -> Self {
         let meta_json = definition
             .meta
             .map(|meta| serde_json::to_string(&meta).unwrap_or_default());
@@ -221,7 +237,7 @@ impl From<McpServerDefinition> for ActiveModel {
 pub async fn save_mcp_server_from_catalog(
     app: tauri::AppHandle,
     connector_id: String,
-) -> Result<McpServerDefinition, String> {
+) -> Result<MCPServerDefinition, String> {
     // Load the catalog
     let catalog = get_mcp_connector_catalog().await?;
 
@@ -235,7 +251,7 @@ pub async fn save_mcp_server_from_catalog(
         .await
         .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
-    let definition = McpServerDefinition {
+    let definition = MCPServerDefinition {
         name: connector.title.clone(),
         server_config: connector.server_config.clone(),
         meta: None,
@@ -251,7 +267,7 @@ pub async fn save_mcp_server_from_catalog(
 #[tauri::command]
 pub async fn load_installed_mcp_servers(
     app: tauri::AppHandle,
-) -> Result<Vec<McpServerDefinition>, String> {
+) -> Result<Vec<MCPServerDefinition>, String> {
     let db = get_database_connection_with_app(&app)
         .await
         .map_err(|e| format!("Failed to connect to database: {e}"))?;
@@ -290,16 +306,13 @@ pub async fn get_mcp_connector_catalog() -> Result<Vec<ConnectorCatalogEntry>, S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::migration::Migrator;
-    use sea_orm_migration::MigratorTrait;
+    use crate::test_fixtures::database;
+    use rstest::*;
 
+    #[rstest]
     #[tokio::test]
-    async fn test_save_server() {
-        // Use in-memory database for testing
-        let db = sea_orm::Database::connect("sqlite::memory:").await.unwrap();
-
-        // Run migrations
-        Migrator::up(&db, None).await.unwrap();
+    async fn test_save_server(#[future] database: DatabaseConnection) {
+        let db = database.await;
 
         let server_config = ServerConfig {
             transport: "stdio".to_string(),
@@ -308,7 +321,7 @@ mod tests {
             env: HashMap::new(),
         };
 
-        let definition = McpServerDefinition {
+        let definition = MCPServerDefinition {
             name: "test_server".to_string(),
             server_config,
             meta: None,

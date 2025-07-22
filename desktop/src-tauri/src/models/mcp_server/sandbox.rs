@@ -1,8 +1,9 @@
-use super::{McpServerDefinition, ServerConfig};
+use super::{MCPServerDefinition, ServerConfig};
 use crate::database::connection::get_database_connection_with_app;
 use crate::models::mcp_server::Model;
 use crate::utils::node;
-use rmcp::model::{JsonRpcResponse, Resource as McpResource, Tool as McpTool};
+use rmcp::model::{JsonRpcMessage, JsonRpcNotification, JsonRpcResponse, Resource as MCPResource, Tool as MCPTool};
+
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::process::Stdio;
@@ -41,13 +42,13 @@ pub struct ResponseEntry {
 }
 
 #[derive(Debug)]
-pub struct McpServer {
+pub struct MCPServer {
     pub name: String,
     pub command: String,
     pub args: Vec<String>,
     pub server_type: ServerType,
-    pub tools: Vec<McpTool>,
-    pub resources: Vec<McpResource>,
+    pub tools: Vec<MCPTool>,
+    pub resources: Vec<MCPResource>,
     pub stdin_tx: Option<mpsc::Sender<String>>,
     pub response_buffer: Arc<TokioMutex<VecDeque<ResponseEntry>>>,
     pub process_handle: Option<Arc<TokioMutex<Child>>>,
@@ -56,18 +57,18 @@ pub struct McpServer {
 }
 
 /// Manages MCP server processes and their lifecycle
-pub struct McpServerManager {
-    servers: Arc<RwLock<HashMap<String, McpServer>>>,
+pub struct MCPServerManager {
+    servers: Arc<RwLock<HashMap<String, MCPServer>>>,
     http_client: reqwest::Client,
 }
 
-impl Default for McpServerManager {
+impl Default for MCPServerManager {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl McpServerManager {
+impl MCPServerManager {
     pub fn new() -> Self {
         let http_client = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
@@ -241,7 +242,7 @@ impl McpServerManager {
         });
 
         // Create server instance
-        let server = McpServer {
+        let server = MCPServer {
             name: name.clone(),
             command: actual_command,
             args: actual_args,
@@ -280,7 +281,7 @@ impl McpServerManager {
 
         println!("🌐 Starting HTTP MCP server '{name}' at URL: {url}");
 
-        let server = McpServer {
+        let server = MCPServer {
             name: name.clone(),
             command: "http".to_string(),
             args: vec![url.clone()],
@@ -480,39 +481,48 @@ impl McpServerManager {
 
                     if let Some(entry) = buffer.pop_front() {
                         println!("📨 Processing buffer entry: {}", entry.content);
-                        if let Ok(response) =
-                            serde_json::from_str::<JsonRpcResponse>(&entry.content)
-                        {
-                            println!("✅ Parsed JSON-RPC response with ID: {:?}", response.id);
+                        if let Ok(message) = serde_json::from_str::<JsonRpcMessage<serde_json::Value, serde_json::Value, serde_json::Value>>(&entry.content) {
+                            match message {
+                                JsonRpcMessage::Response(response) => {
+                                    println!("✅ Parsed JSON-RPC response with ID: {:?}", response.id);
 
-                            // Convert request.id to match response.id format for comparison
-                            let ids_match = match &request.id {
-                                Some(req_id) => {
-                                    // Convert serde_json::Value to string for comparison
-                                    match req_id {
-                                        serde_json::Value::Number(n) => {
-                                            response.id.to_string() == n.to_string()
+                                    // Convert request.id to match response.id format for comparison
+                                    let ids_match = match &request.id {
+                                        Some(req_id) => {
+                                            // Convert serde_json::Value to string for comparison
+                                            match req_id {
+                                                serde_json::Value::Number(n) => {
+                                                    response.id.to_string() == n.to_string()
+                                                }
+                                                serde_json::Value::String(s) => {
+                                                    response.id.to_string() == *s
+                                                }
+                                                _ => response.id.to_string() == *req_id,
+                                            }
                                         }
-                                        serde_json::Value::String(s) => {
-                                            response.id.to_string() == *s
-                                        }
-                                        _ => response.id.to_string() == *req_id,
+                                        None => false, // Should not happen since we checked earlier
+                                    };
+
+                                    if ids_match {
+                                        println!("🎯 Found matching response for ID: {:?}", request.id);
+                                        return Ok(entry.content);
+                                    } else {
+                                        println!(
+                                            "🔄 Response ID {:?} doesn't match request ID {:?}",
+                                            response.id, request.id
+                                        );
                                     }
                                 }
-                                None => false, // Should not happen since we checked earlier
-                            };
-
-                            if ids_match {
-                                println!("🎯 Found matching response for ID: {:?}", request.id);
-                                return Ok(entry.content);
-                            } else {
-                                println!(
-                                    "🔄 Response ID {:?} doesn't match request ID {:?}",
-                                    response.id, request.id
-                                );
+                                JsonRpcMessage::Notification(_notification) => {
+                                    println!("🔔 Skipping JSON-RPC notification (no response expected): {}", entry.content);
+                                    continue; // Skip notifications and continue processing next entry
+                                }
+                                _ => {
+                                    println!("🔄 Skipping non-response JSON-RPC message: {}", entry.content);
+                                }
                             }
                         } else {
-                            println!("❌ Failed to parse response as JSON-RPC: {}", entry.content);
+                            println!("❌ Failed to parse message as JSON-RPC: {}", entry.content);
                         }
                         // Put it back if it's not our response
                         buffer.push_front(entry);
@@ -528,7 +538,7 @@ impl McpServerManager {
 
 // Create a global instance of the manager
 lazy_static::lazy_static! {
-    static ref MCP_SERVER_MANAGER: McpServerManager = McpServerManager::new();
+    static ref MCP_SERVER_MANAGER: MCPServerManager = MCPServerManager::new();
 }
 
 /// Start all configured MCP servers using the global manager
@@ -584,7 +594,7 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
 }
 
 /// Start an MCP server using the global manager
-pub async fn start_mcp_server(definition: &McpServerDefinition) -> Result<(), String> {
+pub async fn start_mcp_server(definition: &MCPServerDefinition) -> Result<(), String> {
     MCP_SERVER_MANAGER
         .start_server(
             definition.name.clone(),

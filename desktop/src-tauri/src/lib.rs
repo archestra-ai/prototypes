@@ -7,6 +7,9 @@ pub mod models;
 pub mod ollama;
 pub mod utils;
 
+#[cfg(test)]
+pub mod test_fixtures;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default().plugin(tauri_plugin_http::init());
@@ -75,8 +78,21 @@ pub fn run() {
             let user_id = "archestra_user".to_string();
             let db_for_mcp = db.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = mcp_gateway::start_mcp_gateway(user_id, db_for_mcp).await {
+                if let Err(e) =
+                    mcp_gateway::MCPGateway::start_mcp_gateway(user_id, db_for_mcp).await
+                {
                     eprintln!("Failed to start MCP Gateway: {e}");
+                }
+            });
+
+            // Sync all connected external MCP clients
+            let db = db.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) =
+                    models::external_mcp_client::Model::sync_all_connected_external_mcp_clients(&db)
+                        .await
+                {
+                    eprintln!("Failed to sync all connected external MCP clients: {e}");
                 }
             });
 

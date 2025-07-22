@@ -1,5 +1,5 @@
 use crate::database::connection::get_database_connection_with_app;
-use crate::models::mcp_server::{McpServerDefinition, Model as McpServerModel, ServerConfig};
+use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel, ServerConfig};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
@@ -49,7 +49,7 @@ pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
                 "tokens": tokens
             });
 
-            let definition = McpServerDefinition {
+            let definition = MCPServerDefinition {
                 name: "Gmail".to_string(),
                 server_config,
                 meta: Some(meta),
@@ -58,7 +58,7 @@ pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
             // Save to database (this will also start the server)
             match get_database_connection_with_app(&app).await {
                 Ok(db) => {
-                    if let Err(e) = McpServerModel::save_server(&db, &definition).await {
+                    if let Err(e) = MCPServerModel::save_server(&db, &definition).await {
                         eprintln!("Failed to save Gmail MCP server: {e}");
                         let _ = app.emit("oauth-error", format!("Failed to save server: {e}"));
                         return;

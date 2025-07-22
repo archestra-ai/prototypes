@@ -9,34 +9,22 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(ExternalMcpClients::Table)
+                    .table(ExternalMCPClients::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(ExternalMcpClients::ClientName)
+                        ColumnDef::new(ExternalMCPClients::ClientName)
                             .string()
                             .not_null()
                             .unique_key()
                             .primary_key(),
                     )
                     .col(
-                        ColumnDef::new(ExternalMcpClients::IsConnected)
-                            .boolean()
-                            .not_null()
-                            .default(false),
-                    )
-                    .col(
-                        ColumnDef::new(ExternalMcpClients::LastConnected)
-                            .timestamp_with_time_zone()
-                            .null(),
-                    )
-                    .col(ColumnDef::new(ExternalMcpClients::ConfigPath).text().null())
-                    .col(
-                        ColumnDef::new(ExternalMcpClients::CreatedAt)
+                        ColumnDef::new(ExternalMCPClients::CreatedAt)
                             .timestamp_with_time_zone()
                             .default(Expr::current_timestamp()),
                     )
                     .col(
-                        ColumnDef::new(ExternalMcpClients::UpdatedAt)
+                        ColumnDef::new(ExternalMCPClients::UpdatedAt)
                             .timestamp_with_time_zone()
                             .default(Expr::current_timestamp()),
                     )
@@ -47,18 +35,15 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(ExternalMcpClients::Table).to_owned())
+            .drop_table(Table::drop().table(ExternalMCPClients::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum ExternalMcpClients {
+enum ExternalMCPClients {
     Table,
     ClientName,
-    IsConnected,
-    LastConnected,
-    ConfigPath,
     CreatedAt,
     UpdatedAt,
 }
