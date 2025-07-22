@@ -185,6 +185,30 @@ impl Model {
             println!("  ✅ Added MCP server: {server_key}");
         }
 
+        // remove all entries with that're suffixed with "(archestra.ai)" that aren't in the installed_mcp_servers list
+        let installed_names: std::collections::HashSet<_> = installed_mcp_servers
+            .iter()
+            .map(|s| s.name.as_str())
+            .collect();
+        let keys_to_remove: Vec<String> = external_client_mcp_servers_config
+            .keys()
+            .filter_map(|key| {
+                if let Some(stripped) =
+                    key.strip_suffix(&format!(" {INSTALLED_MCP_SERVER_KEY_SUFFIX}"))
+                {
+                    if !installed_names.contains(stripped) {
+                        return Some(key.clone());
+                    }
+                }
+                None
+            })
+            .collect();
+
+        for key in keys_to_remove {
+            external_client_mcp_servers_config.remove(&key);
+            println!("  ❌ Removed MCP server: {key}");
+        }
+
         println!("📝 Writing config to: {}", config_path.display());
         Self::write_config_file(&config_path, &config)?;
 

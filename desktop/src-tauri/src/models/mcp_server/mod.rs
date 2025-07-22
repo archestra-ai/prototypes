@@ -99,7 +99,7 @@ impl Model {
             .await
     }
 
-    /// Save an MCP server definition to the database and start it
+    /// Save an MCP server definition to the database, start it and sync all connected external MCP clients
     pub async fn save_server(
         db: &DatabaseConnection,
         definition: &MCPServerDefinition,
@@ -137,14 +137,17 @@ impl Model {
         Entity::find().all(db).await
     }
 
-    /// Uninstall an MCP server - stop its process running in the sandbox and delete it from the database
+    /// Uninstall an MCP server - stop its process running in the sandbox, delete it from the database and sync all connected external MCP clients
     pub async fn uninstall_mcp_server(
         db: &DatabaseConnection,
         server_name: &str,
     ) -> Result<DeleteResult, DbErr> {
-        // Stop the server before deleting.. if there's an error stopping the server
-        // that's fine, we don't want to block the uninstallation
-        let _ = sandbox::stop_mcp_server(server_name).await;
+        // Stop the server, in the background, before deleting
+        // if there's an error stopping the server, that's fine (for now)
+        let server_name_for_bg = server_name.to_string();
+        tokio::spawn(async move {
+            let _ = sandbox::stop_mcp_server(&server_name_for_bg).await;
+        });
 
         let delete_result = Entity::delete_many()
             .filter(Column::Name.eq(server_name))
