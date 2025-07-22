@@ -1,10 +1,11 @@
 // import { useCallback } from "react";
-import { Wrench } from 'lucide-react';
+import { Bot, Brain, CheckCircle, Loader2, Wrench } from 'lucide-react';
 
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
 import { AIResponse } from '@/components/kibo/ai-response';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { useAgentStore } from '@/stores/agent-store';
 import { useChatStore } from '@/stores/chat-store';
 
 import ToolCallIndicator from '../ToolCallIndicator';
@@ -35,10 +36,87 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   // }, [scrollToBottom]);
 
   const { chatHistory } = useChatStore();
+  const { mode: agentMode, progress, reasoningMode, currentObjective } = useAgentStore();
+
+  // Helper function to format agent mode
+  const formatAgentMode = (mode: string) => {
+    return mode.charAt(0).toUpperCase() + mode.slice(1);
+  };
+
+  // Helper function to get agent mode color
+  const getAgentModeColor = (mode: string) => {
+    switch (mode) {
+      case 'initializing':
+        return 'text-yellow-600';
+      case 'planning':
+        return 'text-blue-600';
+      case 'executing':
+        return 'text-green-600';
+      case 'paused':
+        return 'text-orange-600';
+      case 'completed':
+        return 'text-blue-600';
+      default:
+        return 'text-muted-foreground';
+    }
+  };
 
   return (
     <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-96 w-full rounded-md border p-4">
       <div className="space-y-4">
+        {/* Agent Status Message */}
+        {agentMode !== 'idle' && (
+          <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Bot className="h-5 w-5 text-primary" />
+              <span className="text-sm font-medium">AI Agent Status</span>
+              <span className={cn('text-sm font-medium', getAgentModeColor(agentMode))}>
+                {formatAgentMode(agentMode)}
+              </span>
+            </div>
+
+            {currentObjective && (
+              <div className="text-sm text-muted-foreground mb-2">
+                <span className="font-medium">Objective:</span> {currentObjective}
+              </div>
+            )}
+
+            {agentMode === 'executing' && progress.total > 0 && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Progress</span>
+                  <span className="text-muted-foreground">
+                    {progress.completed} / {progress.total} steps
+                  </span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(progress.completed / progress.total) * 100}%` }}
+                  />
+                </div>
+                {progress.currentStep && (
+                  <div className="text-xs text-muted-foreground mt-1">Current: {progress.currentStep}</div>
+                )}
+              </div>
+            )}
+
+            {agentMode === 'completed' && (
+              <div className="flex items-center gap-2 text-sm text-green-600">
+                <CheckCircle className="h-4 w-4" />
+                Task completed successfully
+              </div>
+            )}
+
+            {(agentMode === 'initializing' || agentMode === 'planning') && (
+              <div className="flex items-center gap-2 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {agentMode === 'initializing' ? 'Initializing agent...' : 'Planning execution...'}
+              </div>
+            )}
+          </div>
+        )}
+
         {chatHistory.map((msg, index) => (
           <div
             key={msg.id || index}
@@ -88,6 +166,34 @@ export default function ChatHistory(_props: ChatHistoryProps) {
                     <AIReasoningTrigger />
                     <AIReasoningContent>{msg.thinkingContent}</AIReasoningContent>
                   </AIReasoning>
+                )}
+
+                {/* Show agent reasoning if available and not hidden */}
+                {reasoningMode !== 'hidden' && msg.agentMetadata?.reasoning && (
+                  <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Brain className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                        Agent Reasoning ({msg.agentMetadata.reasoning.type})
+                      </span>
+                    </div>
+                    <div className="text-sm text-blue-900 dark:text-blue-100">
+                      {msg.agentMetadata.reasoning.content}
+                    </div>
+                    {msg.agentMetadata.reasoning.alternatives &&
+                      msg.agentMetadata.reasoning.alternatives.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                            Alternatives considered:
+                          </span>
+                          {msg.agentMetadata.reasoning.alternatives.map((alt) => (
+                            <div key={alt.id} className="text-xs text-blue-800 dark:text-blue-200 pl-2">
+                              • {alt.description}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                  </div>
                 )}
 
                 <AIResponse>{msg.content}</AIResponse>
