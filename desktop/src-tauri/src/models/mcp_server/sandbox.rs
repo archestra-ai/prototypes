@@ -263,7 +263,7 @@ impl MCPServerManager {
             servers.insert(name.clone(), server);
         }
 
-        println!("✅ MCP [{}] Started successfully", name);
+        println!("✅ MCP [{name}] Started successfully");
         Ok(())
     }
 
@@ -281,7 +281,7 @@ impl MCPServerManager {
         let url = args[0].clone();
         let headers = env.unwrap_or_default();
 
-        println!("🚀 MCP [{}] Starting HTTP server at: {}", name, url);
+        println!("🚀 MCP [{name}] Starting HTTP server at: {url}");
 
         let server = MCPServer {
             name: name.clone(),
@@ -305,13 +305,13 @@ impl MCPServerManager {
             servers.insert(name.clone(), server);
         }
 
-        println!("✅ MCP [{}] HTTP server started successfully", name);
+        println!("✅ MCP [{name}] HTTP server started successfully");
         Ok(())
     }
 
     /// Stop an MCP server
     pub async fn stop_server(&self, server_name: &str) -> Result<(), String> {
-        println!("🛑 MCP [{}] Stopping server", server_name);
+        println!("🛑 MCP [{server_name}] Stopping server");
 
         let server = {
             let mut servers = self.servers.write().await;
@@ -328,14 +328,14 @@ impl MCPServerManager {
             if let Some(process_handle) = server.process_handle {
                 let mut child = process_handle.lock().await;
                 if let Err(e) = child.kill().await {
-                    eprintln!("⚠️ MCP [{}] Failed to kill process: {e}", server_name);
+                    eprintln!("⚠️ MCP [{server_name}] Failed to kill process: {e}");
                 }
             }
 
-            println!("✅ MCP [{}] Stopped successfully", server_name);
+            println!("✅ MCP [{server_name}] Stopped successfully");
             Ok(())
         } else {
-            eprintln!("❌ MCP [{}] Server not found", server_name);
+            eprintln!("❌ MCP [{server_name}] Server not found");
             Err(format!("MCP server '{server_name}' not found"))
         }
     }
@@ -356,8 +356,7 @@ impl MCPServerManager {
                 available.join(", ")
             };
             eprintln!(
-                "❌ MCP [{server_name}] Server not found. Available: [{}]",
-                available_str
+                "❌ MCP [{server_name}] Server not found. Available: [{available_str}]"
             );
             format!("Server '{server_name}' not found")
         })?;
@@ -371,14 +370,14 @@ impl MCPServerManager {
                     .unwrap_or("unknown");
                 let id = json
                     .get("id")
-                    .map(|id| format!("{}", id))
+                    .map(|id| format!("{id}"))
                     .unwrap_or_else(|| "null".to_string());
                 (method.to_string(), id)
             } else {
                 ("invalid-json".to_string(), "null".to_string())
             };
 
-        println!("📡 MCP [{server_name}] {} (id: {})", method, request_id);
+        println!("📡 MCP [{server_name}] {method} (id: {request_id})");
 
         match &server.server_type {
             ServerType::Http { url, headers } => {
@@ -404,9 +403,9 @@ impl MCPServerManager {
                 })?;
 
                 if status.is_success() {
-                    println!("✅ MCP [{server_name}] HTTP {} completed", method);
+                    println!("✅ MCP [{server_name}] HTTP {method} completed");
                 } else {
-                    eprintln!("⚠️ MCP [{server_name}] HTTP {} returned {}", method, status);
+                    eprintln!("⚠️ MCP [{server_name}] HTTP {method} returned {status}");
                 }
                 Ok(response_text)
             }
@@ -433,7 +432,7 @@ impl MCPServerManager {
 
                 // Check if this is a notification (no ID) or a regular request
                 if request.id.is_none() {
-                    println!("📢 MCP [{server_name}] {} notification sent", method);
+                    println!("📢 MCP [{server_name}] {method} notification sent");
                     return Ok("".to_string()); // Notifications don't expect responses
                 }
                 // Wait for response with matching ID
@@ -446,8 +445,7 @@ impl MCPServerManager {
 
                     if elapsed > REQUEST_TIMEOUT {
                         eprintln!(
-                            "⏰ MCP [{server_name}] {} (id: {}) timed out after {:?}",
-                            method, request_id, elapsed
+                            "⏰ MCP [{server_name}] {method} (id: {request_id}) timed out after {elapsed:?}"
                         );
                         return Err("Request timeout".to_string());
                     }
@@ -456,8 +454,7 @@ impl MCPServerManager {
                     if elapsed.saturating_sub(last_status_log.elapsed()) >= Duration::from_secs(5) {
                         let buffer_size = server.response_buffer.lock().await.len();
                         if buffer_size > 0 || discarded_count > 0 {
-                            println!("⏳ MCP [{server_name}] Waiting for {} response (buffer: {}, discarded: {})", 
-                                method, buffer_size, discarded_count);
+                            println!("⏳ MCP [{server_name}] Waiting for {method} response (buffer: {buffer_size}, discarded: {discarded_count})");
                         }
                         last_status_log = Instant::now();
                     }
@@ -481,7 +478,7 @@ impl MCPServerManager {
                                     };
 
                                     if ids_match {
-                                        println!("✅ MCP [{server_name}] {} completed", method);
+                                        println!("✅ MCP [{server_name}] {method} completed");
                                         return Ok(entry.content);
                                     } else {
                                         // Silently discard non-matching responses (like init responses)
@@ -558,13 +555,13 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
                 .await
             {
                 Ok(_) => {} // Success already logged by start_server
-                Err(e) => eprintln!("❌ MCP [{}] Startup failed: {e}", name),
+                Err(e) => eprintln!("❌ MCP [{name}] Startup failed: {e}"),
             }
         });
     }
 
     if server_count > 0 {
-        println!("✅ Queued {} MCP servers for startup", server_count);
+        println!("✅ Queued {server_count} MCP servers for startup");
     }
     Ok(())
 }
