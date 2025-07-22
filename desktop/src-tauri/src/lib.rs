@@ -141,6 +141,10 @@ pub fn run() {
             models::external_mcp_client::get_connected_external_mcp_clients,
             models::external_mcp_client::connect_external_mcp_client,
             models::external_mcp_client::disconnect_external_mcp_client,
+            models::mcp_request_log::get_mcp_request_logs,
+            models::mcp_request_log::get_mcp_request_log_by_id,
+            models::mcp_request_log::get_mcp_request_log_stats,
+            models::mcp_request_log::clear_mcp_request_logs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
