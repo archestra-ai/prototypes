@@ -1,4 +1,5 @@
 use crate::database::connection::get_database_connection_with_app;
+use crate::models::external_mcp_client::Model as ExternalMCPClient;
 use sea_orm::entity::prelude::*;
 use sea_orm::{DeleteResult, Set};
 use serde::{Deserialize, Serialize};
@@ -123,6 +124,11 @@ impl Model {
             // Don't fail the save operation, but log the error
         }
 
+        // Sync all connected external MCP clients
+        ExternalMCPClient::sync_all_connected_external_mcp_clients(db)
+            .await
+            .map_err(|e| DbErr::Custom(e))?;
+
         Ok(result)
     }
 
@@ -140,10 +146,17 @@ impl Model {
         // that's fine, we don't want to block the uninstallation
         let _ = sandbox::stop_mcp_server(server_name).await;
 
-        Entity::delete_many()
+        let delete_result = Entity::delete_many()
             .filter(Column::Name.eq(server_name))
             .exec(db)
+            .await?;
+
+        // Sync all connected external MCP clients
+        ExternalMCPClient::sync_all_connected_external_mcp_clients(db)
             .await
+            .map_err(|e| DbErr::Custom(e))?;
+
+        Ok(delete_result)
     }
 
     /// Find an MCP server by name

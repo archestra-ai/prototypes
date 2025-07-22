@@ -152,7 +152,7 @@ impl Model {
             external_client_mcp_servers_config.insert(
                 ARCHESTRA_MCP_SERVER_KEY.to_string(),
                 serde_json::to_value(MCPServerConfig {
-                    url: format!("{}/mcp", ARCHESTRA_SERVER_BASE_URL),
+                    url: format!("{ARCHESTRA_SERVER_BASE_URL}/mcp"),
                 })
                 .unwrap(),
             );
@@ -233,6 +233,9 @@ impl Model {
                 .filter(|key| key.ends_with(" (archestra.ai)"))
                 .cloned()
                 .collect();
+
+            // Remove the archestra.ai server
+            mcp_servers.remove(ARCHESTRA_MCP_SERVER_KEY);
 
             for key in keys_to_remove {
                 mcp_servers.remove(&key);
@@ -546,6 +549,10 @@ mod tests {
                     "command": "curl",
                     "args": ["-X", "POST", "http://localhost:54587/proxy/Slack"]
                 },
+                "archestra.ai": {
+                    "command": "curl",
+                    "args": ["-X", "POST", "http://localhost:54587/mcp"]
+                },
                 "other-server": {
                     "command": "other",
                     "args": []
@@ -565,7 +572,7 @@ mod tests {
         // Remove all entries with "(archestra.ai)" suffix
         let keys_to_remove: Vec<String> = mcp_servers
             .keys()
-            .filter(|key| key.ends_with(" (archestra.ai)"))
+            .filter(|key| key.ends_with(" (archestra.ai)") || key == &ARCHESTRA_MCP_SERVER_KEY)
             .cloned()
             .collect();
 
@@ -578,5 +585,131 @@ mod tests {
         assert!(mcp_servers.contains_key("other-server"));
         assert!(!mcp_servers.contains_key("GitHub (archestra.ai)"));
         assert!(!mcp_servers.contains_key("Slack (archestra.ai)"));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_delete_external_mcp_client(#[future] database: DatabaseConnection) {
+        let db = database.await;
+
+        // First, create a client
+        let definition = ExternalMCPClientDefinition {
+            client_name: "test_delete_client".to_string(),
+        };
+        Model::save_external_mcp_client(&db, &definition)
+            .await
+            .unwrap();
+
+        // Verify it exists
+        let clients = Model::get_connected_external_mcp_clients(&db)
+            .await
+            .unwrap();
+        assert!(clients
+            .iter()
+            .any(|c| c.client_name == "test_delete_client"));
+
+        // Delete the client
+        let result = Model::delete_external_mcp_client(&db, "test_delete_client").await;
+        assert!(result.is_ok());
+
+        // Verify it's deleted
+        let clients = Model::get_connected_external_mcp_clients(&db)
+            .await
+            .unwrap();
+        assert!(!clients
+            .iter()
+            .any(|c| c.client_name == "test_delete_client"));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_get_connected_external_mcp_clients(#[future] database: DatabaseConnection) {
+        let db = database.await;
+
+        // Initially should be empty
+        let clients = Model::get_connected_external_mcp_clients(&db)
+            .await
+            .unwrap();
+        assert_eq!(clients.len(), 0);
+
+        // Add multiple clients
+        for i in 1..=3 {
+            let definition = ExternalMCPClientDefinition {
+                client_name: format!("test_client_{}", i),
+            };
+            Model::save_external_mcp_client(&db, &definition)
+                .await
+                .unwrap();
+        }
+
+        // Get all clients
+        let clients = Model::get_connected_external_mcp_clients(&db)
+            .await
+            .unwrap();
+        assert_eq!(clients.len(), 3);
+
+        // Verify all clients are present
+        let client_names: Vec<String> = clients.iter().map(|c| c.client_name.clone()).collect();
+        assert!(client_names.contains(&"test_client_1".to_string()));
+        assert!(client_names.contains(&"test_client_2".to_string()));
+        assert!(client_names.contains(&"test_client_3".to_string()));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_save_external_mcp_client_upsert(#[future] database: DatabaseConnection) {
+        let db = database.await;
+
+        let definition = ExternalMCPClientDefinition {
+            client_name: "upsert_test_client".to_string(),
+        };
+
+        // First save
+        let first_save = Model::save_external_mcp_client(&db, &definition)
+            .await
+            .unwrap();
+        let first_created_at = first_save.created_at;
+        let first_updated_at = first_save.updated_at;
+
+        // Wait a bit to ensure timestamps differ
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+        // Second save (should update)
+        let second_save = Model::save_external_mcp_client(&db, &definition)
+            .await
+            .unwrap();
+
+        // Verify upsert behavior
+        assert_eq!(first_save.client_name, second_save.client_name);
+        assert_eq!(first_created_at, second_save.created_at); // Created at should not change
+        assert!(second_save.updated_at > first_updated_at); // Updated at should be newer
+    }
+
+    #[test]
+    fn test_read_config_file_empty() {
+        // Create a temporary empty file
+        let temp_file = NamedTempFile::new().unwrap();
+        let config_path = temp_file.path().to_path_buf();
+        std::fs::write(&config_path, "").unwrap();
+
+        let result = Model::read_config_file(&config_path);
+        assert!(result.is_ok());
+        
+        let config = result.unwrap();
+        assert!(config.is_object());
+        assert!(config["mcpServers"].is_object());
+        assert_eq!(config["mcpServers"].as_object().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_read_config_file_invalid_json() {
+        // Create a temporary file with invalid JSON
+        let temp_file = NamedTempFile::new().unwrap();
+        let config_path = temp_file.path().to_path_buf();
+        std::fs::write(&config_path, "{ invalid json }").unwrap();
+
+        let result = Model::read_config_file(&config_path);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to parse JSON"));
     }
 }
