@@ -71,7 +71,11 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
           </div>
 
           <div className="flex items-center space-x-2">
-            <Checkbox id="tool-calls-filter" checked={toolCallsOnly} onCheckedChange={setToolCallsOnly} />
+            <Checkbox
+              id="tool-calls-filter"
+              checked={toolCallsOnly}
+              onCheckedChange={(checked) => setToolCallsOnly(checked === true)}
+            />
             <label
               htmlFor="tool-calls-filter"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1"
