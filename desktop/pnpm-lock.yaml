@@ -16,7 +16,7 @@ importers:
         version: 1.16.0
       '@openai/agents':
         specifier: ^0.0.12
-        version: 0.0.12(ws@8.18.3)(zod@3.25.76)
+        version: 0.0.12(ws@8.18.3)(zod@3.25.67)
       '@radix-ui/react-avatar':
         specifier: ^1.1.10
         version: 1.1.10(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -119,6 +119,9 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@4.1.11)
+      zod:
+        specifier: 3.25.67
+        version: 3.25.67
       zustand:
         specifier: ^5.0.2
         version: 5.0.6(@types/react@18.3.23)(react@18.3.1)(use-sync-external-store@1.5.0(react@18.3.1))
@@ -3261,32 +3264,32 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@openai/agents-core@0.0.12(ws@8.18.3)(zod@3.25.76)':
+  '@openai/agents-core@0.0.12(ws@8.18.3)(zod@3.25.67)':
     dependencies:
       '@openai/zod': zod@3.25.67
       debug: 4.4.1
-      openai: 5.10.1(ws@8.18.3)(zod@3.25.76)
+      openai: 5.10.1(ws@8.18.3)(zod@3.25.67)
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.16.0
-      zod: 3.25.76
+      zod: 3.25.67
     transitivePeerDependencies:
       - supports-color
       - ws
 
-  '@openai/agents-openai@0.0.12(ws@8.18.3)(zod@3.25.76)':
+  '@openai/agents-openai@0.0.12(ws@8.18.3)(zod@3.25.67)':
     dependencies:
-      '@openai/agents-core': 0.0.12(ws@8.18.3)(zod@3.25.76)
+      '@openai/agents-core': 0.0.12(ws@8.18.3)(zod@3.25.67)
       '@openai/zod': zod@3.25.67
       debug: 4.4.1
-      openai: 5.10.1(ws@8.18.3)(zod@3.25.76)
+      openai: 5.10.1(ws@8.18.3)(zod@3.25.67)
     transitivePeerDependencies:
       - supports-color
       - ws
       - zod
 
-  '@openai/agents-realtime@0.0.12(zod@3.25.76)':
+  '@openai/agents-realtime@0.0.12(zod@3.25.67)':
     dependencies:
-      '@openai/agents-core': 0.0.12(ws@8.18.3)(zod@3.25.76)
+      '@openai/agents-core': 0.0.12(ws@8.18.3)(zod@3.25.67)
       '@openai/zod': zod@3.25.67
       '@types/ws': 8.18.1
       debug: 4.4.1
@@ -3297,13 +3300,13 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@openai/agents@0.0.12(ws@8.18.3)(zod@3.25.76)':
+  '@openai/agents@0.0.12(ws@8.18.3)(zod@3.25.67)':
     dependencies:
-      '@openai/agents-core': 0.0.12(ws@8.18.3)(zod@3.25.76)
-      '@openai/agents-openai': 0.0.12(ws@8.18.3)(zod@3.25.76)
-      '@openai/agents-realtime': 0.0.12(zod@3.25.76)
+      '@openai/agents-core': 0.0.12(ws@8.18.3)(zod@3.25.67)
+      '@openai/agents-openai': 0.0.12(ws@8.18.3)(zod@3.25.67)
+      '@openai/agents-realtime': 0.0.12(zod@3.25.67)
       debug: 4.4.1
-      openai: 5.10.1(ws@8.18.3)(zod@3.25.76)
+      openai: 5.10.1(ws@8.18.3)(zod@3.25.67)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -5269,10 +5272,10 @@ snapshots:
       regex: 6.0.1
       regex-recursion: 6.0.2
 
-  openai@5.10.1(ws@8.18.3)(zod@3.25.76):
+  openai@5.10.1(ws@8.18.3)(zod@3.25.67):
     optionalDependencies:
       ws: 8.18.3
-      zod: 3.25.76
+      zod: 3.25.67
 
   parse-entities@4.0.2:
     dependencies:

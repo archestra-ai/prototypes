@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "test": "vitest",
     "prepare": "cd .. && husky desktop/.husky",
-    "prettier": "prettier --write ."
+    "prettier": "prettier --write .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@icons-pack/react-simple-icons": "^13.5.0",
@@ -50,6 +51,7 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",
     "tailwindcss-animate": "^1.0.7",
+    "zod": "3.25.67",
     "zustand": "^5.0.2"
   },
   "devDependencies": {

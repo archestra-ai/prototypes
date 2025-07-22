@@ -19,6 +19,8 @@ dist-ssr
 *.sln
 *.sw?
 
+.env
+mcp.json
+
 # Serena and Claude files
 .serena/
-LOGGING_WORKFLOW.md
