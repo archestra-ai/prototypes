@@ -27,34 +27,43 @@ pub struct McpServerConfig {
     pub args: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExternalMcpClientDefinition {
+    pub client_name: String,
+    pub is_connected: bool,
+    pub config_path: Option<String>,
+}
+
 const CLAUDE_DESKTOP_CLIENT_NAME: &str = "claude";
 const CURSOR_CLIENT_NAME: &str = "cursor";
 const VSCODE_CLIENT_NAME: &str = "vscode";
 
 impl Model {
-    /// Save the external MCP client to the database
+    /// Save the external MCP client to the database using definition
     pub async fn save_external_mcp_client(
         db: &DatabaseConnection,
-        client_name: &str,
-        is_connected: bool,
-        config_path: Option<String>,
+        definition: &ExternalMcpClientDefinition,
     ) -> Result<Model, DbErr> {
         let now = chrono::Utc::now();
 
-        let last_connected = if is_connected { Some(now) } else { None };
+        let last_connected = if definition.is_connected {
+            Some(now)
+        } else {
+            None
+        };
 
         let active_model = ActiveModel {
-            client_name: Set(client_name.to_string()),
-            is_connected: Set(is_connected),
+            client_name: Set(definition.client_name.clone()),
+            is_connected: Set(definition.is_connected),
             last_connected: Set(last_connected),
-            config_path: Set(config_path),
+            config_path: Set(definition.config_path.clone()),
             created_at: Set(now),
             updated_at: Set(now),
             ..Default::default()
         };
 
         // Use on_conflict to handle upsert by client_name
-        let result = Entity::insert(active_model)
+        Entity::insert(active_model)
             .on_conflict(
                 sea_orm::sea_query::OnConflict::column(Column::ClientName)
                     .update_columns([
@@ -65,8 +74,15 @@ impl Model {
                     ])
                     .to_owned(),
             )
-            .exec_with_returning(db)
+            .exec(db)
             .await?;
+
+        // Fetch the record after insert/update
+        let result = Entity::find()
+            .filter(Column::ClientName.eq(&definition.client_name))
+            .one(db)
+            .await?
+            .ok_or(DbErr::RecordNotFound("Failed to find inserted item".to_string()))?;
 
         Ok(result)
     }
@@ -173,14 +189,14 @@ impl Model {
         write_config_file(&config_path, &config)?;
 
         // Save external MCP client to database
-        Self::save_external_mcp_client(
-            db,
-            client_name,
-            true,
-            Some(config_path.to_string_lossy().to_string()),
-        )
-        .await
-        .map_err(|e| format!("Failed to save external MCP client: {e}"))?;
+        let definition = ExternalMcpClientDefinition {
+            client_name: client_name.to_string(),
+            is_connected: true,
+            config_path: Some(config_path.to_string_lossy().to_string()),
+        };
+        Self::save_external_mcp_client(db, &definition)
+            .await
+            .map_err(|e| format!("Failed to save external MCP client: {e}"))?;
 
         println!(
             "✅ Updated {} MCP config at {}",
@@ -395,16 +411,13 @@ mod tests {
         // Run migrations
         Migrator::up(&db, None).await.unwrap();
 
-        let result = Model::save_external_mcp_client(
-            &db,
-            "test_client",
-            true,
-            Some("path/to/config".to_string()),
-        )
-        .await;
-        if let Err(e) = &result {
-            eprintln!("Error: {:?}", e);
-        }
+        let definition = ExternalMcpClientDefinition {
+            client_name: "test_client".to_string(),
+            is_connected: true,
+            config_path: Some("path/to/config".to_string()),
+        };
+
+        let result = Model::save_external_mcp_client(&db, &definition).await;
         assert!(result.is_ok());
     }
 
