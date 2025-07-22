@@ -10,7 +10,7 @@
       "identifier": "shell:allow-execute",
       "allow": [
         {
-          "name": "binaries/ollama",
+          "name": "binaries/ollama-v0.9.6",
           "sidecar": true,
           "args": ["serve"]
         },
