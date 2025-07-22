@@ -1,10 +1,11 @@
-import { Bot, Download, MessageCircle, Settings } from 'lucide-react';
+import { Bot, Code, Download, MessageCircle, Settings } from 'lucide-react';
 import * as React from 'react';
 import { useState } from 'react';
 
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -15,10 +16,12 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from './components/ui/sidebar';
+import { Switch } from './components/ui/switch';
 import ChatPage from './pages/ChatPage';
 import ConnectorCatalogPage from './pages/ConnectorCatalogPage';
 import LLMProvidersPage from './pages/LLMProvidersPage';
 import SettingsPage from './pages/SettingsPage';
+import { useDeveloperModeStore } from './stores/developer-mode-store';
 import { useThemeStore } from './stores/theme-store';
 
 import './index.css';
@@ -26,6 +29,7 @@ import './index.css';
 function App() {
   useThemeStore();
 
+  const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const [activeView, setActiveView] = useState<'chat' | 'mcp' | 'llm-providers' | 'settings'>('chat');
   const [activeSubView, setActiveSubView] = useState<'ollama'>('ollama');
 
@@ -124,6 +128,20 @@ function App() {
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
+        <SidebarFooter className="p-4 group-data-[collapsible=icon]:p-2">
+          <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
+            <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+              <Code className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Developer Mode</span>
+            </div>
+            <Switch
+              checked={isDeveloperMode}
+              onCheckedChange={toggleDeveloperMode}
+              className="group-data-[collapsible=icon]:scale-75"
+            />
+            <Code className="h-4 w-4 text-muted-foreground hidden group-data-[collapsible=icon]:block" />
+          </div>
+        </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">

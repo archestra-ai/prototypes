@@ -1,5 +1,5 @@
-// import { useCallback } from "react";
 import { Wrench } from 'lucide-react';
+import { useCallback, useEffect } from 'react';
 
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
 import { AIResponse } from '@/components/kibo/ai-response';
@@ -11,30 +11,29 @@ import ToolCallIndicator from '../ToolCallIndicator';
 import ToolExecutionResult from '../ToolExecutionResult';
 
 const CHAT_SCROLL_AREA_ID = 'chat-scroll-area';
-// const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-area-viewport]`;
+const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-area-viewport]`;
 
 interface ChatHistoryProps {}
 
 export default function ChatHistory(_props: ChatHistoryProps) {
-  // TODO: figure out how to pass a function into a context.. maybe this portion needs to be moved to hooks?
-  // Scroll to bottom when new messages are added or content changes
-  // const scrollToBottom = useCallback(() => {
-  //   const scrollArea = document.querySelector(CHAT_SCROLL_AREA_SELECTOR);
-  //   if (scrollArea) {
-  //     scrollArea.scrollTo({
-  //       top: scrollArea.scrollHeight,
-  //       behavior: "smooth",
-  //     });
-  //   }
-  // }, []);
-
-  // // Trigger scroll after message changes
-  // const triggerScroll = useCallback(() => {
-  //   const timeoutId = setTimeout(scrollToBottom, 50);
-  //   return () => clearTimeout(timeoutId);
-  // }, [scrollToBottom]);
-
   const { chatHistory } = useChatStore();
+
+  // Scroll to bottom when new messages are added or content changes
+  const scrollToBottom = useCallback(() => {
+    const scrollArea = document.querySelector(CHAT_SCROLL_AREA_SELECTOR);
+    if (scrollArea) {
+      scrollArea.scrollTo({
+        top: scrollArea.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  }, []);
+
+  // Trigger scroll after message changes
+  useEffect(() => {
+    const timeoutId = setTimeout(scrollToBottom, 50);
+    return () => clearTimeout(timeoutId);
+  }, [chatHistory, scrollToBottom]);
 
   return (
     <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-96 w-full rounded-md border p-4">

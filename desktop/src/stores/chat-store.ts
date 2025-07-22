@@ -3,6 +3,7 @@ import { Message as OllamaMessage, Tool as OllamaTool } from 'ollama/browser';
 import { create } from 'zustand';
 
 import { ChatMessage, ToolCallInfo } from '../types';
+import { useDeveloperModeStore } from './developer-mode-store';
 import { useMCPServersStore } from './mcp-servers-store';
 import { useOllamaStore } from './ollama-store';
 
@@ -181,6 +182,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   sendChatMessage: async (message: string, model: string) => {
     const ollamaClient = useOllamaStore.getState().ollamaClient;
     const { installedMCPServers, executeTool } = useMCPServersStore.getState();
+    const { isDeveloperMode, systemPrompt } = useDeveloperModeStore.getState();
 
     if (!message.trim() || !ollamaClient) return;
 
@@ -249,15 +251,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
 
       // Prepare chat history for Ollama SDK
-      const ollamaMessages: OllamaMessage[] = [
-        ...get()
-          .chatHistory.filter((msg) => msg.role === 'user' || msg.role === 'assistant')
-          .map((msg) => ({
-            role: msg.role as 'user' | 'assistant',
-            content: msg.content,
-          })),
-        { role: 'user', content: message },
-      ];
+      const chatHistory = get().chatHistory.filter((msg) => msg.role === 'user' || msg.role === 'assistant');
+      const ollamaMessages: OllamaMessage[] = [];
+
+      // Add system prompt if developer mode is enabled and system prompt exists
+      if (isDeveloperMode && systemPrompt.trim()) {
+        ollamaMessages.push({ role: 'system', content: systemPrompt.trim() });
+      }
+
+      // Add chat history
+      ollamaMessages.push(
+        ...chatHistory.map((msg) => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+        })),
+        { role: 'user', content: message }
+      );
 
       // Convert MCP tools to Ollama tool format
       const tools =
