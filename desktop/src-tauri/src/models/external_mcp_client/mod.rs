@@ -59,7 +59,6 @@ impl Model {
             config_path: Set(definition.config_path.clone()),
             created_at: Set(now),
             updated_at: Set(now),
-            ..Default::default()
         };
 
         // Use on_conflict to handle upsert by client_name
