@@ -2,7 +2,7 @@
 
 import { Loader2Icon, SendIcon, SquareIcon, XIcon } from 'lucide-react';
 import type { ComponentProps, HTMLAttributes, KeyboardEventHandler } from 'react';
-import { Children, useCallback, useEffect, useRef } from 'react';
+import React, { Children, useCallback, useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -115,23 +115,27 @@ export const AIInputTools = ({ className, ...props }: AIInputToolsProps) => (
 );
 
 export type AIInputButtonProps = ComponentProps<typeof Button>;
-export const AIInputButton = ({ variant = 'ghost', className, size, ...props }: AIInputButtonProps) => {
-  const newSize = (size ?? Children.count(props.children) > 1) ? 'default' : 'icon';
-  return (
-    <Button
-      className={cn(
-        'shrink-0 gap-1.5 rounded-lg',
-        variant === 'ghost' && 'text-muted-foreground',
-        newSize === 'default' && 'px-3',
-        className
-      )}
-      size={newSize}
-      type="button"
-      variant={variant}
-      {...props}
-    />
-  );
-};
+export const AIInputButton = React.forwardRef<HTMLButtonElement, AIInputButtonProps>(
+  ({ variant = 'ghost', className, size, ...props }, ref) => {
+    const newSize = (size ?? Children.count(props.children) > 1) ? 'default' : 'icon';
+    return (
+      <Button
+        className={cn(
+          'shrink-0 gap-1.5 rounded-lg',
+          variant === 'ghost' && 'text-muted-foreground',
+          newSize === 'default' && 'px-3',
+          className
+        )}
+        size={newSize}
+        type="button"
+        variant={variant}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
+AIInputButton.displayName = 'AIInputButton';
 
 export type AIInputSubmitProps = ComponentProps<typeof Button> & {
   status?: 'submitted' | 'streaming' | 'ready' | 'error';

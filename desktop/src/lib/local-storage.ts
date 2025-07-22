@@ -23,6 +23,5 @@ export class OllamaLocalStorage extends BaseLocalStorage {
 
   static setSelectedModel(model: string) {
     super.set('selectedModel', model);
-    console.log('selectedModel', model);
   }
 }

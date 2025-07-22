@@ -4,6 +4,7 @@
     "rust-lang.rust-analyzer",
     "qwtel.sqlite-viewer",
     "esbenp.prettier-vscode",
-    "editorconfig.editorconfig"
+    "editorconfig.editorconfig",
+    "vitest.explorer"
   ]
 }

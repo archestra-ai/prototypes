@@ -34,7 +34,7 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
   downloadProgress: {},
   loadingInstalledModels: false,
   loadingInstalledModelsError: null,
-  selectedModel: '',
+  selectedModel: OllamaLocalStorage.getSelectedModel() || '',
   modelsBeingDownloaded: new Set(),
 
   // Actions
@@ -54,20 +54,18 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
 
   fetchInstalledModels: async () => {
     const { ollamaClient, selectedModel } = get();
-    if (!ollamaClient) return;
+    if (!ollamaClient) {
+      return;
+    }
 
     try {
       set({ loadingInstalledModels: true, loadingInstalledModelsError: null });
       const { models } = await ollamaClient.list();
       set({ installedModels: models });
 
-      // if a model is selected in localStorage, use it, otherwise use the first model
-      const persistedSelectedModel = OllamaLocalStorage.getSelectedModel();
-      if (!selectedModel && persistedSelectedModel) {
-        set({ selectedModel: persistedSelectedModel });
-      } else if (models.length > 0) {
-        set({ selectedModel: models[0].model });
-        OllamaLocalStorage.setSelectedModel(models[0].model);
+      const firstInstalledModel = models[0];
+      if (!selectedModel && firstInstalledModel && firstInstalledModel.model) {
+        get().setSelectedModel(firstInstalledModel.model);
       }
     } catch (error) {
       set({ loadingInstalledModelsError: error as Error });
@@ -124,8 +122,8 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
   },
 
   setSelectedModel: (model: string) => {
-    set({ selectedModel: model });
     OllamaLocalStorage.setSelectedModel(model);
+    set({ selectedModel: model });
   },
 }));
 
