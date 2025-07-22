@@ -20,6 +20,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAgentStore } from '@/stores/agent-store';
 import { useChatStore, useIsStreaming } from '@/stores/chat-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
@@ -34,11 +35,13 @@ export default function ChatInput(_props: ChatInputProps) {
   const { installedModels, loadingInstalledModels, loadingInstalledModelsError, selectedModel, setSelectedModel } =
     useOllamaStore();
 
+  const { isAgentActive, mode: agentMode } = useAgentStore();
+
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'submitted' | 'streaming' | 'ready' | 'error'>('ready');
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
 
-  const disabled = isStreaming || isChatLoading;
+  const disabled = isStreaming || isChatLoading || (isAgentActive && agentMode === 'initializing');
 
   useEffect(() => {
     if (isStreaming) {
@@ -47,6 +50,13 @@ export default function ChatInput(_props: ChatInputProps) {
       setStatus('ready');
     }
   }, [isStreaming]);
+
+  // Subscribe to agent state changes
+  useEffect(() => {
+    if (isAgentActive && agentMode === 'completed') {
+      setStatus('ready');
+    }
+  }, [isAgentActive, agentMode]);
 
   const handleSubmit = async (e?: React.FormEvent<HTMLFormElement>) => {
     if (e) {
@@ -57,10 +67,13 @@ export default function ChatInput(_props: ChatInputProps) {
       return;
     }
 
+    const trimmedMessage = message.trim();
+
+    // Since agent is always active, all messages go through agent-aware chat
     setStatus('submitted');
 
     try {
-      await sendChatMessage(message.trim(), selectedModel);
+      await sendChatMessage(trimmedMessage, selectedModel);
       setMessage('');
       setStatus('ready');
     } catch (error) {
@@ -204,6 +217,7 @@ export default function ChatInput(_props: ChatInputProps) {
                   ))}
                 </AIInputModelSelectContent>
               </AIInputModelSelect>
+
               <AIInputButton>
                 <PaperclipIcon size={16} />
               </AIInputButton>

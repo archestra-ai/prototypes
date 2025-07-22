@@ -124,7 +124,7 @@ export const useAgentStore = create<AgentStore>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
     mode: 'idle',
-    currentObjective: null,
+    currentObjective: 'Assist with user requests',
     currentAgent: undefined,
     plan: undefined,
     progress: { completed: 0, total: 0, currentStep: null },
@@ -139,7 +139,7 @@ export const useAgentStore = create<AgentStore>()(
     runState: undefined,
     streamingContent: undefined,
     reasoningMode: 'verbose',
-    isAgentActive: false,
+    isAgentActive: true,
     agentInstance: null,
     preferences: {
       autoApproveCategories: ['read', 'search'] as ToolCategory[],
@@ -508,6 +508,40 @@ function initializeAgentStore() {
   // Track previous chat history length to detect new messages
   let previousChatLength = 0;
   let isProcessingMessage = false;
+
+  // Initialize agent instance if not already active
+  const agentState = useAgentStore.getState();
+  if (!agentState.agentInstance && agentState.isAgentActive) {
+    // Create agent instance on startup
+    const { installedMCPServers, archestraMCPServer } = useMCPServersStore.getState();
+    const { selectedModel } = useOllamaStore.getState();
+
+    const allServers = [...installedMCPServers];
+    if (archestraMCPServer.status === 'connected') {
+      allServers.push(archestraMCPServer);
+    }
+
+    const mcpTools = extractMCPTools(allServers, {
+      autoApproveCategories: agentState.preferences.autoApproveCategories,
+      autoApproveServers: agentState.preferences.autoApproveServers,
+    });
+
+    const agentConfig: ArchestraAgentConfig = {
+      model: selectedModel || 'gpt-4o',
+      mcpTools,
+      maxSteps: 10,
+      temperature: 0.7,
+      reasoningMode: agentState.reasoningMode,
+      memoryConfig: {
+        maxEntries: 1000,
+        ttlSeconds: 3600,
+        summarizationThreshold: 0.8,
+      },
+    };
+
+    const agent = new ArchestraAgent(agentConfig);
+    useAgentStore.setState({ agentInstance: agent });
+  }
 
   // Defer subscription to avoid initialization issues
   const timeoutId = setTimeout(() => {
