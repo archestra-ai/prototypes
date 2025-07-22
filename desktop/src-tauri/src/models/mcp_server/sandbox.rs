@@ -133,8 +133,12 @@ impl MCPServerManager {
         };
 
         let env_vars = env.unwrap_or_default();
-        println!("🚀 MCP [{}] Starting: {} {}", 
-            name, actual_command, actual_args.join(" "));
+        println!(
+            "🚀 MCP [{}] Starting: {} {}",
+            name,
+            actual_command,
+            actual_args.join(" ")
+        );
 
         // Start the process with sandbox-exec for security (macOS only)
         let mut cmd = if cfg!(target_os = "macos") {
@@ -343,26 +347,36 @@ impl MCPServerManager {
         request_body: String,
     ) -> Result<String, String> {
         let servers = self.servers.read().await;
-        
+
         let server = servers.get(server_name).ok_or_else(|| {
             let available = servers.keys().map(|s| s.as_str()).collect::<Vec<_>>();
-            let available_str = if available.is_empty() { 
-                "none".to_string() 
-            } else { 
-                available.join(", ") 
+            let available_str = if available.is_empty() {
+                "none".to_string()
+            } else {
+                available.join(", ")
             };
-            eprintln!("❌ MCP [{server_name}] Server not found. Available: [{}]", available_str);
+            eprintln!(
+                "❌ MCP [{server_name}] Server not found. Available: [{}]",
+                available_str
+            );
             format!("Server '{server_name}' not found")
         })?;
 
         // Extract method and ID for clean logging
-        let (method, request_id) = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&request_body) {
-            let method = json.get("method").and_then(|m| m.as_str()).unwrap_or("unknown");
-            let id = json.get("id").map(|id| format!("{}", id)).unwrap_or_else(|| "null".to_string());
-            (method.to_string(), id)
-        } else {
-            ("invalid-json".to_string(), "null".to_string())
-        };
+        let (method, request_id) =
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&request_body) {
+                let method = json
+                    .get("method")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("unknown");
+                let id = json
+                    .get("id")
+                    .map(|id| format!("{}", id))
+                    .unwrap_or_else(|| "null".to_string());
+                (method.to_string(), id)
+            } else {
+                ("invalid-json".to_string(), "null".to_string())
+            };
 
         println!("📡 MCP [{server_name}] {} (id: {})", method, request_id);
 
@@ -426,13 +440,15 @@ impl MCPServerManager {
                 let start_time = Instant::now();
                 let mut last_status_log = start_time;
                 let mut discarded_count = 0;
-                
+
                 loop {
                     let elapsed = start_time.elapsed();
 
                     if elapsed > REQUEST_TIMEOUT {
-                        eprintln!("⏰ MCP [{server_name}] {} (id: {}) timed out after {:?}", 
-                            method, request_id, elapsed);
+                        eprintln!(
+                            "⏰ MCP [{server_name}] {} (id: {}) timed out after {:?}",
+                            method, request_id, elapsed
+                        );
                         return Err("Request timeout".to_string());
                     }
 
@@ -449,10 +465,14 @@ impl MCPServerManager {
                     let mut buffer = server.response_buffer.lock().await;
                     if let Some(entry) = buffer.pop_front() {
                         // Try to parse as generic JSON to check structure
-                        if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&entry.content) {
+                        if let Ok(json_value) =
+                            serde_json::from_str::<serde_json::Value>(&entry.content)
+                        {
                             if let Some(obj) = json_value.as_object() {
                                 // Check if this is a response (has "result" or "error" field and "id")
-                                if (obj.contains_key("result") || obj.contains_key("error")) && obj.contains_key("id") {
+                                if (obj.contains_key("result") || obj.contains_key("error"))
+                                    && obj.contains_key("id")
+                                {
                                     // Compare IDs directly
                                     let response_id = obj.get("id");
                                     let ids_match = match (&request.id, response_id) {
@@ -512,15 +532,19 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
     println!("Found {} MCP servers to start", installed_mcp_servers.len());
 
     let server_count = installed_mcp_servers.len();
-    
+
     for server in &installed_mcp_servers {
         let server_name = server.name.clone();
 
         let config: ServerConfig = serde_json::from_str(&server.server_config)
             .map_err(|e| format!("Failed to parse server config for {server_name}: {e}"))?;
 
-        println!("🚀 MCP [{}] Queuing startup: {} {}", 
-            server_name, config.command, config.args.join(" "));
+        println!(
+            "🚀 MCP [{}] Queuing startup: {} {}",
+            server_name,
+            config.command,
+            config.args.join(" ")
+        );
 
         tauri::async_runtime::spawn(async move {
             let name = server_name.clone();
@@ -533,7 +557,7 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
                 )
                 .await
             {
-                Ok(_) => {}, // Success already logged by start_server
+                Ok(_) => {} // Success already logged by start_server
                 Err(e) => eprintln!("❌ MCP [{}] Startup failed: {e}", name),
             }
         });

@@ -24,46 +24,18 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .unique_key(),
                     )
-                    .col(
-                        ColumnDef::new(McpRequestLogs::SessionId)
-                            .string()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(McpRequestLogs::McpSessionId)
-                            .string()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(McpRequestLogs::SessionId).string().null())
+                    .col(ColumnDef::new(McpRequestLogs::McpSessionId).string().null())
                     .col(
                         ColumnDef::new(McpRequestLogs::ServerName)
                             .string()
                             .not_null(),
                     )
-                    .col(
-                        ColumnDef::new(McpRequestLogs::ClientInfo)
-                            .text()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(McpRequestLogs::Method)
-                            .string()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(McpRequestLogs::RequestHeaders)
-                            .text()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(McpRequestLogs::RequestBody)
-                            .text()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(McpRequestLogs::ResponseBody)
-                            .text()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(McpRequestLogs::ClientInfo).text().null())
+                    .col(ColumnDef::new(McpRequestLogs::Method).string().null())
+                    .col(ColumnDef::new(McpRequestLogs::RequestHeaders).text().null())
+                    .col(ColumnDef::new(McpRequestLogs::RequestBody).text().null())
+                    .col(ColumnDef::new(McpRequestLogs::ResponseBody).text().null())
                     .col(
                         ColumnDef::new(McpRequestLogs::ResponseHeaders)
                             .text()
@@ -74,16 +46,8 @@ impl MigrationTrait for Migration {
                             .integer()
                             .not_null(),
                     )
-                    .col(
-                        ColumnDef::new(McpRequestLogs::ErrorMessage)
-                            .text()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(McpRequestLogs::DurationMs)
-                            .integer()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(McpRequestLogs::ErrorMessage).text().null())
+                    .col(ColumnDef::new(McpRequestLogs::DurationMs).integer().null())
                     .col(
                         ColumnDef::new(McpRequestLogs::Timestamp)
                             .timestamp()

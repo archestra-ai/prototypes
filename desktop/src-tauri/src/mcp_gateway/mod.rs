@@ -1,7 +1,12 @@
+use crate::models::mcp_request_log::ClientInfo;
 use crate::models::mcp_server::{sandbox::forward_raw_request, Model as MCPServerModel};
 use crate::models::{CreateLogRequest, MCPRequestLog};
-use crate::models::mcp_request_log::ClientInfo;
-use axum::{body::Body, extract::{Path, Extension}, routing::post, Router};
+use axum::{
+    body::Body,
+    extract::{Extension, Path},
+    routing::post,
+    Router,
+};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
     model::{
@@ -97,12 +102,12 @@ fn extract_session_ids(headers: &axum::http::HeaderMap) -> (Option<String>, Opti
         .get("x-session-id")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
-    
+
     let mcp_session_id = headers
         .get("mcp-session-id")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
-    
+
     (session_id, mcp_session_id)
 }
 
@@ -111,7 +116,10 @@ fn headers_to_hashmap(headers: &axum::http::HeaderMap) -> HashMap<String, String
     headers
         .iter()
         .filter_map(|(key, value)| {
-            value.to_str().ok().map(|v| (key.to_string(), v.to_string()))
+            value
+                .to_str()
+                .ok()
+                .map(|v| (key.to_string(), v.to_string()))
         })
         .collect()
 }
@@ -119,7 +127,10 @@ fn headers_to_hashmap(headers: &axum::http::HeaderMap) -> HashMap<String, String
 // Extract JSON-RPC method from request body
 fn extract_method_from_request(request_body: &str) -> Option<String> {
     match serde_json::from_str::<serde_json::Value>(request_body) {
-        Ok(json) => json.get("method").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        Ok(json) => json
+            .get("method")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         Err(_) => None,
     }
 }
@@ -132,7 +143,7 @@ async fn handle_proxy_request(
 ) -> axum::http::Response<Body> {
     let start_time = Instant::now();
     let request_id = Uuid::new_v4().to_string();
-    
+
     println!("🚀 MCP Server Proxy: Starting request to server '{server_name}' (ID: {request_id})");
 
     // Extract headers and session info before consuming the request
@@ -152,7 +163,7 @@ async fn handle_proxy_request(
         }
         Err(e) => {
             println!("❌ Failed to read request body: {e}");
-            
+
             // Log the failed request
             let log_data = CreateLogRequest {
                 request_id,
@@ -169,7 +180,7 @@ async fn handle_proxy_request(
                 error_message: Some(format!("Failed to read request body: {e}")),
                 duration_ms: Some(start_time.elapsed().as_millis() as i32),
             };
-            
+
             // Log asynchronously (don't block on database errors)
             let db_clone = Arc::clone(&db);
             tokio::spawn(async move {
@@ -177,7 +188,7 @@ async fn handle_proxy_request(
                     eprintln!("Failed to log request: {e}");
                 }
             });
-            
+
             return axum::http::Response::builder()
                 .status(axum::http::StatusCode::BAD_REQUEST)
                 .header("Content-Type", "application/json")
@@ -194,7 +205,7 @@ async fn handle_proxy_request(
         }
         Err(e) => {
             println!("❌ Invalid UTF-8 in request body: {e}");
-            
+
             // Log the failed request
             let log_data = CreateLogRequest {
                 request_id,
@@ -211,7 +222,7 @@ async fn handle_proxy_request(
                 error_message: Some(format!("Invalid UTF-8 in request body: {e}")),
                 duration_ms: Some(start_time.elapsed().as_millis() as i32),
             };
-            
+
             // Log asynchronously
             let db_clone = Arc::clone(&db);
             tokio::spawn(async move {
@@ -219,7 +230,7 @@ async fn handle_proxy_request(
                     eprintln!("Failed to log request: {e}");
                 }
             });
-            
+
             return axum::http::Response::builder()
                 .status(axum::http::StatusCode::BAD_REQUEST)
                 .header("Content-Type", "application/json")
@@ -237,13 +248,13 @@ async fn handle_proxy_request(
         Ok(raw_response) => {
             println!("✅ Successfully received response from server '{server_name}'");
             println!("📤 Response: {raw_response}");
-            
+
             let duration_ms = start_time.elapsed().as_millis() as i32;
-            
+
             // Log successful request
             let mut response_headers = HashMap::new();
             response_headers.insert("Content-Type".to_string(), "application/json".to_string());
-            
+
             let log_data = CreateLogRequest {
                 request_id,
                 session_id: Some(session_id),
@@ -259,7 +270,7 @@ async fn handle_proxy_request(
                 error_message: None,
                 duration_ms: Some(duration_ms),
             };
-            
+
             // Log asynchronously
             let db_clone = Arc::clone(&db);
             tokio::spawn(async move {
@@ -267,7 +278,7 @@ async fn handle_proxy_request(
                     eprintln!("Failed to log request: {e}");
                 }
             });
-            
+
             axum::http::Response::builder()
                 .status(axum::http::StatusCode::OK)
                 .header("Content-Type", "application/json")
@@ -278,7 +289,7 @@ async fn handle_proxy_request(
             println!("❌ MCP Server Proxy: Failed to forward request to '{server_name}': {e}");
 
             let duration_ms = start_time.elapsed().as_millis() as i32;
-            
+
             // Return a JSON-RPC error response
             let error_response = serde_json::json!({
                 "jsonrpc": "2.0",
@@ -288,13 +299,13 @@ async fn handle_proxy_request(
                     "message": format!("Proxy error: {}", e)
                 }
             });
-            
+
             let error_response_str = serde_json::to_string(&error_response).unwrap();
-            
+
             // Log failed request
             let mut response_headers = HashMap::new();
             response_headers.insert("Content-Type".to_string(), "application/json".to_string());
-            
+
             let log_data = CreateLogRequest {
                 request_id,
                 session_id: Some(session_id),
@@ -310,7 +321,7 @@ async fn handle_proxy_request(
                 error_message: Some(e),
                 duration_ms: Some(duration_ms),
             };
-            
+
             // Log asynchronously
             let db_clone = Arc::clone(&db);
             tokio::spawn(async move {

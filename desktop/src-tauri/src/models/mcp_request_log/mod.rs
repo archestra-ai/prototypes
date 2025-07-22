@@ -1,6 +1,6 @@
 use crate::database::connection::get_database_connection_with_app;
 use sea_orm::entity::prelude::*;
-use sea_orm::{Set, QueryOrder, PaginatorTrait};
+use sea_orm::{PaginatorTrait, QueryOrder, Set};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -91,24 +91,23 @@ impl Model {
             None
         };
 
-        let request_headers_json = if let Some(headers) = &log_data.request_headers {
-            Some(
-                serde_json::to_string(headers)
-                    .map_err(|e| DbErr::Custom(format!("Failed to serialize request_headers: {e}")))?,
-            )
-        } else {
-            None
-        };
+        let request_headers_json =
+            if let Some(headers) = &log_data.request_headers {
+                Some(serde_json::to_string(headers).map_err(|e| {
+                    DbErr::Custom(format!("Failed to serialize request_headers: {e}"))
+                })?)
+            } else {
+                None
+            };
 
-        let response_headers_json = if let Some(headers) = &log_data.response_headers {
-            Some(
-                serde_json::to_string(headers).map_err(|e| {
+        let response_headers_json =
+            if let Some(headers) = &log_data.response_headers {
+                Some(serde_json::to_string(headers).map_err(|e| {
                     DbErr::Custom(format!("Failed to serialize response_headers: {e}"))
-                })?,
-            )
-        } else {
-            None
-        };
+                })?)
+            } else {
+                None
+            };
 
         let active_model = ActiveModel {
             request_id: Set(log_data.request_id),
@@ -222,10 +221,7 @@ impl Model {
         let error_count = total_requests - success_count;
 
         let avg_duration_ms = if total_requests > 0 {
-            let total_duration: i32 = all_logs
-                .iter()
-                .filter_map(|log| log.duration_ms)
-                .sum();
+            let total_duration: i32 = all_logs.iter().filter_map(|log| log.duration_ms).sum();
             if total_duration > 0 {
                 total_duration as f64 / total_requests as f64
             } else {
@@ -237,7 +233,9 @@ impl Model {
 
         let mut requests_per_server = HashMap::new();
         for log in &all_logs {
-            *requests_per_server.entry(log.server_name.clone()).or_insert(0) += 1;
+            *requests_per_server
+                .entry(log.server_name.clone())
+                .or_insert(0) += 1;
         }
 
         Ok(LogStats {
@@ -467,7 +465,7 @@ pub async fn clear_mcp_request_logs(
         .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
     let should_clear_all = clear_all.unwrap_or(false);
-    
+
     if should_clear_all {
         Model::clear_all_logs(&db)
             .await
