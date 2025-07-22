@@ -51,3 +51,5 @@ tauri-plugin-http = "2"
 tauri-mcp = "0.1"
 tempfile = "3.8"
 tower = { version = "0.5", features = ["util"] }
+rstest = "0.25.0"
+rstest_reuse = "0.7.0"

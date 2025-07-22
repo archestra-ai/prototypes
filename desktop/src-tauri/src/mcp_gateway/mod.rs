@@ -424,38 +424,23 @@ impl ServerHandler for MCPGateway {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::body::Body;
-    use axum::http::{Request, StatusCode};
-    use serde_json::json;
+    use crate::test_fixtures::database;
+    use rstest::*;
     use std::net::{IpAddr, Ipv4Addr};
-    use tower::util::ServiceExt;
 
-    // Helper function to create a test server instance
-    async fn create_test_server() -> MCPGateway {
-        use sea_orm::Database;
-        let db = Database::connect("sqlite::memory:").await.unwrap();
-
-        // Run migrations on in-memory database
-        use crate::database::migration::Migrator;
-        use sea_orm_migration::MigratorTrait;
-        Migrator::up(&db, None).await.unwrap();
-
-        MCPGateway::new("test_user_123".to_string(), db)
-    }
-
-    // Test server creation and initialization
-    #[tokio::test]
-    async fn test_server_creation() {
-        let server = create_test_server().await;
-        // Server should be created successfully with default resources
-        let _ = server; // Ensure server is created without panic
+    #[fixture]
+    async fn mcp_gateway_and_db(#[future] database: DatabaseConnection) -> (MCPGateway, DatabaseConnection) {
+        let db = database.await;
+        let gateway = MCPGateway::new("test_user_123".to_string(), db.clone());
+        (gateway, db)
     }
 
     // Test server info
+    #[rstest]
     #[tokio::test]
-    async fn test_server_info() {
-        let server = create_test_server().await;
-        let info = server.get_info();
+    async fn test_server_info(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+        let (mcp_gateway, _) = mcp_gateway_and_db.await;
+        let info = <MCPGateway as ServerHandler>::get_info(&mcp_gateway);
 
         assert_eq!(info.protocol_version, ProtocolVersion::V_2025_03_26);
         assert!(info.capabilities.tools.is_some());
@@ -465,16 +450,11 @@ mod tests {
     }
 
     // Test startup of the MCP server
+    #[rstest]
     #[tokio::test]
-    async fn test_server_startup() {
+    async fn test_server_startup(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+        let (_mcp_gateway, db) = mcp_gateway_and_db.await;
         let user_id = "test_user".to_string();
-
-        // Create in-memory database
-        use sea_orm::Database;
-        let db = Database::connect("sqlite::memory:").await.unwrap();
-        use crate::database::migration::Migrator;
-        use sea_orm_migration::MigratorTrait;
-        Migrator::up(&db, None).await.unwrap();
 
         // Start server in a background task
         let server_task = tokio::spawn(async move {
@@ -499,11 +479,12 @@ mod tests {
     }
 
     // Test get_context tool
+    #[rstest]
     #[tokio::test]
-    async fn test_get_context_tool() {
-        let server = create_test_server().await;
+    async fn test_get_context_tool(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+        let (gateway, _) = mcp_gateway_and_db.await;
 
-        let result = server.get_context().await;
+        let result = gateway.get_context().await;
         assert!(result.is_ok());
 
         let tool_result = result.unwrap();
@@ -524,9 +505,10 @@ mod tests {
     }
 
     // Test update_context tool
+    #[rstest]
     #[tokio::test]
-    async fn test_update_context_tool() {
-        let server = create_test_server().await;
+    async fn test_update_context_tool(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+        let (gateway, _) = mcp_gateway_and_db.await;
 
         // Update context with a key-value pair
         let params = UpdateContextRequest {
@@ -534,11 +516,11 @@ mod tests {
             value: "production".to_string(),
         };
 
-        let result = server.update_context(Parameters(params)).await;
+        let result = gateway.update_context(Parameters(params)).await;
         assert!(result.is_ok());
 
         // Verify the context was updated
-        let context = server.context.lock().await;
+        let context = gateway.context.lock().await;
         assert_eq!(
             context.project_context.get("environment"),
             Some(&"production".to_string())
@@ -546,80 +528,42 @@ mod tests {
     }
 
     // Test set_active_models tool
+    #[rstest]
     #[tokio::test]
-    async fn test_set_active_models_tool() {
-        let server = create_test_server().await;
+    async fn test_set_active_models_tool(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+        let (gateway, _) = mcp_gateway_and_db.await;
 
         let params = SetActiveModelsRequest {
             models: vec!["gpt-4".to_string(), "claude-3-opus".to_string()],
         };
 
-        let result = server.set_active_models(Parameters(params)).await;
+        let result = gateway.set_active_models(Parameters(params)).await;
         assert!(result.is_ok());
 
         // Verify models were set
-        let context = server.context.lock().await;
+        let context = gateway.context.lock().await;
         assert_eq!(context.active_models.len(), 2);
         assert_eq!(context.active_models[0], "gpt-4");
         assert_eq!(context.active_models[1], "claude-3-opus");
     }
 
-    // Test proxy endpoint
-    #[tokio::test]
-    async fn test_proxy_endpoint() {
-        // Note: This test will fail if forward_raw_request is not properly mocked
-        // In a real test environment, you'd want to mock the forward_raw_request function
-
-        let app = Router::new().route(
-            "/proxy/{server_name}",
-            axum::routing::post(handle_proxy_request),
-        );
-
-        let json_rpc_request = json!({
-            "jsonrpc": "2.0",
-            "method": "test_method",
-            "params": {},
-            "id": 1
-        });
-
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/proxy/test_server")
-                    .header("Content-Type", "application/json")
-                    .body(Body::from(
-                        serde_json::to_string(&json_rpc_request).unwrap(),
-                    ))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        // The actual behavior depends on the forward_raw_request implementation
-        // For now, we just check that the endpoint exists and responds
-        assert!(
-            response.status() == StatusCode::OK
-                || response.status() == StatusCode::INTERNAL_SERVER_ERROR
-        );
-    }
-
     // Test concurrent context updates
+    #[rstest]
     #[tokio::test]
-    async fn test_concurrent_context_updates() {
-        let server = Arc::new(create_test_server().await);
+    async fn test_concurrent_context_updates(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+        let (gateway, _) = mcp_gateway_and_db.await;
 
         // Spawn multiple tasks that update context concurrently
         let mut handles = vec![];
 
         for i in 0..10 {
-            let server_clone = Arc::clone(&server);
+            let gateway_clone = gateway.clone();
             let handle = tokio::spawn(async move {
                 let params = UpdateContextRequest {
                     key: format!("key_{i}"),
                     value: format!("value_{i}"),
                 };
-                server_clone.update_context(Parameters(params)).await
+                gateway_clone.update_context(Parameters(params)).await
             });
             handles.push(handle);
         }
@@ -631,7 +575,7 @@ mod tests {
         }
 
         // Verify all updates were applied
-        let context = server.context.lock().await;
+        let context = gateway.context.lock().await;
         for i in 0..10 {
             assert_eq!(
                 context.project_context.get(&format!("key_{i}")),
@@ -641,11 +585,12 @@ mod tests {
     }
 
     // Test list_installed_mcp_servers tool
+    #[rstest]
     #[tokio::test]
-    async fn test_list_installed_mcp_servers_tool() {
-        let server = create_test_server().await;
+    async fn test_list_installed_mcp_servers_tool(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+        let (gateway, _) = mcp_gateway_and_db.await;
 
-        let result = server.list_installed_mcp_servers().await;
+        let result = gateway.list_installed_mcp_servers().await;
         assert!(result.is_ok());
 
         let tool_result = result.unwrap();

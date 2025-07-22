@@ -290,16 +290,13 @@ pub async fn get_mcp_connector_catalog() -> Result<Vec<ConnectorCatalogEntry>, S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::migration::Migrator;
-    use sea_orm_migration::MigratorTrait;
+    use crate::test_fixtures::database;
+    use rstest::*;
 
+    #[rstest]
     #[tokio::test]
-    async fn test_save_server() {
-        // Use in-memory database for testing
-        let db = sea_orm::Database::connect("sqlite::memory:").await.unwrap();
-
-        // Run migrations
-        Migrator::up(&db, None).await.unwrap();
+    async fn test_save_server(#[future] database: DatabaseConnection) {
+        let db = database.await;
 
         let server_config = ServerConfig {
             transport: "stdio".to_string(),

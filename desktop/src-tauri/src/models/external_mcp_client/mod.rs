@@ -397,17 +397,14 @@ pub async fn disconnect_external_mcp_client(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::migration::Migrator;
-    use sea_orm_migration::MigratorTrait;
+    use crate::test_fixtures::database;
+    use rstest::*;
     use tempfile::NamedTempFile;
 
+    #[rstest]
     #[tokio::test]
-    async fn test_save_external_mcp_client() {
-        // Use in-memory database for testing
-        let db = sea_orm::Database::connect("sqlite::memory:").await.unwrap();
-
-        // Run migrations
-        Migrator::up(&db, None).await.unwrap();
+    async fn test_save_external_mcp_client(#[future] database: DatabaseConnection) {
+        let db = database.await;
 
         let definition = ExternalMCPClientDefinition {
             client_name: "test_client".to_string(),

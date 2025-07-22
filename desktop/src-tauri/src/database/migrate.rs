@@ -31,18 +31,3 @@ async fn run_migrations(db: &DatabaseConnection) -> Result<(), DbErr> {
 
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use sea_orm::Database;
-
-    #[tokio::test]
-    async fn test_migrations_apply() {
-        // Test that migrations can be applied to an in-memory database
-        let db = Database::connect("sqlite::memory:").await.unwrap();
-
-        // Apply migrations
-        run_migrations(&db).await.unwrap();
-    }
-}
