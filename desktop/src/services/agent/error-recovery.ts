@@ -199,7 +199,7 @@ export class DefaultErrorRecoveryStrategy implements ErrorRecoveryStrategy {
 
   // Private recovery methods for specific error types
 
-  private async handleInitializationFailure(error: AgentError, context: AgentContext): Promise<RecoveryResult> {
+  private async handleInitializationFailure(_error: AgentError, _context: AgentContext): Promise<RecoveryResult> {
     // Try to reinitialize with default configuration
     return {
       success: false,
@@ -208,7 +208,7 @@ export class DefaultErrorRecoveryStrategy implements ErrorRecoveryStrategy {
     };
   }
 
-  private async handlePlanningFailure(error: AgentError, context: AgentContext): Promise<RecoveryResult> {
+  private async handlePlanningFailure(_error: AgentError, context: AgentContext): Promise<RecoveryResult> {
     // Try to create a simpler plan
     const simplifiedPlan: TaskPlan = {
       id: crypto.randomUUID(),
@@ -246,7 +246,7 @@ export class DefaultErrorRecoveryStrategy implements ErrorRecoveryStrategy {
     };
   }
 
-  private async handleToolSelectionFailure(error: AgentError, context: AgentContext): Promise<RecoveryResult> {
+  private async handleToolSelectionFailure(_error: AgentError, context: AgentContext): Promise<RecoveryResult> {
     // Check if we have any fallback tools
     const fallbackTools = context.availableTools.filter((tool) => tool.capabilities.includes('general-purpose'));
 
@@ -265,7 +265,7 @@ export class DefaultErrorRecoveryStrategy implements ErrorRecoveryStrategy {
     };
   }
 
-  private async handleToolExecutionFailure(error: AgentError, context: AgentContext): Promise<RecoveryResult> {
+  private async handleToolExecutionFailure(error: AgentError, _context: AgentContext): Promise<RecoveryResult> {
     // Check if error is recoverable
     if (error.recoverable) {
       // Try with increased timeout or different parameters
@@ -283,7 +283,7 @@ export class DefaultErrorRecoveryStrategy implements ErrorRecoveryStrategy {
     };
   }
 
-  private async handleMemoryLimitExceeded(error: AgentError, context: AgentContext): Promise<RecoveryResult> {
+  private async handleMemoryLimitExceeded(_error: AgentError, _context: AgentContext): Promise<RecoveryResult> {
     // Trigger memory summarization
     return {
       success: true,
@@ -292,7 +292,7 @@ export class DefaultErrorRecoveryStrategy implements ErrorRecoveryStrategy {
     };
   }
 
-  private async handleObjectiveUnclear(error: AgentError, context: AgentContext): Promise<RecoveryResult> {
+  private async handleObjectiveUnclear(_error: AgentError, _context: AgentContext): Promise<RecoveryResult> {
     // Always require user input for unclear objectives
     return {
       success: false,
@@ -301,7 +301,7 @@ export class DefaultErrorRecoveryStrategy implements ErrorRecoveryStrategy {
     };
   }
 
-  private async handleMaxRetriesExceeded(error: AgentError, context: AgentContext): Promise<RecoveryResult> {
+  private async handleMaxRetriesExceeded(_error: AgentError, _context: AgentContext): Promise<RecoveryResult> {
     // No automatic recovery possible
     return {
       success: false,
@@ -310,7 +310,7 @@ export class DefaultErrorRecoveryStrategy implements ErrorRecoveryStrategy {
     };
   }
 
-  private async handleUserInterventionRequired(error: AgentError, context: AgentContext): Promise<RecoveryResult> {
+  private async handleUserInterventionRequired(error: AgentError, _context: AgentContext): Promise<RecoveryResult> {
     // By definition, requires user intervention
     return {
       success: false,
@@ -319,7 +319,7 @@ export class DefaultErrorRecoveryStrategy implements ErrorRecoveryStrategy {
     };
   }
 
-  private async handleContextOverflow(error: AgentError, context: AgentContext): Promise<RecoveryResult> {
+  private async handleContextOverflow(_error: AgentError, _context: AgentContext): Promise<RecoveryResult> {
     // Try to reduce context by summarizing
     return {
       success: true,
@@ -328,7 +328,7 @@ export class DefaultErrorRecoveryStrategy implements ErrorRecoveryStrategy {
     };
   }
 
-  private async handlePermissionDenied(error: AgentError, context: AgentContext): Promise<RecoveryResult> {
+  private async handlePermissionDenied(_error: AgentError, _context: AgentContext): Promise<RecoveryResult> {
     // Always require user permission
     return {
       success: false,

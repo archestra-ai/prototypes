@@ -1,7 +1,8 @@
-export { ArchestraAgent } from './openai-agent';
+export { ArchestraAgent } from './ai-sdk-agent';
 export { AgentEventHandler, createDefaultEventHandler } from './agent-event-handler';
 export { MemoryManager } from './memory-manager';
 export { ReasoningModule } from './reasoning-module';
+export { ModelProviderFactory, ModelCapabilities } from './model-provider';
 export type { ArchestraAgentConfig } from '../../types/agent';
 export type {
   AgentEventCallbacks,

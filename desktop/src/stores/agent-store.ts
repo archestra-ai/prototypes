@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 
-import { ArchestraAgent, MemorySearchCriteria } from '../services/agent';
+import { ArchestraAgent, MemorySearchCriteria, ModelCapabilities } from '../services/agent';
 import { AgentEventCallbacks, AgentEventHandler } from '../services/agent/agent-event-handler';
 import { HumanInLoopHandler } from '../services/agent/human-in-loop';
 import { ToolCategory, extractToolsFromServers as extractMCPTools } from '../services/agent/mcp-tool-wrapper';
@@ -199,9 +199,22 @@ export const useAgentStore = create<AgentStore>()(
         },
       });
 
+      // Check if model supports tools
+      const modelName = selectedModel || 'gpt-4o';
+      const supportsTools = ModelCapabilities.supportsTools(modelName);
+
+      if (!supportsTools && mcpTools.length > 0) {
+        // Warn user that tools won't be available
+        const { sendChatMessage } = useChatStore.getState();
+        sendChatMessage(
+          `⚠️ Model '${modelName}' does not support tool calling. The agent will work but won't be able to use MCP tools. Consider using an OpenAI model (gpt-4, gpt-3.5-turbo) for full functionality.`,
+          'system'
+        );
+      }
+
       // Create agent instance with MCP tools
       const agentConfig: ArchestraAgentConfig = {
-        model: selectedModel || 'gpt-4o',
+        model: modelName,
         mcpTools,
         maxSteps: 10,
         temperature: 0.7,

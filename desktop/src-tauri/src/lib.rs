@@ -120,12 +120,10 @@ pub fn run() {
             });
             println!("Deep link handler set up successfully");
 
-            // Open devtools in debug mode
-            #[cfg(debug_assertions)]
+            #[cfg(dev)]
             {
-                let _window = app.get_webview_window("main").unwrap();
-                // window.open_devtools();
-                // window.close_devtools();
+                let window = app.get_webview_window("main").unwrap();
+                window.open_devtools();
             }
 
             Ok(())
