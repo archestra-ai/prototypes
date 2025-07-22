@@ -73,8 +73,8 @@ export default function ChatInput(_props: ChatInputProps) {
     setStatus('submitted');
 
     try {
-      await sendChatMessage(trimmedMessage, selectedModel);
       setMessage('');
+      await sendChatMessage(trimmedMessage, selectedModel);
       setStatus('ready');
     } catch (error) {
       setStatus('error');
