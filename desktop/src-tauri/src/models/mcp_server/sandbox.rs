@@ -2,7 +2,7 @@ use super::{MCPServerDefinition, ServerConfig};
 use crate::database::connection::get_database_connection_with_app;
 use crate::models::mcp_server::Model;
 use crate::utils::node;
-use rmcp::model::{JsonRpcResponse, JsonRpcNotification, JsonRpcResponse, Resource as MCPResource, Tool as MCPTool};
+use rmcp::model::{JsonRpcMessage, JsonRpcNotification, JsonRpcResponse, Resource as MCPResource, Tool as MCPTool};
 
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -481,39 +481,48 @@ impl MCPServerManager {
 
                     if let Some(entry) = buffer.pop_front() {
                         println!("📨 Processing buffer entry: {}", entry.content);
-                        if let Ok(response) =
-                            serde_json::from_str::<JsonRpcResponse>(&entry.content)
-                        {
-                            println!("✅ Parsed JSON-RPC response with ID: {:?}", response.id);
+                        if let Ok(message) = serde_json::from_str::<JsonRpcMessage<serde_json::Value, serde_json::Value, serde_json::Value>>(&entry.content) {
+                            match message {
+                                JsonRpcMessage::Response(response) => {
+                                    println!("✅ Parsed JSON-RPC response with ID: {:?}", response.id);
 
-                            // Convert request.id to match response.id format for comparison
-                            let ids_match = match &request.id {
-                                Some(req_id) => {
-                                    // Convert serde_json::Value to string for comparison
-                                    match req_id {
-                                        serde_json::Value::Number(n) => {
-                                            response.id.to_string() == n.to_string()
+                                    // Convert request.id to match response.id format for comparison
+                                    let ids_match = match &request.id {
+                                        Some(req_id) => {
+                                            // Convert serde_json::Value to string for comparison
+                                            match req_id {
+                                                serde_json::Value::Number(n) => {
+                                                    response.id.to_string() == n.to_string()
+                                                }
+                                                serde_json::Value::String(s) => {
+                                                    response.id.to_string() == *s
+                                                }
+                                                _ => response.id.to_string() == *req_id,
+                                            }
                                         }
-                                        serde_json::Value::String(s) => {
-                                            response.id.to_string() == *s
-                                        }
-                                        _ => response.id.to_string() == *req_id,
+                                        None => false, // Should not happen since we checked earlier
+                                    };
+
+                                    if ids_match {
+                                        println!("🎯 Found matching response for ID: {:?}", request.id);
+                                        return Ok(entry.content);
+                                    } else {
+                                        println!(
+                                            "🔄 Response ID {:?} doesn't match request ID {:?}",
+                                            response.id, request.id
+                                        );
                                     }
                                 }
-                                None => false, // Should not happen since we checked earlier
-                            };
-
-                            if ids_match {
-                                println!("🎯 Found matching response for ID: {:?}", request.id);
-                                return Ok(entry.content);
-                            } else {
-                                println!(
-                                    "🔄 Response ID {:?} doesn't match request ID {:?}",
-                                    response.id, request.id
-                                );
+                                JsonRpcMessage::Notification(_notification) => {
+                                    println!("🔔 Skipping JSON-RPC notification (no response expected): {}", entry.content);
+                                    continue; // Skip notifications and continue processing next entry
+                                }
+                                _ => {
+                                    println!("🔄 Skipping non-response JSON-RPC message: {}", entry.content);
+                                }
                             }
                         } else {
-                            println!("❌ Failed to parse response as JSON-RPC: {}", entry.content);
+                            println!("❌ Failed to parse message as JSON-RPC: {}", entry.content);
                         }
                         // Put it back if it's not our response
                         buffer.push_front(entry);
