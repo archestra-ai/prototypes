@@ -13,16 +13,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # See here for more information
+  # https://github.com/tauri-apps/tauri-action
   rust-linting-and-tests:
-    name: Rust Linting and Tests
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-latest" # for Arm based macs (M1 and above).
+            args: "--target aarch64-apple-darwin"
+          - platform: "macos-latest" # for Intel based macs.
+            args: "--target x86_64-apple-darwin"
+          - platform: "ubuntu-latest"
+            args: ""
+          - platform: "windows-latest"
+            args: ""
+    runs-on: ${{ matrix.platform }}
+    name: Rust Linting and Tests (${{ matrix.platform }})
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
+          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
           components: rustfmt,clippy
+
+      - name: Install Ubuntu Dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
 
       - name: Check Rust formatting
         working-directory: desktop/src-tauri
@@ -35,6 +61,17 @@ jobs:
       - name: Run tests
         working-directory: desktop/src-tauri
         run: cargo test
+
+      # NOTE: use this once we want to start building the application binaries for Mac/Windows/Linux
+      # - uses: tauri-apps/tauri-action@v0.5.22
+      #   with:
+      #     tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+      #     projectPath: desktop
+      #     releaseName: "App v__VERSION__"
+      #     releaseBody: "See the assets to download this version and install."
+      #     releaseDraft: true
+      #     prerelease: false
+      #     args: ${{ matrix.args }}
 
   frontend-linting-and-tests:
     name: Frontend Linting and Tests
