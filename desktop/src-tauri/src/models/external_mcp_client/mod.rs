@@ -48,6 +48,7 @@ impl Model {
             is_connected: Set(is_connected),
             last_connected: Set(last_connected),
             config_path: Set(config_path),
+            created_at: Set(now),
             updated_at: Set(now),
             ..Default::default()
         };
