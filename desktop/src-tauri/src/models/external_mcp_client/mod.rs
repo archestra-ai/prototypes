@@ -402,6 +402,9 @@ mod tests {
             Some("path/to/config".to_string()),
         )
         .await;
+        if let Err(e) = &result {
+            eprintln!("Error: {:?}", e);
+        }
         assert!(result.is_ok());
     }
 
