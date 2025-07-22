@@ -21,6 +21,7 @@ export default function ExternalClients() {
         const connectedExternalMCPClient = connectedExternalMCPClients.find(
           (client) => client.client_name === clientName
         );
+        const isConnected = connectedExternalMCPClient !== undefined;
 
         return (
           <Card key={clientName}>
@@ -35,31 +36,18 @@ export default function ExternalClients() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    {connectedExternalMCPClient?.is_connected ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        Connected
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
-                        Disconnected
-                      </Badge>
-                    )}
+                {isConnected && (
+                  <div className="space-y-1">
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      Connected
+                    </Badge>
                   </div>
-                  {connectedExternalMCPClient?.last_connected && (
-                    <p className="text-xs text-muted-foreground">
-                      Last connected: {connectedExternalMCPClient.last_connected}
-                    </p>
-                  )}
-                </div>
+                )}
                 <Button
-                  variant={connectedExternalMCPClient?.is_connected ? 'destructive' : 'outline'}
+                  variant={isConnected ? 'destructive' : 'outline'}
                   size="sm"
                   onClick={() =>
-                    connectedExternalMCPClient?.is_connected
-                      ? disconnectExternalMCPClient(clientName)
-                      : connectExternalMCPClient(clientName)
+                    isConnected ? disconnectExternalMCPClient(clientName) : connectExternalMCPClient(clientName)
                   }
                   disabled={isConnectingExternalMCPClient || isDisconnectingExternalMCPClient}
                 >
@@ -68,7 +56,7 @@ export default function ExternalClients() {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Connecting...
                     </>
-                  ) : connectedExternalMCPClient?.is_connected ? (
+                  ) : isConnected ? (
                     'Disconnect'
                   ) : (
                     'Connect'

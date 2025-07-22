@@ -85,6 +85,17 @@ pub fn run() {
                 }
             });
 
+            // Sync all connected external MCP clients
+            let db = db.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) =
+                    models::external_mcp_client::Model::sync_all_connected_external_mcp_clients(&db)
+                        .await
+                {
+                    eprintln!("Failed to sync all connected external MCP clients: {e}");
+                }
+            });
+
             // HANDLER 2: Deep Link Plugin Handler
             // This handles deep links when the app is FIRST LAUNCHED via deep link
             // Scenario: App is NOT running → User clicks archestra-ai://foo-bar → App starts up

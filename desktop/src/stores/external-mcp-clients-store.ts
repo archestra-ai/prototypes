@@ -2,11 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { create } from 'zustand';
 
 interface ExternalMCPClient {
-  id: number;
   client_name: string;
-  is_connected: boolean;
-  last_connected: string;
-  config_path: string;
   created_at: string;
   updated_at: string;
 }
@@ -26,7 +22,7 @@ interface ExternalMCPClientsState {
 
 interface ExternalMCPClientsActions {
   connectExternalMCPClient: (clientName: string) => Promise<void>;
-  disconnectExternalMCPClient: (clientId: string) => Promise<void>;
+  disconnectExternalMCPClient: (clientName: string) => Promise<void>;
   loadSupportedClients: () => Promise<void>;
   loadConnectedClients: () => Promise<void>;
 }
@@ -79,14 +75,14 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
     }
   },
 
-  connectExternalMCPClient: async (clientId: string) => {
+  connectExternalMCPClient: async (clientName: string) => {
     try {
       set({
         isConnectingExternalMCPClient: true,
         errorConnectingExternalMCPClient: null,
       });
 
-      await invoke('connect_external_mcp_client', { clientId });
+      await invoke('connect_external_mcp_client', { clientName });
 
       // Refresh connected clients after successful connection
       await useExternalMCPClientsStore.getState().loadConnectedClients();
@@ -97,14 +93,14 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
     }
   },
 
-  disconnectExternalMCPClient: async (clientId: string) => {
+  disconnectExternalMCPClient: async (clientName: string) => {
     try {
       set({
         isDisconnectingExternalMCPClient: true,
         errorDisconnectingExternalMCPClient: null,
       });
 
-      await invoke('disconnect_external_mcp_client', { clientId });
+      await invoke('disconnect_external_mcp_client', { clientName });
 
       // Refresh connected clients after successful disconnection
       await useExternalMCPClientsStore.getState().loadConnectedClients();

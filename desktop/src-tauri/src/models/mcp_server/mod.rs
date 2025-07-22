@@ -1,4 +1,5 @@
 use crate::database::connection::get_database_connection_with_app;
+use crate::models::external_mcp_client::Model as ExternalMCPClient;
 use sea_orm::entity::prelude::*;
 use sea_orm::{DeleteResult, Set};
 use serde::{Deserialize, Serialize};
@@ -98,7 +99,7 @@ impl Model {
             .await
     }
 
-    /// Save an MCP server definition to the database and start it
+    /// Save an MCP server definition to the database, start it and sync all connected external MCP clients
     pub async fn save_server(
         db: &DatabaseConnection,
         definition: &MCPServerDefinition,
@@ -123,6 +124,11 @@ impl Model {
             // Don't fail the save operation, but log the error
         }
 
+        // Sync all connected external MCP clients
+        ExternalMCPClient::sync_all_connected_external_mcp_clients(db)
+            .await
+            .map_err(DbErr::Custom)?;
+
         Ok(result)
     }
 
@@ -131,19 +137,29 @@ impl Model {
         Entity::find().all(db).await
     }
 
-    /// Uninstall an MCP server - stop its process running in the sandbox and delete it from the database
+    /// Uninstall an MCP server - stop its process running in the sandbox, delete it from the database and sync all connected external MCP clients
     pub async fn uninstall_mcp_server(
         db: &DatabaseConnection,
         server_name: &str,
     ) -> Result<DeleteResult, DbErr> {
-        // Stop the server before deleting.. if there's an error stopping the server
-        // that's fine, we don't want to block the uninstallation
-        let _ = sandbox::stop_mcp_server(server_name).await;
+        // Stop the server, in the background, before deleting
+        // if there's an error stopping the server, that's fine (for now)
+        let server_name_for_bg = server_name.to_string();
+        tokio::spawn(async move {
+            let _ = sandbox::stop_mcp_server(&server_name_for_bg).await;
+        });
 
-        Entity::delete_many()
+        let delete_result = Entity::delete_many()
             .filter(Column::Name.eq(server_name))
             .exec(db)
+            .await?;
+
+        // Sync all connected external MCP clients
+        ExternalMCPClient::sync_all_connected_external_mcp_clients(db)
             .await
+            .map_err(DbErr::Custom)?;
+
+        Ok(delete_result)
     }
 
     /// Find an MCP server by name

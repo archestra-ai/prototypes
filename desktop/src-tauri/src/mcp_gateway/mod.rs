@@ -28,7 +28,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 // Fixed port for MCP server
-const MCP_SERVER_PORT: u16 = 54587;
+pub const MCP_SERVER_PORT: u16 = 54587;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArchestraContext {
