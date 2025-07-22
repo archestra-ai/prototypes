@@ -1,9 +1,10 @@
-import { Check, Clock, Cpu, Download, HardDrive, Loader2, Search, Type } from 'lucide-react';
+import { Check, Clock, Cpu, Download, HardDrive, Loader2, Search, Type, Wrench } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,6 +15,7 @@ interface ModelsCatalogProps {}
 export default function ModelsCatalog({}: ModelsCatalogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLabel, setSelectedLabel] = useState<string>('all');
+  const [toolCallsOnly, setToolCallsOnly] = useState(true);
 
   const { installedModels, downloadModel, downloadProgress, modelsBeingDownloaded } = useOllamaStore();
 
@@ -28,7 +30,9 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
 
     const matchesLabel = selectedLabel === 'all' || model.labels.includes(selectedLabel);
 
-    return matchesSearch && matchesLabel;
+    const matchesToolCalls = !toolCallsOnly || model.labels.includes('tools');
+
+    return matchesSearch && matchesLabel && matchesToolCalls;
   });
 
   const isModelInstalled = (modelName: string) => {
@@ -64,6 +68,17 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox id="tool-calls-filter" checked={toolCallsOnly} onCheckedChange={setToolCallsOnly} />
+            <label
+              htmlFor="tool-calls-filter"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1"
+            >
+              <Wrench className="h-4 w-4" />
+              Tool calling models
+            </label>
           </div>
 
           <Select value={selectedLabel} onValueChange={setSelectedLabel}>
