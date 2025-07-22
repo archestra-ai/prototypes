@@ -293,6 +293,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       let accumulatedContent = '';
       let finalMessage: any = null;
+      let accumulatedToolCalls: any[] = [];
 
       // Stream the initial response
       for await (const part of response) {
@@ -306,6 +307,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           get().updateStreamingMessage(aiMsgId, accumulatedContent);
         }
 
+        // Collect tool calls from any streaming chunk
+        if (part.message?.tool_calls) {
+          console.log('🔧 Tool calls found in streaming chunk:', part.message.tool_calls);
+          accumulatedToolCalls.push(...part.message.tool_calls);
+        }
+
         if (part.done) {
           finalMessage = part.message;
           console.log('🏁 Final message received:', JSON.stringify(finalMessage, null, 2));
@@ -313,9 +320,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
       }
 
+      console.log(`🔧 Total accumulated tool calls: ${accumulatedToolCalls.length}`);
+
       // Handle tool calls if present
-      if (finalMessage?.tool_calls && executeTool) {
-        console.log('🔧 Tool calls received:', finalMessage.tool_calls);
+      console.log(
+        '🔍 Checking for tool calls. finalMessage:',
+        !!finalMessage,
+        'accumulatedToolCalls:',
+        accumulatedToolCalls,
+        'executeTool:',
+        !!executeTool
+      );
+      if (accumulatedToolCalls.length > 0 && executeTool) {
+        console.log('🔧 Tool calls received:', accumulatedToolCalls);
 
         // Mark message as executing tools
         set((state) => ({
@@ -332,7 +349,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
         // Execute tools and collect results
         const toolResults: ToolCallInfo[] = [];
-        for (const toolCall of finalMessage.tool_calls) {
+        for (const toolCall of accumulatedToolCalls) {
           try {
             const functionName = toolCall.function.name;
             const args =
