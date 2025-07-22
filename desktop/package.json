@@ -31,7 +31,7 @@
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@shikijs/transformers": "^3.8.0",
     "@tailwindcss/vite": "^4.1.11",
-    "@tanstack/react-router": "^1.128.0",
+    "@tanstack/react-router": "^1.129.2",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-http": "~2.5.1",
     "@tauri-apps/plugin-opener": "^2",
