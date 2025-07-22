@@ -373,7 +373,7 @@ mod tests {
         let db = database.await;
 
         // Create test logs with different status codes
-        let test_cases = vec![
+        let test_cases = [
             ("server1", 200, 100),
             ("server1", 200, 150),
             ("server2", 500, 200),
@@ -385,7 +385,7 @@ mod tests {
                 request_id: format!("test-{i}"),
                 session_id: None,
                 mcp_session_id: None,
-                server_name: server.to_string(),
+                server_name: (*server).to_string(),
                 client_info: None,
                 method: Some("test".to_string()),
                 request_headers: None,
