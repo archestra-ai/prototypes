@@ -127,7 +127,7 @@ impl Model {
         // Sync all connected external MCP clients
         ExternalMCPClient::sync_all_connected_external_mcp_clients(db)
             .await
-            .map_err(|e| DbErr::Custom(e))?;
+            .map_err(DbErr::Custom)?;
 
         Ok(result)
     }
@@ -154,7 +154,7 @@ impl Model {
         // Sync all connected external MCP clients
         ExternalMCPClient::sync_all_connected_external_mcp_clients(db)
             .await
-            .map_err(|e| DbErr::Custom(e))?;
+            .map_err(DbErr::Custom)?;
 
         Ok(delete_result)
     }

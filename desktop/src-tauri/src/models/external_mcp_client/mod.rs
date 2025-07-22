@@ -635,7 +635,7 @@ mod tests {
         // Add multiple clients
         for i in 1..=3 {
             let definition = ExternalMCPClientDefinition {
-                client_name: format!("test_client_{}", i),
+                client_name: format!("test_client_{i}"),
             };
             Model::save_external_mcp_client(&db, &definition)
                 .await
@@ -694,7 +694,7 @@ mod tests {
 
         let result = Model::read_config_file(&config_path);
         assert!(result.is_ok());
-        
+
         let config = result.unwrap();
         assert!(config.is_object());
         assert!(config["mcpServers"].is_object());
