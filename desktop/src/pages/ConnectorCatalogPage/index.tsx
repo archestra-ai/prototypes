@@ -24,10 +24,10 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
   const {
     connectorCatalog,
     loadingConnectorCatalog,
-    installingMcpServerName,
-    uninstallingMcpServerName,
-    installMcpServerFromConnectorCatalog,
-    uninstallMcpServer,
+    installingMCPServerName,
+    uninstallingMCPServerName,
+    installMCPServerFromConnectorCatalog,
+    uninstallMCPServer,
   } = useConnectorCatalogStore();
 
   const getCategoryIcon = (category: string) => {
@@ -71,7 +71,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                 const { id, title, description, category, server_config, oauth } = mcpServer;
 
                 const isInstalled = installedMCPServers.some((server) => server.name === title);
-                const isInstalling = installingMcpServerName === title;
+                const isInstalling = installingMCPServerName === title;
 
                 return (
                   <Card
@@ -117,11 +117,11 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => uninstallMcpServer(title)}
-                              disabled={uninstallingMcpServerName === title}
+                              onClick={() => uninstallMCPServer(title)}
+                              disabled={uninstallingMCPServerName === title}
                               className="flex items-center gap-2"
                             >
-                              {uninstallingMcpServerName === title ? (
+                              {uninstallingMCPServerName === title ? (
                                 <>
                                   <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                                   Uninstalling...
@@ -136,7 +136,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                           ) : (
                             <Button
                               size="sm"
-                              onClick={() => installMcpServerFromConnectorCatalog(mcpServer)}
+                              onClick={() => installMCPServerFromConnectorCatalog(mcpServer)}
                               disabled={isInstalling}
                               className="flex items-center gap-2"
                             >

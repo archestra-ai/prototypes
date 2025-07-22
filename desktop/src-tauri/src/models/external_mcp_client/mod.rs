@@ -22,13 +22,13 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct McpServerConfig {
+pub struct MCPServerConfig {
     pub command: String,
     pub args: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExternalMcpClientDefinition {
+pub struct ExternalMCPClientDefinition {
     pub client_name: String,
     pub is_connected: bool,
     pub config_path: Option<String>,
@@ -42,7 +42,7 @@ impl Model {
     /// Save the external MCP client to the database using definition
     pub async fn save_external_mcp_client(
         db: &DatabaseConnection,
-        definition: &ExternalMcpClientDefinition,
+        definition: &ExternalMCPClientDefinition,
     ) -> Result<Model, DbErr> {
         let now = chrono::Utc::now();
 
@@ -189,7 +189,7 @@ impl Model {
         write_config_file(&config_path, &config)?;
 
         // Save external MCP client to database
-        let definition = ExternalMcpClientDefinition {
+        let definition = ExternalMCPClientDefinition {
             client_name: client_name.to_string(),
             is_connected: true,
             config_path: Some(config_path.to_string_lossy().to_string()),
@@ -311,7 +311,7 @@ pub fn write_config_file(path: &PathBuf, config: &Value) -> Result<(), String> {
 }
 
 pub async fn get_available_mcp_servers() -> Result<Vec<String>, String> {
-    // Get all available MCP servers from McpServerManager
+    // Get all available MCP servers from MCPServerManager
 
     println!("🔍 Getting available MCP servers from server manager...");
 
@@ -327,8 +327,8 @@ pub async fn get_available_mcp_servers() -> Result<Vec<String>, String> {
     Ok(server_names)
 }
 
-pub fn create_archestra_server_config(server_name: &str) -> McpServerConfig {
-    McpServerConfig {
+pub fn create_archestra_server_config(server_name: &str) -> MCPServerConfig {
+    MCPServerConfig {
         command: "curl".to_string(),
         args: vec![
             "-X".to_string(),
@@ -411,7 +411,7 @@ mod tests {
         // Run migrations
         Migrator::up(&db, None).await.unwrap();
 
-        let definition = ExternalMcpClientDefinition {
+        let definition = ExternalMCPClientDefinition {
             client_name: "test_client".to_string(),
             is_connected: true,
             config_path: Some("path/to/config".to_string()),

@@ -29,15 +29,15 @@ interface ConnectorCatalogState {
   connectorCatalog: ConnectorCatalogEntry[];
   loadingConnectorCatalog: boolean;
   errorFetchingConnectorCatalog: string | null;
-  installingMcpServerName: string | null;
-  errorInstallingMcpServer: string | null;
-  uninstallingMcpServerName: string | null;
-  errorUninstallingMcpServer: string | null;
+  installingMCPServerName: string | null;
+  errorInstallingMCPServer: string | null;
+  uninstallingMCPServerName: string | null;
+  errorUninstallingMCPServer: string | null;
 }
 
 interface ConnectorCatalogActions {
-  installMcpServerFromConnectorCatalog: (mcpServer: ConnectorCatalogEntry) => Promise<void>;
-  uninstallMcpServer: (mcpServerName: string) => Promise<void>;
+  installMCPServerFromConnectorCatalog: (mcpServer: ConnectorCatalogEntry) => Promise<void>;
+  uninstallMCPServer: (mcpServerName: string) => Promise<void>;
   loadConnectorCatalog: () => Promise<void>;
 }
 
@@ -48,10 +48,10 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
   connectorCatalog: [],
   loadingConnectorCatalog: false,
   errorFetchingConnectorCatalog: null,
-  installingMcpServerName: null,
-  errorInstallingMcpServer: null,
-  uninstallingMcpServerName: null,
-  errorUninstallingMcpServer: null,
+  installingMCPServerName: null,
+  errorInstallingMCPServer: null,
+  uninstallingMCPServerName: null,
+  errorUninstallingMCPServer: null,
 
   // Actions
   loadConnectorCatalog: async () => {
@@ -75,13 +75,13 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
     }
   },
 
-  installMcpServerFromConnectorCatalog: async (mcpServer: ConnectorCatalogEntry) => {
+  installMCPServerFromConnectorCatalog: async (mcpServer: ConnectorCatalogEntry) => {
     const { oauth, title, id } = mcpServer;
 
     try {
       set({
-        installingMcpServerName: mcpServer.title,
-        errorInstallingMcpServer: null,
+        installingMCPServerName: mcpServer.title,
+        errorInstallingMCPServer: null,
       });
 
       // Check if OAuth is required
@@ -93,7 +93,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
           // For OAuth connectors, the backend will handle the installation after successful auth
           alert(`OAuth setup started for ${title}. Please complete the authentication in your browser.`);
         } catch (error) {
-          set({ errorInstallingMcpServer: error as string });
+          set({ errorInstallingMCPServer: error as string });
         }
       } else {
         const result = await invoke<MCPServer>('save_mcp_server_from_catalog', { connectorId: id });
@@ -102,17 +102,17 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
         useMCPServersStore.getState().addMCPServerToInstalledMCPServers(result);
       }
     } catch (error) {
-      set({ errorInstallingMcpServer: error as string });
+      set({ errorInstallingMCPServer: error as string });
     } finally {
-      set({ installingMcpServerName: null });
+      set({ installingMCPServerName: null });
     }
   },
 
-  uninstallMcpServer: async (mcpServerName: string) => {
+  uninstallMCPServer: async (mcpServerName: string) => {
     try {
       set({
-        uninstallingMcpServerName: mcpServerName,
-        errorUninstallingMcpServer: null,
+        uninstallingMCPServerName: mcpServerName,
+        errorUninstallingMCPServer: null,
       });
 
       await invoke('uninstall_mcp_server', { name: mcpServerName });
@@ -120,9 +120,9 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
       // Remove from MCP servers store
       useMCPServersStore.getState().removeMCPServerFromInstalledMCPServers(mcpServerName);
     } catch (error) {
-      set({ errorUninstallingMcpServer: error as string });
+      set({ errorUninstallingMCPServer: error as string });
     } finally {
-      set({ uninstallingMcpServerName: null });
+      set({ uninstallingMCPServerName: null });
     }
   },
 }));

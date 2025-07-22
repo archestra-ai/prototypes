@@ -7,18 +7,18 @@ import { useExternalMCPClientsStore } from '@/stores/external-mcp-clients-store'
 
 export default function ExternalClients() {
   const {
-    supportedExternalMcpClientNames,
-    connectedExternalMcpClients,
-    isConnectingExternalMcpClient,
-    isDisconnectingExternalMcpClient,
-    connectExternalMcpClient,
-    disconnectExternalMcpClient,
+    supportedExternalMCPClientNames,
+    connectedExternalMCPClients,
+    isConnectingExternalMCPClient,
+    isDisconnectingExternalMCPClient,
+    connectExternalMCPClient,
+    disconnectExternalMCPClient,
   } = useExternalMCPClientsStore();
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {supportedExternalMcpClientNames.map((clientName) => {
-        const connectedExternalMcpClient = connectedExternalMcpClients.find(
+      {supportedExternalMCPClientNames.map((clientName) => {
+        const connectedExternalMCPClient = connectedExternalMCPClients.find(
           (client) => client.client_name === clientName
         );
 
@@ -37,7 +37,7 @@ export default function ExternalClients() {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    {connectedExternalMcpClient?.is_connected ? (
+                    {connectedExternalMCPClient?.is_connected ? (
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                         Connected
                       </Badge>
@@ -47,28 +47,28 @@ export default function ExternalClients() {
                       </Badge>
                     )}
                   </div>
-                  {connectedExternalMcpClient?.last_connected && (
+                  {connectedExternalMCPClient?.last_connected && (
                     <p className="text-xs text-muted-foreground">
-                      Last connected: {connectedExternalMcpClient.last_connected}
+                      Last connected: {connectedExternalMCPClient.last_connected}
                     </p>
                   )}
                 </div>
                 <Button
-                  variant={connectedExternalMcpClient?.is_connected ? 'destructive' : 'outline'}
+                  variant={connectedExternalMCPClient?.is_connected ? 'destructive' : 'outline'}
                   size="sm"
                   onClick={() =>
-                    connectedExternalMcpClient?.is_connected
-                      ? disconnectExternalMcpClient(clientName)
-                      : connectExternalMcpClient(clientName)
+                    connectedExternalMCPClient?.is_connected
+                      ? disconnectExternalMCPClient(clientName)
+                      : connectExternalMCPClient(clientName)
                   }
-                  disabled={isConnectingExternalMcpClient || isDisconnectingExternalMcpClient}
+                  disabled={isConnectingExternalMCPClient || isDisconnectingExternalMCPClient}
                 >
-                  {isConnectingExternalMcpClient ? (
+                  {isConnectingExternalMCPClient ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Connecting...
                     </>
-                  ) : connectedExternalMcpClient?.is_connected ? (
+                  ) : connectedExternalMCPClient?.is_connected ? (
                     'Disconnect'
                   ) : (
                     'Connect'

@@ -1,8 +1,8 @@
-use super::{McpServerDefinition, ServerConfig};
+use super::{MCPServerDefinition, ServerConfig};
 use crate::database::connection::get_database_connection_with_app;
 use crate::models::mcp_server::Model;
 use crate::utils::node;
-use rmcp::model::{JsonRpcResponse, Resource as McpResource, Tool as McpTool};
+use rmcp::model::{JsonRpcResponse, Resource as MCPResource, Tool as MCPTool};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::process::Stdio;
@@ -41,13 +41,13 @@ pub struct ResponseEntry {
 }
 
 #[derive(Debug)]
-pub struct McpServer {
+pub struct MCPServer {
     pub name: String,
     pub command: String,
     pub args: Vec<String>,
     pub server_type: ServerType,
-    pub tools: Vec<McpTool>,
-    pub resources: Vec<McpResource>,
+    pub tools: Vec<MCPTool>,
+    pub resources: Vec<MCPResource>,
     pub stdin_tx: Option<mpsc::Sender<String>>,
     pub response_buffer: Arc<TokioMutex<VecDeque<ResponseEntry>>>,
     pub process_handle: Option<Arc<TokioMutex<Child>>>,
@@ -56,18 +56,18 @@ pub struct McpServer {
 }
 
 /// Manages MCP server processes and their lifecycle
-pub struct McpServerManager {
-    servers: Arc<RwLock<HashMap<String, McpServer>>>,
+pub struct MCPServerManager {
+    servers: Arc<RwLock<HashMap<String, MCPServer>>>,
     http_client: reqwest::Client,
 }
 
-impl Default for McpServerManager {
+impl Default for MCPServerManager {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl McpServerManager {
+impl MCPServerManager {
     pub fn new() -> Self {
         let http_client = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
@@ -241,7 +241,7 @@ impl McpServerManager {
         });
 
         // Create server instance
-        let server = McpServer {
+        let server = MCPServer {
             name: name.clone(),
             command: actual_command,
             args: actual_args,
@@ -280,7 +280,7 @@ impl McpServerManager {
 
         println!("🌐 Starting HTTP MCP server '{name}' at URL: {url}");
 
-        let server = McpServer {
+        let server = MCPServer {
             name: name.clone(),
             command: "http".to_string(),
             args: vec![url.clone()],
@@ -528,7 +528,7 @@ impl McpServerManager {
 
 // Create a global instance of the manager
 lazy_static::lazy_static! {
-    static ref MCP_SERVER_MANAGER: McpServerManager = McpServerManager::new();
+    static ref MCP_SERVER_MANAGER: MCPServerManager = MCPServerManager::new();
 }
 
 /// Start all configured MCP servers using the global manager
@@ -584,7 +584,7 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
 }
 
 /// Start an MCP server using the global manager
-pub async fn start_mcp_server(definition: &McpServerDefinition) -> Result<(), String> {
+pub async fn start_mcp_server(definition: &MCPServerDefinition) -> Result<(), String> {
     MCP_SERVER_MANAGER
         .start_server(
             definition.name.clone(),

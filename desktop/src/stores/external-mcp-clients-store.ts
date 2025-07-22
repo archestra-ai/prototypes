@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { create } from 'zustand';
 
-interface ExternalMcpClient {
+interface ExternalMCPClient {
   id: number;
   client_name: string;
   is_connected: boolean;
@@ -12,21 +12,21 @@ interface ExternalMcpClient {
 }
 
 interface ExternalMCPClientsState {
-  supportedExternalMcpClientNames: string[];
-  isLoadingSupportedExternalMcpClientNames: boolean;
-  errorLoadingSupportedExternalMcpClientNames: string | null;
-  connectedExternalMcpClients: ExternalMcpClient[];
-  isLoadingConnectedExternalMcpClients: boolean;
-  errorLoadingConnectedExternalMcpClients: string | null;
-  isConnectingExternalMcpClient: boolean;
-  errorConnectingExternalMcpClient: string | null;
-  isDisconnectingExternalMcpClient: boolean;
-  errorDisconnectingExternalMcpClient: string | null;
+  supportedExternalMCPClientNames: string[];
+  isLoadingSupportedExternalMCPClientNames: boolean;
+  errorLoadingSupportedExternalMCPClientNames: string | null;
+  connectedExternalMCPClients: ExternalMCPClient[];
+  isLoadingConnectedExternalMCPClients: boolean;
+  errorLoadingConnectedExternalMCPClients: string | null;
+  isConnectingExternalMCPClient: boolean;
+  errorConnectingExternalMCPClient: string | null;
+  isDisconnectingExternalMCPClient: boolean;
+  errorDisconnectingExternalMCPClient: string | null;
 }
 
 interface ExternalMCPClientsActions {
-  connectExternalMcpClient: (clientName: string) => Promise<void>;
-  disconnectExternalMcpClient: (clientId: string) => Promise<void>;
+  connectExternalMCPClient: (clientName: string) => Promise<void>;
+  disconnectExternalMCPClient: (clientId: string) => Promise<void>;
   loadSupportedClients: () => Promise<void>;
   loadConnectedClients: () => Promise<void>;
 }
@@ -35,55 +35,55 @@ type ExternalMCPClientsStore = ExternalMCPClientsState & ExternalMCPClientsActio
 
 export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) => ({
   // State
-  supportedExternalMcpClientNames: [],
-  isLoadingSupportedExternalMcpClientNames: true,
-  errorLoadingSupportedExternalMcpClientNames: null,
-  connectedExternalMcpClients: [],
-  isLoadingConnectedExternalMcpClients: true,
-  errorLoadingConnectedExternalMcpClients: null,
-  isConnectingExternalMcpClient: false,
-  errorConnectingExternalMcpClient: null,
-  isDisconnectingExternalMcpClient: false,
-  errorDisconnectingExternalMcpClient: null,
+  supportedExternalMCPClientNames: [],
+  isLoadingSupportedExternalMCPClientNames: true,
+  errorLoadingSupportedExternalMCPClientNames: null,
+  connectedExternalMCPClients: [],
+  isLoadingConnectedExternalMCPClients: true,
+  errorLoadingConnectedExternalMCPClients: null,
+  isConnectingExternalMCPClient: false,
+  errorConnectingExternalMCPClient: null,
+  isDisconnectingExternalMCPClient: false,
+  errorDisconnectingExternalMCPClient: null,
 
   // Actions
   loadSupportedClients: async () => {
     try {
       set({
-        isLoadingSupportedExternalMcpClientNames: true,
-        errorLoadingSupportedExternalMcpClientNames: null,
+        isLoadingSupportedExternalMCPClientNames: true,
+        errorLoadingSupportedExternalMCPClientNames: null,
       });
 
       const clients = await invoke<string[]>('get_supported_external_mcp_client_names');
-      set({ supportedExternalMcpClientNames: clients });
+      set({ supportedExternalMCPClientNames: clients });
     } catch (error) {
-      set({ errorLoadingSupportedExternalMcpClientNames: error as string });
+      set({ errorLoadingSupportedExternalMCPClientNames: error as string });
     } finally {
-      set({ isLoadingSupportedExternalMcpClientNames: false });
+      set({ isLoadingSupportedExternalMCPClientNames: false });
     }
   },
 
   loadConnectedClients: async () => {
     try {
       set({
-        isLoadingConnectedExternalMcpClients: true,
-        errorLoadingConnectedExternalMcpClients: null,
+        isLoadingConnectedExternalMCPClients: true,
+        errorLoadingConnectedExternalMCPClients: null,
       });
 
-      const clients = await invoke<ExternalMcpClient[]>('get_connected_external_mcp_clients');
-      set({ connectedExternalMcpClients: clients });
+      const clients = await invoke<ExternalMCPClient[]>('get_connected_external_mcp_clients');
+      set({ connectedExternalMCPClients: clients });
     } catch (error) {
-      set({ errorLoadingConnectedExternalMcpClients: error as string });
+      set({ errorLoadingConnectedExternalMCPClients: error as string });
     } finally {
-      set({ isLoadingConnectedExternalMcpClients: false });
+      set({ isLoadingConnectedExternalMCPClients: false });
     }
   },
 
-  connectExternalMcpClient: async (clientId: string) => {
+  connectExternalMCPClient: async (clientId: string) => {
     try {
       set({
-        isConnectingExternalMcpClient: true,
-        errorConnectingExternalMcpClient: null,
+        isConnectingExternalMCPClient: true,
+        errorConnectingExternalMCPClient: null,
       });
 
       await invoke('connect_external_mcp_client', { clientId });
@@ -91,17 +91,17 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
       // Refresh connected clients after successful connection
       await useExternalMCPClientsStore.getState().loadConnectedClients();
     } catch (error) {
-      set({ errorConnectingExternalMcpClient: error as string });
+      set({ errorConnectingExternalMCPClient: error as string });
     } finally {
-      set({ isConnectingExternalMcpClient: false });
+      set({ isConnectingExternalMCPClient: false });
     }
   },
 
-  disconnectExternalMcpClient: async (clientId: string) => {
+  disconnectExternalMCPClient: async (clientId: string) => {
     try {
       set({
-        isDisconnectingExternalMcpClient: true,
-        errorDisconnectingExternalMcpClient: null,
+        isDisconnectingExternalMCPClient: true,
+        errorDisconnectingExternalMCPClient: null,
       });
 
       await invoke('disconnect_external_mcp_client', { clientId });
@@ -109,9 +109,9 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
       // Refresh connected clients after successful disconnection
       await useExternalMCPClientsStore.getState().loadConnectedClients();
     } catch (error) {
-      set({ errorDisconnectingExternalMcpClient: error as string });
+      set({ errorDisconnectingExternalMCPClient: error as string });
     } finally {
-      set({ isDisconnectingExternalMcpClient: false });
+      set({ isDisconnectingExternalMCPClient: false });
     }
   },
 }));

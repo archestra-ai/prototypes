@@ -1,4 +1,4 @@
-use crate::models::mcp_server::{sandbox::forward_raw_request, Model as McpServerModel};
+use crate::models::mcp_server::{sandbox::forward_raw_request, Model as MCPServerModel};
 use axum::{body::Body, extract::Path, routing::post, Router};
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
@@ -15,7 +15,7 @@ use rmcp::{
     transport::streamable_http_server::{
         session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
     },
-    ErrorData as McpError, RoleServer, ServerHandler,
+    ErrorData as MCPError, RoleServer, ServerHandler,
 };
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
@@ -106,7 +106,7 @@ async fn handle_proxy_request(
     };
 
     println!("🔄 Forwarding request to forward_raw_request function...");
-    // Forward the raw JSON-RPC request to the McpServerManager
+    // Forward the raw JSON-RPC request to the MCPServerManager
     match forward_raw_request(&server_name, request_body).await {
         Ok(raw_response) => {
             println!("✅ Successfully received response from server '{server_name}'");
@@ -181,7 +181,7 @@ impl MCPGateway {
     }
 
     #[tool(description = "Get the current Archestra context")]
-    async fn get_context(&self) -> Result<CallToolResult, McpError> {
+    async fn get_context(&self) -> Result<CallToolResult, MCPError> {
         println!("Getting context");
 
         let context = self.context.lock().await;
@@ -194,7 +194,7 @@ impl MCPGateway {
     async fn update_context(
         &self,
         Parameters(UpdateContextRequest { key, value }): Parameters<UpdateContextRequest>,
-    ) -> Result<CallToolResult, McpError> {
+    ) -> Result<CallToolResult, MCPError> {
         println!("Updating context: {key} = {value}");
 
         let mut context = self.context.lock().await;
@@ -208,7 +208,7 @@ impl MCPGateway {
     async fn set_active_models(
         &self,
         Parameters(SetActiveModelsRequest { models }): Parameters<SetActiveModelsRequest>,
-    ) -> Result<CallToolResult, McpError> {
+    ) -> Result<CallToolResult, MCPError> {
         println!("Setting active models: {models:?}");
 
         let mut context = self.context.lock().await;
@@ -219,10 +219,10 @@ impl MCPGateway {
     }
 
     #[tool(description = "List all installed MCP servers that can be proxied")]
-    async fn list_installed_mcp_servers(&self) -> Result<CallToolResult, McpError> {
+    async fn list_installed_mcp_servers(&self) -> Result<CallToolResult, MCPError> {
         println!("Listing installed MCP servers");
 
-        match McpServerModel::load_installed_mcp_servers(&self.db).await {
+        match MCPServerModel::load_installed_mcp_servers(&self.db).await {
             Ok(servers) => {
                 let server_list: Vec<_> = servers
                     .into_iter()
@@ -255,7 +255,7 @@ impl MCPGateway {
             }
             Err(e) => {
                 println!("Failed to load MCP servers: {e}");
-                Err(McpError::internal_error(
+                Err(MCPError::internal_error(
                     format!("Failed to load MCP servers: {e}"),
                     None,
                 ))
@@ -282,7 +282,7 @@ impl ServerHandler for MCPGateway {
         &self,
         _request: Option<PaginatedRequestParam>,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ListResourcesResult, McpError> {
+    ) -> Result<ListResourcesResult, MCPError> {
         let resources = self.resources.lock().await;
         let resource_list: Vec<Resource> = resources
             .values()
@@ -308,7 +308,7 @@ impl ServerHandler for MCPGateway {
         &self,
         request: ReadResourceRequestParam,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ReadResourceResult, McpError> {
+    ) -> Result<ReadResourceResult, MCPError> {
         if let Some(resource_id) = request.uri.strip_prefix("archestra://") {
             let resources = self.resources.lock().await;
             if let Some(resource) = resources.get(resource_id) {
@@ -320,13 +320,13 @@ impl ServerHandler for MCPGateway {
                     }],
                 })
             } else {
-                Err(McpError::invalid_params(
+                Err(MCPError::invalid_params(
                     format!("Resource not found: {resource_id}"),
                     None,
                 ))
             }
         } else {
-            Err(McpError::invalid_params("Invalid resource URI", None))
+            Err(MCPError::invalid_params("Invalid resource URI", None))
         }
     }
 
@@ -334,7 +334,7 @@ impl ServerHandler for MCPGateway {
         &self,
         _request: Option<PaginatedRequestParam>,
         _: RequestContext<RoleServer>,
-    ) -> Result<ListPromptsResult, McpError> {
+    ) -> Result<ListPromptsResult, MCPError> {
         Ok(ListPromptsResult {
             next_cursor: None,
             prompts: vec![Prompt::new(
@@ -353,13 +353,13 @@ impl ServerHandler for MCPGateway {
         &self,
         GetPromptRequestParam { name, arguments }: GetPromptRequestParam,
         _: RequestContext<RoleServer>,
-    ) -> Result<GetPromptResult, McpError> {
+    ) -> Result<GetPromptResult, MCPError> {
         match name.as_str() {
             "example_prompt" => {
                 let message = arguments
                     .and_then(|json| json.get("message")?.as_str().map(|s| s.to_string()))
                     .ok_or_else(|| {
-                        McpError::invalid_params("No message provided to example_prompt", None)
+                        MCPError::invalid_params("No message provided to example_prompt", None)
                     })?;
 
                 let prompt =
@@ -372,7 +372,7 @@ impl ServerHandler for MCPGateway {
                     }],
                 })
             }
-            _ => Err(McpError::invalid_params("prompt not found", None)),
+            _ => Err(MCPError::invalid_params("prompt not found", None)),
         }
     }
 }
