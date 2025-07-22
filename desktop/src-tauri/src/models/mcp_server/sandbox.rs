@@ -355,9 +355,7 @@ impl MCPServerManager {
             } else {
                 available.join(", ")
             };
-            eprintln!(
-                "❌ MCP [{server_name}] Server not found. Available: [{available_str}]"
-            );
+            eprintln!("❌ MCP [{server_name}] Server not found. Available: [{available_str}]");
             format!("Server '{server_name}' not found")
         })?;
 
