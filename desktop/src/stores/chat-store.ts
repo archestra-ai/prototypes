@@ -92,16 +92,6 @@ export function parseThinkingContent(content: string): ParsedContent {
     isThinkingStreaming = false;
   }
 
-  if (thinking && process.env.NODE_ENV === 'development') {
-    console.log('🧠 Thinking parsed:', {
-      hasCompleted: completedMatches.length > 0,
-      hasIncomplete: !!incompleteMatch,
-      thinkingLength: thinking.length,
-      responseLength: response.length,
-      isStreaming: isThinkingStreaming,
-    });
-  }
-
   return {
     thinking,
     response,

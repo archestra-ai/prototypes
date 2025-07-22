@@ -46,8 +46,10 @@ export class OpenAIProvider implements ModelProvider {
  */
 export class OllamaProvider implements ModelProvider {
   private ollama: any;
+  private modelName: string;
 
-  constructor(baseURL?: string) {
+  constructor(modelName: string, baseURL?: string) {
+    this.modelName = modelName;
     // Use the baseURL from Ollama store if not provided
     const url = baseURL || this.getOllamaBaseURL();
     this.ollama = createOllama({ baseURL: url });
@@ -67,9 +69,7 @@ export class OllamaProvider implements ModelProvider {
   }
 
   supportsTools(): boolean {
-    // Only certain Ollama models support tools
-    // This is a simplified check - in reality, we'd need to check model capabilities
-    return false; // Most Ollama models don't support function calling yet
+    return true;
   }
 
   supportsStreaming(): boolean {
@@ -98,7 +98,7 @@ export class ModelProviderFactory {
     }
 
     // Default to Ollama for all other models
-    return new OllamaProvider();
+    return new OllamaProvider(modelName);
   }
 
   static isOpenAIModel(modelName: string): boolean {

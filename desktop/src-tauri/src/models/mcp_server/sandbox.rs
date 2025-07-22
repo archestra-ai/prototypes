@@ -2,7 +2,7 @@ use super::{MCPServerDefinition, ServerConfig};
 use crate::database::connection::get_database_connection_with_app;
 use crate::models::mcp_server::Model;
 use crate::utils::node;
-use rmcp::model::{JsonRpcMessage, JsonRpcNotification, JsonRpcResponse, Resource as MCPResource, Tool as MCPTool};
+use rmcp::model::{JsonRpcMessage, Resource as MCPResource, Tool as MCPTool};
 
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -514,11 +514,9 @@ impl MCPServerManager {
                                     }
                                 }
                                 JsonRpcMessage::Notification(_notification) => {
-                                    println!("🔔 Skipping JSON-RPC notification (no response expected): {}", entry.content);
-                                    continue; // Skip notifications and continue processing next entry
+                                    continue;
                                 }
                                 _ => {
-                                    println!("🔄 Skipping non-response JSON-RPC message: {}", entry.content);
                                 }
                             }
                         } else {
