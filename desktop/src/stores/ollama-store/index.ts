@@ -1,9 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
-import { ModelResponse, Ollama } from 'ollama/browser';
+import { AbortableAsyncIterator } from 'ollama';
+import { ChatResponse, ModelResponse, Ollama, Message as OllamaMessage, Tool as OllamaTool } from 'ollama/browser';
 import { create } from 'zustand';
 
 import { OllamaLocalStorage } from '@/lib/local-storage';
 
+import type { MCPServerTools } from '../mcp-servers-store';
 import { AVAILABLE_MODELS } from './available_models';
 
 interface OllamaState {
@@ -22,9 +24,29 @@ interface OllamaActions {
   fetchInstalledModels: () => Promise<void>;
   setSelectedModel: (model: string) => void;
   initializeOllama: () => Promise<void>;
+  chat: (messages: OllamaMessage[], tools?: OllamaTool[]) => Promise<AbortableAsyncIterator<ChatResponse>>;
 }
 
 type OllamaStore = OllamaState & OllamaActions;
+
+export const convertServerAndToolNameToOllamaToolName = (serverName: string, toolName: string): string =>
+  `${serverName}_${toolName}`;
+
+export const convertOllamaToolNameToServerAndToolName = (ollamaToolName: string) =>
+  ollamaToolName.split('_') as [string, string];
+
+export const convertMCPServerToolsToOllamaTools = (mcpServerTools: MCPServerTools): OllamaTool[] => {
+  return Object.entries(mcpServerTools).flatMap(([serverName, tools]) =>
+    tools.map((tool) => ({
+      type: 'function',
+      function: {
+        name: convertServerAndToolNameToOllamaToolName(serverName, tool.name),
+        description: tool.description || `Tool from ${serverName}`,
+        parameters: tool.inputSchema as OllamaTool['function']['parameters'],
+      },
+    }))
+  );
+};
 
 export const useOllamaStore = create<OllamaStore>((set, get) => ({
   // State
@@ -124,6 +146,24 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
   setSelectedModel: (model: string) => {
     OllamaLocalStorage.setSelectedModel(model);
     set({ selectedModel: model });
+  },
+
+  chat: (messages: OllamaMessage[], tools: OllamaTool[] = []) => {
+    const { ollamaClient } = get();
+
+    // We can assume at this point that the ollamaClient has been initialized
+    return (ollamaClient as Ollama).chat({
+      model: get().selectedModel,
+      messages,
+      tools,
+      stream: true,
+      options: {
+        temperature: 0.7,
+        top_p: 0.95,
+        top_k: 40,
+        num_predict: 32768,
+      },
+    });
   },
 }));
 
