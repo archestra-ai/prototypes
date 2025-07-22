@@ -151,10 +151,10 @@ impl Model {
         println!("🔌 Connecting {client_name} client...");
         println!("📍 Config path: {}", config_path.display());
 
-        let mut config = read_config_file(&config_path)?;
+        let mut config = Self::read_config_file(&config_path)?;
 
         // Get available MCP servers
-        let servers = get_available_mcp_servers().await?;
+        let servers = Self::get_available_mcp_servers().await?;
         println!("🔧 Available MCP servers: {servers:?}");
 
         // Ensure mcpServers object exists
@@ -177,7 +177,7 @@ impl Model {
         );
         for server in &servers {
             let server_key = format!("{server} (archestra.ai)");
-            let server_config = create_archestra_server_config(server);
+            let server_config = Self::create_archestra_server_config(server);
             mcp_servers.insert(
                 server_key.clone(),
                 serde_json::to_value(server_config).unwrap(),
@@ -186,7 +186,7 @@ impl Model {
         }
 
         println!("📝 Writing config to: {}", config_path.display());
-        write_config_file(&config_path, &config)?;
+        Self::write_config_file(&config_path, &config)?;
 
         // Save external MCP client to database
         let definition = ExternalMCPClientDefinition {
@@ -215,7 +215,7 @@ impl Model {
         let config_path = Self::get_config_path_for_external_mcp_client(client_name)?;
 
         println!("🔌 Disconnecting {client_name} client...");
-        let mut config = read_config_file(&config_path)?;
+        let mut config = Self::read_config_file(&config_path)?;
 
         if let Some(mcp_servers) = config["mcpServers"].as_object_mut() {
             // Remove all entries with "(archestra.ai)" suffix
@@ -231,7 +231,7 @@ impl Model {
             }
         }
 
-        write_config_file(&config_path, &config)?;
+        Self::write_config_file(&config_path, &config)?;
 
         // Delete external MCP client from database
         Self::delete_external_mcp_client(db, client_name)
@@ -242,103 +242,101 @@ impl Model {
 
         Ok(())
     }
-}
 
-// Utility functions for config file operations
-pub fn read_config_file(path: &PathBuf) -> Result<Value, String> {
-    if !path.exists() {
-        // Return empty config if file doesn't exist
-        return Ok(serde_json::json!({
-            "mcpServers": {}
-        }));
+    pub fn read_config_file(path: &PathBuf) -> Result<Value, String> {
+        if !path.exists() {
+            // Return empty config if file doesn't exist
+            return Ok(serde_json::json!({
+                "mcpServers": {}
+            }));
+        }
+
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| format!("Failed to read config file {}: {}", path.display(), e))?;
+
+        if content.trim().is_empty() {
+            return Ok(serde_json::json!({
+                "mcpServers": {}
+            }));
+        }
+
+        serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse JSON in {}: {}", path.display(), e))
     }
 
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read config file {}: {}", path.display(), e))?;
+    pub fn write_config_file(path: &PathBuf, config: &Value) -> Result<(), String> {
+        println!("📝 Attempting to write config file to: {}", path.display());
 
-    if content.trim().is_empty() {
-        return Ok(serde_json::json!({
-            "mcpServers": {}
-        }));
-    }
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            println!("📁 Creating parent directory: {}", parent.display());
+            std::fs::create_dir_all(parent).map_err(|e| {
+                let err_msg = format!(
+                    "Failed to create config directory {}: {}",
+                    parent.display(),
+                    e
+                );
+                println!("❌ {err_msg}");
+                err_msg
+            })?;
+        }
 
-    serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse JSON in {}: {}", path.display(), e))
-}
-
-pub fn write_config_file(path: &PathBuf, config: &Value) -> Result<(), String> {
-    println!("📝 Attempting to write config file to: {}", path.display());
-
-    // Ensure parent directory exists
-    if let Some(parent) = path.parent() {
-        println!("📁 Creating parent directory: {}", parent.display());
-        std::fs::create_dir_all(parent).map_err(|e| {
-            let err_msg = format!(
-                "Failed to create config directory {}: {}",
-                parent.display(),
-                e
-            );
+        let content = serde_json::to_string_pretty(config).map_err(|e| {
+            let err_msg = format!("Failed to serialize config: {e}");
             println!("❌ {err_msg}");
             err_msg
         })?;
-    }
 
-    let content = serde_json::to_string_pretty(config).map_err(|e| {
-        let err_msg = format!("Failed to serialize config: {e}");
-        println!("❌ {err_msg}");
-        err_msg
-    })?;
+        println!("📄 Writing {} bytes to file", content.len());
+        std::fs::write(path, &content).map_err(|e| {
+            let err_msg = format!("Failed to write config file {}: {}", path.display(), e);
+            println!("❌ {err_msg}");
+            err_msg
+        })?;
 
-    println!("📄 Writing {} bytes to file", content.len());
-    std::fs::write(path, &content).map_err(|e| {
-        let err_msg = format!("Failed to write config file {}: {}", path.display(), e);
-        println!("❌ {err_msg}");
-        err_msg
-    })?;
-
-    // Verify the file was written correctly
-    if let Ok(written_content) = std::fs::read_to_string(path) {
-        if written_content == content {
-            println!("✅ Config file written and verified successfully");
+        // Verify the file was written correctly
+        if let Ok(written_content) = std::fs::read_to_string(path) {
+            if written_content == content {
+                println!("✅ Config file written and verified successfully");
+            } else {
+                println!("⚠️  Config file written but content doesn't match");
+            }
         } else {
-            println!("⚠️  Config file written but content doesn't match");
+            println!("⚠️  Config file written but couldn't verify content");
         }
-    } else {
-        println!("⚠️  Config file written but couldn't verify content");
+
+        Ok(())
     }
 
-    Ok(())
-}
+    pub async fn get_available_mcp_servers() -> Result<Vec<String>, String> {
+        // Get all available MCP servers from MCPServerManager
+        println!("🔍 Getting available MCP servers from server manager...");
 
-pub async fn get_available_mcp_servers() -> Result<Vec<String>, String> {
-    // Get all available MCP servers from MCPServerManager
+        // For now, return the list of running servers from the manager
+        // In the future, this could be enhanced to query the servers directly
+        let server_names = vec![];
 
-    println!("🔍 Getting available MCP servers from server manager...");
+        println!(
+            "🎯 Found {} unique MCP servers: {:?}",
+            server_names.len(),
+            server_names
+        );
+        Ok(server_names)
+    }
 
-    // For now, return the list of running servers from the manager
-    // In the future, this could be enhanced to query the servers directly
-    let server_names = vec![];
-
-    println!(
-        "🎯 Found {} unique MCP servers: {:?}",
-        server_names.len(),
-        server_names
-    );
-    Ok(server_names)
-}
-
-pub fn create_archestra_server_config(server_name: &str) -> MCPServerConfig {
-    MCPServerConfig {
-        command: "curl".to_string(),
-        args: vec![
-            "-X".to_string(),
-            "POST".to_string(),
-            format!("http://localhost:54587/proxy/{}", server_name),
-            "-H".to_string(),
-            "Content-Type: application/json".to_string(),
-            "-d".to_string(),
-            "@-".to_string(), // Read JSON from stdin
-        ],
+    pub fn create_archestra_server_config(server_name: &str) -> MCPServerConfig {
+        MCPServerConfig {
+            command: "curl".to_string(),
+            args: vec![
+                "-X".to_string(),
+                "POST".to_string(),
+                format!("http://localhost:54587/proxy/{}", server_name),
+                "-H".to_string(),
+                "Content-Type: application/json".to_string(),
+                "-d".to_string(),
+                "@-".to_string(), // Read JSON from stdin
+            ],
+        }
     }
 }
 
@@ -455,7 +453,7 @@ mod tests {
 
     #[test]
     fn test_create_archestra_server_config() {
-        let config = create_archestra_server_config("GitHub");
+        let config = Model::create_archestra_server_config("GitHub");
 
         assert_eq!(config.command, "curl");
         assert_eq!(config.args[0], "-X");
@@ -470,7 +468,7 @@ mod tests {
     #[test]
     fn test_read_config_file_nonexistent() {
         let nonexistent_path = PathBuf::from("/tmp/nonexistent_config.json");
-        let result = read_config_file(&nonexistent_path);
+        let result = Model::read_config_file(&nonexistent_path);
 
         assert!(result.is_ok());
         let config = result.unwrap();
@@ -494,14 +492,14 @@ mod tests {
             }
         });
 
-        let result = write_config_file(&config_path, &test_config);
+        let result = Model::write_config_file(&config_path, &test_config);
         assert!(result.is_ok());
 
         // Verify the file was written
         assert!(config_path.exists());
 
         // Read it back and verify contents
-        let read_config = read_config_file(&config_path).unwrap();
+        let read_config = Model::read_config_file(&config_path).unwrap();
         assert_eq!(read_config, test_config);
     }
 
@@ -528,7 +526,7 @@ mod tests {
         .unwrap();
 
         // Read the config back to verify structure
-        let result_config = read_config_file(&config_path).unwrap();
+        let result_config = Model::read_config_file(&config_path).unwrap();
 
         // Verify the config has the expected structure
         assert!(result_config.is_object());
@@ -541,7 +539,7 @@ mod tests {
 
         // Add a new server
         let server_key = "GitHub (archestra.ai)";
-        let server_config = create_archestra_server_config("GitHub");
+        let server_config = Model::create_archestra_server_config("GitHub");
         mcp_servers.insert(
             server_key.to_string(),
             serde_json::to_value(server_config).unwrap(),
@@ -589,7 +587,7 @@ mod tests {
         .unwrap();
 
         // Read and modify the config as disconnect would
-        let mut config = read_config_file(&config_path).unwrap();
+        let mut config = Model::read_config_file(&config_path).unwrap();
         let mcp_servers = config["mcpServers"].as_object_mut().unwrap();
 
         // Remove all entries with "(archestra.ai)" suffix

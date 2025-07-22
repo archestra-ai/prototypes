@@ -262,6 +262,50 @@ impl MCPGateway {
             }
         }
     }
+
+    pub async fn start_mcp_gateway(
+      user_id: String,
+      db: DatabaseConnection,
+  ) -> Result<(), Box<dyn std::error::Error>> {
+      let addr = SocketAddr::from(([127, 0, 0, 1], MCP_SERVER_PORT));
+
+      // Configure StreamableHTTP server for MCP
+      let config = StreamableHttpServerConfig {
+          sse_keep_alive: Some(std::time::Duration::from_secs(30)),
+          stateful_mode: true, // Enable stateful mode for session management
+      };
+
+      // Create StreamableHTTP service with a factory closure
+      let db_for_closure = Arc::new(db);
+      let streamable_service = StreamableHttpService::new(
+          move || Ok(MCPGateway::new(user_id.clone(), (*db_for_closure).clone())),
+          Arc::new(LocalSessionManager::default()),
+          config,
+      );
+
+      // Convert to axum service
+      let mcp_service = axum::routing::any_service(streamable_service);
+
+      // Create main router
+      let app = Router::new()
+          .route("/proxy/{server_name}", post(handle_proxy_request))
+          .route("/mcp", mcp_service);
+
+      let listener = TcpListener::bind(addr).await?;
+
+      println!("MCP Gateway started successfully on http://{addr}");
+      println!("  - MCP endpoint (streamable HTTP): http://{addr}/mcp");
+      println!("  - Proxy endpoints: http://{addr}/proxy/<server_name>");
+
+      let server = axum::serve(listener, app);
+
+      if let Err(e) = server.await {
+          eprintln!("Server error: {e}");
+      }
+
+      println!("Server has been shut down");
+      Ok(())
+  }
 }
 
 #[tool_handler]
@@ -377,50 +421,6 @@ impl ServerHandler for MCPGateway {
     }
 }
 
-pub async fn start_mcp_gateway(
-    user_id: String,
-    db: DatabaseConnection,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], MCP_SERVER_PORT));
-
-    // Configure StreamableHTTP server for MCP
-    let config = StreamableHttpServerConfig {
-        sse_keep_alive: Some(std::time::Duration::from_secs(30)),
-        stateful_mode: true, // Enable stateful mode for session management
-    };
-
-    // Create StreamableHTTP service with a factory closure
-    let db_for_closure = Arc::new(db);
-    let streamable_service = StreamableHttpService::new(
-        move || Ok(MCPGateway::new(user_id.clone(), (*db_for_closure).clone())),
-        Arc::new(LocalSessionManager::default()),
-        config,
-    );
-
-    // Convert to axum service
-    let mcp_service = axum::routing::any_service(streamable_service);
-
-    // Create main router
-    let app = Router::new()
-        .route("/proxy/{server_name}", post(handle_proxy_request))
-        .route("/mcp", mcp_service);
-
-    let listener = TcpListener::bind(addr).await?;
-
-    println!("MCP Gateway started successfully on http://{addr}");
-    println!("  - MCP endpoint (streamable HTTP): http://{addr}/mcp");
-    println!("  - Proxy endpoints: http://{addr}/proxy/<server_name>");
-
-    let server = axum::serve(listener, app);
-
-    if let Err(e) = server.await {
-        eprintln!("Server error: {e}");
-    }
-
-    println!("Server has been shut down");
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -478,7 +478,7 @@ mod tests {
 
         // Start server in a background task
         let server_task = tokio::spawn(async move {
-            let result = start_mcp_gateway(user_id, db).await;
+            let result = MCPGateway::start_mcp_gateway(user_id, db).await;
             // Server should run until cancelled
             assert!(result.is_ok() || result.is_err());
         });
