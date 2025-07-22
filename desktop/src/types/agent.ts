@@ -324,6 +324,7 @@ export interface ArchestraAgentConfig {
   systemPrompt?: string;
   customInstructions?: string;
   userPreferences?: UserPreferences;
+  reasoningMode?: 'verbose' | 'concise' | 'hidden';
   memoryConfig?: {
     maxEntries: number;
     ttlSeconds: number;

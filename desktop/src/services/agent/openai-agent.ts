@@ -5,13 +5,16 @@ import {
   AgentError,
   AgentErrorCode,
   AgentState,
+  Alternative,
   ArchestraAgentConfig,
   EnvironmentState,
   ReasoningEntry,
   TaskProgress,
+  TaskStep,
   UserPreferences,
 } from '../../types/agent';
 import { MemoryManager } from './memory-manager';
+import { ReasoningConfig, ReasoningContext, ReasoningModule } from './reasoning-module';
 
 export class ArchestraAgent {
   private agent: Agent;
@@ -20,6 +23,7 @@ export class ArchestraAgent {
   private abortController: AbortController | null = null;
   private mcpTools: ReturnType<typeof tool>[] = [];
   private memoryManager: MemoryManager;
+  private reasoningModule: ReasoningModule;
 
   constructor(config: ArchestraAgentConfig) {
     this.config = config;
@@ -28,6 +32,15 @@ export class ArchestraAgent {
 
     // Initialize memory manager
     this.memoryManager = new MemoryManager(sessionId, config.memoryConfig);
+
+    // Initialize reasoning module
+    const reasoningConfig: ReasoningConfig = {
+      maxAlternatives: 5,
+      minConfidenceThreshold: 0.6,
+      verbosityLevel: config.reasoningMode || 'verbose',
+      enableExplanations: true,
+    };
+    this.reasoningModule = new ReasoningModule(reasoningConfig);
 
     // Initialize default state
     this.state = {
@@ -214,6 +227,75 @@ ${config.systemPrompt ? `\nSystem context:\n${config.systemPrompt}` : ''}`;
     if (this.state.reasoning.length > maxEntries) {
       this.state.reasoning = this.state.reasoning.slice(-maxEntries);
     }
+  }
+
+  // Reasoning module methods
+  createPlanningReasoning(objective: string, steps: TaskStep[]): ReasoningEntry {
+    const entry = this.reasoningModule.createPlanningReasoning(objective, steps);
+    this.addReasoningEntry(entry);
+    return entry;
+  }
+
+  createDecisionReasoning(
+    decision: string,
+    alternatives: Alternative[],
+    selectedOptionId: string,
+    context?: Partial<ReasoningContext>
+  ): ReasoningEntry {
+    const fullContext: ReasoningContext = {
+      objective: this.state.currentTask || '',
+      currentState: this.state.mode,
+      availableResources: this.mcpTools.map((t) => t.name),
+      constraints: [],
+      previousDecisions: this.state.reasoning.filter((r) => r.type === 'decision'),
+      ...context,
+    };
+
+    const entry = this.reasoningModule.createDecisionReasoning(decision, alternatives, selectedOptionId, fullContext);
+    this.addReasoningEntry(entry);
+    return entry;
+  }
+
+  createEvaluationReasoning(evaluation: string, metrics: Record<string, any>, confidence: number): ReasoningEntry {
+    const entry = this.reasoningModule.createEvaluationReasoning(evaluation, metrics, confidence);
+    this.addReasoningEntry(entry);
+    return entry;
+  }
+
+  createAdaptationReasoning(
+    reason: string,
+    originalPlan: string,
+    adaptedPlan: string,
+    triggerEvent: string
+  ): ReasoningEntry {
+    const entry = this.reasoningModule.createAdaptationReasoning(reason, originalPlan, adaptedPlan, triggerEvent);
+    this.addReasoningEntry(entry);
+    return entry;
+  }
+
+  generateAlternatives(decision: string, maxAlternatives?: number): Alternative[] {
+    const context: AgentContext = {
+      objective: this.state.currentTask || '',
+      availableTools: [], // Tools are managed by SDK
+      workingMemory: this.memoryManager.exportMemory(),
+      environmentState: this.getDefaultEnvironmentState(),
+      userPreferences: this.getDefaultUserPreferences(),
+      sessionId: this.state.workingMemory.agentSessionId,
+    };
+
+    return this.reasoningModule.generateAlternatives(decision, context, maxAlternatives);
+  }
+
+  formatReasoningForUI(entry: ReasoningEntry, mode?: 'verbose' | 'concise' | 'hidden'): string {
+    return this.reasoningModule.formatReasoningForUI(entry, mode || this.config.reasoningMode || 'verbose');
+  }
+
+  getReasoningHistory(limit?: number): ReasoningEntry[] {
+    return this.reasoningModule.getHistory(limit);
+  }
+
+  updateReasoningConfig(config: Partial<ReasoningConfig>): void {
+    this.reasoningModule.updateConfig(config);
   }
 
   private handleExecutionError(error: any): void {

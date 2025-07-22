@@ -95,6 +95,10 @@ interface AgentActions {
   setAgentMode: (mode: AgentMode) => void;
   updateProgress: (progress: Partial<TaskProgress>) => void;
 
+  // Reasoning operations
+  formatReasoningForUI: (entry: ReasoningEntry) => string;
+  getFormattedReasoningHistory: (limit?: number) => Array<{ entry: ReasoningEntry; formatted: string }>;
+
   // Memory management
   searchAgentMemory: (criteria: MemorySearchCriteria) => MemoryEntry[];
   getMemoryContext: () => string;
@@ -201,6 +205,7 @@ export const useAgentStore = create<AgentStore>()(
         mcpTools,
         maxSteps: 10,
         temperature: 0.7,
+        reasoningMode: state.reasoningMode,
         memoryConfig: {
           maxEntries: 1000,
           ttlSeconds: 3600,
@@ -290,6 +295,11 @@ export const useAgentStore = create<AgentStore>()(
 
     setReasoningMode: (mode: 'verbose' | 'concise' | 'hidden') => {
       set({ reasoningMode: mode });
+      // Update agent instance reasoning config if it exists
+      const { agentInstance } = get();
+      if (agentInstance) {
+        agentInstance.updateReasoningConfig({ verbosityLevel: mode });
+      }
     },
 
     updatePlan: (plan: TaskPlan) => {
@@ -341,6 +351,27 @@ export const useAgentStore = create<AgentStore>()(
       const { agentInstance } = get();
       if (!agentInstance) return [];
       return agentInstance.getRelatedMemories(entryId, limit);
+    },
+
+    // Reasoning operations
+    formatReasoningForUI: (entry: ReasoningEntry) => {
+      const { agentInstance, reasoningMode } = get();
+      if (!agentInstance) {
+        // Fallback formatting if no agent instance
+        if (reasoningMode === 'hidden') return '';
+        return entry.content;
+      }
+      return agentInstance.formatReasoningForUI(entry, reasoningMode);
+    },
+
+    getFormattedReasoningHistory: (limit?: number) => {
+      const { reasoning, reasoningMode, agentInstance } = get();
+      const entries = limit ? reasoning.slice(-limit) : reasoning;
+
+      return entries.map((entry) => ({
+        entry,
+        formatted: agentInstance ? agentInstance.formatReasoningForUI(entry, reasoningMode) : entry.content,
+      }));
     },
 
     setAgentMode: (mode: AgentMode) => {
