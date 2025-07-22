@@ -78,7 +78,9 @@ pub fn run() {
             let user_id = "archestra_user".to_string();
             let db_for_mcp = db.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = mcp_gateway::MCPGateway::start_mcp_gateway(user_id, db_for_mcp).await {
+                if let Err(e) =
+                    mcp_gateway::MCPGateway::start_mcp_gateway(user_id, db_for_mcp).await
+                {
                     eprintln!("Failed to start MCP Gateway: {e}");
                 }
             });

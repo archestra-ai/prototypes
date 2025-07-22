@@ -82,7 +82,9 @@ impl Model {
             .filter(Column::ClientName.eq(&definition.client_name))
             .one(db)
             .await?
-            .ok_or(DbErr::RecordNotFound("Failed to find inserted item".to_string()))?;
+            .ok_or(DbErr::RecordNotFound(
+                "Failed to find inserted item".to_string(),
+            ))?;
 
         Ok(result)
     }

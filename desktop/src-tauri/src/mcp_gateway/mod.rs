@@ -264,48 +264,48 @@ impl MCPGateway {
     }
 
     pub async fn start_mcp_gateway(
-      user_id: String,
-      db: DatabaseConnection,
-  ) -> Result<(), Box<dyn std::error::Error>> {
-      let addr = SocketAddr::from(([127, 0, 0, 1], MCP_SERVER_PORT));
+        user_id: String,
+        db: DatabaseConnection,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let addr = SocketAddr::from(([127, 0, 0, 1], MCP_SERVER_PORT));
 
-      // Configure StreamableHTTP server for MCP
-      let config = StreamableHttpServerConfig {
-          sse_keep_alive: Some(std::time::Duration::from_secs(30)),
-          stateful_mode: true, // Enable stateful mode for session management
-      };
+        // Configure StreamableHTTP server for MCP
+        let config = StreamableHttpServerConfig {
+            sse_keep_alive: Some(std::time::Duration::from_secs(30)),
+            stateful_mode: true, // Enable stateful mode for session management
+        };
 
-      // Create StreamableHTTP service with a factory closure
-      let db_for_closure = Arc::new(db);
-      let streamable_service = StreamableHttpService::new(
-          move || Ok(MCPGateway::new(user_id.clone(), (*db_for_closure).clone())),
-          Arc::new(LocalSessionManager::default()),
-          config,
-      );
+        // Create StreamableHTTP service with a factory closure
+        let db_for_closure = Arc::new(db);
+        let streamable_service = StreamableHttpService::new(
+            move || Ok(MCPGateway::new(user_id.clone(), (*db_for_closure).clone())),
+            Arc::new(LocalSessionManager::default()),
+            config,
+        );
 
-      // Convert to axum service
-      let mcp_service = axum::routing::any_service(streamable_service);
+        // Convert to axum service
+        let mcp_service = axum::routing::any_service(streamable_service);
 
-      // Create main router
-      let app = Router::new()
-          .route("/proxy/{server_name}", post(handle_proxy_request))
-          .route("/mcp", mcp_service);
+        // Create main router
+        let app = Router::new()
+            .route("/proxy/{server_name}", post(handle_proxy_request))
+            .route("/mcp", mcp_service);
 
-      let listener = TcpListener::bind(addr).await?;
+        let listener = TcpListener::bind(addr).await?;
 
-      println!("MCP Gateway started successfully on http://{addr}");
-      println!("  - MCP endpoint (streamable HTTP): http://{addr}/mcp");
-      println!("  - Proxy endpoints: http://{addr}/proxy/<server_name>");
+        println!("MCP Gateway started successfully on http://{addr}");
+        println!("  - MCP endpoint (streamable HTTP): http://{addr}/mcp");
+        println!("  - Proxy endpoints: http://{addr}/proxy/<server_name>");
 
-      let server = axum::serve(listener, app);
+        let server = axum::serve(listener, app);
 
-      if let Err(e) = server.await {
-          eprintln!("Server error: {e}");
-      }
+        if let Err(e) = server.await {
+            eprintln!("Server error: {e}");
+        }
 
-      println!("Server has been shut down");
-      Ok(())
-  }
+        println!("Server has been shut down");
+        Ok(())
+    }
 }
 
 #[tool_handler]
@@ -429,7 +429,9 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr};
 
     #[fixture]
-    async fn mcp_gateway_and_db(#[future] database: DatabaseConnection) -> (MCPGateway, DatabaseConnection) {
+    async fn mcp_gateway_and_db(
+        #[future] database: DatabaseConnection,
+    ) -> (MCPGateway, DatabaseConnection) {
         let db = database.await;
         let gateway = MCPGateway::new("test_user_123".to_string(), db.clone());
         (gateway, db)
@@ -507,7 +509,9 @@ mod tests {
     // Test update_context tool
     #[rstest]
     #[tokio::test]
-    async fn test_update_context_tool(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+    async fn test_update_context_tool(
+        #[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection),
+    ) {
         let (gateway, _) = mcp_gateway_and_db.await;
 
         // Update context with a key-value pair
@@ -530,7 +534,9 @@ mod tests {
     // Test set_active_models tool
     #[rstest]
     #[tokio::test]
-    async fn test_set_active_models_tool(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+    async fn test_set_active_models_tool(
+        #[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection),
+    ) {
         let (gateway, _) = mcp_gateway_and_db.await;
 
         let params = SetActiveModelsRequest {
@@ -550,7 +556,9 @@ mod tests {
     // Test concurrent context updates
     #[rstest]
     #[tokio::test]
-    async fn test_concurrent_context_updates(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+    async fn test_concurrent_context_updates(
+        #[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection),
+    ) {
         let (gateway, _) = mcp_gateway_and_db.await;
 
         // Spawn multiple tasks that update context concurrently
@@ -587,7 +595,9 @@ mod tests {
     // Test list_installed_mcp_servers tool
     #[rstest]
     #[tokio::test]
-    async fn test_list_installed_mcp_servers_tool(#[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection)) {
+    async fn test_list_installed_mcp_servers_tool(
+        #[future] mcp_gateway_and_db: (MCPGateway, DatabaseConnection),
+    ) {
         let (gateway, _) = mcp_gateway_and_db.await;
 
         let result = gateway.list_installed_mcp_servers().await;
