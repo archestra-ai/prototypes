@@ -1,3 +1,4 @@
+import { AgentModeIndicator } from '@/components/agent';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import ChatHistory from './ChatHistory';
@@ -10,7 +11,10 @@ export default function ChatPage(_props: ChatPageProps) {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Chat</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Chat</CardTitle>
+            <AgentModeIndicator />
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <ChatHistory />

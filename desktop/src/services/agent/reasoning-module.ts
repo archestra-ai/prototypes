@@ -145,7 +145,7 @@ export class ReasoningModule {
     if (decision.includes('tool selection')) {
       const availableTools = context.availableTools || [];
 
-      availableTools.slice(0, limit).forEach((tool, index) => {
+      availableTools.slice(0, limit).forEach((tool) => {
         alternatives.push({
           id: crypto.randomUUID(),
           description: `Use ${tool.name} from ${tool.serverName}`,
@@ -450,7 +450,7 @@ export class ReasoningModule {
   }
 
   // Get decision criteria for context
-  private getDecisionCriteria(context: ReasoningContext): DecisionCriteria {
+  private getDecisionCriteria(_context: ReasoningContext): DecisionCriteria {
     return {
       feasibility: 1.0,
       efficiency: 0.8,

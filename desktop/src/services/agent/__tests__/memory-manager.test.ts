@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MemoryEntry } from '../../../types/agent';
 import { MemoryManager } from '../memory-manager';
 
 describe('MemoryManager', () => {

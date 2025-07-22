@@ -1,4 +1,4 @@
-import { AgentError, AgentErrorCode, MemoryEntry, WorkingMemory } from '../../types/agent';
+import { MemoryEntry, WorkingMemory } from '../../types/agent';
 
 // Configuration for memory management
 export interface MemoryConfig {
