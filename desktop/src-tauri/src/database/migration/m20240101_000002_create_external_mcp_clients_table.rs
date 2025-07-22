@@ -19,18 +19,6 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(
-                        ColumnDef::new(ExternalMCPClients::IsConnected)
-                            .boolean()
-                            .not_null()
-                            .default(false),
-                    )
-                    .col(
-                        ColumnDef::new(ExternalMCPClients::LastConnected)
-                            .timestamp_with_time_zone()
-                            .null(),
-                    )
-                    .col(ColumnDef::new(ExternalMCPClients::ConfigPath).text().null())
-                    .col(
                         ColumnDef::new(ExternalMCPClients::CreatedAt)
                             .timestamp_with_time_zone()
                             .default(Expr::current_timestamp()),
@@ -56,9 +44,6 @@ impl MigrationTrait for Migration {
 enum ExternalMCPClients {
     Table,
     ClientName,
-    IsConnected,
-    LastConnected,
-    ConfigPath,
     CreatedAt,
     UpdatedAt,
 }

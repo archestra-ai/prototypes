@@ -1,17 +1,19 @@
+use crate::models::mcp_server::Model as MCPServer;
 use sea_orm::entity::prelude::*;
 use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::PathBuf;
 
+const ARCHESTRA_MCP_SERVER_KEY: &str = "archestra.ai";
+const ARCHESTRA_SERVER_BASE_URL: &str = "http://localhost:54587";
+const INSTALLED_MCP_SERVER_KEY_SUFFIX: &str = "(archestra.ai)";
+
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "external_mcp_clients")]
 pub struct Model {
     #[sea_orm(unique, primary_key)]
     pub client_name: String,
-    pub is_connected: bool,
-    pub last_connected: Option<DateTimeUtc>,
-    pub config_path: Option<String>,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
 }
@@ -23,15 +25,12 @@ impl ActiveModelBehavior for ActiveModel {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MCPServerConfig {
-    pub command: String,
-    pub args: Vec<String>,
+    pub url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExternalMCPClientDefinition {
     pub client_name: String,
-    pub is_connected: bool,
-    pub config_path: Option<String>,
 }
 
 const CLAUDE_DESKTOP_CLIENT_NAME: &str = "claude";
@@ -46,17 +45,8 @@ impl Model {
     ) -> Result<Model, DbErr> {
         let now = chrono::Utc::now();
 
-        let last_connected = if definition.is_connected {
-            Some(now)
-        } else {
-            None
-        };
-
         let active_model = ActiveModel {
             client_name: Set(definition.client_name.clone()),
-            is_connected: Set(definition.is_connected),
-            last_connected: Set(last_connected),
-            config_path: Set(definition.config_path.clone()),
             created_at: Set(now),
             updated_at: Set(now),
         };
@@ -65,12 +55,7 @@ impl Model {
         Entity::insert(active_model)
             .on_conflict(
                 sea_orm::sea_query::OnConflict::column(Column::ClientName)
-                    .update_columns([
-                        Column::IsConnected,
-                        Column::LastConnected,
-                        Column::ConfigPath,
-                        Column::UpdatedAt,
-                    ])
+                    .update_columns([Column::UpdatedAt])
                     .to_owned(),
             )
             .exec(db)
@@ -108,10 +93,7 @@ impl Model {
     pub async fn get_connected_external_mcp_clients(
         db: &DatabaseConnection,
     ) -> Result<Vec<Model>, DbErr> {
-        let models = Entity::find()
-            .filter(Column::IsConnected.eq(true))
-            .all(db)
-            .await?;
+        let models = Entity::find().all(db).await?;
 
         Ok(models)
     }
@@ -142,8 +124,7 @@ impl Model {
         }
     }
 
-    /// Connect an external MCP client to Archestra MCP servers
-    pub async fn connect_external_mcp_client(
+    pub async fn update_external_mcp_client_config(
         db: &DatabaseConnection,
         client_name: &str,
     ) -> Result<(), String> {
@@ -154,10 +135,6 @@ impl Model {
 
         let mut config = Self::read_config_file(&config_path)?;
 
-        // Get available MCP servers
-        let servers = Self::get_available_mcp_servers().await?;
-        println!("🔧 Available MCP servers: {servers:?}");
-
         // Ensure mcpServers object exists
         if !config.is_object() {
             config = serde_json::json!({});
@@ -166,44 +143,75 @@ impl Model {
             config["mcpServers"] = serde_json::json!({});
         }
 
-        let mcp_servers = config["mcpServers"]
+        let external_client_mcp_servers_config = config["mcpServers"]
             .as_object_mut()
             .ok_or("mcpServers is not an object")?;
 
-        // Add each MCP server with archestra.ai suffix
+        // Add archestra.ai MCP server to the config
+        if !external_client_mcp_servers_config.contains_key(ARCHESTRA_MCP_SERVER_KEY) {
+            external_client_mcp_servers_config.insert(
+                ARCHESTRA_MCP_SERVER_KEY.to_string(),
+                serde_json::to_value(MCPServerConfig {
+                    url: format!("{}/mcp", ARCHESTRA_SERVER_BASE_URL),
+                })
+                .unwrap(),
+            );
+        }
+
+        // Now add each installed MCP server with archestra.ai suffix
+        let installed_mcp_servers = MCPServer::load_installed_mcp_servers(db)
+            .await
+            .map_err(|e| e.to_string())?;
+        println!("🔧 Available MCP servers: {installed_mcp_servers:?}");
+
         println!(
             "➕ Adding {} MCP servers to {} config",
-            servers.len(),
+            installed_mcp_servers.len(),
             client_name
         );
-        for server in &servers {
-            let server_key = format!("{server} (archestra.ai)");
-            let server_config = Self::create_archestra_server_config(server);
-            mcp_servers.insert(
-                server_key.clone(),
-                serde_json::to_value(server_config).unwrap(),
-            );
+        for installed_mcp_server in &installed_mcp_servers {
+            let server_name = installed_mcp_server.name.clone();
+            let server_key = format!("{server_name} {INSTALLED_MCP_SERVER_KEY_SUFFIX}");
+            let server_config = MCPServerConfig {
+                url: format!("{ARCHESTRA_SERVER_BASE_URL}/proxy/{server_name}"),
+            };
+
+            if !external_client_mcp_servers_config.contains_key(&server_key) {
+                external_client_mcp_servers_config.insert(
+                    server_key.clone(),
+                    serde_json::to_value(server_config).unwrap(),
+                );
+            }
             println!("  ✅ Added MCP server: {server_key}");
         }
 
         println!("📝 Writing config to: {}", config_path.display());
         Self::write_config_file(&config_path, &config)?;
 
-        // Save external MCP client to database
-        let definition = ExternalMCPClientDefinition {
-            client_name: client_name.to_string(),
-            is_connected: true,
-            config_path: Some(config_path.to_string_lossy().to_string()),
-        };
-        Self::save_external_mcp_client(db, &definition)
-            .await
-            .map_err(|e| format!("Failed to save external MCP client: {e}"))?;
-
         println!(
             "✅ Updated {} MCP config at {}",
             client_name,
             config_path.display()
         );
+
+        Ok(())
+    }
+
+    /// Connect an external MCP client to Archestra MCP servers
+    pub async fn connect_external_mcp_client(
+        db: &DatabaseConnection,
+        client_name: &str,
+    ) -> Result<(), String> {
+        // Update the externalMCP client's config with the installed Archestra MCP servers
+        Self::update_external_mcp_client_config(db, client_name).await?;
+
+        // Save external MCP client to database
+        let definition = ExternalMCPClientDefinition {
+            client_name: client_name.to_string(),
+        };
+        Self::save_external_mcp_client(db, &definition)
+            .await
+            .map_err(|e| format!("Failed to save external MCP client: {e}"))?;
 
         Ok(())
     }
@@ -309,35 +317,16 @@ impl Model {
         Ok(())
     }
 
-    pub async fn get_available_mcp_servers() -> Result<Vec<String>, String> {
-        // Get all available MCP servers from MCPServerManager
-        println!("🔍 Getting available MCP servers from server manager...");
-
-        // For now, return the list of running servers from the manager
-        // In the future, this could be enhanced to query the servers directly
-        let server_names = vec![];
-
-        println!(
-            "🎯 Found {} unique MCP servers: {:?}",
-            server_names.len(),
-            server_names
-        );
-        Ok(server_names)
-    }
-
-    pub fn create_archestra_server_config(server_name: &str) -> MCPServerConfig {
-        MCPServerConfig {
-            command: "curl".to_string(),
-            args: vec![
-                "-X".to_string(),
-                "POST".to_string(),
-                format!("http://localhost:54587/proxy/{}", server_name),
-                "-H".to_string(),
-                "Content-Type: application/json".to_string(),
-                "-d".to_string(),
-                "@-".to_string(), // Read JSON from stdin
-            ],
+    pub async fn sync_all_connected_external_mcp_clients(
+        db: &DatabaseConnection,
+    ) -> Result<(), String> {
+        let connected_clients = Self::get_connected_external_mcp_clients(db)
+            .await
+            .map_err(|e| e.to_string())?;
+        for client in connected_clients {
+            Self::update_external_mcp_client_config(db, &client.client_name).await?;
         }
+        Ok(())
     }
 }
 
@@ -409,8 +398,6 @@ mod tests {
 
         let definition = ExternalMCPClientDefinition {
             client_name: "test_client".to_string(),
-            is_connected: true,
-            config_path: Some("path/to/config".to_string()),
         };
 
         let result = Model::save_external_mcp_client(&db, &definition).await;
@@ -447,20 +434,6 @@ mod tests {
         let unknown_path = Model::get_config_path_for_external_mcp_client("unknown");
         assert!(unknown_path.is_err());
         assert!(unknown_path.unwrap_err().contains("Unknown client"));
-    }
-
-    #[test]
-    fn test_create_archestra_server_config() {
-        let config = Model::create_archestra_server_config("GitHub");
-
-        assert_eq!(config.command, "curl");
-        assert_eq!(config.args[0], "-X");
-        assert_eq!(config.args[1], "POST");
-        assert_eq!(config.args[2], "http://localhost:54587/proxy/GitHub");
-        assert_eq!(config.args[3], "-H");
-        assert_eq!(config.args[4], "Content-Type: application/json");
-        assert_eq!(config.args[5], "-d");
-        assert_eq!(config.args[6], "@-");
     }
 
     #[test]
@@ -536,8 +509,10 @@ mod tests {
         let mcp_servers = config["mcpServers"].as_object_mut().unwrap();
 
         // Add a new server
-        let server_key = "GitHub (archestra.ai)";
-        let server_config = Model::create_archestra_server_config("GitHub");
+        let server_key = format!("GitHub {INSTALLED_MCP_SERVER_KEY_SUFFIX}");
+        let server_config = MCPServerConfig {
+            url: format!("{ARCHESTRA_SERVER_BASE_URL}/proxy/GitHub"),
+        };
         mcp_servers.insert(
             server_key.to_string(),
             serde_json::to_value(server_config).unwrap(),
@@ -548,10 +523,9 @@ mod tests {
         assert!(mcp_servers.contains_key("existing-server"));
 
         let github_config = &mcp_servers["GitHub (archestra.ai)"];
-        assert_eq!(github_config["command"], "curl");
         assert_eq!(
-            github_config["args"][2],
-            "http://localhost:54587/proxy/GitHub"
+            github_config["url"],
+            format!("{ARCHESTRA_SERVER_BASE_URL}/proxy/GitHub")
         );
     }
 
