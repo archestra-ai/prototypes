@@ -69,7 +69,19 @@ export class OllamaProvider implements ModelProvider {
   }
 
   supportsTools(): boolean {
-    return true;
+    // Check if the Ollama model supports tools based on model name
+    // This list is based on Ollama documentation and chat-store implementation
+    return (
+      this.modelName.includes('qwen') ||
+      this.modelName.includes('functionary') ||
+      this.modelName.includes('mistral') ||
+      this.modelName.includes('command') ||
+      this.modelName.includes('hermes') ||
+      this.modelName.includes('llama3.1') ||
+      this.modelName.includes('llama-3.1') ||
+      this.modelName.includes('phi') ||
+      this.modelName.includes('granite')
+    );
   }
 
   supportsStreaming(): boolean {
