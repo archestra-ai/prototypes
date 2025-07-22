@@ -289,4 +289,78 @@ export const AVAILABLE_MODELS: OllamaModel[] = [
       },
     ],
   },
+  {
+    name: 'qwen3',
+    description:
+      'Qwen3 is the latest generation of large language models in the Qwen series, offering a comprehensive suite of dense and mixture-of-experts (MoE) models. It features seamless switching between thinking and non-thinking modes, enhanced reasoning, superior human preference alignment, agent capabilities, and support for 100+ languages.',
+    labels: ['tools', 'thinking', 'reasoning', 'qwen', 'moe', 'multilingual'],
+    tags: [
+      {
+        tag: '0.6b',
+        context: '40K',
+        size: '523MB',
+        inputs: ['Text'],
+      },
+      {
+        tag: '1.7b',
+        context: '40K',
+        size: '1.4GB',
+        inputs: ['Text'],
+      },
+      {
+        tag: '4b',
+        context: '40K',
+        size: '2.6GB',
+        inputs: ['Text'],
+      },
+      {
+        tag: '8b',
+        context: '40K',
+        size: '5.2GB',
+        inputs: ['Text'],
+      },
+      {
+        tag: '14b',
+        context: '40K',
+        size: '9.3GB',
+        inputs: ['Text'],
+      },
+      {
+        tag: '30b',
+        context: '40K',
+        size: '19GB',
+        inputs: ['Text'],
+      },
+      {
+        tag: '32b',
+        context: '40K',
+        size: '20GB',
+        inputs: ['Text'],
+      },
+      {
+        tag: '30b-a3b',
+        context: '40K',
+        size: '19GB',
+        inputs: ['Text'],
+      },
+      {
+        tag: '235b',
+        context: '40K',
+        size: '142GB',
+        inputs: ['Text'],
+      },
+      {
+        tag: '235b-a22b',
+        context: '40K',
+        size: '142GB',
+        inputs: ['Text'],
+      },
+      {
+        tag: 'latest',
+        context: '40K',
+        size: '5.2GB',
+        inputs: ['Text'],
+      },
+    ],
+  },
 ];
