@@ -31,7 +31,7 @@
     "server_config": {
       "transport": "stdio",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./"],
       "env": {}
     }
   },
@@ -134,6 +134,24 @@
       "transport": "stdio",
       "command": "npx",
       "args": ["@gongrzhe/server-gmail-autoauth-mcp"],
+      "env": {}
+    }
+  },
+  {
+    "id": "everything",
+    "title": "Everything",
+    "description": "This MCP server attempts to exercise all the features of the MCP protocol. It is not intended to be a useful server, but rather a test server for builders of MCP clients. It implements prompts, tools, resources, sampling, and more to showcase MCP capabilities.",
+    "image": null,
+    "category": "system",
+    "tags": ["files", "local", "read", "write"],
+    "author": "ModelContextProtocol",
+    "version": "1.0.0",
+    "homepage": "https://github.com/modelcontextprotocol/servers",
+    "repository": "https://github.com/modelcontextprotocol/servers",
+    "server_config": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everything"],
       "env": {}
     }
   }
