@@ -50,16 +50,18 @@ export default function ChatHistory(_props: ChatHistoryProps) {
     if (scrollAreaRef.current && shouldAutoScroll && !isScrollingRef.current) {
       scrollAreaRef.current.scrollTo({
         top: scrollAreaRef.current.scrollHeight,
-        behavior: 'instant', // Changed from 'smooth' to prevent conflicts
+        behavior: 'smooth',
       });
     }
   }, [shouldAutoScroll]);
 
   const checkIfAtBottom = useCallback(() => {
-    if (!scrollAreaRef.current) return false;
-
+    if (!scrollAreaRef.current) {
+      return false;
+    }
     const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current;
-    // Consider "at bottom" if within 10px of the bottom (tighter threshold)
+
+    // Consider "at bottom" to be within 10px of the bottom
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 10;
     return isAtBottom;
   }, []);
@@ -86,7 +88,8 @@ export default function ChatHistory(_props: ChatHistoryProps) {
     const scrollArea = document.querySelector(CHAT_SCROLL_AREA_SELECTOR);
     if (scrollArea) {
       scrollAreaRef.current = scrollArea as HTMLElement;
-      scrollArea.addEventListener('scroll', handleScroll);
+      scrollArea.addEventListener('scroll', handleScroll, { passive: true });
+
       return () => {
         scrollArea.removeEventListener('scroll', handleScroll);
       };
