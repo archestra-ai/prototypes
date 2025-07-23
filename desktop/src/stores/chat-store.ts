@@ -21,7 +21,7 @@ interface ChatState {
 }
 
 interface ChatActions {
-  sendChatMessage: (message: string) => Promise<void>;
+  sendChatMessage: (message: string, selectedTools?: ToolContext[]) => Promise<void>;
   clearChatHistory: () => void;
   cancelStreaming: () => void;
   updateStreamingMessage: (messageId: string, content: string) => void;
@@ -218,7 +218,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   sendChatMessage: async (message: string, selectedTools?: ToolContext[]) => {
-    const { chat, selectedModel, ollamaClient } = useOllamaStore.getState();
+    const { chat, selectedModel } = useOllamaStore.getState();
 
     const allTools = useMCPServersStore.getState().allAvailableTools();
     const { isDeveloperMode, systemPrompt } = useDeveloperModeStore.getState();

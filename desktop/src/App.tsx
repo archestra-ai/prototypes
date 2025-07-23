@@ -1,4 +1,4 @@
-import { Bot, ChevronRight, Download, MessageCircle, Plus, Search, Settings } from 'lucide-react';
+import { Bot, ChevronRight, Download, MessageCircle, Plus, Settings } from 'lucide-react';
 import * as React from 'react';
 import { useState } from 'react';
 
@@ -12,13 +12,11 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
 } from './components/ui/sidebar';
 import { formatToolName } from './lib/format-tool-name';
 import ChatPage from './pages/ChatPage';
@@ -160,10 +158,10 @@ function App() {
           breadcrumbs={
             activeView === 'llm-providers' && activeSubView
               ? [
-                  navigationItems.find((item) => item.key === activeView)?.title,
+                  navigationItems.find((item) => item.key === activeView)?.title || '',
                   activeSubView.charAt(0).toUpperCase() + activeSubView.slice(1),
                 ]
-              : [navigationItems.find((item) => item.key === activeView)?.title]
+              : [navigationItems.find((item) => item.key === activeView)?.title || '']
           }
         />
         <div className="flex flex-1 overflow-hidden">

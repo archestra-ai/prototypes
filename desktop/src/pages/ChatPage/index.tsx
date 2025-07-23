@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 import { ToolContext } from '@/components/kibo/ai-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';

@@ -21,7 +21,6 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChatStore, useIsStreaming } from '@/stores/chat-store';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
-import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
 
 interface ChatInputProps {
