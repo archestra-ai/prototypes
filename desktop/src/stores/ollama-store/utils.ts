@@ -1,5 +1,6 @@
 import { Tool as OllamaTool } from 'ollama/browser';
 
+import type { ToolContext } from '../../components/kibo/ai-input';
 import type { MCPServerTools } from '../mcp-servers-store';
 
 export const convertServerAndToolNameToOllamaToolName = (serverName: string, toolName: string): string =>
@@ -27,4 +28,32 @@ export const convertMCPServerToolsToOllamaTools = (mcpServerTools: MCPServerTool
       },
     }))
   );
+};
+
+export const convertSelectedOrAllToolsToOllamaTools = (
+  selectedTools: ToolContext[] | undefined,
+  allTools: MCPServerTools
+): OllamaTool[] => {
+  // If no tools are selected, return all tools (current behavior)
+  if (!selectedTools || selectedTools.length === 0) {
+    return convertMCPServerToolsToOllamaTools(allTools);
+  }
+
+  // Filter allTools to only include selected tools
+  const filteredTools: MCPServerTools = {};
+
+  for (const selectedTool of selectedTools) {
+    const serverTools = allTools[selectedTool.serverName];
+    if (serverTools) {
+      const matchingTool = serverTools.find((tool) => tool.name === selectedTool.toolName);
+      if (matchingTool) {
+        if (!filteredTools[selectedTool.serverName]) {
+          filteredTools[selectedTool.serverName] = [];
+        }
+        filteredTools[selectedTool.serverName].push(matchingTool);
+      }
+    }
+  }
+
+  return convertMCPServerToolsToOllamaTools(filteredTools);
 };

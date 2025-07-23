@@ -65,7 +65,7 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
       }
 
       setMessage('');
-      await sendChatMessage(finalMessage);
+      await sendChatMessage(finalMessage, selectedTools);
       setStatus('ready');
     } catch (error) {
       setStatus('error');
