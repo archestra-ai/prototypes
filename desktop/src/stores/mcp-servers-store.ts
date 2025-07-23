@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequest, ClientCapabilities, Tool } from '@modelcontextprotocol/sdk/types.js';
 import { invoke } from '@tauri-apps/api/core';
 import { fetch } from '@tauri-apps/plugin-http';
 import { create } from 'zustand';
@@ -9,6 +9,8 @@ import type { ConnectedMCPServer, MCPServer } from '../types';
 
 const ARCHESTRA_SERVER_URL = 'http://localhost:54587';
 const ARCHESTRA_SERVER_MCP_URL = `${ARCHESTRA_SERVER_URL}/mcp`;
+
+export type MCPServerTools = Record<string, Tool[]>;
 
 interface MCPServersState {
   archestraMCPServer: ConnectedMCPServer;
@@ -24,6 +26,7 @@ interface MCPServersActions {
   loadInstalledMCPServers: () => Promise<void>;
   connectToArchestraMCPServer: () => Promise<void>;
   connectToMCPServer: (serverName: string, url: string) => Promise<Client | null>;
+  allAvailableTools: () => MCPServerTools;
 }
 
 type MCPServersStore = MCPServersState & MCPServersActions;
@@ -51,9 +54,7 @@ const configureMCPClient = async (
     fetch: fetch,
   });
 
-  console.log(`Configuring MCP client: ${clientName} at ${clientUrl}`);
   await client.connect(transport);
-  console.log(`MCP client ${clientName} connected to ${clientUrl}`);
 
   return client;
 };
@@ -157,7 +158,6 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
 
       if (client) {
         const { tools } = await client.listTools();
-        console.log(`Found ${tools.length} tools for Archestra:`, tools);
 
         set((state) => ({
           archestraMCPServer: {
@@ -184,8 +184,6 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
   },
 
   connectToMCPServer: async (serverName: string, url: string) => {
-    console.log(`Connecting to MCP server ${serverName} at ${url}`);
-
     if (!url) {
       console.error(`No URL provided for MCP server ${serverName}`);
       set((state) => ({
@@ -213,9 +211,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
       }
 
       // List available tools
-      console.log(`Listing tools for ${serverName}...`);
       const { tools } = await client.listTools();
-      console.log(`Found ${tools.length} tools for ${serverName}:`, tools);
 
       set((state) => ({
         installedMCPServers: state.installedMCPServers.map((server) =>
@@ -225,8 +221,6 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
 
       return client;
     } catch (error) {
-      console.error(`Failed to connect to MCP server ${serverName}:`, error);
-
       // Extract more detailed error information
       let errorMessage = 'Unknown error';
       if (error instanceof Error) {
@@ -250,6 +244,14 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
       }));
       return null;
     }
+  },
+
+  allAvailableTools: () => {
+    const { installedMCPServers } = get();
+    return installedMCPServers.reduce((acc, server) => {
+      acc[server.name] = server.tools;
+      return acc;
+    }, {} as MCPServerTools);
   },
 }));
 

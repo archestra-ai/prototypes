@@ -1,6 +1,5 @@
 'use client';
 
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ChevronDown, MicIcon, PaperclipIcon, Settings, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -27,7 +26,8 @@ import { useOllamaStore } from '@/stores/ollama-store';
 interface ChatInputProps {}
 
 export default function ChatInput(_props: ChatInputProps) {
-  const { installedMCPServers, loadingInstalledMCPServers } = useMCPServersStore();
+  const { loadingInstalledMCPServers } = useMCPServersStore();
+  const allTools = useMCPServersStore.getState().allAvailableTools();
   const { isChatLoading, sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
   const isStreaming = useIsStreaming();
 
@@ -37,8 +37,6 @@ export default function ChatInput(_props: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'submitted' | 'streaming' | 'ready' | 'error'>('ready');
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
-
-  const disabled = isStreaming || isChatLoading;
 
   useEffect(() => {
     if (isStreaming) {
@@ -53,15 +51,11 @@ export default function ChatInput(_props: ChatInputProps) {
       e.preventDefault();
     }
 
-    if (!message.trim() || disabled || !selectedModel) {
-      return;
-    }
-
     setStatus('submitted');
 
     try {
       setMessage('');
-      await sendChatMessage(message.trim(), selectedModel);
+      await sendChatMessage(message.trim());
       setStatus('ready');
     } catch (error) {
       setStatus('error');
@@ -94,15 +88,7 @@ export default function ChatInput(_props: ChatInputProps) {
     clearChatHistory();
   };
 
-  // Group tools by server
-  const toolsByServer = installedMCPServers.reduce(
-    (acc, mcpServer) => {
-      acc[mcpServer.name] = mcpServer.tools;
-      return acc;
-    },
-    {} as Record<string, Tool[]>
-  );
-  const totalNumberOfTools = installedMCPServers.reduce((acc, mcpServer) => acc + mcpServer.tools.length, 0);
+  const totalNumberOfTools = Object.keys(allTools).length;
 
   return (
     <TooltipProvider>
@@ -123,7 +109,7 @@ export default function ChatInput(_props: ChatInputProps) {
                     Total: {totalNumberOfTools}
                   </Badge>
                 </div>
-                {Object.entries(toolsByServer).map(([serverName, tools]) => (
+                {Object.entries(allTools).map(([serverName, tools]) => (
                   <Collapsible key={serverName}>
                     <CollapsibleTrigger className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer w-full">
                       <div className="flex items-center gap-2">
@@ -171,7 +157,7 @@ export default function ChatInput(_props: ChatInputProps) {
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="What would you like to know?"
-            disabled={disabled}
+            disabled={!selectedModel}
             minHeight={48}
             maxHeight={164}
           />
@@ -228,11 +214,7 @@ export default function ChatInput(_props: ChatInputProps) {
                 </Tooltip>
               )}
             </AIInputTools>
-            <AIInputSubmit
-              status={status}
-              disabled={disabled || (!message.trim() && status !== 'streaming')}
-              onClick={status === 'streaming' ? cancelStreaming : undefined}
-            />
+            <AIInputSubmit status={status} onClick={cancelStreaming} disabled={isStreaming || isChatLoading} />
           </AIInputToolbar>
         </AIInput>
       </div>

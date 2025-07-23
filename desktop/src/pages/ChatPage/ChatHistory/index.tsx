@@ -1,5 +1,5 @@
 import { Wrench } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
 import { AIResponse } from '@/components/kibo/ai-response';
@@ -17,30 +17,68 @@ interface ChatHistoryProps {}
 
 export default function ChatHistory(_props: ChatHistoryProps) {
   const { chatHistory } = useChatStore();
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const scrollAreaRef = useRef<HTMLElement | null>(null);
+  const isScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Scroll to bottom when new messages are added or content changes
   const scrollToBottom = useCallback(() => {
-    const scrollArea = document.querySelector(CHAT_SCROLL_AREA_SELECTOR);
-    if (scrollArea) {
-      scrollArea.scrollTo({
-        top: scrollArea.scrollHeight,
-        behavior: 'smooth',
+    if (scrollAreaRef.current && shouldAutoScroll && !isScrollingRef.current) {
+      scrollAreaRef.current.scrollTo({
+        top: scrollAreaRef.current.scrollHeight,
+        behavior: 'instant', // Changed from 'smooth' to prevent conflicts
       });
     }
+  }, [shouldAutoScroll]);
+
+  const checkIfAtBottom = useCallback(() => {
+    if (!scrollAreaRef.current) return false;
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current;
+    // Consider "at bottom" if within 10px of the bottom (tighter threshold)
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 10;
+    return isAtBottom;
   }, []);
 
-  const triggerScroll = useCallback(() => {
+  const handleScroll = useCallback(() => {
+    // Mark that user is scrolling
+    isScrollingRef.current = true;
+
+    // Clear existing timeout
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    // Debounce the scroll end detection
+    scrollTimeoutRef.current = setTimeout(() => {
+      isScrollingRef.current = false;
+      const isAtBottom = checkIfAtBottom();
+      setShouldAutoScroll(isAtBottom);
+    }, 150); // 150ms debounce
+  }, [checkIfAtBottom]);
+
+  // Set up scroll area ref and scroll listener
+  useEffect(() => {
+    const scrollArea = document.querySelector(CHAT_SCROLL_AREA_SELECTOR) as HTMLElement;
+    if (scrollArea) {
+      scrollAreaRef.current = scrollArea;
+      scrollArea.addEventListener('scroll', handleScroll);
+
+      return () => {
+        scrollArea.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, [handleScroll]);
+
+  // Trigger scroll when chat history changes (only if shouldAutoScroll is true)
+  useEffect(() => {
     const timeoutId = setTimeout(scrollToBottom, 50);
     return () => clearTimeout(timeoutId);
-  }, [scrollToBottom]);
-
-  // Trigger scroll when chat history changes
-  useEffect(() => {
-    triggerScroll();
-  }, [chatHistory]);
+  }, [chatHistory, scrollToBottom]);
 
   return (
-    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-96 w-full rounded-md border p-4">
+    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-140 w-full rounded-md border p-4">
       <div className="space-y-4">
         {chatHistory.map((msg, index) => (
           <div

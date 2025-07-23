@@ -2,6 +2,7 @@ import { Bot, Code, Download, MessageCircle, Settings } from 'lucide-react';
 import * as React from 'react';
 import { useState } from 'react';
 
+import { ThemeSwitcher } from './components/ThemeSwitcher';
 import {
   Sidebar,
   SidebarContent,
@@ -59,11 +60,7 @@ function App() {
   const renderContent = () => {
     switch (activeView) {
       case 'chat':
-        return (
-          <div className="space-y-6">
-            <ChatPage />
-          </div>
-        );
+        return <ChatPage />;
       case 'llm-providers':
         return <LLMProvidersPage activeProvider={activeSubView} />;
       case 'mcp':
@@ -140,6 +137,10 @@ function App() {
               className="group-data-[collapsible=icon]:scale-75"
             />
             <Code className="h-4 w-4 text-muted-foreground hidden group-data-[collapsible=icon]:block" />
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground px-2">Theme</p>
+              <ThemeSwitcher />
+            </div>
           </div>
         </SidebarFooter>
       </Sidebar>
