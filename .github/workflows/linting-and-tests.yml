@@ -40,11 +40,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libglib2.0-dev pkg-config
-# libwebkit2gtk-4.1-dev \
-# libappindicator3-dev \
-# librsvg2-dev \
-# patchelf
+          libwebkit2gtk-4.1-dev \
+          libappindicator3-dev \
+          librsvg2-dev \
+          patchelf
 
       - name: Check Rust formatting
         working-directory: desktop/src-tauri
