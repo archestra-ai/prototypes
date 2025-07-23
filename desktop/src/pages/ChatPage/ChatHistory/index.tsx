@@ -29,11 +29,15 @@ export default function ChatHistory(_props: ChatHistoryProps) {
     }
   }, []);
 
-  // Trigger scroll after message changes
-  useEffect(() => {
+  const triggerScroll = useCallback(() => {
     const timeoutId = setTimeout(scrollToBottom, 50);
     return () => clearTimeout(timeoutId);
-  }, [chatHistory, scrollToBottom]);
+  }, [scrollToBottom]);
+
+  // Trigger scroll when chat history changes
+  useEffect(() => {
+    triggerScroll();
+  }, [chatHistory]);
 
   return (
     <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-96 w-full rounded-md border p-4">
