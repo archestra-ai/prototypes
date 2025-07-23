@@ -9,7 +9,6 @@ pub struct AuthResponse {
     pub auth_url: String,
 }
 
-#[tauri::command]
 pub async fn start_oauth_auth(
     app: tauri::AppHandle,
     service: String,

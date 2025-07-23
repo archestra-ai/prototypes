@@ -11,18 +11,17 @@ use reqwest::Client;
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio_util::io::ReaderStream;
 
 // Constants for resource management
 // Also, make the request timeout very high as it can take some time for the LLM to respond
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(180);
 
-pub struct OllamaProxyService {
+struct Service {
     db: Arc<DatabaseConnection>,
     http_client: Client,
 }
 
-impl OllamaProxyService {
+impl Service {
     pub fn new(db: DatabaseConnection) -> Self {
         Self {
             db: Arc::new(db),
@@ -34,8 +33,8 @@ impl OllamaProxyService {
     }
 }
 
-pub async fn proxy_handler(
-    State(service): State<Arc<OllamaProxyService>>,
+async fn proxy_handler(
+    State(service): State<Arc<Service>>,
     req: Request<Body>,
 ) -> impl IntoResponse {
     let path_and_query = req
@@ -97,8 +96,8 @@ pub async fn proxy_handler(
     }
 }
 
-pub fn create_ollama_router(db: DatabaseConnection) -> Router {
+pub fn create_router(db: DatabaseConnection) -> Router {
     Router::new()
         .fallback(proxy_handler)
-        .with_state(Arc::new(OllamaProxyService::new(db)))
+        .with_state(Arc::new(Service::new(db)))
 }

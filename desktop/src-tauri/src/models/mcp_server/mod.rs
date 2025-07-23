@@ -1,22 +1,13 @@
-use crate::database::connection::get_database_connection_with_app;
 use crate::models::external_mcp_client::Model as ExternalMCPClient;
 use sea_orm::entity::prelude::*;
-use sea_orm::{DeleteResult, Set};
+use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub mod oauth;
 pub mod sandbox;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServerConfig {
-    pub transport: String, // "stdio" or "http"
-    pub command: String,
-    pub args: Vec<String>,
-    pub env: HashMap<String, String>,
-}
-
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize)]
 #[sea_orm(table_name = "mcp_servers")]
 pub struct Model {
     #[sea_orm(primary_key)]
@@ -44,6 +35,14 @@ pub struct MCPServerDefinition {
 pub struct ConnectorCatalogEntryOauth {
     pub provider: String,
     pub required: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerConfig {
+    pub transport: String, // "stdio" or "http"
+    pub command: String,
+    pub args: Vec<String>,
+    pub env: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,7 +140,7 @@ impl Model {
     pub async fn uninstall_mcp_server(
         db: &DatabaseConnection,
         server_name: &str,
-    ) -> Result<DeleteResult, DbErr> {
+    ) -> Result<(), DbErr> {
         // Stop the server, in the background, before deleting
         // if there's an error stopping the server, that's fine (for now)
         let server_name_for_bg = server_name.to_string();
@@ -149,7 +148,7 @@ impl Model {
             let _ = sandbox::stop_mcp_server(&server_name_for_bg).await;
         });
 
-        let delete_result = Entity::delete_many()
+        Entity::delete_many()
             .filter(Column::Name.eq(server_name))
             .exec(db)
             .await?;
@@ -159,7 +158,7 @@ impl Model {
             .await
             .map_err(DbErr::Custom)?;
 
-        Ok(delete_result)
+        Ok(())
     }
 
     /// Find an MCP server by name
@@ -193,6 +192,37 @@ impl Model {
         } else {
             Ok(None)
         }
+    }
+
+    pub async fn get_mcp_connector_catalog() -> Result<Vec<ConnectorCatalogEntry>, String> {
+        let catalog_json = include_str!("catalog.json");
+        serde_json::from_str(catalog_json).map_err(|e| format!("Failed to parse catalog: {e}"))
+    }
+
+    pub async fn save_mcp_server_from_catalog(
+        db: &DatabaseConnection,
+        connector_id: String,
+    ) -> Result<MCPServerDefinition, String> {
+        // Load the catalog
+        let catalog = Self::get_mcp_connector_catalog().await?;
+
+        // Find the connector by ID
+        let connector = catalog
+            .iter()
+            .find(|c| c.id == connector_id)
+            .ok_or_else(|| format!("Connector with ID '{connector_id}' not found in catalog"))?;
+
+        let definition = MCPServerDefinition {
+            name: connector.title.clone(),
+            server_config: connector.server_config.clone(),
+            meta: None,
+        };
+
+        let result = Model::save_server(&db, &definition)
+            .await
+            .map_err(|e| format!("Failed to save MCP server: {e}"))?;
+
+        Ok(result.to_definition().unwrap())
     }
 
     /// Convert a Model to MCPServerDefinition
@@ -233,75 +263,69 @@ impl From<MCPServerDefinition> for ActiveModel {
     }
 }
 
-#[tauri::command]
-pub async fn save_mcp_server_from_catalog(
-    app: tauri::AppHandle,
-    connector_id: String,
-) -> Result<MCPServerDefinition, String> {
-    // Load the catalog
-    let catalog = get_mcp_connector_catalog().await?;
+// #[tauri::command]
+// pub async fn save_mcp_server_from_catalog(
+//     app: tauri::AppHandle,
+//     connector_id: String,
+// ) -> Result<MCPServerDefinition, String> {
+//     // Load the catalog
+//     let catalog = get_mcp_connector_catalog().await?;
 
-    // Find the connector by ID
-    let connector = catalog
-        .iter()
-        .find(|c| c.id == connector_id)
-        .ok_or_else(|| format!("Connector with ID '{connector_id}' not found in catalog"))?;
+//     // Find the connector by ID
+//     let connector = catalog
+//         .iter()
+//         .find(|c| c.id == connector_id)
+//         .ok_or_else(|| format!("Connector with ID '{connector_id}' not found in catalog"))?;
 
-    let db = get_database_connection_with_app(&app)
-        .await
-        .map_err(|e| format!("Failed to connect to database: {e}"))?;
+//     let db = get_database_connection_with_app(&app)
+//         .await
+//         .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
-    let definition = MCPServerDefinition {
-        name: connector.title.clone(),
-        server_config: connector.server_config.clone(),
-        meta: None,
-    };
+//     let definition = MCPServerDefinition {
+//         name: connector.title.clone(),
+//         server_config: connector.server_config.clone(),
+//         meta: None,
+//     };
 
-    let result = Model::save_server(&db, &definition)
-        .await
-        .map_err(|e| format!("Failed to save MCP server: {e}"))?;
+//     let result = Model::save_server(&db, &definition)
+//         .await
+//         .map_err(|e| format!("Failed to save MCP server: {e}"))?;
 
-    Ok(result.to_definition().unwrap())
-}
+//     Ok(result.to_definition().unwrap())
+// }
 
-#[tauri::command]
-pub async fn load_installed_mcp_servers(
-    app: tauri::AppHandle,
-) -> Result<Vec<MCPServerDefinition>, String> {
-    let db = get_database_connection_with_app(&app)
-        .await
-        .map_err(|e| format!("Failed to connect to database: {e}"))?;
+// #[tauri::command]
+// pub async fn load_installed_mcp_servers(
+//     app: tauri::AppHandle,
+// ) -> Result<Vec<MCPServerDefinition>, String> {
+//     let db = get_database_connection_with_app(&app)
+//         .await
+//         .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
-    let models = Model::load_installed_mcp_servers(&db)
-        .await
-        .map_err(|e| format!("Failed to load MCP servers: {e}"))?;
+//     let models = Model::load_installed_mcp_servers(&db)
+//         .await
+//         .map_err(|e| format!("Failed to load MCP servers: {e}"))?;
 
-    let definitions = models
-        .into_iter()
-        .map(|m| m.to_definition().unwrap())
-        .collect();
+//     let definitions = models
+//         .into_iter()
+//         .map(|m| m.to_definition().unwrap())
+//         .collect();
 
-    Ok(definitions)
-}
+//     Ok(definitions)
+// }
 
-#[tauri::command]
-pub async fn uninstall_mcp_server(app: tauri::AppHandle, name: String) -> Result<(), String> {
-    let db = get_database_connection_with_app(&app)
-        .await
-        .map_err(|e| format!("Failed to connect to database: {e}"))?;
+// #[tauri::command]
+// pub async fn uninstall_mcp_server(app: tauri::AppHandle, name: String) -> Result<(), String> {
+//     let db = get_database_connection_with_app(&app)
+//         .await
+//         .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
-    Model::uninstall_mcp_server(&db, &name)
-        .await
-        .map_err(|e| format!("Failed to uninstall MCP server: {e}"))?;
+//     Model::uninstall_mcp_server(&db, &name)
+//         .await
+//         .map_err(|e| format!("Failed to uninstall MCP server: {e}"))?;
 
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn get_mcp_connector_catalog() -> Result<Vec<ConnectorCatalogEntry>, String> {
-    let catalog_json = include_str!("catalog.json");
-    serde_json::from_str(catalog_json).map_err(|e| format!("Failed to parse catalog: {e}"))
-}
+//     Ok(())
+// }
 
 #[cfg(test)]
 mod tests {
