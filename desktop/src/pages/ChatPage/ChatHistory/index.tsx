@@ -1,5 +1,5 @@
 import { Bot, Brain, CheckCircle, Loader2, Wrench } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
 import { AIResponse } from '@/components/kibo/ai-response';
@@ -19,6 +19,10 @@ interface ChatHistoryProps {}
 export default function ChatHistory(_props: ChatHistoryProps) {
   const { chatHistory } = useChatStore();
   const { mode: agentMode, progress, reasoningMode, currentObjective } = useAgentStore();
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const scrollAreaRef = useRef<HTMLElement | null>(null);
+  const isScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Helper function to format agent mode
   const formatAgentMode = (mode: string) => {
@@ -44,187 +48,169 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   };
 
   const scrollToBottom = useCallback(() => {
-    const scrollArea = document.querySelector(CHAT_SCROLL_AREA_SELECTOR);
-    if (scrollArea) {
-      scrollArea.scrollTo({
-        top: scrollArea.scrollHeight,
-        behavior: 'smooth',
+    if (scrollAreaRef.current && shouldAutoScroll && !isScrollingRef.current) {
+      scrollAreaRef.current.scrollTo({
+        top: scrollAreaRef.current.scrollHeight,
+        behavior: 'instant', // Changed from 'smooth' to prevent conflicts
       });
     }
+  }, [shouldAutoScroll]);
+
+  const checkIfAtBottom = useCallback(() => {
+    if (!scrollAreaRef.current) return false;
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current;
+    // Consider "at bottom" if within 10px of the bottom (tighter threshold)
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 10;
+    return isAtBottom;
   }, []);
 
-  const triggerScroll = useCallback(() => {
+  const handleScroll = useCallback(() => {
+    // Mark that user is scrolling
+    isScrollingRef.current = true;
+
+    // Clear existing timeout
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    // Debounce the scroll end detection
+    scrollTimeoutRef.current = setTimeout(() => {
+      isScrollingRef.current = false;
+      const isAtBottom = checkIfAtBottom();
+      setShouldAutoScroll(isAtBottom);
+    }, 150); // 150ms debounce
+  }, [checkIfAtBottom]);
+
+  // Set up scroll area ref and scroll listener
+  useEffect(() => {
+    const scrollArea = document.querySelector(CHAT_SCROLL_AREA_SELECTOR);
+    if (scrollArea) {
+      scrollAreaRef.current = scrollArea as HTMLElement;
+      scrollArea.addEventListener('scroll', handleScroll);
+      return () => {
+        scrollArea.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, [handleScroll]);
+
+  // Scroll to bottom when chat history changes (if auto-scroll is enabled)
+  useEffect(() => {
+    // Small delay to ensure DOM is updated
     const timeoutId = setTimeout(scrollToBottom, 50);
     return () => clearTimeout(timeoutId);
-  }, [scrollToBottom]);
+  }, [chatHistory, scrollToBottom]);
 
-  // Trigger scroll when chat history changes
+  // Clean up timeout on unmount
   useEffect(() => {
-    triggerScroll();
-  }, [chatHistory]);
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
-    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-96 w-full rounded-md border p-4">
-      <div className="space-y-4">
-        {/* Agent Status Message */}
+    <div className="flex-1 overflow-hidden">
+      <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full px-6 py-4">
+        {/* Agent Mode Indicator */}
         {agentMode !== 'idle' && (
-          <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20">
-            <div className="flex items-center gap-2 mb-2">
-              <Bot className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium">AI Agent Status</span>
-              <span className={cn('text-sm font-medium', getAgentModeColor(agentMode))}>
-                {formatAgentMode(agentMode)}
-              </span>
-            </div>
-
-            {currentObjective && (
-              <div className="text-sm text-muted-foreground mb-2">
-                <span className="font-medium">Objective:</span> {currentObjective}
-              </div>
-            )}
-
-            {agentMode === 'executing' && progress.total > 0 && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span>Progress</span>
-                  <span className="text-muted-foreground">
-                    {progress.completed} / {progress.total} steps
-                  </span>
-                </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${(progress.completed / progress.total) * 100}%` }}
-                  />
-                </div>
-                {progress.currentStep && (
-                  <div className="text-xs text-muted-foreground mt-1">Current: {progress.currentStep}</div>
-                )}
-              </div>
-            )}
-
-            {agentMode === 'completed' && (
-              <div className="flex items-center gap-2 text-sm text-green-600">
-                <CheckCircle className="h-4 w-4" />
-                Task completed successfully
-              </div>
-            )}
-
-            {(agentMode === 'initializing' || agentMode === 'planning') && (
-              <div className="flex items-center gap-2 text-sm">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {agentMode === 'initializing' ? 'Initializing agent...' : 'Planning execution...'}
-              </div>
-            )}
+          <div className="mb-4 flex items-center gap-2 rounded-lg bg-accent/50 px-4 py-3">
+            <Bot className={cn('h-4 w-4', getAgentModeColor(agentMode))} />
+            <span className="text-sm font-medium">
+              Agent Mode: <span className={getAgentModeColor(agentMode)}>{formatAgentMode(agentMode)}</span>
+            </span>
+            {agentMode === 'executing' && <Loader2 className="ml-auto h-4 w-4 animate-spin text-muted-foreground" />}
+            {agentMode === 'completed' && <CheckCircle className="ml-auto h-4 w-4 text-green-600" />}
           </div>
         )}
 
-        {chatHistory.map((msg, index) => (
-          <div
-            key={msg.id || index}
-            className={cn(
-              'p-3 rounded-lg',
-              msg.role === 'user'
-                ? 'bg-primary/10 border border-primary/20 ml-8'
-                : msg.role === 'assistant'
-                  ? 'bg-secondary/50 border border-secondary mr-8'
-                  : msg.role === 'error'
-                    ? 'bg-destructive/10 border border-destructive/20 text-destructive'
-                    : msg.role === 'system'
-                      ? 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-600'
-                      : msg.role === 'tool'
-                        ? 'bg-blue-500/10 border border-blue-500/20 text-blue-600'
-                        : 'bg-muted border'
-            )}
-          >
-            <div className="text-xs font-medium mb-1 opacity-70 capitalize">{msg.role}</div>
-            {msg.role === 'user' ? (
-              <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
-            ) : msg.role === 'assistant' ? (
-              <div className="relative">
-                {(msg.isToolExecuting || msg.toolCalls) && (
-                  <ToolCallIndicator toolCalls={msg.toolCalls || []} isExecuting={!!msg.isToolExecuting} />
-                )}
-
-                {msg.toolCalls && msg.toolCalls.length > 0 && (
-                  <div className="space-y-2 mb-4">
-                    {msg.toolCalls.map((toolCall) => (
-                      <ToolExecutionResult
-                        key={toolCall.id}
-                        serverName={toolCall.serverName}
-                        toolName={toolCall.toolName}
-                        arguments={toolCall.arguments}
-                        result={toolCall.result || ''}
-                        executionTime={toolCall.executionTime}
-                        status={toolCall.error ? 'error' : 'success'}
-                        error={toolCall.error}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {msg.thinkingContent && (
-                  <AIReasoning isStreaming={msg.isThinkingStreaming} className="mb-4">
-                    <AIReasoningTrigger />
-                    <AIReasoningContent>{msg.thinkingContent}</AIReasoningContent>
-                  </AIReasoning>
-                )}
-
-                {/* Show agent reasoning if available and not hidden */}
-                {reasoningMode !== 'hidden' && msg.agentMetadata?.reasoning && (
-                  <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Brain className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                        Agent Reasoning ({msg.agentMetadata.reasoning.type})
-                      </span>
-                    </div>
-                    <div className="text-sm text-blue-900 dark:text-blue-100">
-                      {msg.agentMetadata.reasoning.content}
-                    </div>
-                    {msg.agentMetadata.reasoning.alternatives &&
-                      msg.agentMetadata.reasoning.alternatives.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                            Alternatives considered:
-                          </span>
-                          {msg.agentMetadata.reasoning.alternatives.map((alt) => (
-                            <div key={alt.id} className="text-xs text-blue-800 dark:text-blue-200 pl-2">
-                              • {alt.description}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                  </div>
-                )}
-
-                <AIResponse>{msg.content}</AIResponse>
-
-                {(msg.isStreaming || msg.isToolExecuting) && (
-                  <div className="flex items-center space-x-2 mt-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                    <p className="text-muted-foreground text-sm">
-                      {msg.isToolExecuting ? 'Executing tools...' : 'Loading...'}
-                    </p>
-                  </div>
-                )}
+        {/* Current Objective */}
+        {currentObjective && agentMode !== 'idle' && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950">
+            <div className="flex items-start gap-2">
+              <Brain className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Current Objective</p>
+                <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">{currentObjective}</p>
               </div>
-            ) : msg.role === 'tool' ? (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <Wrench className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Tool Result</span>
-                </div>
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="text-sm whitespace-pre-wrap font-mono">{msg.content}</div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
-            )}
+            </div>
           </div>
-        ))}
-      </div>
-    </ScrollArea>
+        )}
+
+        {/* Progress Indicators */}
+        {progress.length > 0 && agentMode !== 'idle' && (
+          <div className="mb-4 space-y-2">
+            {progress.map((step, index) => (
+              <div
+                key={index}
+                className={cn(
+                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm',
+                  step.status === 'completed' && 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
+                  step.status === 'in-progress' && 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+                  step.status === 'pending' && 'bg-gray-50 text-gray-500 dark:bg-gray-900 dark:text-gray-400'
+                )}
+              >
+                {step.status === 'completed' && <CheckCircle className="h-3 w-3" />}
+                {step.status === 'in-progress' && <Loader2 className="h-3 w-3 animate-spin" />}
+                {step.status === 'pending' && <div className="h-3 w-3 rounded-full border-2 border-current" />}
+                <span>{step.description}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Chat Messages */}
+        {chatHistory.map((item, index) => {
+          const showUserMessage = item.type === 'user' && item.message.trim() !== '';
+          const showAssistantResponse = item.type === 'assistant' && item.message.trim() !== '';
+          const showToolCall = item.type === 'tool-call';
+          const showToolResult = item.type === 'tool-result';
+
+          return (
+            <div key={index} className="mb-6">
+              {showUserMessage && (
+                <div className="mb-4">
+                  <div className="font-semibold">You</div>
+                  <div className="mt-1 whitespace-pre-wrap text-[15px] text-foreground/90">{item.message}</div>
+                </div>
+              )}
+
+              {/* Show reasoning mode indicator if enabled */}
+              {showAssistantResponse && reasoningMode === 'visible' && item.reasoning && (
+                <div className="mb-2">
+                  <AIReasoning>
+                    <AIReasoningTrigger />
+                    <AIReasoningContent content={item.reasoning} />
+                  </AIReasoning>
+                </div>
+              )}
+
+              {showAssistantResponse && (
+                <div className="mb-4">
+                  <div className="mb-2 flex items-center gap-2 font-semibold">
+                    <Wrench className="size-4" />
+                    Archestra
+                  </div>
+                  <AIResponse content={item.message} />
+                </div>
+              )}
+
+              {showToolCall && <ToolCallIndicator toolCall={item} />}
+
+              {showToolResult && (
+                <ToolExecutionResult
+                  result={item}
+                  isCollapsed={item.metadata?.isCollapsed}
+                  onToggleCollapse={() => {
+                    // Handle collapse toggle if needed
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </ScrollArea>
+    </div>
   );
 }

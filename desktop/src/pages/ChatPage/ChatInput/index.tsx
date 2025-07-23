@@ -1,8 +1,7 @@
 'use client';
 
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ChevronDown, MicIcon, PaperclipIcon, Settings, Wrench } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import {
   AIInput,
@@ -28,8 +27,9 @@ import { useOllamaStore } from '@/stores/ollama-store';
 interface ChatInputProps {}
 
 export default function ChatInput(_props: ChatInputProps) {
-  const { installedMCPServers, loadingInstalledMCPServers } = useMCPServersStore();
-  const { isChatLoading, sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
+  const { loadingInstalledMCPServers } = useMCPServersStore();
+  const allTools = useMCPServersStore.getState().allAvailableTools();
+  const { sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
   const isStreaming = useIsStreaming();
 
   const { installedModels, loadingInstalledModels, loadingInstalledModelsError, selectedModel, setSelectedModel } =
@@ -41,7 +41,7 @@ export default function ChatInput(_props: ChatInputProps) {
   const [status, setStatus] = useState<'submitted' | 'streaming' | 'ready' | 'error'>('ready');
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
 
-  const disabled = isStreaming || isChatLoading || (isAgentActive && agentMode === 'initializing');
+  const disabled = isStreaming || (isAgentActive && agentMode === 'initializing');
 
   useEffect(() => {
     if (isStreaming) {
@@ -58,7 +58,7 @@ export default function ChatInput(_props: ChatInputProps) {
     }
   }, [isAgentActive, agentMode]);
 
-  const handleSubmit = async (e?: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e?: React.FormEvent<HTMLFormElement>) => {
     if (e) {
       e.preventDefault();
     }
@@ -69,12 +69,11 @@ export default function ChatInput(_props: ChatInputProps) {
 
     const trimmedMessage = message.trim();
 
-    // Since agent is always active, all messages go through agent-aware chat
     setStatus('submitted');
 
     try {
       setMessage('');
-      await sendChatMessage(trimmedMessage, selectedModel);
+      await sendChatMessage(trimmedMessage);
       setStatus('ready');
     } catch (error) {
       setStatus('error');
@@ -92,164 +91,146 @@ export default function ChatInput(_props: ChatInputProps) {
         const newMessage = message.substring(0, start) + '\n' + message.substring(end);
         setMessage(newMessage);
 
+        // Move cursor position after the new line
         setTimeout(() => {
-          textarea.setSelectionRange(start + 1, start + 1);
+          textarea.selectionStart = textarea.selectionEnd = start + 1;
         }, 0);
-      } else {
+      } else if (!e.shiftKey) {
         e.preventDefault();
-        handleSubmit();
+        if (!disabled) {
+          onSubmit();
+        }
       }
     }
   };
 
-  const handleModelChange = (modelName: string) => {
-    setSelectedModel(modelName);
-    clearChatHistory();
-  };
-
-  // Group tools by server
-  const toolsByServer = installedMCPServers.reduce(
-    (acc, mcpServer) => {
-      acc[mcpServer.name] = mcpServer.tools;
-      return acc;
-    },
-    {} as Record<string, Tool[]>
-  );
-  const totalNumberOfTools = installedMCPServers.reduce((acc, mcpServer) => acc + mcpServer.tools.length, 0);
-
   return (
-    <TooltipProvider>
-      <div className="space-y-2">
-        {isToolsMenuOpen && (totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
-          <div className="border rounded-lg p-3 bg-muted/50">
-            {loadingInstalledMCPServers ? (
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <span className="text-sm text-muted-foreground">Loading available tools...</span>
-              </div>
+    <form onSubmit={onSubmit}>
+      <AIInput className="px-6 pb-6">
+        <AIInputModelSelect>
+          <AIInputModelSelectTrigger className="px-2 py-1">
+            <Wrench className="mr-2 h-4 w-4" />
+            <AIInputModelSelectValue placeholder={loadingInstalledModels ? 'Loading models...' : 'Select a model'} />
+            <ChevronDown className="ml-2 h-4 w-4" />
+          </AIInputModelSelectTrigger>
+          <AIInputModelSelectContent>
+            {installedModels.map((model) => (
+              <AIInputModelSelectItem key={model} value={model} onClick={() => setSelectedModel(model)}>
+                {model}
+              </AIInputModelSelectItem>
+            ))}
+          </AIInputModelSelectContent>
+        </AIInputModelSelect>
+
+        <AIInputTextarea
+          className="resize-none"
+          placeholder={disabled ? 'Agent is initializing...' : 'Type a message...'}
+          rows={3}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+        />
+        <AIInputToolbar>
+          <AIInputTools>
+            <AIInputButton
+              size="icon"
+              variant="ghost"
+              disabled={disabled}
+              onClick={(e) => {
+                e.preventDefault();
+                setIsToolsMenuOpen(!isToolsMenuOpen);
+              }}
+            >
+              <Wrench />
+            </AIInputButton>
+            <AIInputButton size="icon" variant="ghost">
+              <PaperclipIcon />
+            </AIInputButton>
+            <AIInputButton size="icon" variant="ghost">
+              <MicIcon />
+            </AIInputButton>
+          </AIInputTools>
+          <div className="flex items-center gap-2">
+            {loadingInstalledModelsError && (
+              <span className="text-xs text-red-600">Error loading models: {loadingInstalledModelsError}</span>
+            )}
+            {status === 'error' && <span className="text-xs text-red-600">Failed to send message</span>}
+            {selectedModel && <Badge variant="secondary">{selectedModel}</Badge>}
+            {isStreaming ? (
+              <AIInputSubmit
+                type="button"
+                variant="destructive"
+                onClick={(e) => {
+                  e.preventDefault();
+                  cancelStreaming();
+                }}
+              >
+                Cancel
+              </AIInputSubmit>
             ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-3">
-                  <Wrench className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium">Available Tools</span>
-                  <Badge variant="secondary" className="text-xs">
-                    Total: {totalNumberOfTools}
-                  </Badge>
-                </div>
-                {Object.entries(toolsByServer).map(([serverName, tools]) => (
-                  <Collapsible key={serverName}>
-                    <CollapsibleTrigger className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer w-full">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{serverName}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {tools.length} tool{tools.length !== 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-                      <ChevronDown className="h-4 w-4 transition-transform" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="ml-4 space-y-1">
-                        {tools.map((tool, idx) => (
-                          <Tooltip key={idx}>
-                            <TooltipTrigger asChild>
-                              <div className="p-2 hover:bg-muted rounded text-sm cursor-help">
-                                <span className="font-mono text-primary">{tool.name}</span>
-                                {tool.description && (
-                                  <div className="text-muted-foreground text-xs mt-1">{tool.description}</div>
-                                )}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-sm">
-                              <div className="space-y-1">
-                                <div className="font-medium">{tool.name}</div>
-                                {tool.description && (
-                                  <div className="text-sm text-muted-foreground">{tool.description}</div>
-                                )}
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                ))}
-              </div>
+              <AIInputSubmit disabled={disabled || !selectedModel}>Send</AIInputSubmit>
             )}
           </div>
-        )}
+        </AIInputToolbar>
 
-        <AIInput onSubmit={handleSubmit} className="bg-inherit">
-          <AIInputTextarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="What would you like to know?"
-            disabled={disabled}
-            minHeight={48}
-            maxHeight={164}
-          />
-          <AIInputToolbar>
-            <AIInputTools>
-              <AIInputModelSelect
-                defaultValue={selectedModel}
-                value={selectedModel}
-                onValueChange={handleModelChange}
-                disabled={loadingInstalledModels || !!loadingInstalledModelsError}
-              >
-                <AIInputModelSelectTrigger>
-                  <AIInputModelSelectValue
-                    placeholder={
-                      loadingInstalledModels
-                        ? 'Loading models...'
-                        : loadingInstalledModelsError
-                          ? 'Error loading models'
-                          : installedModels.length === 0
-                            ? 'No models found'
-                            : 'Select a model'
-                    }
-                  />
-                </AIInputModelSelectTrigger>
-                <AIInputModelSelectContent>
-                  {installedModels.map((model) => (
-                    <AIInputModelSelectItem key={model.name} value={model.name}>
-                      {model.name}
-                    </AIInputModelSelectItem>
-                  ))}
-                </AIInputModelSelectContent>
-              </AIInputModelSelect>
-
-              <AIInputButton>
-                <PaperclipIcon size={16} />
-              </AIInputButton>
-              <AIInputButton>
-                <MicIcon size={16} />
-              </AIInputButton>
-              {(totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AIInputButton
-                      onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)}
-                      className={isToolsMenuOpen ? 'bg-primary/20' : ''}
-                    >
-                      <Settings size={16} />
-                    </AIInputButton>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <span>
-                      {loadingInstalledMCPServers ? 'Loading tools...' : `${totalNumberOfTools} tools available`}
-                    </span>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </AIInputTools>
-            <AIInputSubmit
-              status={status}
-              disabled={disabled || (!message.trim() && status !== 'streaming')}
-              onClick={status === 'streaming' ? cancelStreaming : undefined}
-            />
-          </AIInputToolbar>
-        </AIInput>
-      </div>
-    </TooltipProvider>
+        <TooltipProvider>
+          <Collapsible open={isToolsMenuOpen} onOpenChange={setIsToolsMenuOpen}>
+            <CollapsibleContent className="CollapsibleContent">
+              <div className="mt-4 rounded-md border bg-card p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="font-semibold">Available Tools</h3>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          // Navigate to settings page
+                          window.location.hash = '#/settings';
+                        }}
+                        className="rounded-md p-1 hover:bg-gray-200"
+                      >
+                        <Settings className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Manage MCP Servers</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                {loadingInstalledMCPServers ? (
+                  <div className="text-sm text-muted-foreground">Loading tools...</div>
+                ) : allTools.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">
+                    No tools available. Install MCP servers to enable tools.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    {allTools.map((tool) => (
+                      <div
+                        key={tool.name}
+                        className="group flex cursor-pointer items-start gap-2 rounded-md p-2 hover:bg-accent"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const toolCommand = `Use the ${tool.name} tool`;
+                          setMessage(toolCommand);
+                          setIsToolsMenuOpen(false);
+                        }}
+                      >
+                        <Wrench className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="flex-1">
+                          <div className="font-medium">{tool.name}</div>
+                          <div className="text-xs text-muted-foreground">{tool.description}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </TooltipProvider>
+      </AIInput>
+    </form>
   );
 }
