@@ -1,10 +1,11 @@
-import { Bot, ChevronRight, Download, MessageCircle, Plus, Settings } from 'lucide-react';
+import { Bot, ChevronRight, Download, MessageCircle, Plus, Search, Settings } from 'lucide-react';
 import * as React from 'react';
 import { useState } from 'react';
 
 import { SiteHeader } from './components/SiteHeader';
 import { ToolHoverCard } from './components/ToolHoverCard';
 import { ToolContext } from './components/kibo/ai-input';
+import { Input } from './components/ui/input';
 import {
   Sidebar,
   SidebarContent,
@@ -37,6 +38,38 @@ function App() {
   const [activeView, setActiveView] = useState<'chat' | 'mcp' | 'llm-providers' | 'settings'>('chat');
   const [activeSubView, setActiveSubView] = useState<'ollama'>('ollama');
   const [selectedTools, setSelectedTools] = useState<ToolContext[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter tools based on search query
+  const filteredTools = React.useMemo(() => {
+    if (!searchQuery.trim()) {
+      return allTools;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered: typeof allTools = {};
+
+    Object.entries(allTools).forEach(([serverName, tools]) => {
+      // Check if server name matches
+      const serverMatches = serverName.toLowerCase().includes(query);
+
+      // Filter tools that match the query
+      const matchingTools = tools.filter((tool) => {
+        const toolNameMatches = tool.name.toLowerCase().includes(query);
+        const formattedNameMatches = formatToolName(tool.name).toLowerCase().includes(query);
+        const descriptionMatches = tool.description?.toLowerCase().includes(query) || false;
+
+        return toolNameMatches || formattedNameMatches || descriptionMatches;
+      });
+
+      // Include server if server name matches OR if any tools match
+      if (serverMatches || matchingTools.length > 0) {
+        filtered[serverName] = serverMatches ? tools : matchingTools;
+      }
+    });
+
+    return filtered;
+  }, [allTools, searchQuery]);
 
   const handleToolClick = (serverName: string, toolName: string) => {
     // Get the tool description from the MCP servers store
@@ -183,6 +216,17 @@ function App() {
                 <SidebarGroup>
                   <SidebarGroupLabel>Tools</SidebarGroupLabel>
                   <SidebarGroupContent>
+                    {/* Search Input */}
+                    {Object.keys(allTools).length > 0 && (
+                      <div className="px-4 pb-2">
+                        <Input
+                          placeholder="Search tools..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                    )}
                     <SidebarMenu>
                       {loadingInstalledMCPServers ? (
                         <SidebarMenuItem>
@@ -198,9 +242,15 @@ function App() {
                             <span>Add more</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
+                      ) : Object.keys(filteredTools).length === 0 ? (
+                        <SidebarMenuItem>
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                            No tools found matching "{searchQuery}"
+                          </div>
+                        </SidebarMenuItem>
                       ) : (
                         <>
-                          {Object.entries(allTools).map(([serverName, tools]) => (
+                          {Object.entries(filteredTools).map(([serverName, tools]) => (
                             <React.Fragment key={serverName}>
                               {/* Server Header */}
                               <SidebarMenuItem>
@@ -260,17 +310,19 @@ function App() {
                             </React.Fragment>
                           ))}
 
-                          {/* Add more button */}
-                          <SidebarMenuItem>
-                            <SidebarMenuButton
-                              size="sm"
-                              className="justify-start text-muted-foreground"
-                              onClick={() => setActiveView('mcp')}
-                            >
-                              <Plus className="h-4 w-4" />
-                              <span>Add more</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
+                          {/* Add more button - only show if not searching or if no search results */}
+                          {(!searchQuery.trim() || Object.keys(filteredTools).length === 0) && (
+                            <SidebarMenuItem>
+                              <SidebarMenuButton
+                                size="sm"
+                                className="justify-start text-muted-foreground"
+                                onClick={() => setActiveView('mcp')}
+                              >
+                                <Plus className="h-4 w-4" />
+                                <span>Add more</span>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          )}
                         </>
                       )}
                     </SidebarMenu>
