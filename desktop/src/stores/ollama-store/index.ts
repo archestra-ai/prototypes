@@ -5,6 +5,7 @@ import { create } from 'zustand';
 
 import { OllamaLocalStorage } from '@/lib/local-storage';
 
+import type { MCPServerTools } from '../mcp-servers-store';
 import { AVAILABLE_MODELS } from './available_models';
 
 interface OllamaState {
@@ -27,6 +28,25 @@ interface OllamaActions {
 }
 
 type OllamaStore = OllamaState & OllamaActions;
+
+export const convertServerAndToolNameToOllamaToolName = (serverName: string, toolName: string): string =>
+  `${serverName}_${toolName}`;
+
+export const convertOllamaToolNameToServerAndToolName = (ollamaToolName: string) =>
+  ollamaToolName.split('_') as [string, string];
+
+export const convertMCPServerToolsToOllamaTools = (mcpServerTools: MCPServerTools): OllamaTool[] => {
+  return Object.entries(mcpServerTools).flatMap(([serverName, tools]) =>
+    tools.map((tool) => ({
+      type: 'function',
+      function: {
+        name: convertServerAndToolNameToOllamaToolName(serverName, tool.name),
+        description: tool.description || `Tool from ${serverName}`,
+        parameters: tool.inputSchema as OllamaTool['function']['parameters'],
+      },
+    }))
+  );
+};
 
 export const useOllamaStore = create<OllamaStore>((set, get) => ({
   // State
