@@ -78,8 +78,8 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   }, [chatHistory, scrollToBottom]);
 
   return (
-    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-140 w-full rounded-md border p-4">
-      <div className="space-y-4">
+    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full">
+      <div className="space-y-4 p-4">
         {chatHistory.map((msg, index) => (
           <div
             key={msg.id || index}

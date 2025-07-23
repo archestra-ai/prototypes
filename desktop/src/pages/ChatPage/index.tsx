@@ -13,20 +13,34 @@ export default function ChatPage(_props: ChatPageProps) {
   const { isDeveloperMode, systemPrompt, setSystemPrompt } = useDeveloperModeStore();
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <Card className="flex flex-col flex-1">
-        <CardHeader>
-          <CardTitle>Chat</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col flex-1 gap-4 min-h-0">
-          <div className="flex-1 min-h-0">
-            <ChatHistory />
+    <div className="flex flex-col h-full">
+      {/* Chat History - Takes all available space and scrolls */}
+      <div className="flex-1 min-h-0">
+        <ChatHistory />
+      </div>
+
+      {/* Developer Mode Section - Fixed at bottom when enabled */}
+      {isDeveloperMode && (
+        <div className="flex-shrink-0 px-4 pb-2">
+          <div className="space-y-2 p-3 bg-muted/30 rounded-md border border-muted">
+            <Label htmlFor="system-prompt" className="text-sm font-medium text-muted-foreground">
+              System Prompt
+            </Label>
+            <Textarea
+              id="system-prompt"
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              placeholder="Enter system prompt for the AI assistant..."
+              className="min-h-20 resize-none"
+            />
           </div>
-          <div className="flex-shrink-0">
-            <ChatInput />
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
+
+      {/* Chat Input - Always at bottom */}
+      <div className="flex-shrink-0 p-4 bg-background">
+        <ChatInput />
+      </div>
     </div>
   );
 }

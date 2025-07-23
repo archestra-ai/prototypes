@@ -223,7 +223,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   sendChatMessage: async (message: string) => {
-    const { chat, selectedModel } = useOllamaStore.getState();
+    const { chat, selectedModel, ollamaClient } = useOllamaStore.getState();
     const allTools = useMCPServersStore.getState().allAvailableTools();
     const { isDeveloperMode, systemPrompt } = useDeveloperModeStore.getState();
 
@@ -231,26 +231,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     set({ isChatLoading: true });
 
-    const userMsgId = Date.now().toString();
-    const userMessage: ChatMessage = {
-      id: userMsgId,
-      role: 'user',
-      content: message,
-      timestamp: new Date(),
-    };
-
-    set((state) => ({
-      chatHistory: [...state.chatHistory, userMessage],
-    }));
-
     const modelSupportsTools = checkModelSupportsTools(selectedModel);
     const hasTools = Object.keys(allTools).length > 0;
     const aiMsgId = (Date.now() + 1).toString();
     const abortController = new AbortController();
-
-    if (!message.trim()) {
-      return;
-    }
 
     set((state) => ({
       isChatLoading: true,
