@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, FileText, Settings, Wrench } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -16,8 +16,6 @@ import {
   AIInputToolbar,
   AIInputTools,
 } from '@/components/kibo/ai-input';
-import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChatStore, useIsStreaming } from '@/stores/chat-store';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
@@ -27,8 +25,6 @@ import { useOllamaStore } from '@/stores/ollama-store';
 interface ChatInputProps {}
 
 export default function ChatInput(_props: ChatInputProps) {
-  const { loadingInstalledMCPServers } = useMCPServersStore();
-  const allTools = useMCPServersStore.getState().allAvailableTools();
   const { sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const isStreaming = useIsStreaming();
@@ -38,7 +34,6 @@ export default function ChatInput(_props: ChatInputProps) {
 
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'submitted' | 'streaming' | 'ready' | 'error'>('ready');
-  const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
 
   useEffect(() => {
     if (isStreaming) {
@@ -90,57 +85,9 @@ export default function ChatInput(_props: ChatInputProps) {
     clearChatHistory();
   };
 
-  const totalNumberOfTools = Object.keys(allTools).length;
-
   return (
     <TooltipProvider>
       <div className="space-y-2">
-        {isToolsMenuOpen && (totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
-          <div className="border rounded-lg p-3 bg-muted/50">
-            {loadingInstalledMCPServers ? (
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <span className="text-sm text-muted-foreground">Loading available tools...</span>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-3">
-                  <Wrench className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium">Available Tools</span>
-                  <Badge variant="secondary" className="text-xs">
-                    Total: {totalNumberOfTools}
-                  </Badge>
-                </div>
-                {Object.entries(allTools).map(([serverName, tools]) => (
-                  <Collapsible key={serverName}>
-                    <CollapsibleTrigger className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer w-full">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{serverName}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {tools.length} tool{tools.length !== 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-                      <ChevronDown className="h-4 w-4 transition-transform" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="ml-4 space-y-1">
-                        {tools.map((tool, idx) => (
-                          <React.Fragment key={idx}>
-                            <span className="font-mono text-primary">{tool.name}</span>
-                            {tool.description && (
-                              <div className="text-muted-foreground text-xs mt-1">{tool.description}</div>
-                            )}
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         <AIInput onSubmit={handleSubmit} className="bg-inherit">
           <AIInputTextarea
             value={message}
@@ -190,23 +137,6 @@ export default function ChatInput(_props: ChatInputProps) {
                   <span>Toggle system prompt</span>
                 </TooltipContent>
               </Tooltip>
-              {(totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AIInputButton
-                      onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)}
-                      className={isToolsMenuOpen ? 'bg-primary/20' : ''}
-                    >
-                      <Settings size={16} />
-                    </AIInputButton>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <span>
-                      {loadingInstalledMCPServers ? 'Loading tools...' : `${totalNumberOfTools} tools available`}
-                    </span>
-                  </TooltipContent>
-                </Tooltip>
-              )}
             </AIInputTools>
             <AIInputSubmit
               status={status}

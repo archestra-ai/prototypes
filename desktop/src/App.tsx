@@ -1,4 +1,4 @@
-import { Bot, Download, MessageCircle, Settings } from 'lucide-react';
+import { Bot, ChevronRight, Download, MessageCircle, Plus, Settings } from 'lucide-react';
 import * as React from 'react';
 import { useState } from 'react';
 
@@ -8,6 +8,7 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -20,12 +21,15 @@ import ChatPage from './pages/ChatPage';
 import ConnectorCatalogPage from './pages/ConnectorCatalogPage';
 import LLMProvidersPage from './pages/LLMProvidersPage';
 import SettingsPage from './pages/SettingsPage';
+import { useMCPServersStore } from './stores/mcp-servers-store';
 import { useThemeStore } from './stores/theme-store';
 
 import './index.css';
 
 function App() {
   useThemeStore();
+  const { loadingInstalledMCPServers } = useMCPServersStore();
+  const allTools = useMCPServersStore.getState().allAvailableTools();
 
   const [activeView, setActiveView] = useState<'chat' | 'mcp' | 'llm-providers' | 'settings'>('chat');
   const [activeSubView, setActiveSubView] = useState<'ollama'>('ollama');
@@ -138,6 +142,83 @@ function App() {
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
+
+              {/* Tools Group - Only show when on chat page */}
+              {activeView === 'chat' && (
+                <SidebarGroup>
+                  <SidebarGroupLabel>Tools</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {loadingInstalledMCPServers ? (
+                        <SidebarMenuItem>
+                          <div className="flex items-center gap-2 px-2 py-1.5">
+                            <div className="h-3 w-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
+                            <span className="text-xs text-muted-foreground">Loading...</span>
+                          </div>
+                        </SidebarMenuItem>
+                      ) : Object.keys(allTools).length === 0 ? (
+                        <SidebarMenuItem>
+                          <SidebarMenuButton size="sm" className="justify-start text-muted-foreground">
+                            <Plus className="h-4 w-4" />
+                            <span>Add more</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ) : (
+                        <>
+                          {Object.entries(allTools).map(([serverName, tools]) => (
+                            <React.Fragment key={serverName}>
+                              {/* Server Header */}
+                              <SidebarMenuItem>
+                                <div className="flex items-center gap-2 px-2 py-1.5 bg-muted/50 rounded-md">
+                                  {serverName.toLowerCase() === 'gmail' && (
+                                    <div className="w-4 h-4 bg-red-500 rounded-sm flex items-center justify-center">
+                                      <span className="text-white text-[10px] font-bold">M</span>
+                                    </div>
+                                  )}
+                                  {serverName.toLowerCase() === 'slack' && (
+                                    <div className="w-4 h-4 bg-purple-500 rounded-sm flex items-center justify-center">
+                                      <span className="text-white text-[10px] font-bold">#</span>
+                                    </div>
+                                  )}
+                                  {!['gmail', 'slack'].includes(serverName.toLowerCase()) && (
+                                    <div className="w-4 h-4 bg-blue-500 rounded-sm flex items-center justify-center">
+                                      <span className="text-white text-[10px] font-bold">
+                                        {serverName.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <span className="text-sm font-medium capitalize">{serverName}</span>
+                                </div>
+                              </SidebarMenuItem>
+
+                              {/* Tools under this server */}
+                              {tools.map((tool, idx) => (
+                                <SidebarMenuItem key={`${serverName}-${idx}`}>
+                                  <SidebarMenuButton size="sm" className="justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 bg-green-500 rounded-full" />
+                                      <span>{tool.name}</span>
+                                    </div>
+                                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                  </SidebarMenuButton>
+                                </SidebarMenuItem>
+                              ))}
+                            </React.Fragment>
+                          ))}
+
+                          {/* Add more button */}
+                          <SidebarMenuItem>
+                            <SidebarMenuButton size="sm" className="justify-start text-muted-foreground">
+                              <Plus className="h-4 w-4" />
+                              <span>Add more</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        </>
+                      )}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              )}
             </SidebarContent>
           </Sidebar>
           <SidebarInset className="overflow-hidden">
