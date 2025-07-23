@@ -17,6 +17,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from './components/ui/sidebar';
+import { formatToolName } from './lib/format-tool-name';
 import ChatPage from './pages/ChatPage';
 import ConnectorCatalogPage from './pages/ConnectorCatalogPage';
 import LLMProvidersPage from './pages/LLMProvidersPage';
@@ -197,7 +198,7 @@ function App() {
                                   <SidebarMenuButton size="sm" className="justify-between text-sm">
                                     <div className="flex items-center gap-2">
                                       <div className="w-2 h-2 bg-green-500 rounded-full" />
-                                      <span>{tool.name}</span>
+                                      <span>{formatToolName(tool.name)}</span>
                                     </div>
                                     <ChevronRight className="h-3 w-3 text-muted-foreground" />
                                   </SidebarMenuButton>
