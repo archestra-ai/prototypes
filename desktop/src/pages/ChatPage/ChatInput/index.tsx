@@ -1,7 +1,7 @@
 'use client';
 
-import { ChevronDown, FileText, MicIcon, PaperclipIcon, Settings, Wrench } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ChevronDown, FileText, Settings, Wrench } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
 import {
   AIInput,
@@ -29,7 +29,7 @@ interface ChatInputProps {}
 export default function ChatInput(_props: ChatInputProps) {
   const { loadingInstalledMCPServers } = useMCPServersStore();
   const allTools = useMCPServersStore.getState().allAvailableTools();
-  const { isChatLoading, sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
+  const { sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const isStreaming = useIsStreaming();
 
@@ -125,24 +125,12 @@ export default function ChatInput(_props: ChatInputProps) {
                     <CollapsibleContent>
                       <div className="ml-4 space-y-1">
                         {tools.map((tool, idx) => (
-                          <Tooltip key={idx}>
-                            <TooltipTrigger asChild>
-                              <div className="p-2 hover:bg-muted rounded text-sm cursor-help">
-                                <span className="font-mono text-primary">{tool.name}</span>
-                                {tool.description && (
-                                  <div className="text-muted-foreground text-xs mt-1">{tool.description}</div>
-                                )}
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-sm">
-                              <div className="space-y-1">
-                                <div className="font-medium">{tool.name}</div>
-                                {tool.description && (
-                                  <div className="text-sm text-muted-foreground">{tool.description}</div>
-                                )}
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
+                          <React.Fragment key={idx}>
+                            <span className="font-mono text-primary">{tool.name}</span>
+                            {tool.description && (
+                              <div className="text-muted-foreground text-xs mt-1">{tool.description}</div>
+                            )}
+                          </React.Fragment>
                         ))}
                       </div>
                     </CollapsibleContent>
@@ -220,7 +208,13 @@ export default function ChatInput(_props: ChatInputProps) {
                 </Tooltip>
               )}
             </AIInputTools>
-            <AIInputSubmit status={status} onClick={cancelStreaming} disabled={isStreaming || isChatLoading} />
+            <AIInputSubmit
+              status={status}
+              onClick={cancelStreaming}
+              // only disable if there's no message, and we're not streaming
+              // if we're streaming, we want to allow the user to cancel the streaming
+              disabled={!message.trim() && status !== 'streaming'}
+            />
           </AIInputToolbar>
         </AIInput>
       </div>

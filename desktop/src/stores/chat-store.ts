@@ -4,11 +4,8 @@ import { create } from 'zustand';
 import { ChatMessage, ToolCallInfo } from '../types';
 import { useDeveloperModeStore } from './developer-mode-store';
 import { useMCPServersStore } from './mcp-servers-store';
-import {
-  convertMCPServerToolsToOllamaTools,
-  convertOllamaToolNameToServerAndToolName,
-  useOllamaStore,
-} from './ollama-store';
+import { useOllamaStore } from './ollama-store';
+import { convertMCPServerToolsToOllamaTools, convertOllamaToolNameToServerAndToolName } from './ollama-store/utils';
 
 interface ParsedContent {
   thinking: string;
@@ -18,7 +15,6 @@ interface ParsedContent {
 
 interface ChatState {
   chatHistory: ChatMessage[];
-  isChatLoading: boolean;
   streamingMessageId: string | null;
   abortController: AbortController | null;
 }
@@ -159,7 +155,6 @@ const executeToolsAndCollectResults = async (
 export const useChatStore = create<ChatStore>((set, get) => ({
   // State
   chatHistory: [],
-  isChatLoading: false,
   streamingMessageId: null,
   abortController: null,
 
@@ -177,7 +172,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
 
       // Reset state immediately
-      set({ isChatLoading: false, streamingMessageId: null });
+      set({ streamingMessageId: null });
 
       // Clear any stuck execution states from the currently streaming message
       set((state) => ({
@@ -193,9 +188,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ),
       }));
     } catch (error) {
-      console.error('Failed to cancel streaming:', error);
       // Still reset state even if cancellation failed
-      set({ isChatLoading: false, streamingMessageId: null });
+      set({ streamingMessageId: null });
 
       const { streamingMessageId } = get();
       set((state) => ({
@@ -237,7 +231,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const abortController = new AbortController();
 
     set((state) => ({
-      isChatLoading: true,
       streamingMessageId: aiMsgId,
       abortController,
       chatHistory: [
@@ -420,8 +413,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
       set({ streamingMessageId: null, abortController: null });
     }
-
-    set({ isChatLoading: false });
   },
 }));
 
