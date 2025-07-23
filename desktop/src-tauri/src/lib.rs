@@ -2,7 +2,7 @@ use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
 
 pub mod database;
-pub mod mcp_gateway;
+pub mod gateway;
 pub mod models;
 pub mod ollama;
 pub mod utils;
@@ -74,14 +74,12 @@ pub fn run() {
                 }
             });
 
-            // Start the MCP gateway
+            // Start the archestra gateway server
             let user_id = "archestra_user".to_string();
             let db_for_mcp = db.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) =
-                    mcp_gateway::MCPGateway::start_mcp_gateway(user_id, db_for_mcp).await
-                {
-                    eprintln!("Failed to start MCP Gateway: {e}");
+                if let Err(e) = gateway::start_gateway(user_id, db_for_mcp).await {
+                    eprintln!("Failed to start gateway: {e}");
                 }
             });
 
@@ -129,7 +127,6 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            ollama::get_ollama_port,
             models::mcp_server::save_mcp_server_from_catalog,
             models::mcp_server::load_installed_mcp_servers,
             models::mcp_server::uninstall_mcp_server,

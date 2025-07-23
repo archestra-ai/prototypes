@@ -12,11 +12,13 @@
   "app": {
     "windows": [
       {
-        "title": "Archestra AI",
+        "fullscreen": false,
         "width": 1200,
         "height": 800,
-        "minWidth": 800,
-        "minHeight": 600
+        "resizable": true,
+        "title": "",
+        "titleBarStyle": "Overlay",
+        "trafficLightPosition": { "x": 16, "y": 17 }
       }
     ],
     "security": {

@@ -1,6 +1,6 @@
 'use client';
 
-import { MicIcon, PaperclipIcon, Settings, Wrench } from 'lucide-react';
+import { ChevronDown, FileText, MicIcon, PaperclipIcon, Settings, Wrench } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAgentStore } from '@/stores/agent-store';
 import { useChatStore, useIsStreaming } from '@/stores/chat-store';
+import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
 
@@ -29,7 +30,8 @@ export default function ChatInput(_props: ChatInputProps) {
   const { loadingInstalledMCPServers } = useMCPServersStore();
   const allToolsObject = useMCPServersStore.getState().allAvailableTools();
   const allTools = Object.values(allToolsObject).flat();
-  const { sendChatMessage, cancelStreaming } = useChatStore();
+  const { sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
+  const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const isStreaming = useIsStreaming();
 
   const {
@@ -209,12 +211,16 @@ export default function ChatInput(_props: ChatInputProps) {
                   ))}
                 </AIInputModelSelectContent>
               </AIInputModelSelect>
-              <AIInputButton>
-                <PaperclipIcon size={16} />
-              </AIInputButton>
-              <AIInputButton>
-                <MicIcon size={16} />
-              </AIInputButton>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AIInputButton onClick={toggleDeveloperMode} className={isDeveloperMode ? 'bg-primary/20' : ''}>
+                    <FileText size={16} />
+                  </AIInputButton>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <span>Toggle system prompt</span>
+                </TooltipContent>
+              </Tooltip>
               {(totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
                 <Tooltip>
                   <TooltipTrigger asChild>

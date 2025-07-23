@@ -3,6 +3,7 @@ import { create } from 'zustand';
 
 import { ChatMessage, ToolCallInfo } from '../types';
 import { useAgentStore } from './agent-store';
+import { useDeveloperModeStore } from './developer-mode-store';
 import { useMCPServersStore } from './mcp-servers-store';
 import { useOllamaStore } from './ollama-store';
 import { convertMCPServerToolsToOllamaTools, convertOllamaToolNameToServerAndToolName } from './ollama-store/utils';
@@ -220,6 +221,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const { chat, selectedModel } = useOllamaStore.getState();
     const allTools = useMCPServersStore.getState().allAvailableTools();
     const { activateAgent, isAgentActive } = useAgentStore.getState();
+    const { isDeveloperMode, systemPrompt } = useDeveloperModeStore.getState();
 
     const modelSupportsTools = checkModelSupportsTools(selectedModel);
     const hasTools = Object.keys(allTools).length > 0;
@@ -353,7 +355,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }));
       return;
     }
-
     set((state) => ({
       streamingMessageId: aiMsgId,
       abortController,
@@ -394,15 +395,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
 
       // Prepare chat history for Ollama SDK
-      const ollamaMessages: OllamaMessage[] = [
-        ...get()
-          .chatHistory.filter((msg) => msg.role === 'user' || msg.role === 'assistant')
-          .map((msg) => ({
-            role: msg.role as 'user' | 'assistant',
-            content: msg.content,
-          })),
-        { role: 'user', content: message },
-      ];
+      const chatHistory = get().chatHistory.filter((msg) => msg.role === 'user' || msg.role === 'assistant');
+      const ollamaMessages: OllamaMessage[] = [];
+
+      // Add system prompt if developer mode is enabled and system prompt exists
+      if (isDeveloperMode && systemPrompt.trim()) {
+        ollamaMessages.push({ role: 'system', content: systemPrompt.trim() });
+      }
+
+      // Add chat history
+      ollamaMessages.push(
+        ...chatHistory.map((msg) => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+        })),
+        { role: 'user', content: message }
+      );
 
       const ollamaFormattedTools = hasTools && modelSupportsTools ? convertMCPServerToolsToOllamaTools(allTools) : [];
       const response = await chat(ollamaMessages, ollamaFormattedTools);

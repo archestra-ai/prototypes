@@ -1,4 +1,4 @@
-import { Bot, Brain, CheckCircle, Loader2 } from 'lucide-react';
+import { Bot, Brain, CheckCircle, Loader2, Wrench } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
@@ -46,6 +46,7 @@ export default function ChatHistory(_props: ChatHistoryProps) {
     }
   };
 
+  // Scroll to bottom when new messages are added or content changes
   const scrollToBottom = useCallback(() => {
     if (scrollAreaRef.current && shouldAutoScroll && !isScrollingRef.current) {
       scrollAreaRef.current.scrollTo({
@@ -163,57 +164,74 @@ export default function ChatHistory(_props: ChatHistoryProps) {
         )}
 
         {/* Chat Messages */}
-        {chatHistory.map((item, index) => {
-          const showUserMessage = item.role === 'user' && item.content.trim() !== '';
-          const showAssistantResponse = item.role === 'assistant';
-          const showToolCall = item.role === 'tool' && item.toolCalls && item.toolCalls.length > 0;
-
-          return (
-            <div key={index} className="mb-6">
-              {showUserMessage && (
-                <div className="mb-4">
-                  <div className="font-semibold">You</div>
-                  <div className="mt-1 whitespace-pre-wrap text-[15px] text-foreground/90">{item.content}</div>
-                </div>
+        <div className="space-y-4">
+          {chatHistory.map((msg, index) => (
+            <div
+              key={msg.id || index}
+              className={cn(
+                'p-3 rounded-lg',
+                msg.role === 'user'
+                  ? 'bg-primary/10 border border-primary/20 ml-8'
+                  : msg.role === 'assistant'
+                    ? 'bg-secondary/50 border border-secondary mr-8'
+                    : msg.role === 'error'
+                      ? 'bg-destructive/10 border border-destructive/20 text-destructive'
+                      : msg.role === 'system'
+                        ? 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-600'
+                        : msg.role === 'tool'
+                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-600'
+                          : 'bg-muted border'
               )}
-
-              {showAssistantResponse && (
-                <div className="mb-4">
-                  <div className="mb-2 flex items-center gap-2 font-semibold">Assistant</div>
+            >
+              <div className="text-xs font-medium mb-1 opacity-70 capitalize">{msg.role}</div>
+              {msg.role === 'user' ? (
+                <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+              ) : msg.role === 'assistant' ? (
+                <div className="relative">
+                  {(msg.isToolExecuting || msg.toolCalls) && (
+                    <ToolCallIndicator toolCalls={msg.toolCalls || []} isExecuting={!!msg.isToolExecuting} />
+                  )}
 
                   {/* Show thinking/reasoning content - prioritize agent reasoning over regular thinking */}
-                  {reasoningMode === 'verbose' && item.agentMetadata?.reasoning ? (
+                  {reasoningMode === 'verbose' && msg.agentMetadata?.reasoning ? (
                     <AIReasoning className="mb-4">
                       <AIReasoningTrigger />
-                      <AIReasoningContent>{item.agentMetadata.reasoning.content}</AIReasoningContent>
+                      <AIReasoningContent>{msg.agentMetadata.reasoning.content}</AIReasoningContent>
                     </AIReasoning>
-                  ) : item.thinkingContent ? (
-                    <AIReasoning isStreaming={item.isThinkingStreaming} className="mb-4">
+                  ) : msg.thinkingContent ? (
+                    <AIReasoning isStreaming={msg.isThinkingStreaming} className="mb-4">
                       <AIReasoningTrigger />
-                      <AIReasoningContent>{item.thinkingContent}</AIReasoningContent>
+                      <AIReasoningContent>{msg.thinkingContent}</AIReasoningContent>
                     </AIReasoning>
                   ) : null}
 
-                  <AIResponse>{item.content}</AIResponse>
+                  <AIResponse>{msg.content}</AIResponse>
 
-                  {/* Show streaming indicator */}
-                  {(item.isStreaming || item.isToolExecuting) && (
+                  {(msg.isStreaming || msg.isToolExecuting) && (
                     <div className="flex items-center space-x-2 mt-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                       <p className="text-muted-foreground text-sm">
-                        {item.isToolExecuting ? 'Executing tools...' : 'Loading...'}
+                        {msg.isToolExecuting ? 'Executing tools...' : 'Loading...'}
                       </p>
                     </div>
                   )}
                 </div>
-              )}
-
-              {showToolCall && (
-                <ToolCallIndicator toolCalls={item.toolCalls || []} isExecuting={item.isToolExecuting || false} />
+              ) : msg.role === 'tool' ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Wrench className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Tool Result</span>
+                  </div>
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <div className="text-sm whitespace-pre-wrap font-mono">{msg.content}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
               )}
             </div>
-          );
-        })}
+          ))}
+        </div>
       </ScrollArea>
     </div>
   );
