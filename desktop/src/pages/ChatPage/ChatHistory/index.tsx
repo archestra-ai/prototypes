@@ -22,6 +22,7 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
 
+  // Scroll to bottom when new messages are added or content changes
   const scrollToBottom = useCallback(() => {
     if (scrollAreaRef.current && shouldAutoScroll && !isScrollingRef.current) {
       scrollAreaRef.current.scrollTo({
@@ -79,8 +80,8 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   }, [chatHistory, scrollToBottom]);
 
   return (
-    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-140 w-full rounded-md border p-4">
-      <div className="space-y-4">
+    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full">
+      <div className="space-y-4 p-4">
         {chatHistory.map((msg, index) => (
           <div
             key={msg.id || index}

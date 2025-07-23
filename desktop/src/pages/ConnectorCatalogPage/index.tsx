@@ -77,7 +77,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                   <Card
                     key={id}
                     className={`transition-all duration-200 hover:shadow-md ${
-                      isInstalled ? 'border-green-500/50 bg-green-50/50' : ''
+                      isInstalled ? 'border-green-500/50 bg-green-50/30 dark:bg-green-950/30' : ''
                     }`}
                   >
                     <CardContent className="pt-6">
@@ -89,9 +89,9 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                               <h4 className="font-semibold">{title}</h4>
                             </div>
                             <p className="text-sm text-muted-foreground">{description}</p>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2 items-center">
                               <Badge variant="secondary" className="text-xs">
-                                {category.replace('-', ' ')}
+                                {category.replaceAll('-', ' ')}
                               </Badge>
                               <Badge variant="outline" className="text-xs">
                                 {server_config.transport}
@@ -104,7 +104,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                               {isInstalled && (
                                 <Badge
                                   variant="default"
-                                  className="text-xs bg-green-500/10 text-green-600 border-green-500/20"
+                                  className="text-xs bg-green-500/10 text-green-600 border-green-500/20 dark:bg-green-500/20 dark:text-green-400"
                                 >
                                   ✅ Installed
                                 </Badge>
