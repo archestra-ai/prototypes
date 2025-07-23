@@ -33,34 +33,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Cache the cargo registry to speed up the build
-      # https://github.com/actions/cache/blob/main/examples.md#rust---cargo
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-          components: rustfmt,clippy
-
-      - name: Install Ubuntu Dependencies
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
 
       - name: Check Rust formatting
         working-directory: desktop/src-tauri
@@ -91,21 +65,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.13.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24.4.1"
-          cache: "pnpm"
-          cache-dependency-path: desktop/pnpm-lock.yaml
-
-      - name: Install dependencies
-        working-directory: desktop
-        run: pnpm install --frozen-lockfile
+      - name: Setup frontend dependencies
+        uses: ./.github/actions/setup-frontend
 
       - name: Check prettier formatting
         working-directory: desktop
@@ -118,3 +79,20 @@ jobs:
       - name: Build
         working-directory: desktop
         run: pnpm build
+
+  verify-openapi-schema-is-up-to-date:
+    name: Verify Open API schema is up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+
+      - name: Setup frontend dependencies
+        uses: ./.github/actions/setup-frontend
+
+      # check that there is no pending changes on
+      - name: Check Open API client is up to date
+        working-directory: desktop
+        run: echo 'TODO:'

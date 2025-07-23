@@ -263,69 +263,6 @@ impl From<MCPServerDefinition> for ActiveModel {
     }
 }
 
-// #[tauri::command]
-// pub async fn save_mcp_server_from_catalog(
-//     app: tauri::AppHandle,
-//     connector_id: String,
-// ) -> Result<MCPServerDefinition, String> {
-//     // Load the catalog
-//     let catalog = get_mcp_connector_catalog().await?;
-
-//     // Find the connector by ID
-//     let connector = catalog
-//         .iter()
-//         .find(|c| c.id == connector_id)
-//         .ok_or_else(|| format!("Connector with ID '{connector_id}' not found in catalog"))?;
-
-//     let db = get_database_connection_with_app(&app)
-//         .await
-//         .map_err(|e| format!("Failed to connect to database: {e}"))?;
-
-//     let definition = MCPServerDefinition {
-//         name: connector.title.clone(),
-//         server_config: connector.server_config.clone(),
-//         meta: None,
-//     };
-
-//     let result = Model::save_server(&db, &definition)
-//         .await
-//         .map_err(|e| format!("Failed to save MCP server: {e}"))?;
-
-//     Ok(result.to_definition().unwrap())
-// }
-
-// #[tauri::command]
-// pub async fn load_installed_mcp_servers(
-//     app: tauri::AppHandle,
-// ) -> Result<Vec<MCPServerDefinition>, String> {
-//     let db = get_database_connection_with_app(&app)
-//         .await
-//         .map_err(|e| format!("Failed to connect to database: {e}"))?;
-
-//     let models = Model::load_installed_mcp_servers(&db)
-//         .await
-//         .map_err(|e| format!("Failed to load MCP servers: {e}"))?;
-
-//     let definitions = models
-//         .into_iter()
-//         .map(|m| m.to_definition().unwrap())
-//         .collect();
-
-//     Ok(definitions)
-// }
-
-// #[tauri::command]
-// pub async fn uninstall_mcp_server(app: tauri::AppHandle, name: String) -> Result<(), String> {
-//     let db = get_database_connection_with_app(&app)
-//         .await
-//         .map_err(|e| format!("Failed to connect to database: {e}"))?;
-
-//     Model::uninstall_mcp_server(&db, &name)
-//         .await
-//         .map_err(|e| format!("Failed to uninstall MCP server: {e}"))?;
-
-//     Ok(())
-// }
 
 #[cfg(test)]
 mod tests {

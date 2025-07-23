@@ -1,4 +1,3 @@
-use crate::database::connection::get_database_connection_with_app;
 use sea_orm::entity::prelude::*;
 use sea_orm::{PaginatorTrait, QueryOrder, Set};
 use serde::{Deserialize, Serialize};
@@ -406,74 +405,5 @@ mod tests {
         assert_eq!(stats.error_count, 2);
         assert!(stats.avg_duration_ms > 0.0);
         assert_eq!(stats.requests_per_server.len(), 2);
-    }
-}
-
-// Tauri Commands
-
-#[tauri::command]
-pub async fn get_mcp_request_logs(
-    app: tauri::AppHandle,
-    filters: Option<LogFilters>,
-    page: u64,
-    page_size: u64,
-) -> Result<(Vec<Model>, u64), String> {
-    let db = get_database_connection_with_app(&app)
-        .await
-        .map_err(|e| format!("Failed to connect to database: {e}"))?;
-
-    Model::get_request_logs(&db, filters, page, page_size)
-        .await
-        .map_err(|e| format!("Failed to fetch request logs: {e}"))
-}
-
-#[tauri::command]
-pub async fn get_mcp_request_log_by_id(
-    app: tauri::AppHandle,
-    id: i32,
-) -> Result<Option<Model>, String> {
-    let db = get_database_connection_with_app(&app)
-        .await
-        .map_err(|e| format!("Failed to connect to database: {e}"))?;
-
-    Model::get_request_log_by_id(&db, id)
-        .await
-        .map_err(|e| format!("Failed to fetch request log: {e}"))
-}
-
-#[tauri::command]
-pub async fn get_mcp_request_log_stats(
-    app: tauri::AppHandle,
-    filters: Option<LogFilters>,
-) -> Result<LogStats, String> {
-    let db = get_database_connection_with_app(&app)
-        .await
-        .map_err(|e| format!("Failed to connect to database: {e}"))?;
-
-    Model::get_request_log_stats(&db, filters)
-        .await
-        .map_err(|e| format!("Failed to fetch request log stats: {e}"))
-}
-
-#[tauri::command]
-pub async fn clear_mcp_request_logs(
-    app: tauri::AppHandle,
-    clear_all: Option<bool>,
-) -> Result<u64, String> {
-    let db = get_database_connection_with_app(&app)
-        .await
-        .map_err(|e| format!("Failed to connect to database: {e}"))?;
-
-    let should_clear_all = clear_all.unwrap_or(false);
-
-    if should_clear_all {
-        Model::clear_all_logs(&db)
-            .await
-            .map_err(|e| format!("Failed to clear all request logs: {e}"))
-    } else {
-        // Default to 30 days retention for old behavior
-        Model::cleanup_old_logs(&db, 30)
-            .await
-            .map_err(|e| format!("Failed to clear old request logs: {e}"))
     }
 }

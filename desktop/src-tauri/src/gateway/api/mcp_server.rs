@@ -131,3 +131,19 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .route("/:mcp_server_name", delete(uninstall_handler))
         .with_state(service)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_fixtures::database;
+    use rstest::*;
+
+    #[fixture]
+    async fn service_and_db(
+        #[future] database: DatabaseConnection,
+    ) -> (Service, DatabaseConnection) {
+        let db = database.await;
+        let service = Service::new(db.clone());
+        (service, db)
+    }
+}

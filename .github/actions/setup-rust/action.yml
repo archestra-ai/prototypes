@@ -1,0 +1,39 @@
+name: Setup Rust
+description: Setup Rust + install system dependencies
+inputs:
+  platform:
+    description: ""
+    required: true
+runs:
+  using: composite
+  steps:
+    # Cache the cargo registry to speed up the build
+    # https://github.com/actions/cache/blob/main/examples.md#rust---cargo
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
+        targets: ${{ inputs.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+        components: rustfmt,clippy
+
+    - name: Install Ubuntu Dependencies
+      if: inputs.platform == 'ubuntu-latest'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libwebkit2gtk-4.1-dev \
+          libappindicator3-dev \
+          librsvg2-dev \
+          patchelf
