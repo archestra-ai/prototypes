@@ -81,7 +81,11 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `src/models/`: Business logic and data models
   - `mcp_server/`: MCP server models including OAuth support
   - `external_mcp_client/`: External MCP client configurations
-- `src/mcp_gateway/`: MCP gateway implementation
+- `src/gateway/`: Gateway which exposes the following high-level API:
+  - `/mcp`: Archestra MCP server
+  - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
+  - `/llm/:provider`: Proxies requests to LLM providers
+  - `/api`: Responsible for CRUDing Archestra resources
 - `src/ollama.rs`: Ollama integration
 - `binaries/`: Embedded Ollama binary for macOS
 - `sandbox-exec-profiles/`: macOS sandbox profiles for security

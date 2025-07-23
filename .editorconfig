@@ -18,6 +18,10 @@ indent_size = 4
 [*.{yml,yaml,md}]
 quote_type = double
 
+[*.rs]
+quote_type = double
+indent_size = 4
+
 [*.sh]
 indent_style = space
 indent_size = 2
