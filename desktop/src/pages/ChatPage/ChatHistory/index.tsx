@@ -1,4 +1,3 @@
-// import { useCallback } from "react";
 import { Wrench } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -20,12 +19,14 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   const { chatHistory } = useChatStore();
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const scrollAreaRef = useRef<HTMLElement | null>(null);
+  const isScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
 
   const scrollToBottom = useCallback(() => {
-    if (scrollAreaRef.current && shouldAutoScroll) {
+    if (scrollAreaRef.current && shouldAutoScroll && !isScrollingRef.current) {
       scrollAreaRef.current.scrollTo({
         top: scrollAreaRef.current.scrollHeight,
-        behavior: 'smooth',
+        behavior: 'instant', // Changed from 'smooth' to prevent conflicts
       });
     }
   }, [shouldAutoScroll]);
@@ -34,14 +35,26 @@ export default function ChatHistory(_props: ChatHistoryProps) {
     if (!scrollAreaRef.current) return false;
 
     const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current;
-    // Consider "at bottom" if within 50px of the bottom
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+    // Consider "at bottom" if within 10px of the bottom (tighter threshold)
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 10;
     return isAtBottom;
   }, []);
 
   const handleScroll = useCallback(() => {
-    const isAtBottom = checkIfAtBottom();
-    setShouldAutoScroll(isAtBottom);
+    // Mark that user is scrolling
+    isScrollingRef.current = true;
+
+    // Clear existing timeout
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    // Debounce the scroll end detection
+    scrollTimeoutRef.current = setTimeout(() => {
+      isScrollingRef.current = false;
+      const isAtBottom = checkIfAtBottom();
+      setShouldAutoScroll(isAtBottom);
+    }, 150); // 150ms debounce
   }, [checkIfAtBottom]);
 
   // Set up scroll area ref and scroll listener
