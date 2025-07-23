@@ -29,7 +29,7 @@ impl OllamaProxyService {
             http_client: Client::builder()
                 .timeout(REQUEST_TIMEOUT)
                 .build()
-                .unwrap_or_default()
+                .unwrap_or_default(),
         }
     }
 }
@@ -74,10 +74,11 @@ pub async fn proxy_handler(
 
             // Convert the response body into a stream
             let body_stream = resp.bytes_stream();
-            
+
             // Map the stream to convert reqwest::Bytes to axum::body::Bytes
             let mapped_stream = body_stream.map(|result| {
-                result.map(|bytes| axum::body::Bytes::from(bytes.to_vec()))
+                result
+                    .map(|bytes| axum::body::Bytes::from(bytes.to_vec()))
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
             });
 
