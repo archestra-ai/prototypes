@@ -87,15 +87,18 @@ pub struct CreateLogRequest {
 impl From<CreateLogRequest> for ActiveModel {
     fn from(log_data: CreateLogRequest) -> Self {
         // Serialize complex fields to JSON strings
-        let client_info_json = log_data.client_info
+        let client_info_json = log_data
+            .client_info
             .and_then(|info| serde_json::to_string(&info).ok());
-        
-        let request_headers_json = log_data.request_headers
+
+        let request_headers_json = log_data
+            .request_headers
             .and_then(|headers| serde_json::to_string(&headers).ok());
-        
-        let response_headers_json = log_data.response_headers
+
+        let response_headers_json = log_data
+            .response_headers
             .and_then(|headers| serde_json::to_string(&headers).ok());
-        
+
         ActiveModel {
             request_id: Set(log_data.request_id),
             session_id: Set(log_data.session_id),

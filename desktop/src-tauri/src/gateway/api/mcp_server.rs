@@ -10,9 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
 
-use crate::models::mcp_server::{
-    oauth::AuthResponse, ConnectorCatalogEntry, Model as MCPServer,
-};
+use crate::models::mcp_server::{oauth::AuthResponse, ConnectorCatalogEntry, Model as MCPServer};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[schema(as = InstallMCPServerRequest)]
@@ -47,7 +45,10 @@ impl Service {
             .map_err(|e| format!("Failed to get MCP connector catalog: {e}"))
     }
 
-    async fn install_mcp_server_from_catalog(&self, mcp_connector_id: String) -> Result<(), String> {
+    async fn install_mcp_server_from_catalog(
+        &self,
+        mcp_connector_id: String,
+    ) -> Result<(), String> {
         MCPServer::save_mcp_server_from_catalog(&self.db, mcp_connector_id)
             .await
             .map_err(|e| format!("Failed to save server: {e}"))?;

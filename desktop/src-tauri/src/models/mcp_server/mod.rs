@@ -270,7 +270,6 @@ impl From<MCPServerDefinition> for ActiveModel {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

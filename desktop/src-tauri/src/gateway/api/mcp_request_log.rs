@@ -8,7 +8,7 @@ use axum::{
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use utoipa::{ToSchema, IntoParams};
+use utoipa::{IntoParams, ToSchema};
 
 use crate::models::mcp_request_log::{LogFilters, LogStats, Model as MCPRequestLog};
 
@@ -61,13 +61,19 @@ impl Service {
             .map_err(|e| format!("Failed to get request logs: {e}"))
     }
 
-    async fn get_mcp_request_log_by_id(&self, request_id: i32) -> Result<Option<MCPRequestLog>, String> {
+    async fn get_mcp_request_log_by_id(
+        &self,
+        request_id: i32,
+    ) -> Result<Option<MCPRequestLog>, String> {
         MCPRequestLog::get_request_log_by_id(&self.db, request_id)
             .await
             .map_err(|e| format!("Failed to get request log: {e}"))
     }
 
-    async fn get_mcp_request_log_stats(&self, filters: Option<LogFilters>) -> Result<LogStats, String> {
+    async fn get_mcp_request_log_stats(
+        &self,
+        filters: Option<LogFilters>,
+    ) -> Result<LogStats, String> {
         MCPRequestLog::get_request_log_stats(&self.db, filters)
             .await
             .map_err(|e| format!("Failed to get request log stats: {e}"))
@@ -159,7 +165,7 @@ pub async fn get_mcp_request_log_by_id(
     let id = request_id
         .parse::<i32>()
         .map_err(|_| StatusCode::BAD_REQUEST)?;
-    
+
     service
         .get_mcp_request_log_by_id(id)
         .await
@@ -234,7 +240,10 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     let service = Arc::new(Service::new(db));
 
     Router::new()
-        .route("/", get(get_mcp_request_logs).delete(clear_mcp_request_logs))
+        .route(
+            "/",
+            get(get_mcp_request_logs).delete(clear_mcp_request_logs),
+        )
         .route("/:request_id", get(get_mcp_request_log_by_id))
         .route("/stats", get(get_mcp_request_log_stats))
         .with_state(service)
