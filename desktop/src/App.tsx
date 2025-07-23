@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useState } from 'react';
 
 import { SiteHeader } from './components/SiteHeader';
+import { ToolHoverCard } from './components/ToolHoverCard';
 import { ToolContext } from './components/kibo/ai-input';
 import {
   Sidebar,
@@ -38,9 +39,19 @@ function App() {
   const [selectedTools, setSelectedTools] = useState<ToolContext[]>([]);
 
   const handleToolClick = (serverName: string, toolName: string) => {
+    // Get the tool description from the MCP servers store
+    const allTools = useMCPServersStore.getState().allAvailableTools();
+    const serverTools = allTools[serverName] || [];
+    const toolInfo = serverTools.find((t) => t.name === toolName);
+
     // For now, all tools from available servers are considered enabled
     // In the future, this could check individual tool availability/permissions
-    const newTool: ToolContext = { serverName, toolName, enabled: true };
+    const newTool: ToolContext = {
+      serverName,
+      toolName,
+      enabled: true,
+      description: toolInfo?.description,
+    };
 
     // Check if tool is already selected
     const isAlreadySelected = selectedTools.some(
@@ -218,17 +229,32 @@ function App() {
                               {/* Tools under this server */}
                               {tools.map((tool, idx) => (
                                 <SidebarMenuItem key={`${serverName}-${idx}`}>
-                                  <SidebarMenuButton
-                                    size="sm"
-                                    className="justify-between text-sm"
-                                    onClick={() => handleToolClick(serverName, tool.name)}
+                                  <ToolHoverCard
+                                    tool={{
+                                      serverName,
+                                      toolName: tool.name,
+                                      enabled: true,
+                                      description: tool.description,
+                                    }}
+                                    side="right"
+                                    align="start"
+                                    showInstructions={true}
+                                    instructionText="Click to add to context"
                                   >
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-2 h-2 bg-green-500 rounded-full" />
-                                      <span>{formatToolName(tool.name)}</span>
+                                    <div className="w-full">
+                                      <SidebarMenuButton
+                                        size="sm"
+                                        className="justify-between text-sm w-full"
+                                        onClick={() => handleToolClick(serverName, tool.name)}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 bg-green-500 rounded-full" />
+                                          <span>{formatToolName(tool.name)}</span>
+                                        </div>
+                                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                      </SidebarMenuButton>
                                     </div>
-                                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                                  </SidebarMenuButton>
+                                  </ToolHoverCard>
                                 </SidebarMenuItem>
                               ))}
                             </React.Fragment>

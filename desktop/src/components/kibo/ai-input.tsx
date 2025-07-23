@@ -4,6 +4,7 @@ import { Loader2Icon, SendIcon, SquareIcon, XIcon } from 'lucide-react';
 import type { ComponentProps, HTMLAttributes, KeyboardEventHandler } from 'react';
 import React, { Children, useCallback, useEffect, useRef } from 'react';
 
+import { ToolHoverCard } from '@/components/ToolHoverCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -202,6 +203,7 @@ export interface ToolContext {
   serverName: string;
   toolName: string;
   enabled?: boolean;
+  description?: string;
 }
 
 export type AIInputContextPillsProps = HTMLAttributes<HTMLDivElement> & {
@@ -245,22 +247,34 @@ export const AIInputContextPills = ({ className, tools, onRemoveTool, ...props }
   return (
     <div className={cn('flex flex-wrap gap-2 p-3 pb-0', className)} {...props}>
       {tools.map((tool, index) => (
-        <Badge
+        <ToolHoverCard
           key={`${tool.serverName}-${tool.toolName}-${index}`}
-          variant="secondary"
-          className="flex items-center gap-1.5 px-2 py-1 text-xs"
+          tool={{
+            serverName: tool.serverName,
+            toolName: tool.toolName,
+            enabled: tool.enabled,
+            description: tool.description,
+          }}
+          side="top"
+          align="start"
+          showInstructions={true}
+          instructionText="Click the × to remove this tool from your context"
         >
-          {getServerIcon(tool.serverName)}
-          {getStatusDot(tool.enabled)}
-          <span>{formatToolName(tool.toolName)}</span>
-          <button
-            onClick={() => onRemoveTool(tool)}
-            className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-            type="button"
-          >
-            <XIcon className="h-3 w-3" />
-          </button>
-        </Badge>
+          <div>
+            <Badge variant="secondary" className="flex items-center gap-1.5 px-2 py-1 text-xs cursor-pointer">
+              {getServerIcon(tool.serverName)}
+              {getStatusDot(tool.enabled)}
+              <span>{formatToolName(tool.toolName)}</span>
+              <button
+                onClick={() => onRemoveTool(tool)}
+                className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                type="button"
+              >
+                <XIcon className="h-3 w-3" />
+              </button>
+            </Badge>
+          </div>
+        </ToolHoverCard>
       ))}
     </div>
   );
