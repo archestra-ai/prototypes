@@ -17,14 +17,14 @@ use std::time::Duration;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(180);
 
 struct Service {
-    db: Arc<DatabaseConnection>,
+    _db: Arc<DatabaseConnection>,
     http_client: Client,
 }
 
 impl Service {
     pub fn new(db: DatabaseConnection) -> Self {
         Self {
-            db: Arc::new(db),
+            _db: Arc::new(db),
             http_client: Client::builder()
                 .timeout(REQUEST_TIMEOUT)
                 .build()

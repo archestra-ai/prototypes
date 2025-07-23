@@ -35,6 +35,8 @@ jobs:
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
+        with:
+          platform: ${{ matrix.platform }}
 
       - name: Check Rust formatting
         working-directory: desktop/src-tauri
@@ -88,11 +90,28 @@ jobs:
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
+        with:
+          platform: ubuntu-latest
 
       - name: Setup frontend dependencies
         uses: ./.github/actions/setup-frontend
 
-      # check that there is no pending changes on
-      - name: Check Open API client is up to date
+      - name: Generate OpenAPI schema
+        working-directory: desktop/src-tauri
+        run: cargo run --bin dump_openapi
+
+      - name: Generate TypeScript client
         working-directory: desktop
-        run: echo 'TODO:'
+        run: pnpm codegen
+
+      - name: Check for uncommitted changes
+        working-directory: desktop
+        run: |
+          if ! git diff --exit-code; then
+            echo "❌ OpenAPI schema or TypeScript client is out of date!"
+            echo "Please run the following commands and commit the changes:"
+            echo "  cd desktop/src-tauri && cargo run --bin dump_openapi"
+            echo "  cd desktop && pnpm codegen"
+            exit 1
+          fi
+          echo "✅ OpenAPI schema and TypeScript client are up to date"

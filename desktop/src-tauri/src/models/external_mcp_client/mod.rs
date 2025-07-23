@@ -4,17 +4,21 @@ use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::PathBuf;
+use utoipa::ToSchema;
 
 const ARCHESTRA_MCP_SERVER_KEY: &str = "archestra.ai";
 const ARCHESTRA_SERVER_BASE_URL: &str = "http://localhost:54587";
 const INSTALLED_MCP_SERVER_KEY_SUFFIX: &str = "(archestra.ai)";
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize, ToSchema)]
 #[sea_orm(table_name = "external_mcp_clients")]
+#[schema(as = ExternalMCPClient)]
 pub struct Model {
     #[sea_orm(unique, primary_key)]
     pub client_name: String,
+    #[schema(value_type = String, format = DateTime)]
     pub created_at: DateTimeUtc,
+    #[schema(value_type = String, format = DateTime)]
     pub updated_at: DateTimeUtc,
 }
 

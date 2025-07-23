@@ -1,11 +1,11 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { CallToolRequest, ClientCapabilities, Tool } from '@modelcontextprotocol/sdk/types.js';
-import { invoke } from '@tauri-apps/api/core';
 import { fetch } from '@tauri-apps/plugin-http';
 import { create } from 'zustand';
 
 import { ARCHESTRA_SERVER_MCP_PROXY_URL, ARCHESTRA_SERVER_MCP_URL } from '@/consts';
+import { type McpServer, getInstalledMcpServers } from '@/lib/api-client';
 
 import type { ConnectedMCPServer, MCPServer } from '../types';
 
@@ -138,11 +138,26 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
         errorLoadingInstalledMCPServers: null,
       });
 
-      const installedMCPServers = await invoke<MCPServer[]>('load_installed_mcp_servers');
+      const response = await getInstalledMcpServers();
 
-      // Add servers and connect to them
-      for (const server of installedMCPServers) {
-        get().addMCPServerToInstalledMCPServers(server);
+      if ('data' in response && response.data) {
+        // Convert from generated type to internal MCPServer type
+        const installedMCPServers = response.data.map(
+          (server: McpServer): MCPServer => ({
+            id: server.id,
+            name: server.name,
+            server_config: JSON.parse(server.server_config),
+            created_at: server.created_at,
+            meta: server.meta ? JSON.parse(server.meta) : undefined,
+          })
+        );
+
+        // Add servers and connect to them
+        for (const server of installedMCPServers) {
+          get().addMCPServerToInstalledMCPServers(server);
+        }
+      } else if ('error' in response) {
+        throw new Error(response.error as string);
       }
     } catch (error) {
       set({ errorLoadingInstalledMCPServers: error as string });

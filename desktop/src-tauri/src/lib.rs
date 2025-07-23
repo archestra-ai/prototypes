@@ -5,6 +5,7 @@ pub mod database;
 pub mod gateway;
 pub mod models;
 pub mod ollama;
+pub mod openapi;
 pub mod utils;
 
 #[cfg(test)]

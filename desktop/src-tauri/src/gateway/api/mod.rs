@@ -1,9 +1,9 @@
 use axum::Router;
 use sea_orm::DatabaseConnection;
 
-mod external_mcp_client;
-mod mcp_request_log;
-mod mcp_server;
+pub mod external_mcp_client;
+pub mod mcp_request_log;
+pub mod mcp_server;
 
 pub fn create_router(db: DatabaseConnection) -> Router {
     Router::new()

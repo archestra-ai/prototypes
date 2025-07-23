@@ -2,17 +2,18 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
-    routing::{delete, get},
+    routing::get,
     Router,
 };
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use utoipa::{ToSchema, IntoParams};
 
 use crate::models::mcp_request_log::{LogFilters, LogStats, Model as MCPRequestLog};
 
-#[derive(Debug, Deserialize)]
-struct LogQueryParams {
+#[derive(Debug, Deserialize, IntoParams)]
+pub struct LogQueryParams {
     // Filters
     server_name: Option<String>,
     session_id: Option<String>,
@@ -26,20 +27,21 @@ struct LogQueryParams {
     page_size: Option<u64>,
 }
 
-#[derive(Debug, Deserialize)]
-struct ClearLogsParams {
+#[derive(Debug, Deserialize, IntoParams)]
+pub struct ClearLogsParams {
     clear_all: Option<bool>,
 }
 
-#[derive(Debug, Serialize)]
-struct PaginatedResponse<T> {
+#[derive(Debug, Serialize, ToSchema)]
+#[schema(as = PaginatedMCPRequestLogResponse)]
+pub struct PaginatedResponse<T> {
     data: Vec<T>,
     total: u64,
     page: u64,
     page_size: u64,
 }
 
-struct Service {
+pub struct Service {
     db: Arc<DatabaseConnection>,
 }
 
@@ -48,7 +50,7 @@ impl Service {
         Self { db: Arc::new(db) }
     }
 
-    async fn get_logs(
+    async fn get_mcp_request_logs(
         &self,
         filters: Option<LogFilters>,
         page: u64,
@@ -59,19 +61,19 @@ impl Service {
             .map_err(|e| format!("Failed to get request logs: {e}"))
     }
 
-    async fn get_log_by_id(&self, request_id: i32) -> Result<Option<MCPRequestLog>, String> {
+    async fn get_mcp_request_log_by_id(&self, request_id: i32) -> Result<Option<MCPRequestLog>, String> {
         MCPRequestLog::get_request_log_by_id(&self.db, request_id)
             .await
             .map_err(|e| format!("Failed to get request log: {e}"))
     }
 
-    async fn get_stats(&self, filters: Option<LogFilters>) -> Result<LogStats, String> {
+    async fn get_mcp_request_log_stats(&self, filters: Option<LogFilters>) -> Result<LogStats, String> {
         MCPRequestLog::get_request_log_stats(&self.db, filters)
             .await
             .map_err(|e| format!("Failed to get request log stats: {e}"))
     }
 
-    async fn clear_logs(&self, clear_all: bool) -> Result<u64, String> {
+    async fn clear_mcp_request_logs(&self, clear_all: bool) -> Result<u64, String> {
         if clear_all {
             MCPRequestLog::clear_all_logs(&self.db)
                 .await
@@ -85,7 +87,17 @@ impl Service {
     }
 }
 
-async fn get_logs_handler(
+#[utoipa::path(
+    get,
+    path = "/api/mcp_request_log",
+    tag = "mcp_request_log",
+    params(LogQueryParams),
+    responses(
+        (status = 200, description = "Paginated list of MCP request logs", body = PaginatedResponse<MCPRequestLog>),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn get_mcp_request_logs(
     State(service): State<Arc<Service>>,
     Query(params): Query<LogQueryParams>,
 ) -> Result<Json<PaginatedResponse<MCPRequestLog>>, StatusCode> {
@@ -114,7 +126,7 @@ async fn get_logs_handler(
     let page_size = params.page_size.unwrap_or(50);
 
     service
-        .get_logs(filters, page, page_size)
+        .get_mcp_request_logs(filters, page, page_size)
         .await
         .map(|(data, total)| {
             Json(PaginatedResponse {
@@ -127,7 +139,20 @@ async fn get_logs_handler(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-async fn get_log_by_id_handler(
+#[utoipa::path(
+    get,
+    path = "/api/mcp_request_log/{request_id}",
+    tag = "mcp_request_log",
+    params(
+        ("request_id" = String, Path, description = "Request ID to fetch")
+    ),
+    responses(
+        (status = 200, description = "MCP request log if found", body = Option<MCPRequestLog>),
+        (status = 400, description = "Invalid request ID format"),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn get_mcp_request_log_by_id(
     State(service): State<Arc<Service>>,
     Path(request_id): Path<String>,
 ) -> Result<Json<Option<MCPRequestLog>>, StatusCode> {
@@ -136,13 +161,23 @@ async fn get_log_by_id_handler(
         .map_err(|_| StatusCode::BAD_REQUEST)?;
     
     service
-        .get_log_by_id(id)
+        .get_mcp_request_log_by_id(id)
         .await
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-async fn get_stats_handler(
+#[utoipa::path(
+    get,
+    path = "/api/mcp_request_log/stats",
+    tag = "mcp_request_log",
+    params(LogQueryParams),
+    responses(
+        (status = 200, description = "Request log statistics", body = LogStats),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn get_mcp_request_log_stats(
     State(service): State<Arc<Service>>,
     Query(params): Query<LogQueryParams>,
 ) -> Result<Json<LogStats>, StatusCode> {
@@ -168,18 +203,28 @@ async fn get_stats_handler(
     };
 
     service
-        .get_stats(filters)
+        .get_mcp_request_log_stats(filters)
         .await
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-async fn clear_logs_handler(
+#[utoipa::path(
+    delete,
+    path = "/api/mcp_request_log",
+    tag = "mcp_request_log",
+    params(ClearLogsParams),
+    responses(
+        (status = 200, description = "Number of deleted log entries", body = u64),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn clear_mcp_request_logs(
     State(service): State<Arc<Service>>,
     Query(params): Query<ClearLogsParams>,
 ) -> Result<Json<u64>, StatusCode> {
     service
-        .clear_logs(params.clear_all.unwrap_or(false))
+        .clear_mcp_request_logs(params.clear_all.unwrap_or(false))
         .await
         .map(Json)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
@@ -189,8 +234,8 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     let service = Arc::new(Service::new(db));
 
     Router::new()
-        .route("/", get(get_logs_handler).delete(clear_logs_handler))
-        .route("/:request_id", get(get_log_by_id_handler))
-        .route("/stats", get(get_stats_handler))
+        .route("/", get(get_mcp_request_logs).delete(clear_mcp_request_logs))
+        .route("/:request_id", get(get_mcp_request_log_by_id))
+        .route("/stats", get(get_mcp_request_log_stats))
         .with_state(service)
 }

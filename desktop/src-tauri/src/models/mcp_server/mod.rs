@@ -3,12 +3,14 @@ use sea_orm::entity::prelude::*;
 use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use utoipa::ToSchema;
 
 pub mod oauth;
 pub mod sandbox;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize, ToSchema)]
 #[sea_orm(table_name = "mcp_servers")]
+#[schema(as = MCPServer)]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
@@ -16,6 +18,7 @@ pub struct Model {
     pub name: String,
     pub server_config: String, // JSON string containing ServerConfig
     pub meta: Option<String>,  // JSON string containing additional metadata
+    #[schema(value_type = String, format = DateTime)]
     pub created_at: DateTimeUtc,
 }
 
@@ -24,20 +27,23 @@ pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = MCPServerDefinition)]
 pub struct MCPServerDefinition {
     pub name: String,
     pub server_config: ServerConfig,
     pub meta: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = MCPConnectorCatalogEntryOAuth)]
 pub struct ConnectorCatalogEntryOauth {
     pub provider: String,
     pub required: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = MCPServerConfig)]
 pub struct ServerConfig {
     pub transport: String, // "stdio" or "http"
     pub command: String,
@@ -45,7 +51,8 @@ pub struct ServerConfig {
     pub env: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = MCPConnectorCatalogEntry)]
 pub struct ConnectorCatalogEntry {
     pub id: String,
     pub title: String,

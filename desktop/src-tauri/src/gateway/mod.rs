@@ -3,7 +3,7 @@ use sea_orm::DatabaseConnection;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
-mod api;
+pub mod api;
 mod llm_providers;
 mod mcp;
 mod mcp_proxy;

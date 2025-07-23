@@ -1,67 +1,33 @@
-import { invoke } from '@tauri-apps/api/core';
 import { create } from 'zustand';
 
-// Types matching the Rust backend
-export interface ClientInfo {
-  user_agent?: string;
-  client_name?: string;
-  client_version?: string;
-  client_platform?: string;
-}
-
-export interface MCPRequestLog {
-  id: number;
-  request_id: string;
-  session_id?: string;
-  mcp_session_id?: string;
-  server_name: string;
-  client_info?: string; // JSON string
-  method?: string;
-  request_headers?: string; // JSON string
-  request_body?: string;
-  response_body?: string;
-  response_headers?: string; // JSON string
-  status_code: number;
-  error_message?: string;
-  duration_ms?: number;
-  timestamp: string;
-}
-
-export interface LogFilters {
-  server_name?: string;
-  session_id?: string;
-  mcp_session_id?: string;
-  status_code?: number;
-  method?: string;
-  start_time?: string;
-  end_time?: string;
-}
-
-export interface LogStats {
-  total_requests: number;
-  success_count: number;
-  error_count: number;
-  avg_duration_ms: number;
-  requests_per_server: Record<string, number>;
-}
+import {
+  type McpClientInfo,
+  type McpRequestLog,
+  type McpRequestLogFilters,
+  type McpRequestLogStats,
+  clearMcpRequestLogs,
+  getMcpRequestLogById,
+  getMcpRequestLogStats,
+  getMcpRequestLogs,
+} from '@/lib/api-client';
 
 interface MCPLogsStore {
   // State
-  logs: MCPRequestLog[];
+  logs: McpRequestLog[];
   totalPages: number;
   currentPage: number;
   pageSize: number;
-  filters: LogFilters;
-  stats: LogStats | null;
+  filters: McpRequestLogFilters;
+  stats: McpRequestLogStats | null;
   isLoading: boolean;
   error: string | null;
   selectedLogId: number | null;
-  selectedLog: MCPRequestLog | null;
+  selectedLog: McpRequestLog | null;
   autoRefresh: boolean;
   refreshInterval: number; // in seconds
 
   // Actions
-  setFilters: (filters: LogFilters) => void;
+  setFilters: (filters: McpRequestLogFilters) => void;
   setPage: (page: number) => void;
   setPageSize: (size: number) => void;
   setSelectedLogId: (id: number | null) => void;
@@ -72,12 +38,12 @@ interface MCPLogsStore {
   fetchStats: () => Promise<void>;
   clearLogs: (clearAll?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
-  parseClientInfo: (clientInfoJson?: string) => ClientInfo | null;
+  parseClientInfo: (clientInfoJson?: string) => McpClientInfo | null;
   parseHeaders: (headersJson?: string) => Record<string, string> | null;
   resetFilters: () => void;
 }
 
-const initialFilters: LogFilters = {};
+const initialFilters: McpRequestLogFilters = {};
 
 export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
   // Initial state
@@ -132,14 +98,21 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const result: [MCPRequestLog[], number] = await invoke('get_mcp_request_logs', {
-        filters: Object.keys(filters).length > 0 ? filters : null,
-        page: currentPage,
-        pageSize,
+      const response = await getMcpRequestLogs({
+        query: {
+          ...filters,
+          page: currentPage,
+          page_size: pageSize,
+        },
       });
 
-      const [logs, totalPages] = result;
-      set({ logs, totalPages, isLoading: false });
+      if ('data' in response && response.data) {
+        const { data: logs, total } = response.data;
+        const totalPages = Math.ceil(total / pageSize);
+        set({ logs, totalPages, isLoading: false });
+      } else if ('error' in response) {
+        throw new Error(response.error as string);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage, isLoading: false });
@@ -149,8 +122,21 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
 
   fetchLogById: async (id) => {
     try {
-      const log: MCPRequestLog | null = await invoke('get_mcp_request_log_by_id', { id });
-      set({ selectedLog: log });
+      // Get the log from current page if available
+      const currentLog = get().logs.find((log) => log.id === id);
+      if (currentLog) {
+        const response = await getMcpRequestLogById({
+          path: { request_id: currentLog.request_id },
+        });
+
+        if ('data' in response && response.data) {
+          set({ selectedLog: response.data });
+        } else if ('error' in response) {
+          throw new Error(response.error as string);
+        }
+      } else {
+        set({ selectedLog: null });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage });
@@ -161,10 +147,15 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
   fetchStats: async () => {
     const { filters } = get();
     try {
-      const stats: LogStats = await invoke('get_mcp_request_log_stats', {
-        filters: Object.keys(filters).length > 0 ? filters : null,
+      const response = await getMcpRequestLogStats({
+        query: filters,
       });
-      set({ stats });
+
+      if ('data' in response && response.data) {
+        set({ stats: response.data });
+      } else if ('error' in response) {
+        throw new Error(response.error as string);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage });
@@ -174,11 +165,17 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
 
   clearLogs: async (clearAll = false) => {
     try {
-      const clearedCount: number = await invoke('clear_mcp_request_logs', { clearAll });
-      console.log(`Cleared ${clearedCount} log entries`);
+      const response = await clearMcpRequestLogs({
+        query: { clear_all: clearAll },
+      });
 
-      // Refresh the data after clearing
-      await get().refresh();
+      if ('data' in response && response.data !== undefined) {
+        console.log(`Cleared ${response.data} log entries`);
+        // Refresh the data after clearing
+        await get().refresh();
+      } else if ('error' in response) {
+        throw new Error(response.error as string);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage });
@@ -193,7 +190,7 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
   parseClientInfo: (clientInfoJson) => {
     if (!clientInfoJson) return null;
     try {
-      return JSON.parse(clientInfoJson) as ClientInfo;
+      return JSON.parse(clientInfoJson) as McpClientInfo;
     } catch {
       return null;
     }
@@ -230,28 +227,3 @@ useMCPLogsStore.subscribe((state) => {
     refreshIntervalId = null;
   }
 });
-
-// Helper functions for use in components
-export const formatDuration = (durationMs?: number): string => {
-  if (!durationMs) return 'N/A';
-  if (durationMs < 1000) return `${durationMs}ms`;
-  return `${(durationMs / 1000).toFixed(2)}s`;
-};
-
-export const formatTimestamp = (timestamp: string): string => {
-  return new Date(timestamp).toLocaleString();
-};
-
-export const getStatusColor = (statusCode: number): string => {
-  if (statusCode >= 200 && statusCode < 300) return 'text-green-500 dark:text-green-400';
-  if (statusCode >= 400 && statusCode < 500) return 'text-yellow-500 dark:text-yellow-400';
-  if (statusCode >= 500) return 'text-red-500 dark:text-red-400';
-  return 'text-gray-500 dark:text-gray-400';
-};
-
-export const getStatusLabel = (statusCode: number): string => {
-  if (statusCode >= 200 && statusCode < 300) return 'Success';
-  if (statusCode >= 400 && statusCode < 500) return 'Client Error';
-  if (statusCode >= 500) return 'Server Error';
-  return 'Unknown';
-};

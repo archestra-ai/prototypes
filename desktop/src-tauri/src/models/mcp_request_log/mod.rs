@@ -2,9 +2,11 @@ use sea_orm::entity::prelude::*;
 use sea_orm::{PaginatorTrait, QueryOrder, Set};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use utoipa::ToSchema;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize, ToSchema)]
 #[sea_orm(table_name = "mcp_request_logs")]
+#[schema(as = MCPRequestLog)]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
@@ -22,6 +24,7 @@ pub struct Model {
     pub status_code: i32,
     pub error_message: Option<String>,
     pub duration_ms: Option<i32>,
+    #[schema(value_type = String, format = DateTime)]
     pub timestamp: DateTimeUtc,
 }
 
@@ -30,7 +33,8 @@ pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = MCPClientInfo)]
 pub struct ClientInfo {
     pub user_agent: Option<String>,
     pub client_name: Option<String>,
@@ -38,18 +42,22 @@ pub struct ClientInfo {
     pub client_platform: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = MCPRequestLogFilters)]
 pub struct LogFilters {
     pub server_name: Option<String>,
     pub session_id: Option<String>,
     pub mcp_session_id: Option<String>,
     pub status_code: Option<i32>,
     pub method: Option<String>,
+    #[schema(value_type = Option<String>, format = DateTime)]
     pub start_time: Option<DateTimeUtc>,
+    #[schema(value_type = Option<String>, format = DateTime)]
     pub end_time: Option<DateTimeUtc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = MCPRequestLogStats)]
 pub struct LogStats {
     pub total_requests: u64,
     pub success_count: u64,
@@ -58,7 +66,8 @@ pub struct LogStats {
     pub requests_per_server: HashMap<String, u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = CreateMCPRequestLog)]
 pub struct CreateLogRequest {
     pub request_id: String,
     pub session_id: Option<String>,
@@ -75,40 +84,19 @@ pub struct CreateLogRequest {
     pub duration_ms: Option<i32>,
 }
 
-impl Model {
-    /// Create a new request log entry
-    pub async fn create_request_log(
-        db: &DatabaseConnection,
-        log_data: CreateLogRequest,
-    ) -> Result<Model, DbErr> {
-        let client_info_json = if let Some(client_info) = &log_data.client_info {
-            Some(
-                serde_json::to_string(client_info)
-                    .map_err(|e| DbErr::Custom(format!("Failed to serialize client_info: {e}")))?,
-            )
-        } else {
-            None
-        };
-
-        let request_headers_json =
-            if let Some(headers) = &log_data.request_headers {
-                Some(serde_json::to_string(headers).map_err(|e| {
-                    DbErr::Custom(format!("Failed to serialize request_headers: {e}"))
-                })?)
-            } else {
-                None
-            };
-
-        let response_headers_json =
-            if let Some(headers) = &log_data.response_headers {
-                Some(serde_json::to_string(headers).map_err(|e| {
-                    DbErr::Custom(format!("Failed to serialize response_headers: {e}"))
-                })?)
-            } else {
-                None
-            };
-
-        let active_model = ActiveModel {
+impl From<CreateLogRequest> for ActiveModel {
+    fn from(log_data: CreateLogRequest) -> Self {
+        // Serialize complex fields to JSON strings
+        let client_info_json = log_data.client_info
+            .and_then(|info| serde_json::to_string(&info).ok());
+        
+        let request_headers_json = log_data.request_headers
+            .and_then(|headers| serde_json::to_string(&headers).ok());
+        
+        let response_headers_json = log_data.response_headers
+            .and_then(|headers| serde_json::to_string(&headers).ok());
+        
+        ActiveModel {
             request_id: Set(log_data.request_id),
             session_id: Set(log_data.session_id),
             mcp_session_id: Set(log_data.mcp_session_id),
@@ -124,8 +112,17 @@ impl Model {
             duration_ms: Set(log_data.duration_ms),
             timestamp: Set(chrono::Utc::now()),
             ..Default::default()
-        };
+        }
+    }
+}
 
+impl Model {
+    /// Create a new request log entry
+    pub async fn create_request_log(
+        db: &DatabaseConnection,
+        log_data: CreateLogRequest,
+    ) -> Result<Model, DbErr> {
+        let active_model: ActiveModel = log_data.into();
         Entity::insert(active_model).exec_with_returning(db).await
     }
 
