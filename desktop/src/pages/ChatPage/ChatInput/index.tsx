@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import {
   AIInput,
   AIInputButton,
+  AIInputContextPills,
   AIInputModelSelect,
   AIInputModelSelectContent,
   AIInputModelSelectItem,
@@ -15,6 +16,7 @@ import {
   AIInputTextarea,
   AIInputToolbar,
   AIInputTools,
+  ToolContext,
 } from '@/components/kibo/ai-input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChatStore, useIsStreaming } from '@/stores/chat-store';
@@ -22,9 +24,12 @@ import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
 
-interface ChatInputProps {}
+interface ChatInputProps {
+  selectedTools?: ToolContext[];
+  onToolRemove?: (tool: ToolContext) => void;
+}
 
-export default function ChatInput(_props: ChatInputProps) {
+export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInputProps) {
   const { sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const isStreaming = useIsStreaming();
@@ -51,8 +56,16 @@ export default function ChatInput(_props: ChatInputProps) {
     setStatus('submitted');
 
     try {
+      let finalMessage = message.trim();
+
+      // Add tool context to the message if tools are selected
+      if (selectedTools.length > 0) {
+        const toolContexts = selectedTools.map((tool) => `Use ${tool.toolName} from ${tool.serverName}`).join(', ');
+        finalMessage = `${toolContexts}. ${finalMessage}`;
+      }
+
       setMessage('');
-      await sendChatMessage(message.trim());
+      await sendChatMessage(finalMessage);
       setStatus('ready');
     } catch (error) {
       setStatus('error');
@@ -89,6 +102,7 @@ export default function ChatInput(_props: ChatInputProps) {
     <TooltipProvider>
       <div className="space-y-2">
         <AIInput onSubmit={handleSubmit} className="bg-inherit">
+          <AIInputContextPills tools={selectedTools} onRemoveTool={onToolRemove || (() => {})} />
           <AIInputTextarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}

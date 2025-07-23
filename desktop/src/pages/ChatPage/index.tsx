@@ -1,15 +1,19 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+
+import { ToolContext } from '@/components/kibo/ai-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 
-import MCPServers from '../SettingsPage/MCPServers';
 import ChatHistory from './ChatHistory';
 import ChatInput from './ChatInput';
 
-interface ChatPageProps {}
+interface ChatPageProps {
+  selectedTools?: ToolContext[];
+  onToolRemove?: (tool: ToolContext) => void;
+}
 
-export default function ChatPage(_props: ChatPageProps) {
+export default function ChatPage({ selectedTools, onToolRemove }: ChatPageProps) {
   const { isDeveloperMode, systemPrompt, setSystemPrompt } = useDeveloperModeStore();
 
   return (
@@ -39,7 +43,7 @@ export default function ChatPage(_props: ChatPageProps) {
 
       {/* Chat Input - Always at bottom */}
       <div className="flex-shrink-0 p-4 bg-background">
-        <ChatInput />
+        <ChatInput selectedTools={selectedTools} onToolRemove={onToolRemove} />
       </div>
     </div>
   );

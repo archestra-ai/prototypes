@@ -4,9 +4,11 @@ import { Loader2Icon, SendIcon, SquareIcon, XIcon } from 'lucide-react';
 import type { ComponentProps, HTMLAttributes, KeyboardEventHandler } from 'react';
 import React, { Children, useCallback, useEffect, useRef } from 'react';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { formatToolName } from '@/lib/format-tool-name';
 import { cn } from '@/lib/utils';
 
 type UseAutoResizeTextareaProps = {
@@ -52,10 +54,7 @@ const useAutoResizeTextarea = ({ minHeight, maxHeight }: UseAutoResizeTextareaPr
 
 export type AIInputProps = HTMLAttributes<HTMLFormElement>;
 export const AIInput = ({ className, ...props }: AIInputProps) => (
-  <form
-    className={cn('w-full divide-y overflow-hidden rounded-xl border bg-background shadow-sm', className)}
-    {...props}
-  />
+  <form className={cn('w-full overflow-hidden rounded-xl border bg-background shadow-sm', className)} {...props} />
 );
 
 export type AIInputTextareaProps = ComponentProps<typeof Textarea> & {
@@ -198,3 +197,71 @@ export type AIInputModelSelectValueProps = ComponentProps<typeof SelectValue>;
 export const AIInputModelSelectValue = ({ className, ...props }: AIInputModelSelectValueProps) => (
   <SelectValue className={cn(className)} {...props} />
 );
+
+export interface ToolContext {
+  serverName: string;
+  toolName: string;
+  enabled?: boolean;
+}
+
+export type AIInputContextPillsProps = HTMLAttributes<HTMLDivElement> & {
+  tools: ToolContext[];
+  onRemoveTool: (tool: ToolContext) => void;
+};
+export const AIInputContextPills = ({ className, tools, onRemoveTool, ...props }: AIInputContextPillsProps) => {
+  if (tools.length === 0) return null;
+
+  const getServerIcon = (serverName: string) => {
+    switch (serverName.toLowerCase()) {
+      case 'gmail':
+        return (
+          <div className="w-3 h-3 bg-red-500 rounded-sm flex items-center justify-center">
+            <span className="text-white text-[8px] font-bold">M</span>
+          </div>
+        );
+      case 'slack':
+        return (
+          <div className="w-3 h-3 bg-purple-500 rounded-sm flex items-center justify-center">
+            <span className="text-white text-[8px] font-bold">#</span>
+          </div>
+        );
+      default:
+        return (
+          <div className="w-3 h-3 bg-blue-500 rounded-sm flex items-center justify-center">
+            <span className="text-white text-[8px] font-bold">{serverName.charAt(0).toUpperCase()}</span>
+          </div>
+        );
+    }
+  };
+
+  const getStatusDot = (enabled?: boolean) => {
+    if (enabled === false) {
+      return <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />;
+    }
+    // Default to enabled (green) if not specified
+    return <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />;
+  };
+
+  return (
+    <div className={cn('flex flex-wrap gap-2 p-3 pb-0', className)} {...props}>
+      {tools.map((tool, index) => (
+        <Badge
+          key={`${tool.serverName}-${tool.toolName}-${index}`}
+          variant="secondary"
+          className="flex items-center gap-1.5 px-2 py-1 text-xs"
+        >
+          {getServerIcon(tool.serverName)}
+          {getStatusDot(tool.enabled)}
+          <span>{formatToolName(tool.toolName)}</span>
+          <button
+            onClick={() => onRemoveTool(tool)}
+            className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+            type="button"
+          >
+            <XIcon className="h-3 w-3" />
+          </button>
+        </Badge>
+      ))}
+    </div>
+  );
+};

@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useState } from 'react';
 
 import { SiteHeader } from './components/SiteHeader';
+import { ToolContext } from './components/kibo/ai-input';
 import {
   Sidebar,
   SidebarContent,
@@ -34,6 +35,28 @@ function App() {
 
   const [activeView, setActiveView] = useState<'chat' | 'mcp' | 'llm-providers' | 'settings'>('chat');
   const [activeSubView, setActiveSubView] = useState<'ollama'>('ollama');
+  const [selectedTools, setSelectedTools] = useState<ToolContext[]>([]);
+
+  const handleToolClick = (serverName: string, toolName: string) => {
+    // For now, all tools from available servers are considered enabled
+    // In the future, this could check individual tool availability/permissions
+    const newTool: ToolContext = { serverName, toolName, enabled: true };
+
+    // Check if tool is already selected
+    const isAlreadySelected = selectedTools.some(
+      (tool) => tool.serverName === serverName && tool.toolName === toolName
+    );
+
+    if (!isAlreadySelected) {
+      setSelectedTools((prev) => [...prev, newTool]);
+    }
+  };
+
+  const handleToolRemove = (toolToRemove: ToolContext) => {
+    setSelectedTools((prev) =>
+      prev.filter((tool) => !(tool.serverName === toolToRemove.serverName && tool.toolName === toolToRemove.toolName))
+    );
+  };
 
   const navigationItems = [
     {
@@ -61,7 +84,7 @@ function App() {
   const renderContent = () => {
     switch (activeView) {
       case 'chat':
-        return <ChatPage />;
+        return <ChatPage selectedTools={selectedTools} onToolRemove={handleToolRemove} />;
       case 'llm-providers':
         return (
           <div className="p-4">
@@ -195,7 +218,11 @@ function App() {
                               {/* Tools under this server */}
                               {tools.map((tool, idx) => (
                                 <SidebarMenuItem key={`${serverName}-${idx}`}>
-                                  <SidebarMenuButton size="sm" className="justify-between text-sm">
+                                  <SidebarMenuButton
+                                    size="sm"
+                                    className="justify-between text-sm"
+                                    onClick={() => handleToolClick(serverName, tool.name)}
+                                  >
                                     <div className="flex items-center gap-2">
                                       <div className="w-2 h-2 bg-green-500 rounded-full" />
                                       <span>{formatToolName(tool.name)}</span>
@@ -209,7 +236,11 @@ function App() {
 
                           {/* Add more button */}
                           <SidebarMenuItem>
-                            <SidebarMenuButton size="sm" className="justify-start text-muted-foreground">
+                            <SidebarMenuButton
+                              size="sm"
+                              className="justify-start text-muted-foreground"
+                              onClick={() => setActiveView('mcp')}
+                            >
                               <Plus className="h-4 w-4" />
                               <span>Add more</span>
                             </SidebarMenuButton>
