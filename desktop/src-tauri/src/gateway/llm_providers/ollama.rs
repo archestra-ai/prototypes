@@ -11,7 +11,6 @@ use reqwest::Client;
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio_util::io::ReaderStream;
 
 // Constants for resource management
 // Also, make the request timeout very high as it can take some time for the LLM to respond
@@ -79,7 +78,7 @@ pub async fn proxy_handler(
             let mapped_stream = body_stream.map(|result| {
                 result
                     .map(|bytes| axum::body::Bytes::from(bytes.to_vec()))
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                    .map_err(std::io::Error::other)
             });
 
             // Create a streaming body from the mapped stream
