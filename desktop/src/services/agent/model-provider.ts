@@ -47,12 +47,116 @@ export class OpenAIProvider implements ModelProvider {
 export class OllamaProvider implements ModelProvider {
   private ollama: any;
   private modelName: string;
+  private debugMode: boolean = true; // Enable debug mode
 
   constructor(modelName: string, baseURL?: string) {
     this.modelName = modelName;
     // Use the baseURL from Ollama store if not provided
     const url = baseURL || this.getOllamaBaseURL();
-    this.ollama = createOllama({ baseURL: url });
+
+    console.log('🔍 [OllamaProvider] Initializing with:', {
+      modelName,
+      baseURL: url,
+    });
+
+    // Add network request interceptor for debugging
+    if (this.debugMode) {
+      this.interceptFetchRequests();
+    }
+
+    // Ollama AI provider expects the base URL with /api suffix
+    const ollamaApiUrl = url.endsWith('/api') ? url : `${url}/api`;
+    console.log('🔧 [OllamaProvider] Creating Ollama instance with API URL:', ollamaApiUrl);
+
+    this.ollama = createOllama({ baseURL: ollamaApiUrl });
+  }
+
+  private interceptFetchRequests() {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (...args) => {
+      const [resource, config] = args;
+
+      // Log outgoing requests
+      if (typeof resource === 'string' && resource.includes('localhost')) {
+        console.log('🌐 [FETCH Debug] Outgoing request:', {
+          url: resource,
+          method: config?.method || 'GET',
+          headers: config?.headers,
+          body: config?.body ? (typeof config.body === 'string' ? JSON.parse(config.body) : config.body) : undefined,
+        });
+      }
+
+      try {
+        const response = await originalFetch(...args);
+
+        // Log response status
+        if (typeof resource === 'string' && resource.includes('localhost')) {
+          console.log('📥 [FETCH Debug] Response:', {
+            url: resource,
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok,
+          });
+
+          // Clone response to read body without consuming it
+          if (!response.ok) {
+            const clonedResponse = response.clone();
+            try {
+              const errorBody = await clonedResponse.text();
+              console.error('❌ [FETCH Debug] Error response body:', errorBody);
+            } catch (e) {
+              console.error('❌ [FETCH Debug] Could not read error body');
+            }
+          }
+        }
+
+        return response;
+      } catch (error) {
+        console.error('💥 [FETCH Debug] Request failed:', {
+          url: resource,
+          error: error instanceof Error ? error.message : error,
+        });
+        throw error;
+      }
+    };
+  }
+
+  async testOpenAICompatibility(): Promise<boolean> {
+    const baseURL = this.getOllamaBaseURL();
+    const openAIEndpoint = `${baseURL}/v1/chat/completions`;
+
+    console.log('🧪 [OllamaProvider] Testing OpenAI compatibility at:', openAIEndpoint);
+
+    try {
+      const response = await fetch(openAIEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.modelName,
+          messages: [{ role: 'user', content: 'test' }],
+          max_tokens: 1,
+        }),
+      });
+
+      console.log('📊 [OllamaProvider] OpenAI compatibility test result:', {
+        status: response.status,
+        ok: response.ok,
+        statusText: response.statusText,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ [OllamaProvider] OpenAI-compatible endpoint works!', data);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.log('❌ [OllamaProvider] OpenAI compatibility test failed:', error);
+      return false;
+    }
   }
 
   private getOllamaBaseURL(): string {
@@ -65,7 +169,96 @@ export class OllamaProvider implements ModelProvider {
   }
 
   createModel(modelName: string) {
-    return this.ollama(modelName);
+    console.log('🤖 [OllamaProvider] Creating model:', modelName);
+    const model = this.ollama(modelName);
+
+    // Log model instance details
+    console.log('🔧 [OllamaProvider] Model instance created:', {
+      modelName,
+      modelType: typeof model,
+      hasDoStream: 'doStream' in model,
+      hasDoGenerate: 'doGenerate' in model,
+      provider: model?.provider,
+      modelId: model?.modelId,
+      allKeys: model ? Object.keys(model) : [],
+      prototypeKeys: model ? Object.getOwnPropertyNames(Object.getPrototypeOf(model)) : [],
+    });
+
+    // Test if this is a proper LanguageModelV1
+    if (model && typeof model.doGenerate === 'function') {
+      console.log('✅ [OllamaProvider] Model has doGenerate method');
+    } else {
+      console.error('❌ [OllamaProvider] Model missing doGenerate method!');
+    }
+
+    if (model && typeof model.doStream === 'function') {
+      console.log('✅ [OllamaProvider] Model has doStream method');
+
+      // Wrap doStream to add debugging
+      const originalDoStream = model.doStream.bind(model);
+      model.doStream = async (options: any) => {
+        console.log('🌊 [OllamaProvider] doStream called with options:', {
+          mode: options?.mode?.type,
+          hasTools: options?.mode?.tools?.length > 0,
+          temperature: options?.temperature,
+          responseFormat: options?.responseFormat,
+          prompt: options?.prompt,
+          promptLength: Array.isArray(options?.prompt) ? options.prompt.length : 0,
+          firstMessage: Array.isArray(options?.prompt) && options.prompt.length > 0 ? options.prompt[0] : null,
+        });
+
+        // Ollama doesn't support responseFormat, so remove it
+        if (options?.responseFormat) {
+          console.log('🔧 [OllamaProvider] Removing responseFormat for Ollama compatibility');
+          const { responseFormat, ...optionsWithoutFormat } = options;
+          options = optionsWithoutFormat;
+        }
+
+        try {
+          const result = await originalDoStream(options);
+          console.log('📦 [OllamaProvider] doStream returned:', {
+            hasStream: !!result?.stream,
+            streamType: typeof result?.stream,
+            streamConstructor: result?.stream?.constructor?.name,
+            isReadableStream: result?.stream instanceof ReadableStream,
+            resultKeys: result ? Object.keys(result) : [],
+          });
+          return result;
+        } catch (error) {
+          console.error('💥 [OllamaProvider] doStream error:', error);
+          throw error;
+        }
+      };
+
+      // Also wrap doGenerate for consistency
+      const originalDoGenerate = model.doGenerate.bind(model);
+      model.doGenerate = async (options: any) => {
+        console.log('🔄 [OllamaProvider] doGenerate called with options:', {
+          mode: options?.mode?.type,
+          hasTools: options?.mode?.tools?.length > 0,
+          temperature: options?.temperature,
+          responseFormat: options?.responseFormat,
+        });
+
+        // Ollama doesn't support responseFormat, so remove it
+        if (options?.responseFormat) {
+          console.log('🔧 [OllamaProvider] Removing responseFormat for Ollama compatibility');
+          const { responseFormat, ...optionsWithoutFormat } = options;
+          options = optionsWithoutFormat;
+        }
+
+        try {
+          const result = await originalDoGenerate(options);
+          console.log('✅ [OllamaProvider] doGenerate succeeded');
+          return result;
+        } catch (error) {
+          console.error('💥 [OllamaProvider] doGenerate error:', error);
+          throw error;
+        }
+      };
+    }
+
+    return model;
   }
 
   supportsTools(): boolean {

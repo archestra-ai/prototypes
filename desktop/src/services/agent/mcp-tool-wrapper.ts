@@ -71,49 +71,63 @@ export function categorizeeTool(toolName: string, description?: string): ToolCat
  * This is a simplified version that handles common cases
  */
 function jsonSchemaToZod(schema: any): z.ZodType<any> {
+  console.log('🔄 [jsonSchemaToZod] Converting schema:', {
+    type: schema?.type,
+    hasProperties: !!schema?.properties,
+    required: schema?.required,
+  });
+
   if (!schema) return z.any();
 
-  switch (schema.type) {
-    case 'object':
-      if (schema.properties) {
-        const shape: Record<string, z.ZodType<any>> = {};
-        const required = schema.required || [];
+  try {
+    switch (schema.type) {
+      case 'object':
+        if (schema.properties) {
+          const shape: Record<string, z.ZodType<any>> = {};
+          const required = schema.required || [];
 
-        for (const [key, value] of Object.entries(schema.properties)) {
-          const fieldSchema = jsonSchemaToZod(value as any);
-          shape[key] = required.includes(key) ? fieldSchema : fieldSchema.optional();
+          for (const [key, value] of Object.entries(schema.properties)) {
+            console.log(`  📝 [jsonSchemaToZod] Processing property: ${key}`);
+            const fieldSchema = jsonSchemaToZod(value as any);
+            // OpenAI SDK requires nullable instead of optional for optional fields
+            shape[key] = required.includes(key) ? fieldSchema : fieldSchema.nullable();
+          }
+
+          return z.object(shape);
         }
+        return z.record(z.any());
 
-        return z.object(shape);
-      }
-      return z.record(z.any());
+      case 'array':
+        return z.array(jsonSchemaToZod(schema.items || {}));
 
-    case 'array':
-      return z.array(jsonSchemaToZod(schema.items || {}));
+      case 'string':
+        let stringSchema = z.string();
+        if (schema.minLength) stringSchema = stringSchema.min(schema.minLength);
+        if (schema.maxLength) stringSchema = stringSchema.max(schema.maxLength);
+        if (schema.pattern) stringSchema = stringSchema.regex(new RegExp(schema.pattern));
+        return stringSchema;
 
-    case 'string':
-      let stringSchema = z.string();
-      if (schema.minLength) stringSchema = stringSchema.min(schema.minLength);
-      if (schema.maxLength) stringSchema = stringSchema.max(schema.maxLength);
-      if (schema.pattern) stringSchema = stringSchema.regex(new RegExp(schema.pattern));
-      return stringSchema;
+      case 'number':
+      case 'integer':
+        let numberSchema = z.number();
+        if (schema.minimum !== undefined) numberSchema = numberSchema.min(schema.minimum);
+        if (schema.maximum !== undefined) numberSchema = numberSchema.max(schema.maximum);
+        if (schema.type === 'integer') numberSchema = numberSchema.int();
+        return numberSchema;
 
-    case 'number':
-    case 'integer':
-      let numberSchema = z.number();
-      if (schema.minimum !== undefined) numberSchema = numberSchema.min(schema.minimum);
-      if (schema.maximum !== undefined) numberSchema = numberSchema.max(schema.maximum);
-      if (schema.type === 'integer') numberSchema = numberSchema.int();
-      return numberSchema;
+      case 'boolean':
+        return z.boolean();
 
-    case 'boolean':
-      return z.boolean();
+      case 'null':
+        return z.null();
 
-    case 'null':
-      return z.null();
-
-    default:
-      return z.any();
+      default:
+        console.log(`  ⚠️ [jsonSchemaToZod] Unknown type: ${schema.type}, using z.any()`);
+        return z.any();
+    }
+  } catch (error) {
+    console.error('❌ [jsonSchemaToZod] Error converting schema:', error);
+    return z.any();
   }
 }
 
@@ -128,69 +142,94 @@ export function createMCPToolWrapper(
     customApprovalCheck?: (args: any) => Promise<boolean>;
   }
 ): MCPToolWrapper {
+  console.log('🎁 [createMCPToolWrapper] Creating wrapper for tool:', {
+    toolName: mcpTool.name,
+    serverName,
+    hasInputSchema: !!mcpTool.inputSchema,
+    autoApprove: options?.autoApprove,
+  });
+
   const category = categorizeeTool(mcpTool.name, mcpTool.description);
   const isSensitive = isToolSensitive(mcpTool.name);
 
   // Create a unique tool name that includes the server name to avoid conflicts
   const uniqueToolName = `${serverName}_${mcpTool.name}`;
 
+  console.log('🔨 [createMCPToolWrapper] Converting input schema to Zod');
   // Convert JSON schema to Zod schema
   const parametersSchema = mcpTool.inputSchema ? jsonSchemaToZod(mcpTool.inputSchema) : z.object({});
 
-  const wrappedTool = tool({
-    name: uniqueToolName,
-    description: `[${serverName}] ${mcpTool.description || `Execute ${mcpTool.name}`}`,
-    parameters: parametersSchema as any,
+  console.log('🏗️ [createMCPToolWrapper] Creating OpenAI SDK tool');
 
-    // Add approval requirement for sensitive tools
-    needsApproval:
-      isSensitive && !options?.autoApprove
-        ? async (_, args) => {
-            // If custom approval check is provided, use it
-            if (options?.customApprovalCheck) {
-              return !(await options.customApprovalCheck(args));
+  let wrappedTool;
+  try {
+    console.log('📋 [createMCPToolWrapper] Tool config:', {
+      name: uniqueToolName,
+      category,
+      isSensitive,
+      hasNeedsApproval: isSensitive && !options?.autoApprove,
+    });
+
+    wrappedTool = tool({
+      name: uniqueToolName,
+      description: `[${serverName}] ${mcpTool.description || `Execute ${mcpTool.name}`}`,
+      parameters: parametersSchema as any,
+
+      // Add approval requirement for sensitive tools
+      needsApproval:
+        isSensitive && !options?.autoApprove
+          ? async (_, args) => {
+              // If custom approval check is provided, use it
+              if (options?.customApprovalCheck) {
+                return !(await options.customApprovalCheck(args));
+              }
+
+              // Otherwise, always require approval for sensitive tools
+              return true;
             }
+          : undefined,
 
-            // Otherwise, always require approval for sensitive tools
-            return true;
-          }
-        : undefined,
-
-    // Execute the tool through MCP
-    execute: async (args) => {
-      const startTime = new Date();
-      const toolCallInfo: ToolCallInfo = {
-        id: `${uniqueToolName}_${Date.now()}`,
-        serverName,
-        toolName: mcpTool.name,
-        arguments: args as Record<string, any>,
-        status: 'executing',
-        startTime,
-      };
-
-      try {
-        // Execute through MCP servers store
-        const result = await useMCPServersStore.getState().executeTool(serverName, {
-          name: mcpTool.name,
+      // Execute the tool through MCP
+      execute: async (args) => {
+        const startTime = new Date();
+        const toolCallInfo: ToolCallInfo = {
+          id: `${uniqueToolName}_${Date.now()}`,
+          serverName,
+          toolName: mcpTool.name,
           arguments: args as Record<string, any>,
-        });
+          status: 'executing',
+          startTime,
+        };
 
-        toolCallInfo.status = 'completed';
-        toolCallInfo.result = typeof result === 'string' ? result : JSON.stringify(result);
-        toolCallInfo.endTime = new Date();
-        toolCallInfo.executionTime = toolCallInfo.endTime.getTime() - startTime.getTime();
+        try {
+          // Execute through MCP servers store
+          const result = await useMCPServersStore.getState().executeTool(serverName, {
+            name: mcpTool.name,
+            arguments: args as Record<string, any>,
+          });
 
-        return result;
-      } catch (error) {
-        toolCallInfo.status = 'error';
-        toolCallInfo.error = error instanceof Error ? error.message : 'Unknown error';
-        toolCallInfo.endTime = new Date();
-        toolCallInfo.executionTime = toolCallInfo.endTime.getTime() - startTime.getTime();
+          toolCallInfo.status = 'completed';
+          toolCallInfo.result = typeof result === 'string' ? result : JSON.stringify(result);
+          toolCallInfo.endTime = new Date();
+          toolCallInfo.executionTime = toolCallInfo.endTime.getTime() - startTime.getTime();
 
-        throw error;
-      }
-    },
-  });
+          return result;
+        } catch (error) {
+          toolCallInfo.status = 'error';
+          toolCallInfo.error = error instanceof Error ? error.message : 'Unknown error';
+          toolCallInfo.endTime = new Date();
+          toolCallInfo.executionTime = toolCallInfo.endTime.getTime() - startTime.getTime();
+
+          throw error;
+        }
+      },
+    });
+
+    console.log('✅ [createMCPToolWrapper] OpenAI SDK tool created successfully');
+  } catch (error) {
+    console.error('❌ [createMCPToolWrapper] Error creating OpenAI SDK tool:', error);
+    throw error;
+  }
 
   return {
     tool: wrappedTool,
@@ -211,28 +250,60 @@ export function extractToolsFromServers(
     customApprovalCheck?: (serverName: string, toolName: string, args: any) => Promise<boolean>;
   }
 ): ReturnType<typeof tool>[] {
+  // Safety check for tool function
+  if (typeof tool !== 'function') {
+    console.error('❌ [extractToolsFromServers] tool function is not available:', typeof tool);
+    throw new Error('OpenAI agents SDK tool function is not properly imported');
+  }
+
+  console.log('🔧 [extractToolsFromServers] Starting tool extraction:', {
+    serversCount: servers.length,
+    autoApproveCategories: options?.autoApproveCategories,
+    autoApproveServers: options?.autoApproveServers,
+    hasCustomApprovalCheck: !!options?.customApprovalCheck,
+  });
+
   const tools: ReturnType<typeof tool>[] = [];
 
   for (const server of servers) {
-    if (server.status !== 'connected' || !server.tools) continue;
+    console.log(`🔍 [extractToolsFromServers] Processing server: ${server.name}`, {
+      status: server.status,
+      toolsCount: server.tools?.length || 0,
+    });
+
+    if (server.status !== 'connected' || !server.tools) {
+      console.log(`⏭️ [extractToolsFromServers] Skipping server ${server.name} (not connected or no tools)`);
+      continue;
+    }
 
     const serverAutoApprove = options?.autoApproveServers?.includes(server.name);
 
     for (const mcpTool of server.tools) {
-      const category = categorizeeTool(mcpTool.name, mcpTool.description);
-      const categoryAutoApprove = options?.autoApproveCategories?.includes(category);
+      try {
+        console.log(`🛠️ [extractToolsFromServers] Processing tool: ${mcpTool.name}`, {
+          description: mcpTool.description,
+          hasInputSchema: !!mcpTool.inputSchema,
+        });
 
-      const wrapper = createMCPToolWrapper(mcpTool, server.name, {
-        autoApprove: serverAutoApprove || categoryAutoApprove,
-        customApprovalCheck: options?.customApprovalCheck
-          ? (args) => options.customApprovalCheck!(server.name, mcpTool.name, args)
-          : undefined,
-      });
+        const category = categorizeeTool(mcpTool.name, mcpTool.description);
+        const categoryAutoApprove = options?.autoApproveCategories?.includes(category);
 
-      tools.push(wrapper.tool);
+        const wrapper = createMCPToolWrapper(mcpTool, server.name, {
+          autoApprove: serverAutoApprove || categoryAutoApprove,
+          customApprovalCheck: options?.customApprovalCheck
+            ? (args) => options.customApprovalCheck!(server.name, mcpTool.name, args)
+            : undefined,
+        });
+
+        tools.push(wrapper.tool);
+        console.log(`✅ [extractToolsFromServers] Tool wrapped successfully: ${mcpTool.name}`);
+      } catch (error) {
+        console.error(`❌ [extractToolsFromServers] Error wrapping tool ${mcpTool.name}:`, error);
+      }
     }
   }
 
+  console.log(`📦 [extractToolsFromServers] Extracted ${tools.length} tools total`);
   return tools;
 }
 

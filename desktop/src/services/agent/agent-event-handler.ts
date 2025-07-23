@@ -1,5 +1,21 @@
 import { AgentState, MemoryEntry, ReasoningEntry, TaskProgress } from '../../types/agent';
 
+// Polyfill for ReadableStream async iterator if not available
+if (typeof ReadableStream !== 'undefined' && !ReadableStream.prototype[Symbol.asyncIterator]) {
+  ReadableStream.prototype[Symbol.asyncIterator] = async function* () {
+    const reader = this.getReader();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) return;
+        yield value;
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  };
+}
+
 // Event types based on OpenAI Agents SDK patterns
 export interface StreamEvent {
   type: string;
@@ -134,14 +150,71 @@ export class AgentEventHandler {
   /**
    * Main entry point for handling streamed results from the SDK
    */
-  async handleStreamedResult(stream: AsyncIterable<any>): Promise<void> {
+  async handleStreamedResult(stream: AsyncIterable<any> | ReadableStream<any>): Promise<void> {
+    console.log('🎬 [AgentEventHandler] Starting to handle streamed result');
+
     try {
+      // Check if it's a ReadableStream (Web Streams API)
+      if (stream && stream instanceof ReadableStream) {
+        console.log('📊 [AgentEventHandler] Detected ReadableStream, using async iterator');
+
+        // With our polyfill, ReadableStream should now be async iterable
+        for await (const event of stream as any) {
+          this.eventCount++;
+          console.log(`📨 [AgentEventHandler] Event #${this.eventCount}:`, {
+            type: event?.type,
+            eventKeys: event ? Object.keys(event) : [],
+          });
+          await this.processEvent(event);
+        }
+
+        console.log(`✅ [AgentEventHandler] Finished processing ${this.eventCount} events`);
+        return;
+      }
+
+      // Check if stream is actually iterable
+      if (!stream || typeof stream[Symbol.asyncIterator] !== 'function') {
+        console.error('❌ [AgentEventHandler] Stream is not async iterable:', {
+          streamType: typeof stream,
+          streamConstructor: stream?.constructor?.name,
+          hasAsyncIterator: stream && typeof stream[Symbol.asyncIterator],
+          streamKeys: stream ? Object.keys(stream) : [],
+        });
+
+        // Check if it's a StreamedRunResult that needs toStream() call
+        if (stream && typeof (stream as any).toStream === 'function') {
+          console.log('🔄 [AgentEventHandler] Found toStream() method, converting...');
+          const readableStream = (stream as any).toStream();
+          // Recursively call with the converted stream
+          return this.handleStreamedResult(readableStream);
+        } else {
+          throw new Error('Stream is not iterable and has no toStream() method');
+        }
+      }
+
+      // Handle regular async iterable
       for await (const event of stream) {
         this.eventCount++;
+        console.log(`📨 [AgentEventHandler] Event #${this.eventCount}:`, {
+          type: event?.type,
+          eventKeys: event ? Object.keys(event) : [],
+        });
         await this.processEvent(event);
       }
+
+      console.log(`✅ [AgentEventHandler] Finished processing ${this.eventCount} events`);
     } catch (error) {
-      console.error('Error processing agent stream:', error);
+      console.error('❌ [AgentEventHandler] Error processing agent stream:', error);
+
+      // Log more details about the error
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        });
+      }
+
       this.callbacks.onError(error);
       throw error;
     }
@@ -156,38 +229,103 @@ export class AgentEventHandler {
       event.timestamp = new Date();
     }
 
+    console.log(`🎯 [AgentEventHandler] Processing event type: ${event.type}`, {
+      eventDetails: event,
+      hasAgent: !!event.agent,
+      hasItem: !!event.item,
+      hasDelta: !!event.delta,
+    });
+
     switch (event.type) {
       case 'agent_updated_stream_event':
+        console.log('👤 [AgentEventHandler] Agent update event');
         this.handleAgentUpdate(event as RunAgentUpdatedStreamEvent);
         break;
 
       case 'item_stream_event':
+        console.log('📦 [AgentEventHandler] Item stream event');
         await this.handleItemEvent(event as RunItemStreamEvent);
         break;
 
       case 'raw_model_stream_event':
+        console.log('🤖 [AgentEventHandler] Raw model stream event');
         this.handleModelStream(event as RawModelStreamEvent);
         break;
 
       case 'tool_execution_event':
+        console.log('🔧 [AgentEventHandler] Tool execution event');
         await this.handleToolExecution(event as ToolExecutionEvent);
         break;
 
       case 'reasoning_event':
+        console.log('🧠 [AgentEventHandler] Reasoning event');
         this.handleReasoningEvent(event as ReasoningEvent);
         break;
 
       case 'progress_event':
+        console.log('📊 [AgentEventHandler] Progress event');
         this.handleProgressEvent(event as ProgressEvent);
         break;
 
       case 'error_event':
+        console.log('❌ [AgentEventHandler] Error event');
         this.handleErrorEvent(event as ErrorEvent);
         break;
 
       default:
         // Handle unknown event types gracefully
-        console.log('Unknown event type:', event.type, event);
+        console.log('❓ [AgentEventHandler] Unknown event type:', event.type, event);
+
+        // Handle OpenAI SDK specific events
+        if (event.type === 'response_started') {
+          console.log('🚀 [AgentEventHandler] Response started');
+        } else if (event.type === 'response_done') {
+          console.log('🏁 [AgentEventHandler] Response done:', event.response);
+          if (event.response?.output) {
+            // Process the final output
+            for (const output of event.response.output) {
+              if (output.type === 'message' && output.content) {
+                for (const content of output.content) {
+                  if (content.type === 'output_text') {
+                    this.callbacks.onMessage(content.text, 'info');
+                  }
+                }
+              }
+            }
+          }
+        } else if (event.type === 'output_text_delta') {
+          console.log('📝 [AgentEventHandler] Output text delta:', event.delta);
+          // Use onMessage to accumulate text (it now handles accumulation)
+          this.callbacks.onMessage(event.delta, 'info');
+        }
+        // Check if this is a model event from AI SDK
+        else if (event.type === 'model' && event.event) {
+          console.log('🤖 [AgentEventHandler] Processing AI SDK model event:', {
+            eventType: event.event.type,
+            hasTextDelta: !!event.event.textDelta,
+            textDelta: event.event.textDelta,
+            fullEvent: event.event,
+          });
+          // Process the nested event
+          if (event.event.type === 'text-delta' && event.event.textDelta) {
+            // Filter out qwen3's thinking tags
+            const text = event.event.textDelta;
+            if (!text.includes('<think>') && !text.includes('</think>')) {
+              // Use onMessage to accumulate text (it now handles accumulation)
+              this.callbacks.onMessage(text, 'info');
+            }
+          } else if (event.event.type === 'tool-call') {
+            console.log('🛠️ [AgentEventHandler] Model is calling tool:', event.event.toolName);
+            this.callbacks.onMessage(`Calling tool: ${event.event.toolName}`, 'info');
+          } else if (event.event.type === 'finish') {
+            console.log('✅ [AgentEventHandler] Stream finished');
+          } else if (event.event.type === 'response-metadata') {
+            console.log('📋 [AgentEventHandler] Response metadata:', event.event);
+          } else if (event.event.type === 'error') {
+            console.error('❌ [AgentEventHandler] Stream error:', event.event.error);
+            this.callbacks.onError(event.event.error);
+          }
+        }
         break;
     }
   }
@@ -355,6 +493,17 @@ export class AgentEventHandler {
    * Handle raw model streaming events
    */
   private handleModelStream(event: RawModelStreamEvent): void {
+    // Log the raw event data to understand what we're receiving
+    console.log('🔍 [AgentEventHandler] Raw model stream data:', {
+      hasData: !!event.data,
+      dataType: event.data?.type,
+      dataContent: event.data,
+      // Log the entire event to see all fields
+      fullEvent: JSON.stringify(event, null, 2),
+      hasDelta: !!event.delta,
+      deltaContent: event.delta,
+    });
+
     if (event.delta?.content) {
       this.callbacks.onStateChange({
         streamingContent: event.delta.content,
@@ -364,6 +513,21 @@ export class AgentEventHandler {
     // Handle function calls from the model
     if (event.delta?.functionCall) {
       this.callbacks.onMessage(`Model calling function: ${event.delta.functionCall.name}`, 'info');
+    }
+
+    // Check if the data contains actual model output
+    if (event.data) {
+      // Handle text delta from the model
+      if (event.data.type === 'output_text_delta' && event.data.delta) {
+        // Use onMessage to accumulate text (it now handles accumulation)
+        this.callbacks.onMessage(event.data.delta, 'info');
+      }
+
+      // Handle tool calls
+      if (event.data.type === 'tool-call' && event.data.toolName) {
+        console.log('🛠️ [AgentEventHandler] Model is calling tool:', event.data.toolName);
+        this.callbacks.onMessage(`Calling tool: ${event.data.toolName}`, 'info');
+      }
     }
   }
 

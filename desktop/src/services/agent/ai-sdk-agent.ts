@@ -1,4 +1,5 @@
 import { Agent, run, tool } from '@openai/agents';
+import { getLogger } from '@openai/agents';
 import { aisdk } from '@openai/agents-extensions';
 
 import {
@@ -17,6 +18,10 @@ import {
 import { MemoryManager } from './memory-manager';
 import { ModelCapabilities, ModelProviderFactory } from './model-provider';
 import { ReasoningConfig, ReasoningContext, ReasoningModule } from './reasoning-module';
+
+// Enable debug logging for OpenAI Agents SDK
+const logger = getLogger('openai-agents:archestra');
+logger.enabled = true;
 
 /**
  * ArchestraAgent implementation using Vercel AI SDK
@@ -70,15 +75,60 @@ export class ArchestraAgent {
     // Create AI model using the appropriate provider
     const provider = ModelProviderFactory.create(modelName);
     const aiModel = provider.createModel(modelName);
+
+    console.log('🎯 [ArchestraAgent] Creating AI SDK adapter:', {
+      modelName,
+      providerType: provider.getProviderName(),
+      aiModelType: typeof aiModel,
+      aiModelKeys: Object.keys(aiModel || {}),
+    });
+
+    // Log Ollama-specific details if it's an Ollama model
+    if (provider.getProviderName() === 'ollama') {
+      console.log('🦙 [ArchestraAgent] Ollama model details:', {
+        provider: aiModel?.provider,
+        modelId: aiModel?.modelId,
+        hasDoGenerate: typeof aiModel?.doGenerate === 'function',
+        hasDoStream: typeof aiModel?.doStream === 'function',
+      });
+    }
+
     const adaptedModel = aisdk(aiModel);
 
-    // Configure Agent using AI SDK adapter
-    this.agent = new Agent({
-      name: 'ArchestraAgent',
-      instructions: this.buildInstructions(config),
-      tools: this.mcpTools,
-      model: adaptedModel,
+    console.log('✅ [ArchestraAgent] AI SDK adapter created:', {
+      adaptedModelType: typeof adaptedModel,
+      adaptedModelKeys: Object.keys(adaptedModel || {}),
+      isValidModel: adaptedModel && typeof adaptedModel === 'object',
     });
+
+    // Configure Agent using AI SDK adapter
+    try {
+      console.log('🏗️ [ArchestraAgent] Creating Agent instance with:', {
+        name: 'ArchestraAgent',
+        instructionsLength: this.buildInstructions(config).length,
+        toolsCount: this.mcpTools.length,
+        hasModel: !!adaptedModel,
+      });
+
+      this.agent = new Agent({
+        name: 'ArchestraAgent',
+        instructions: this.buildInstructions(config),
+        tools: this.mcpTools,
+        model: adaptedModel,
+      });
+
+      console.log('✅ [ArchestraAgent] Agent instance created successfully');
+    } catch (error) {
+      console.error('❌ [ArchestraAgent] Failed to create Agent instance:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        });
+      }
+      throw error;
+    }
 
     // Log initialization details
     console.log(`🤖 Agent initialized with:`, {
@@ -150,12 +200,43 @@ ${config.systemPrompt ? `\nSystem context:\n${config.systemPrompt}` : ''}`;
       this.updateState({ mode: 'planning' });
 
       // Use SDK's run function for execution with streaming
-      const streamResult = await run(this.agent, objective, {
+      console.log('🚀 [ArchestraAgent] Calling SDK run function with:', {
+        objective,
         stream: true,
-        context: fullContext,
         maxTurns: this.config.maxSteps || 10,
-        signal: this.abortController.signal,
+        hasSignal: !!this.abortController?.signal,
+        contextKeys: Object.keys(fullContext),
       });
+
+      let streamResult;
+      try {
+        streamResult = await run(this.agent, objective, {
+          stream: true,
+          context: fullContext,
+          maxTurns: this.config.maxSteps || 10,
+          signal: this.abortController.signal,
+        });
+
+        console.log('📦 [ArchestraAgent] SDK run returned:', {
+          resultType: typeof streamResult,
+          hasToStream: streamResult && typeof (streamResult as any).toStream === 'function',
+          resultKeys: streamResult ? Object.keys(streamResult) : [],
+        });
+      } catch (runError) {
+        console.error('💥 [ArchestraAgent] SDK run function failed:', runError);
+        if (runError instanceof Error) {
+          console.error('Run error details:', {
+            message: runError.message,
+            stack: runError.stack,
+            name: runError.name,
+            // Check if it's an API error
+            response: (runError as any).response,
+            status: (runError as any).status,
+            statusText: (runError as any).statusText,
+          });
+        }
+        throw runError;
+      }
 
       // Return the stream for the store to handle
       return streamResult;

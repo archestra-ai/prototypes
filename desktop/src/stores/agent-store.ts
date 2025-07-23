@@ -23,29 +23,47 @@ function createAgentEventCallbacks(
   setState: (updates: Partial<AgentStoreState> | ((state: AgentStoreState) => Partial<AgentStoreState>)) => void,
   handleToolExecution: (tool: any) => Promise<void>
 ): AgentEventCallbacks {
-  return {
-    onStateChange: (state: Partial<AgentState>) => setState(state),
+  console.log('🎨 [AgentEventCallbacks] Creating callbacks');
 
-    onToolExecution: handleToolExecution,
+  return {
+    onStateChange: (state: Partial<AgentState>) => {
+      console.log('📝 [AgentEventCallbacks] State change:', state);
+      setState(state);
+    },
+
+    onToolExecution: async (tool: any) => {
+      console.log('🔨 [AgentEventCallbacks] Tool execution requested:', tool);
+      return handleToolExecution(tool);
+    },
 
     onMessage: (message: string) => {
-      const { sendChatMessage } = useChatStore.getState();
-      sendChatMessage(message);
+      console.log('💬 [AgentEventCallbacks] Message received:', message);
+
+      // Accumulate streaming content
+      setState((state: AgentStoreState) => {
+        const currentContent = state.streamingContent || '';
+        return {
+          streamingContent: currentContent + message,
+        };
+      });
     },
 
     onReasoningUpdate: (entry: ReasoningEntry) => {
+      console.log('🧠 [AgentEventCallbacks] Reasoning update:', entry);
       setState((state: AgentStoreState) => ({
         reasoning: [...state.reasoning, entry],
       }));
     },
 
     onProgressUpdate: (progress: Partial<TaskProgress>) => {
+      console.log('📊 [AgentEventCallbacks] Progress update:', progress);
       setState((state: AgentStoreState) => ({
         progress: { ...state.progress, ...progress },
       }));
     },
 
     onMemoryUpdate: (entry: MemoryEntry) => {
+      console.log('🧩 [AgentEventCallbacks] Memory update:', entry);
       setState((state: AgentStoreState) => ({
         workingMemory: {
           ...state.workingMemory,
@@ -56,7 +74,8 @@ function createAgentEventCallbacks(
     },
 
     onError: (error: any) => {
-      console.error('Agent execution error:', error);
+      console.error('💥 [AgentEventCallbacks] Error received:', error);
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
       setState({ mode: 'idle', isAgentActive: false });
     },
   };
@@ -74,6 +93,7 @@ interface AgentStoreState extends AgentState {
   agentInstance: ArchestraAgent | null;
   currentObjective: string | null;
   preferences: AgentPreferences;
+  streamingMessageId: string | null;
 }
 
 interface AgentActions {
@@ -140,6 +160,7 @@ export const useAgentStore = create<AgentStore>()(
     reasoningMode: 'verbose',
     isAgentActive: false,
     agentInstance: null,
+    streamingMessageId: null,
     preferences: {
       autoApproveCategories: ['read', 'search'] as ToolCategory[],
       autoApproveServers: [],
@@ -147,13 +168,22 @@ export const useAgentStore = create<AgentStore>()(
 
     // Actions
     activateAgent: async (objective: string) => {
+      console.log('🚀 [AgentStore] activateAgent called with:', objective);
+
       const state = get();
       if (state.isAgentActive && state.mode !== 'idle') {
+        console.error('❌ [AgentStore] Agent already active');
         throw new Error('Agent is already active');
       }
 
       const { installedMCPServers, archestraMCPServer } = useMCPServersStore.getState();
       const { selectedModel } = useOllamaStore.getState();
+
+      console.log('📊 [AgentStore] Current configuration:', {
+        selectedModel,
+        installedServersCount: installedMCPServers.length,
+        archestraServerStatus: archestraMCPServer.status,
+      });
 
       set({
         currentObjective: objective,
@@ -166,6 +196,8 @@ export const useAgentStore = create<AgentStore>()(
       if (archestraMCPServer.status === 'connected') {
         allServers.push(archestraMCPServer);
       }
+
+      console.log('🔧 [AgentStore] Extracting MCP tools from servers:', allServers.length);
 
       const mcpTools = extractMCPTools(allServers, {
         autoApproveCategories: state.preferences.autoApproveCategories,
@@ -202,6 +234,12 @@ export const useAgentStore = create<AgentStore>()(
       const modelName = selectedModel || 'gpt-4o';
       const supportsTools = ModelCapabilities.supportsTools(modelName);
 
+      console.log('🤖 [AgentStore] Model configuration:', {
+        modelName,
+        supportsTools,
+        mcpToolsCount: mcpTools.length,
+      });
+
       if (!supportsTools && mcpTools.length > 0) {
         // Warn user that tools won't be available
         const { sendChatMessage } = useChatStore.getState();
@@ -224,24 +262,100 @@ export const useAgentStore = create<AgentStore>()(
         },
       };
 
+      console.log('🏗️ [AgentStore] Creating ArchestraAgent with config:', agentConfig);
+
       const agent = new ArchestraAgent(agentConfig);
       set({ agentInstance: agent });
 
+      console.log('✅ [AgentStore] Agent created successfully');
+
       // Execute with streaming
       try {
-        set({ mode: 'planning' });
+        console.log('🎯 [AgentStore] Starting agent execution');
+        set({ mode: 'planning', streamingContent: '' });
+
+        // Create initial assistant message in chat
+        const { chatHistory } = useChatStore.getState();
+        const assistantMessageId = Date.now().toString();
+        useChatStore.setState({
+          chatHistory: [
+            ...chatHistory,
+            {
+              id: assistantMessageId,
+              role: 'assistant' as const,
+              content: '',
+              timestamp: new Date(),
+              isStreaming: true,
+              isFromAgent: true,
+            },
+          ],
+        });
+        set({ streamingMessageId: assistantMessageId });
+
+        console.log('📞 [AgentStore] Calling agent.executeObjective');
         const streamResult = await agent.executeObjective(objective);
+        console.log('📦 [AgentStore] executeObjective returned:', {
+          streamResultType: typeof streamResult,
+          hasToStream: streamResult && typeof (streamResult as any).toStream === 'function',
+          streamResultKeys: streamResult ? Object.keys(streamResult) : [],
+        });
+
+        // Convert to stream if it's a StreamedRunResult
+        let stream = streamResult;
+        if (streamResult && typeof (streamResult as any).toStream === 'function') {
+          console.log('🔄 [AgentStore] Converting StreamedRunResult to stream');
+          stream = (streamResult as any).toStream();
+          console.log('✅ [AgentStore] Stream converted:', {
+            streamType: typeof stream,
+            streamConstructor: stream?.constructor?.name,
+            isReadableStream: stream instanceof ReadableStream,
+            hasAsyncIterator: stream && typeof stream[Symbol.asyncIterator],
+            hasGetReader: stream && typeof stream.getReader === 'function',
+          });
+        }
 
         // Create event handler with callbacks
+        console.log('🎭 [AgentStore] Creating event handler');
         const callbacks = createAgentEventCallbacks(set, (toolCall) => get().handleToolExecution(toolCall));
         const eventHandler = new AgentEventHandler(callbacks);
 
-        await eventHandler.handleStreamedResult(streamResult);
+        console.log('🌊 [AgentStore] Starting stream processing');
+        await eventHandler.handleStreamedResult(stream);
+        console.log('✅ [AgentStore] Stream processing completed');
 
-        set({ mode: 'completed' });
+        // Finalize the assistant message with accumulated content
+        const { streamingContent, streamingMessageId } = get();
+        if (streamingMessageId && streamingContent) {
+          const { chatHistory } = useChatStore.getState();
+          useChatStore.setState({
+            chatHistory: chatHistory.map((msg) =>
+              msg.id === streamingMessageId
+                ? {
+                    ...msg,
+                    content: streamingContent,
+                    isStreaming: false,
+                  }
+                : msg
+            ),
+          });
+        }
+
+        set({ mode: 'completed', streamingContent: '', streamingMessageId: null });
+        console.log('🏁 [AgentStore] Agent execution completed successfully');
       } catch (error) {
-        console.error('Agent execution error:', error);
-        set({ mode: 'idle', isAgentActive: false });
+        console.error('💥 [AgentStore] Agent execution error:', error);
+        console.error('Error details:', {
+          name: error instanceof Error ? error.name : 'Unknown',
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        // Clear the update interval on error
+        const { streamingUpdateInterval } = get();
+        if (streamingUpdateInterval) {
+          clearInterval(streamingUpdateInterval);
+        }
+
+        set({ mode: 'idle', isAgentActive: false, streamingUpdateInterval: null });
         throw error;
       }
     },
@@ -267,11 +381,17 @@ export const useAgentStore = create<AgentStore>()(
       try {
         const streamResult = await agentInstance.resume();
         if (streamResult) {
+          // Convert to stream if it's a StreamedRunResult
+          let stream = streamResult;
+          if (streamResult && typeof (streamResult as any).toStream === 'function') {
+            stream = (streamResult as any).toStream();
+          }
+
           // Create event handler with callbacks
           const callbacks = createAgentEventCallbacks(set, (toolCall) => get().handleToolExecution(toolCall));
           const eventHandler = new AgentEventHandler(callbacks);
 
-          await eventHandler.handleStreamedResult(streamResult);
+          await eventHandler.handleStreamedResult(stream);
         }
         set({ mode: 'completed' });
       } catch (error) {
@@ -568,7 +688,7 @@ function initializeAgentStore() {
       // Check if a new message was added
       if (agentState.isAgentActive && chatHistory.length > previousChatLength) {
         const lastMessage = chatHistory[chatHistory.length - 1];
-        if (lastMessage.role === 'user' && !lastMessage.toolCalls) {
+        if (lastMessage.role === 'user' && !lastMessage.toolCalls && !(lastMessage as any).isFromAgent) {
           // Set flag to prevent infinite loop
           isProcessingMessage = true;
 

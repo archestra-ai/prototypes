@@ -44,6 +44,7 @@ export interface ChatMessage {
   isThinkingStreaming?: boolean;
   toolCalls?: ToolCallInfo[];
   isToolExecuting?: boolean;
+  isFromAgent?: boolean;
   agentMetadata?: {
     planId?: string;
     stepId?: string;
