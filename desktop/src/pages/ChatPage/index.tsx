@@ -7,14 +7,18 @@ interface ChatPageProps {}
 
 export default function ChatPage(_props: ChatPageProps) {
   return (
-    <div className="space-y-4">
-      <Card>
+    <div className="flex flex-col h-full overflow-hidden">
+      <Card className="flex flex-col flex-1">
         <CardHeader>
           <CardTitle>Chat</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <ChatHistory />
-          <ChatInput />
+        <CardContent className="flex flex-col flex-1 gap-4 min-h-0">
+          <div className="flex-1 min-h-0">
+            <ChatHistory />
+          </div>
+          <div className="flex-shrink-0">
+            <ChatInput />
+          </div>
         </CardContent>
       </Card>
     </div>
