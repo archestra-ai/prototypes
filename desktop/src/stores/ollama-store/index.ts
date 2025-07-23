@@ -148,11 +148,20 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
     set({ selectedModel: model });
   },
 
-  chat: (messages: OllamaMessage[], tools: OllamaTool[] = []) => {
-    const { ollamaClient } = get();
+  chat: async (messages: OllamaMessage[], tools: OllamaTool[] = []) => {
+    let { ollamaClient } = get();
 
-    // We can assume at this point that the ollamaClient has been initialized
-    return (ollamaClient as Ollama).chat({
+    // Initialize Ollama if not already initialized
+    if (!ollamaClient) {
+      await get().initializeOllama();
+      ollamaClient = get().ollamaClient;
+    }
+
+    if (!ollamaClient) {
+      throw new Error('Failed to initialize Ollama client');
+    }
+
+    return ollamaClient.chat({
       model: get().selectedModel,
       messages,
       tools,
@@ -168,7 +177,9 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
 }));
 
 // Initialize Ollama on store creation
-useOllamaStore.getState().initializeOllama();
+if (typeof window !== 'undefined') {
+  useOllamaStore.getState().initializeOllama().catch(console.error);
+}
 
 // Computed values as selectors
 export const useAvailableModels = () => AVAILABLE_MODELS;

@@ -2,6 +2,7 @@ import { Message as OllamaMessage, ToolCall as OllamaToolCall } from 'ollama/bro
 import { create } from 'zustand';
 
 import { ChatMessage, ToolCallInfo } from '../types';
+import { useAgentStore } from './agent-store';
 import { useMCPServersStore } from './mcp-servers-store';
 import { useOllamaStore } from './ollama-store';
 import { convertMCPServerToolsToOllamaTools, convertOllamaToolNameToServerAndToolName } from './ollama-store/utils';
@@ -218,6 +219,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   sendChatMessage: async (message: string) => {
     const { chat, selectedModel } = useOllamaStore.getState();
     const allTools = useMCPServersStore.getState().allAvailableTools();
+    const { activateAgent, isAgentActive } = useAgentStore.getState();
 
     const modelSupportsTools = checkModelSupportsTools(selectedModel);
     const hasTools = Object.keys(allTools).length > 0;
@@ -225,6 +227,130 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const abortController = new AbortController();
 
     if (!message.trim()) {
+      return;
+    }
+
+    // Check if this is an /agent command
+    if (message.startsWith('/agent')) {
+      const objective = message.substring(6).trim(); // Remove '/agent' prefix
+
+      if (!objective) {
+        // Add error message to chat
+        set((state) => ({
+          chatHistory: [
+            ...state.chatHistory,
+            {
+              id: Date.now().toString(),
+              role: 'user',
+              content: message,
+              timestamp: new Date(),
+            },
+            {
+              id: (Date.now() + 1).toString(),
+              role: 'system',
+              content: '⚠️ Please provide an objective for the agent. Usage: /agent <objective>',
+              timestamp: new Date(),
+            },
+          ],
+        }));
+        return;
+      }
+
+      // Add user message to chat
+      set((state) => ({
+        chatHistory: [
+          ...state.chatHistory,
+          {
+            id: Date.now().toString(),
+            role: 'user',
+            content: message,
+            timestamp: new Date(),
+          },
+        ],
+      }));
+
+      // Activate the agent with the objective
+      try {
+        await activateAgent(objective);
+      } catch (error) {
+        set((state) => ({
+          chatHistory: [
+            ...state.chatHistory,
+            {
+              id: (Date.now() + 1).toString(),
+              role: 'system',
+              content: `❌ Failed to activate agent: ${error instanceof Error ? error.message : String(error)}`,
+              timestamp: new Date(),
+            },
+          ],
+        }));
+      }
+      return;
+    }
+
+    // Check if this is a /stop command
+    if (message === '/stop') {
+      const { stopAgent } = useAgentStore.getState();
+
+      // Add user message to chat
+      set((state) => ({
+        chatHistory: [
+          ...state.chatHistory,
+          {
+            id: Date.now().toString(),
+            role: 'user',
+            content: message,
+            timestamp: new Date(),
+          },
+        ],
+      }));
+
+      if (isAgentActive) {
+        stopAgent();
+        set((state) => ({
+          chatHistory: [
+            ...state.chatHistory,
+            {
+              id: (Date.now() + 1).toString(),
+              role: 'system',
+              content: '🛑 Agent has been stopped.',
+              timestamp: new Date(),
+            },
+          ],
+        }));
+      } else {
+        set((state) => ({
+          chatHistory: [
+            ...state.chatHistory,
+            {
+              id: (Date.now() + 1).toString(),
+              role: 'system',
+              content: '⚠️ No agent is currently active.',
+              timestamp: new Date(),
+            },
+          ],
+        }));
+      }
+      return;
+    }
+
+    // If agent is active, forward the message to the agent
+    if (isAgentActive) {
+      const { sendAgentMessage } = useAgentStore.getState();
+      sendAgentMessage(message);
+
+      // Add user message to chat
+      set((state) => ({
+        chatHistory: [
+          ...state.chatHistory,
+          {
+            id: Date.now().toString(),
+            role: 'user',
+            content: message,
+            timestamp: new Date(),
+          },
+        ],
+      }));
       return;
     }
 

@@ -17,7 +17,7 @@ import {
   AIInputTools,
 } from '@/components/kibo/ai-input';
 import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAgentStore } from '@/stores/agent-store';
 import { useChatStore, useIsStreaming } from '@/stores/chat-store';
@@ -28,12 +28,20 @@ interface ChatInputProps {}
 
 export default function ChatInput(_props: ChatInputProps) {
   const { loadingInstalledMCPServers } = useMCPServersStore();
-  const allTools = useMCPServersStore.getState().allAvailableTools();
-  const { sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
+  const allToolsObject = useMCPServersStore.getState().allAvailableTools();
+  const allTools = Object.values(allToolsObject).flat();
+  const { sendChatMessage, cancelStreaming } = useChatStore();
   const isStreaming = useIsStreaming();
 
-  const { installedModels, loadingInstalledModels, loadingInstalledModelsError, selectedModel, setSelectedModel } =
-    useOllamaStore();
+  const {
+    installedModels,
+    loadingInstalledModels,
+    loadingInstalledModelsError,
+    selectedModel,
+    setSelectedModel,
+    initializeOllama,
+    ollamaClient,
+  } = useOllamaStore();
 
   const { isAgentActive, mode: agentMode } = useAgentStore();
 
@@ -42,6 +50,13 @@ export default function ChatInput(_props: ChatInputProps) {
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
 
   const disabled = isStreaming || (isAgentActive && agentMode === 'initializing');
+
+  // Initialize Ollama when component mounts
+  useEffect(() => {
+    if (!ollamaClient) {
+      initializeOllama().catch(console.error);
+    }
+  }, [ollamaClient, initializeOllama]);
 
   useEffect(() => {
     if (isStreaming) {
@@ -115,8 +130,8 @@ export default function ChatInput(_props: ChatInputProps) {
           </AIInputModelSelectTrigger>
           <AIInputModelSelectContent>
             {installedModels.map((model) => (
-              <AIInputModelSelectItem key={model} value={model} onClick={() => setSelectedModel(model)}>
-                {model}
+              <AIInputModelSelectItem key={model.name} value={model.name} onClick={() => setSelectedModel(model.name)}>
+                {model.name}
               </AIInputModelSelectItem>
             ))}
           </AIInputModelSelectContent>
@@ -153,7 +168,7 @@ export default function ChatInput(_props: ChatInputProps) {
           </AIInputTools>
           <div className="flex items-center gap-2">
             {loadingInstalledModelsError && (
-              <span className="text-xs text-red-600">Error loading models: {loadingInstalledModelsError}</span>
+              <span className="text-xs text-red-600">Error loading models: {loadingInstalledModelsError.message}</span>
             )}
             {status === 'error' && <span className="text-xs text-red-600">Failed to send message</span>}
             {selectedModel && <Badge variant="secondary">{selectedModel}</Badge>}

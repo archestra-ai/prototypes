@@ -9,7 +9,6 @@ import { useAgentStore } from '@/stores/agent-store';
 import { useChatStore } from '@/stores/chat-store';
 
 import ToolCallIndicator from '../ToolCallIndicator';
-import ToolExecutionResult from '../ToolExecutionResult';
 
 const CHAT_SCROLL_AREA_ID = 'chat-scroll-area';
 const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-area-viewport]`;
@@ -18,7 +17,7 @@ interface ChatHistoryProps {}
 
 export default function ChatHistory(_props: ChatHistoryProps) {
   const { chatHistory } = useChatStore();
-  const { mode: agentMode, progress, reasoningMode, currentObjective } = useAgentStore();
+  const { mode: agentMode, plan, reasoningMode, currentObjective } = useAgentStore();
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const scrollAreaRef = useRef<HTMLElement | null>(null);
   const isScrollingRef = useRef(false);
@@ -139,20 +138,20 @@ export default function ChatHistory(_props: ChatHistoryProps) {
         )}
 
         {/* Progress Indicators */}
-        {progress.length > 0 && agentMode !== 'idle' && (
+        {plan?.steps && plan.steps.length > 0 && agentMode !== 'idle' && (
           <div className="mb-4 space-y-2">
-            {progress.map((step, index) => (
+            {plan.steps.map((step, index) => (
               <div
                 key={index}
                 className={cn(
                   'flex items-center gap-2 rounded-md px-3 py-2 text-sm',
                   step.status === 'completed' && 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
-                  step.status === 'in-progress' && 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+                  step.status === 'in_progress' && 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
                   step.status === 'pending' && 'bg-gray-50 text-gray-500 dark:bg-gray-900 dark:text-gray-400'
                 )}
               >
                 {step.status === 'completed' && <CheckCircle className="h-3 w-3" />}
-                {step.status === 'in-progress' && <Loader2 className="h-3 w-3 animate-spin" />}
+                {step.status === 'in_progress' && <Loader2 className="h-3 w-3 animate-spin" />}
                 {step.status === 'pending' && <div className="h-3 w-3 rounded-full border-2 border-current" />}
                 <span>{step.description}</span>
               </div>
@@ -162,26 +161,25 @@ export default function ChatHistory(_props: ChatHistoryProps) {
 
         {/* Chat Messages */}
         {chatHistory.map((item, index) => {
-          const showUserMessage = item.type === 'user' && item.message.trim() !== '';
-          const showAssistantResponse = item.type === 'assistant' && item.message.trim() !== '';
-          const showToolCall = item.type === 'tool-call';
-          const showToolResult = item.type === 'tool-result';
+          const showUserMessage = item.role === 'user' && item.content.trim() !== '';
+          const showAssistantResponse = item.role === 'assistant' && item.content.trim() !== '';
+          const showToolCall = item.role === 'tool' && item.toolCalls && item.toolCalls.length > 0;
 
           return (
             <div key={index} className="mb-6">
               {showUserMessage && (
                 <div className="mb-4">
                   <div className="font-semibold">You</div>
-                  <div className="mt-1 whitespace-pre-wrap text-[15px] text-foreground/90">{item.message}</div>
+                  <div className="mt-1 whitespace-pre-wrap text-[15px] text-foreground/90">{item.content}</div>
                 </div>
               )}
 
               {/* Show reasoning mode indicator if enabled */}
-              {showAssistantResponse && reasoningMode === 'visible' && item.reasoning && (
+              {showAssistantResponse && reasoningMode === 'verbose' && item.agentMetadata?.reasoning && (
                 <div className="mb-2">
                   <AIReasoning>
                     <AIReasoningTrigger />
-                    <AIReasoningContent content={item.reasoning} />
+                    <AIReasoningContent>{item.agentMetadata.reasoning.content}</AIReasoningContent>
                   </AIReasoning>
                 </div>
               )}
@@ -192,20 +190,12 @@ export default function ChatHistory(_props: ChatHistoryProps) {
                     <Wrench className="size-4" />
                     Archestra
                   </div>
-                  <AIResponse content={item.message} />
+                  <AIResponse>{item.content}</AIResponse>
                 </div>
               )}
 
-              {showToolCall && <ToolCallIndicator toolCall={item} />}
-
-              {showToolResult && (
-                <ToolExecutionResult
-                  result={item}
-                  isCollapsed={item.metadata?.isCollapsed}
-                  onToggleCollapse={() => {
-                    // Handle collapse toggle if needed
-                  }}
-                />
+              {showToolCall && (
+                <ToolCallIndicator toolCalls={item.toolCalls || []} isExecuting={item.isToolExecuting || false} />
               )}
             </div>
           );

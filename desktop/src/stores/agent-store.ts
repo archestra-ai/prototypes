@@ -30,8 +30,7 @@ function createAgentEventCallbacks(
 
     onMessage: (message: string) => {
       const { sendChatMessage } = useChatStore.getState();
-      const { selectedModel } = useOllamaStore.getState();
-      sendChatMessage(message, selectedModel || 'gpt-4o');
+      sendChatMessage(message);
     },
 
     onReasoningUpdate: (entry: ReasoningEntry) => {
@@ -139,7 +138,7 @@ export const useAgentStore = create<AgentStore>()(
     runState: undefined,
     streamingContent: undefined,
     reasoningMode: 'verbose',
-    isAgentActive: true,
+    isAgentActive: false,
     agentInstance: null,
     preferences: {
       autoApproveCategories: ['read', 'search'] as ToolCategory[],
@@ -207,8 +206,7 @@ export const useAgentStore = create<AgentStore>()(
         // Warn user that tools won't be available
         const { sendChatMessage } = useChatStore.getState();
         sendChatMessage(
-          `⚠️ Model '${modelName}' does not support tool calling. The agent will work but won't be able to use MCP tools. Consider using an OpenAI model (gpt-4, gpt-3.5-turbo) for full functionality.`,
-          'system'
+          `⚠️ Model '${modelName}' does not support tool calling. The agent will work but won't be able to use MCP tools. Consider using an OpenAI model (gpt-4, gpt-3.5-turbo) for full functionality.`
         );
       }
 
@@ -302,8 +300,7 @@ export const useAgentStore = create<AgentStore>()(
 
       // Send through chat
       const { sendChatMessage } = useChatStore.getState();
-      const { selectedModel } = useOllamaStore.getState();
-      sendChatMessage(message, selectedModel || 'gpt-4o');
+      sendChatMessage(message);
     },
 
     setReasoningMode: (mode: 'verbose' | 'concise' | 'hidden') => {

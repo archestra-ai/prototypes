@@ -143,7 +143,7 @@ export type AIInputSubmitProps = ComponentProps<typeof Button> & {
 export const AIInputSubmit = ({
   className,
   variant = 'default',
-  size = 'icon',
+  size,
   status,
   children,
   ...props
@@ -156,10 +156,14 @@ export const AIInputSubmit = ({
   } else if (status === 'error') {
     Icon = <XIcon />;
   }
+
+  // Auto-detect size based on content
+  const autoSize = size ?? (children ? 'default' : 'icon');
+
   return (
     <Button
       className={cn('gap-1.5 rounded-lg rounded-br-xl', className)}
-      size={size}
+      size={autoSize}
       type="submit"
       variant={variant}
       {...props}

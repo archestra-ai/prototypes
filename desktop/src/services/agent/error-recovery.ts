@@ -373,7 +373,7 @@ export class UserInterventionHandler {
     }
 
     // Send the message to chat
-    await sendChatMessage(message, 'system');
+    await sendChatMessage(message);
 
     // In a real implementation, this would wait for user response
     // For now, we'll return the default option
@@ -387,7 +387,7 @@ export class UserInterventionHandler {
     const { sendChatMessage } = useChatStore.getState();
 
     const message = `🔧 **Recovery Action:** ${action}`;
-    sendChatMessage(message, 'system');
+    sendChatMessage(message);
   }
 }
 
