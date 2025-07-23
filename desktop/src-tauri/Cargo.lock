@@ -143,8 +143,6 @@ dependencies = [
  "chrono",
  "futures-util",
  "http-body-util",
- "hyper 1.6.0",
- "hyper-util",
  "lazy_static",
  "reqwest 0.12.22",
  "rmcp",
@@ -167,7 +165,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
- "tower",
  "url 2.5.4",
  "uuid",
 ]

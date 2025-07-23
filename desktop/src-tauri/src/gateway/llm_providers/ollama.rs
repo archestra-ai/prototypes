@@ -1,0 +1,103 @@
+use crate::ollama::OLLAMA_SERVER_PORT;
+use axum::{
+    body::Body,
+    extract::State,
+    http::{Request, Response, StatusCode},
+    response::IntoResponse,
+    Router,
+};
+use futures_util::StreamExt;
+use reqwest::Client;
+use sea_orm::DatabaseConnection;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio_util::io::ReaderStream;
+
+// Constants for resource management
+// Also, make the request timeout very high as it can take some time for the LLM to respond
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(180);
+
+pub struct OllamaProxyService {
+    db: Arc<DatabaseConnection>,
+    http_client: Client,
+}
+
+impl OllamaProxyService {
+    pub fn new(db: DatabaseConnection) -> Self {
+        Self {
+            db: Arc::new(db),
+            http_client: Client::builder()
+                .timeout(REQUEST_TIMEOUT)
+                .build()
+                .unwrap_or_default()
+        }
+    }
+}
+
+pub async fn proxy_handler(
+    State(service): State<Arc<OllamaProxyService>>,
+    req: Request<Body>,
+) -> impl IntoResponse {
+    let path_and_query = req
+        .uri()
+        .path_and_query()
+        .map(|pq| pq.as_str())
+        .unwrap_or("");
+    let target_url = format!("http://127.0.0.1:{OLLAMA_SERVER_PORT}{path_and_query}");
+
+    let method = req.method().clone();
+    let headers = req.headers().clone();
+    let body_bytes = match axum::body::to_bytes(req.into_body(), usize::MAX).await {
+        Ok(bytes) => bytes,
+        Err(_) => return (StatusCode::BAD_REQUEST, "Failed to read request body").into_response(),
+    };
+
+    let mut request = service.http_client.request(method, &target_url);
+
+    for (name, value) in headers.iter() {
+        request = request.header(name, value);
+    }
+
+    if !body_bytes.is_empty() {
+        request = request.body(body_bytes);
+    }
+
+    match request.send().await {
+        Ok(resp) => {
+            let status = resp.status();
+            let mut response_builder = Response::builder().status(status);
+
+            // Copy headers from the upstream response
+            for (name, value) in resp.headers().iter() {
+                response_builder = response_builder.header(name, value);
+            }
+
+            // Convert the response body into a stream
+            let body_stream = resp.bytes_stream();
+            
+            // Map the stream to convert reqwest::Bytes to axum::body::Bytes
+            let mapped_stream = body_stream.map(|result| {
+                result.map(|bytes| axum::body::Bytes::from(bytes.to_vec()))
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+            });
+
+            // Create a streaming body from the mapped stream
+            let body = Body::from_stream(mapped_stream);
+
+            response_builder.body(body).unwrap_or_else(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Failed to build response",
+                )
+                    .into_response()
+            })
+        }
+        Err(e) => (StatusCode::BAD_GATEWAY, format!("Proxy error: {}", e)).into_response(),
+    }
+}
+
+pub fn create_ollama_router(db: DatabaseConnection) -> Router {
+    Router::new()
+        .fallback(proxy_handler)
+        .with_state(Arc::new(OllamaProxyService::new(db)))
+}

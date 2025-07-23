@@ -5,10 +5,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { fetch } from '@tauri-apps/plugin-http';
 import { create } from 'zustand';
 
-import type { ConnectedMCPServer, MCPServer } from '../types';
+import { ARCHESTRA_SERVER_MCP_PROXY_URL, ARCHESTRA_SERVER_MCP_URL } from '@/consts';
 
-const ARCHESTRA_SERVER_URL = 'http://localhost:54587';
-const ARCHESTRA_SERVER_MCP_URL = `${ARCHESTRA_SERVER_URL}/mcp`;
+import type { ConnectedMCPServer, MCPServer } from '../types';
 
 export type MCPServerTools = Record<string, Tool[]>;
 
@@ -32,7 +31,7 @@ interface MCPServersActions {
 type MCPServersStore = MCPServersState & MCPServersActions;
 
 export function constructProxiedMCPServerUrl(mcpServerName: string) {
-  return `${ARCHESTRA_SERVER_URL}/proxy/${mcpServerName}`;
+  return `${ARCHESTRA_SERVER_MCP_PROXY_URL}/${mcpServerName}`;
 }
 
 const configureMCPClient = async (
