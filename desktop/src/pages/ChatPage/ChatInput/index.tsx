@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, MicIcon, PaperclipIcon, Settings, Wrench } from 'lucide-react';
+import { MicIcon, PaperclipIcon, Settings, Wrench } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -17,7 +17,6 @@ import {
   AIInputTools,
 } from '@/components/kibo/ai-input';
 import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAgentStore } from '@/stores/agent-store';
 import { useChatStore, useIsStreaming } from '@/stores/chat-store';
@@ -119,133 +118,129 @@ export default function ChatInput(_props: ChatInputProps) {
     }
   };
 
-  return (
-    <form onSubmit={onSubmit}>
-      <AIInput className="px-6 pb-6">
-        <AIInputModelSelect>
-          <AIInputModelSelectTrigger className="px-2 py-1">
-            <Wrench className="mr-2 h-4 w-4" />
-            <AIInputModelSelectValue placeholder={loadingInstalledModels ? 'Loading models...' : 'Select a model'} />
-            <ChevronDown className="ml-2 h-4 w-4" />
-          </AIInputModelSelectTrigger>
-          <AIInputModelSelectContent>
-            {installedModels.map((model) => (
-              <AIInputModelSelectItem key={model.name} value={model.name} onClick={() => setSelectedModel(model.name)}>
-                {model.name}
-              </AIInputModelSelectItem>
-            ))}
-          </AIInputModelSelectContent>
-        </AIInputModelSelect>
+  const totalNumberOfTools = allTools.length;
 
-        <AIInputTextarea
-          className="resize-none"
-          placeholder={disabled ? 'Agent is initializing...' : 'Type a message...'}
-          rows={3}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-        />
-        <AIInputToolbar>
-          <AIInputTools>
-            <AIInputButton
-              size="icon"
-              variant="ghost"
-              disabled={disabled}
-              onClick={(e) => {
-                e.preventDefault();
-                setIsToolsMenuOpen(!isToolsMenuOpen);
-              }}
-            >
-              <Wrench />
-            </AIInputButton>
-            <AIInputButton size="icon" variant="ghost">
-              <PaperclipIcon />
-            </AIInputButton>
-            <AIInputButton size="icon" variant="ghost">
-              <MicIcon />
-            </AIInputButton>
-          </AIInputTools>
-          <div className="flex items-center gap-2">
-            {loadingInstalledModelsError && (
-              <span className="text-xs text-red-600">Error loading models: {loadingInstalledModelsError.message}</span>
-            )}
-            {status === 'error' && <span className="text-xs text-red-600">Failed to send message</span>}
-            {selectedModel && <Badge variant="secondary">{selectedModel}</Badge>}
-            {isStreaming ? (
-              <AIInputSubmit
-                type="button"
-                variant="destructive"
-                onClick={(e) => {
-                  e.preventDefault();
-                  cancelStreaming();
-                }}
-              >
-                Cancel
-              </AIInputSubmit>
+  return (
+    <TooltipProvider>
+      <div className="space-y-2">
+        {isToolsMenuOpen && (totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
+          <div className="border rounded-lg p-3 bg-muted/50">
+            {loadingInstalledMCPServers ? (
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <span className="text-sm text-muted-foreground">Loading available tools...</span>
+              </div>
             ) : (
-              <AIInputSubmit disabled={disabled || !selectedModel}>Send</AIInputSubmit>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-3">
+                  <Wrench className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium">Available Tools</span>
+                  <Badge variant="secondary" className="text-xs">
+                    Total: {totalNumberOfTools}
+                  </Badge>
+                </div>
+                <div className="space-y-1">
+                  {allTools.map((tool, idx) => (
+                    <div
+                      key={idx}
+                      className="group flex cursor-pointer items-start gap-2 rounded-md p-2 hover:bg-accent"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const toolCommand = `Use the ${tool.name} tool`;
+                        setMessage(toolCommand);
+                        setIsToolsMenuOpen(false);
+                      }}
+                    >
+                      <Wrench className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div className="flex-1">
+                        <div className="font-medium">{tool.name}</div>
+                        <div className="text-xs text-muted-foreground">{tool.description}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
-        </AIInputToolbar>
+        )}
 
-        <TooltipProvider>
-          <Collapsible open={isToolsMenuOpen} onOpenChange={setIsToolsMenuOpen}>
-            <CollapsibleContent className="CollapsibleContent">
-              <div className="mt-4 rounded-md border bg-card p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="font-semibold">Available Tools</h3>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          // Navigate to settings page
-                          window.location.hash = '#/settings';
-                        }}
-                        className="rounded-md p-1 hover:bg-gray-200"
-                      >
-                        <Settings className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Manage MCP Servers</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                {loadingInstalledMCPServers ? (
-                  <div className="text-sm text-muted-foreground">Loading tools...</div>
-                ) : allTools.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">
-                    No tools available. Install MCP servers to enable tools.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    {allTools.map((tool) => (
-                      <div
-                        key={tool.name}
-                        className="group flex cursor-pointer items-start gap-2 rounded-md p-2 hover:bg-accent"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          const toolCommand = `Use the ${tool.name} tool`;
-                          setMessage(toolCommand);
-                          setIsToolsMenuOpen(false);
-                        }}
-                      >
-                        <Wrench className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                        <div className="flex-1">
-                          <div className="font-medium">{tool.name}</div>
-                          <div className="text-xs text-muted-foreground">{tool.description}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </TooltipProvider>
-      </AIInput>
-    </form>
+        <AIInput onSubmit={onSubmit} className="bg-inherit">
+          <AIInputTextarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              disabled
+                ? isStreaming
+                  ? 'Waiting for response...'
+                  : 'Agent is initializing...'
+                : 'What would you like to know?'
+            }
+            disabled={disabled}
+            minHeight={48}
+            maxHeight={164}
+          />
+          <AIInputToolbar>
+            <AIInputTools>
+              <AIInputModelSelect
+                defaultValue={selectedModel}
+                value={selectedModel}
+                onValueChange={setSelectedModel}
+                disabled={loadingInstalledModels || !!loadingInstalledModelsError}
+              >
+                <AIInputModelSelectTrigger>
+                  <AIInputModelSelectValue
+                    placeholder={
+                      loadingInstalledModels
+                        ? 'Loading models...'
+                        : loadingInstalledModelsError
+                          ? 'Error loading models'
+                          : installedModels.length === 0
+                            ? 'No models found'
+                            : 'Select a model'
+                    }
+                  />
+                </AIInputModelSelectTrigger>
+                <AIInputModelSelectContent>
+                  {installedModels.map((model) => (
+                    <AIInputModelSelectItem key={model.name} value={model.name}>
+                      {model.name}
+                    </AIInputModelSelectItem>
+                  ))}
+                </AIInputModelSelectContent>
+              </AIInputModelSelect>
+              <AIInputButton>
+                <PaperclipIcon size={16} />
+              </AIInputButton>
+              <AIInputButton>
+                <MicIcon size={16} />
+              </AIInputButton>
+              {(totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <AIInputButton
+                      onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)}
+                      className={isToolsMenuOpen ? 'bg-primary/20' : ''}
+                    >
+                      <Settings size={16} />
+                    </AIInputButton>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <span>
+                      {loadingInstalledMCPServers ? 'Loading tools...' : `${totalNumberOfTools} tools available`}
+                    </span>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </AIInputTools>
+            <AIInputSubmit
+              status={isStreaming ? 'streaming' : status}
+              onClick={isStreaming ? cancelStreaming : undefined}
+              disabled={!message.trim() && status !== 'streaming'}
+            />
+          </AIInputToolbar>
+        </AIInput>
+      </div>
+    </TooltipProvider>
   );
 }

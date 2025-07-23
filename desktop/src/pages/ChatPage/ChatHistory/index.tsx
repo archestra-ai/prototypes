@@ -1,4 +1,4 @@
-import { Bot, Brain, CheckCircle, Loader2, Wrench } from 'lucide-react';
+import { Bot, Brain, CheckCircle, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
@@ -165,7 +165,7 @@ export default function ChatHistory(_props: ChatHistoryProps) {
         {/* Chat Messages */}
         {chatHistory.map((item, index) => {
           const showUserMessage = item.role === 'user' && item.content.trim() !== '';
-          const showAssistantResponse = item.role === 'assistant' && item.content.trim() !== '';
+          const showAssistantResponse = item.role === 'assistant';
           const showToolCall = item.role === 'tool' && item.toolCalls && item.toolCalls.length > 0;
 
           return (
@@ -177,23 +177,34 @@ export default function ChatHistory(_props: ChatHistoryProps) {
                 </div>
               )}
 
-              {/* Show reasoning mode indicator if enabled */}
-              {showAssistantResponse && reasoningMode === 'verbose' && item.agentMetadata?.reasoning && (
-                <div className="mb-2">
-                  <AIReasoning>
-                    <AIReasoningTrigger />
-                    <AIReasoningContent>{item.agentMetadata.reasoning.content}</AIReasoningContent>
-                  </AIReasoning>
-                </div>
-              )}
-
               {showAssistantResponse && (
                 <div className="mb-4">
-                  <div className="mb-2 flex items-center gap-2 font-semibold">
-                    <Wrench className="size-4" />
-                    Archestra
-                  </div>
+                  <div className="mb-2 flex items-center gap-2 font-semibold">Assistant</div>
+
+                  {/* Show thinking/reasoning content - prioritize agent reasoning over regular thinking */}
+                  {reasoningMode === 'verbose' && item.agentMetadata?.reasoning ? (
+                    <AIReasoning className="mb-4">
+                      <AIReasoningTrigger />
+                      <AIReasoningContent>{item.agentMetadata.reasoning.content}</AIReasoningContent>
+                    </AIReasoning>
+                  ) : item.thinkingContent ? (
+                    <AIReasoning isStreaming={item.isThinkingStreaming} className="mb-4">
+                      <AIReasoningTrigger />
+                      <AIReasoningContent>{item.thinkingContent}</AIReasoningContent>
+                    </AIReasoning>
+                  ) : null}
+
                   <AIResponse>{item.content}</AIResponse>
+
+                  {/* Show streaming indicator */}
+                  {(item.isStreaming || item.isToolExecuting) && (
+                    <div className="flex items-center space-x-2 mt-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      <p className="text-muted-foreground text-sm">
+                        {item.isToolExecuting ? 'Executing tools...' : 'Loading...'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
