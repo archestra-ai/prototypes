@@ -219,12 +219,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   sendChatMessage: async (message: string, selectedTools?: ToolContext[]) => {
     const { chat, selectedModel, ollamaClient } = useOllamaStore.getState();
+
     const allTools = useMCPServersStore.getState().allAvailableTools();
     const { isDeveloperMode, systemPrompt } = useDeveloperModeStore.getState();
 
-    if (!message.trim() || !ollamaClient) return;
-
-    set({ isChatLoading: true });
+    if (!message.trim()) {
+      return;
+    }
 
     const modelSupportsTools = checkModelSupportsTools(selectedModel);
     const hasTools = Object.keys(allTools).length > 0;

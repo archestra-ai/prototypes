@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight, SidebarIcon } from 'lucide-react';
+import { SidebarIcon } from 'lucide-react';
+import React from 'react';
 
 import {
   Breadcrumb,
@@ -14,11 +15,8 @@ import { useSidebar } from '@/components/ui/sidebar';
 
 import { ModeToggle } from './mode-toggle';
 
-// import { useRouter, useCanGoBack } from "@tanstack/react-router";
-
 export function SiteHeader(props) {
   const { toggleSidebar } = useSidebar();
-  // const router = useRouter();
 
   return (
     <header className="bg-background sticky top-0 z-50 flex w-full items-center border-b">
@@ -54,16 +52,16 @@ export function SiteHeader(props) {
               <BreadcrumbLink>Archestra</BreadcrumbLink>
             </BreadcrumbItem>
             {props.breadcrumbs?.map((breadcrumb, index) => (
-              <>
-                <BreadcrumbSeparator key={`sep-${index}`} />
-                <BreadcrumbItem key={index}>
+              <React.Fragment key={`sep-${index}`}>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
                   {index === props.breadcrumbs.length - 1 ? (
                     <BreadcrumbPage>{breadcrumb}</BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink>{breadcrumb}</BreadcrumbLink>
                   )}
                 </BreadcrumbItem>
-              </>
+              </React.Fragment>
             )) || (
               <>
                 <BreadcrumbSeparator />

@@ -1,16 +1,16 @@
-import { invoke } from '@tauri-apps/api/core';
 import { AbortableAsyncIterator } from 'ollama';
 import { ChatResponse, ModelResponse, Ollama, Message as OllamaMessage, Tool as OllamaTool } from 'ollama/browser';
 import { create } from 'zustand';
 
+import { ARCHESTRA_SERVER_OLLAMA_PROXY_URL } from '@/consts';
 import { OllamaLocalStorage } from '@/lib/local-storage';
 
 import type { MCPServerTools } from '../mcp-servers-store';
 import { AVAILABLE_MODELS } from './available_models';
 
+const ollamaClient = new Ollama({ host: ARCHESTRA_SERVER_OLLAMA_PROXY_URL });
+
 interface OllamaState {
-  ollamaClient: Ollama | null;
-  ollamaPort: number | null;
   installedModels: ModelResponse[];
   downloadProgress: Record<string, number>;
   loadingInstalledModels: boolean;
@@ -23,7 +23,6 @@ interface OllamaActions {
   downloadModel: (fullModelName: string) => Promise<void>;
   fetchInstalledModels: () => Promise<void>;
   setSelectedModel: (model: string) => void;
-  initializeOllama: () => Promise<void>;
   chat: (messages: OllamaMessage[], tools?: OllamaTool[]) => Promise<AbortableAsyncIterator<ChatResponse>>;
 }
 
@@ -50,8 +49,6 @@ export const convertMCPServerToolsToOllamaTools = (mcpServerTools: MCPServerTool
 
 export const useOllamaStore = create<OllamaStore>((set, get) => ({
   // State
-  ollamaClient: null,
-  ollamaPort: null,
   installedModels: [],
   downloadProgress: {},
   loadingInstalledModels: false,
@@ -60,25 +57,8 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
   modelsBeingDownloaded: new Set(),
 
   // Actions
-  initializeOllama: async () => {
-    try {
-      const port = await invoke<number>('get_ollama_port');
-      const client = new Ollama({ host: `http://localhost:${port}` });
-      set({ ollamaPort: port, ollamaClient: client });
-
-      // Fetch models after initialization
-      await get().fetchInstalledModels();
-    } catch (error) {
-      console.error('Failed to get Ollama port:', error);
-      throw error;
-    }
-  },
-
   fetchInstalledModels: async () => {
-    const { ollamaClient, selectedModel } = get();
-    if (!ollamaClient) {
-      return;
-    }
+    const { selectedModel } = get();
 
     try {
       set({ loadingInstalledModels: true, loadingInstalledModelsError: null });
@@ -97,9 +77,6 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
   },
 
   downloadModel: async (fullModelName: string) => {
-    const { ollamaClient } = get();
-    if (!ollamaClient) return;
-
     try {
       // Update progress and downloading set
       set((state) => ({
@@ -149,10 +126,7 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
   },
 
   chat: (messages: OllamaMessage[], tools: OllamaTool[] = []) => {
-    const { ollamaClient } = get();
-
-    // We can assume at this point that the ollamaClient has been initialized
-    return (ollamaClient as Ollama).chat({
+    return ollamaClient.chat({
       model: get().selectedModel,
       messages,
       tools,
@@ -167,8 +141,8 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
   },
 }));
 
-// Initialize Ollama on store creation
-useOllamaStore.getState().initializeOllama();
+// Fetch installed models on store creation
+useOllamaStore.getState().fetchInstalledModels();
 
 // Computed values as selectors
 export const useAvailableModels = () => AVAILABLE_MODELS;

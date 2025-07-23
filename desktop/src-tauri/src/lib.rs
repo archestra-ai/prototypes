@@ -129,7 +129,6 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            ollama::get_ollama_port,
             models::mcp_server::save_mcp_server_from_catalog,
             models::mcp_server::load_installed_mcp_servers,
             models::mcp_server::uninstall_mcp_server,
