@@ -91,7 +91,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                             <p className="text-sm text-muted-foreground">{description}</p>
                             <div className="flex flex-wrap gap-2 items-center">
                               <Badge variant="secondary" className="text-xs">
-                                {category.replaceAll('-', ' ')}
+                                {category.replace(/-/g, ' ')}
                               </Badge>
                               <Badge variant="outline" className="text-xs">
                                 {server_config.transport}

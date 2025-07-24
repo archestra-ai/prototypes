@@ -1,32 +1,104 @@
-import { Bot, Download, MessageCircle, Settings } from 'lucide-react';
+import { Bot, ChevronRight, Download, MessageCircle, Plus, Settings } from 'lucide-react';
 import * as React from 'react';
 import { useState } from 'react';
 
 import { SiteHeader } from './components/SiteHeader';
+import { ToolHoverCard } from './components/ToolHoverCard';
+import { ToolContext } from './components/kibo/ai-input';
+import { Input } from './components/ui/input';
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
 } from './components/ui/sidebar';
+import { formatToolName } from './lib/format-tool-name';
 import ChatPage from './pages/ChatPage';
 import ConnectorCatalogPage from './pages/ConnectorCatalogPage';
 import LLMProvidersPage from './pages/LLMProvidersPage';
 import SettingsPage from './pages/SettingsPage';
+import { useMCPServersStore } from './stores/mcp-servers-store';
 import { useThemeStore } from './stores/theme-store';
 
 import './index.css';
 
 function App() {
   useThemeStore();
+  const { loadingInstalledMCPServers } = useMCPServersStore();
+  const allTools = useMCPServersStore.getState().allAvailableTools();
 
   const [activeView, setActiveView] = useState<'chat' | 'mcp' | 'llm-providers' | 'settings'>('chat');
   const [activeSubView, setActiveSubView] = useState<'ollama'>('ollama');
+  const [selectedTools, setSelectedTools] = useState<ToolContext[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter tools based on search query
+  const filteredTools = React.useMemo(() => {
+    if (!searchQuery.trim()) {
+      return allTools;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered: typeof allTools = {};
+
+    Object.entries(allTools).forEach(([serverName, tools]) => {
+      // Check if server name matches
+      const serverMatches = serverName.toLowerCase().includes(query);
+
+      // Filter tools that match the query
+      const matchingTools = tools.filter((tool) => {
+        const toolNameMatches = tool.name.toLowerCase().includes(query);
+        const formattedNameMatches = formatToolName(tool.name).toLowerCase().includes(query);
+        const descriptionMatches = tool.description?.toLowerCase().includes(query) || false;
+
+        return toolNameMatches || formattedNameMatches || descriptionMatches;
+      });
+
+      // Include server if server name matches OR if any tools match
+      if (serverMatches || matchingTools.length > 0) {
+        filtered[serverName] = serverMatches ? tools : matchingTools;
+      }
+    });
+
+    return filtered;
+  }, [allTools, searchQuery]);
+
+  const handleToolClick = (serverName: string, toolName: string) => {
+    // Get the tool description from the MCP servers store
+    const allTools = useMCPServersStore.getState().allAvailableTools();
+    const serverTools = allTools[serverName] || [];
+    const toolInfo = serverTools.find((t) => t.name === toolName);
+
+    // For now, all tools from available servers are considered enabled
+    // In the future, this could check individual tool availability/permissions
+    const newTool: ToolContext = {
+      serverName,
+      toolName,
+      enabled: true,
+      description: toolInfo?.description,
+    };
+
+    // Check if tool is already selected
+    const isAlreadySelected = selectedTools.some(
+      (tool) => tool.serverName === serverName && tool.toolName === toolName
+    );
+
+    if (!isAlreadySelected) {
+      setSelectedTools((prev) => [...prev, newTool]);
+    }
+  };
+
+  const handleToolRemove = (toolToRemove: ToolContext) => {
+    setSelectedTools((prev) =>
+      prev.filter((tool) => !(tool.serverName === toolToRemove.serverName && tool.toolName === toolToRemove.toolName))
+    );
+  };
 
   const navigationItems = [
     {
@@ -54,7 +126,7 @@ function App() {
   const renderContent = () => {
     switch (activeView) {
       case 'chat':
-        return <ChatPage />;
+        return <ChatPage selectedTools={selectedTools} onToolRemove={handleToolRemove} />;
       case 'llm-providers':
         return (
           <div className="p-4">
@@ -136,6 +208,125 @@ function App() {
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
+
+              {/* Tools Group - Only show when on chat page */}
+              {activeView === 'chat' && (
+                <SidebarGroup>
+                  <SidebarGroupLabel>Tools</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    {/* Search Input */}
+                    {Object.keys(allTools).length > 0 && (
+                      <div className="px-4 pb-2">
+                        <Input
+                          placeholder="Search tools..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                    )}
+                    <SidebarMenu>
+                      {loadingInstalledMCPServers ? (
+                        <SidebarMenuItem>
+                          <div className="flex items-center gap-2 px-2 py-1.5">
+                            <div className="h-3 w-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
+                            <span className="text-xs text-muted-foreground">Loading...</span>
+                          </div>
+                        </SidebarMenuItem>
+                      ) : Object.keys(allTools).length === 0 ? (
+                        <SidebarMenuItem>
+                          <SidebarMenuButton size="sm" className="justify-start text-muted-foreground">
+                            <Plus className="h-4 w-4" />
+                            <span>Add more</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ) : Object.keys(filteredTools).length === 0 ? (
+                        <SidebarMenuItem>
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                            No tools found matching "{searchQuery}"
+                          </div>
+                        </SidebarMenuItem>
+                      ) : (
+                        <>
+                          {Object.entries(filteredTools).map(([serverName, tools]) => (
+                            <React.Fragment key={serverName}>
+                              {/* Server Header */}
+                              <SidebarMenuItem>
+                                <div className="flex items-center gap-2 px-2 py-1.5 bg-muted/50 rounded-md">
+                                  {serverName.toLowerCase() === 'gmail' && (
+                                    <div className="w-4 h-4 bg-red-500 rounded-sm flex items-center justify-center">
+                                      <span className="text-white text-[10px] font-bold">M</span>
+                                    </div>
+                                  )}
+                                  {serverName.toLowerCase() === 'slack' && (
+                                    <div className="w-4 h-4 bg-purple-500 rounded-sm flex items-center justify-center">
+                                      <span className="text-white text-[10px] font-bold">#</span>
+                                    </div>
+                                  )}
+                                  {!['gmail', 'slack'].includes(serverName.toLowerCase()) && (
+                                    <div className="w-4 h-4 bg-blue-500 rounded-sm flex items-center justify-center">
+                                      <span className="text-white text-[10px] font-bold">
+                                        {serverName.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <span className="text-sm font-medium capitalize">{serverName}</span>
+                                </div>
+                              </SidebarMenuItem>
+
+                              {/* Tools under this server */}
+                              {tools.map((tool, idx) => (
+                                <SidebarMenuItem key={`${serverName}-${idx}`}>
+                                  <ToolHoverCard
+                                    tool={{
+                                      serverName,
+                                      toolName: tool.name,
+                                      enabled: true,
+                                      description: tool.description,
+                                    }}
+                                    side="right"
+                                    align="start"
+                                    showInstructions={true}
+                                    instructionText="Click to add to context"
+                                  >
+                                    <div className="w-full">
+                                      <SidebarMenuButton
+                                        size="sm"
+                                        className="justify-between text-sm w-full"
+                                        onClick={() => handleToolClick(serverName, tool.name)}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 bg-green-500 rounded-full" />
+                                          <span>{formatToolName(tool.name)}</span>
+                                        </div>
+                                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                                      </SidebarMenuButton>
+                                    </div>
+                                  </ToolHoverCard>
+                                </SidebarMenuItem>
+                              ))}
+                            </React.Fragment>
+                          ))}
+
+                          {/* Add more button - only show if not searching or if no search results */}
+                          {(!searchQuery.trim() || Object.keys(filteredTools).length === 0) && (
+                            <SidebarMenuItem>
+                              <SidebarMenuButton
+                                size="sm"
+                                className="justify-start text-muted-foreground"
+                                onClick={() => setActiveView('mcp')}
+                              >
+                                <Plus className="h-4 w-4" />
+                                <span>Add more</span>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          )}
+                        </>
+                      )}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              )}
             </SidebarContent>
           </Sidebar>
           <SidebarInset className="overflow-hidden">
