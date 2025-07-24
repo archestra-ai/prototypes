@@ -45,12 +45,13 @@ jobs:
           platform: ${{ matrix.platform }}
 
       - name: Check Rust formatting
-        run:  |
-          cargo fmt --check
-          cargo test
-          cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo fmt --check
+        
+      - name: Run tests
+        run: cargo test
 
-
+      - name: Run Clippy Linting
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       # NOTE: use this once we want to start building the application binaries for Mac/Windows/Linux
       # - uses: tauri-apps/tauri-action@v0.5.22
