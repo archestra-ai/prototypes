@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+env:
+  UBUNTU_DEPS: "libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf"
+
 concurrency:
   # Cancel any running workflow for the same branch when new commits are pushed.
   # We group both by ref_name (available when CI is triggered by a push to a branch/tag)
@@ -29,6 +32,9 @@ jobs:
           - platform: "windows-latest"
             args: ""
     runs-on: ${{ matrix.platform }}
+    defaults:
+      run:
+        working-directory: ./desktop/src-tauri
     name: Rust Linting and Tests (${{ matrix.platform }})
     steps:
       - uses: actions/checkout@v4
@@ -39,16 +45,13 @@ jobs:
           platform: ${{ matrix.platform }}
 
       - name: Check Rust formatting
-        working-directory: desktop/src-tauri
         run: cargo fmt --check
+        
+      - name: Run tests
+        run: cargo test
 
       - name: Run Clippy Linting
-        working-directory: desktop/src-tauri
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Run tests
-        working-directory: desktop/src-tauri
-        run: cargo test
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       # NOTE: use this once we want to start building the application binaries for Mac/Windows/Linux
       # - uses: tauri-apps/tauri-action@v0.5.22

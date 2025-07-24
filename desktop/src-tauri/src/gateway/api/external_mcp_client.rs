@@ -139,7 +139,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .route("/supported", get(get_supported_external_mcp_clients))
         .route("/connect", post(connect_external_mcp_client))
         .route(
-            "/:client_name/disconnect",
+            "/{client_name}/disconnect",
             delete(disconnect_external_mcp_client),
         )
         .with_state(service)

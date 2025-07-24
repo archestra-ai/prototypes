@@ -1,5 +1,7 @@
-// This file configures the API client with the gateway base URL
-// This file is NOT generated and will not be overwritten by codegen
+/**
+ * This file configures the API client with the gateway base URL
+ * This file is NOT generated and will not be overwritten by codegen
+ */
 import { ARCHESTRA_SERVER_API_URL } from '@/consts';
 
 import { createClient } from './api/client/client';

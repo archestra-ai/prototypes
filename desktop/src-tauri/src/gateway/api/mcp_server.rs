@@ -180,7 +180,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .route("/catalog", get(get_mcp_connector_catalog))
         .route("/catalog/install", post(install_mcp_server_from_catalog))
         .route("/start_oauth", post(start_mcp_server_oauth))
-        .route("/:mcp_server_name", delete(uninstall_mcp_server))
+        .route("/{mcp_server_name}", delete(uninstall_mcp_server))
         .with_state(service)
 }
 
