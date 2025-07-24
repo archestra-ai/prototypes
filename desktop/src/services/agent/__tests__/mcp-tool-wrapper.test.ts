@@ -104,6 +104,7 @@ describe('MCP Tool Wrapper', () => {
         url: 'http://localhost:1234',
         client: null,
         status: 'connected',
+        server_config: { transport: 'stdio' } as any,
         tools: [
           {
             name: 'read_file',
@@ -122,6 +123,7 @@ describe('MCP Tool Wrapper', () => {
         url: 'http://localhost:5678',
         client: null,
         status: 'connected',
+        server_config: { transport: 'stdio' } as any,
         tools: [
           {
             name: 'search_code',
@@ -135,6 +137,7 @@ describe('MCP Tool Wrapper', () => {
         url: 'http://localhost:9999',
         client: null,
         status: 'error',
+        server_config: { transport: 'stdio' } as any,
         tools: [],
       },
     ];

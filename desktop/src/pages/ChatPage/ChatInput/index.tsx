@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, Settings, Wrench } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -18,7 +18,6 @@ import {
   AIInputTools,
   ToolContext,
 } from '@/components/kibo/ai-input';
-import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAgentStore } from '@/stores/agent-store';
 import { useChatStore, useIsStreaming } from '@/stores/chat-store';
@@ -73,8 +72,6 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
     if (!message.trim() || disabled || !selectedModel) {
       return;
     }
-
-    const trimmedMessage = message.trim();
 
     setStatus('submitted');
 
@@ -149,7 +146,7 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
               <AIInputModelSelect
                 defaultValue={selectedModel}
                 value={selectedModel}
-                onValueChange={setSelectedModel}
+                onValueChange={handleModelChange}
                 disabled={loadingInstalledModels || !!loadingInstalledModelsError}
               >
                 <AIInputModelSelectTrigger>

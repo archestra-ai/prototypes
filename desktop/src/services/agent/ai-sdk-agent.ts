@@ -112,7 +112,7 @@ export class ArchestraAgent {
       this.agent = new Agent({
         name: 'ArchestraAgent',
         instructions: this.buildInstructions(config),
-        tools: this.mcpTools,
+        tools: this.supportsTools ? this.mcpTools : [],
         model: adaptedModel,
       });
 
@@ -144,14 +144,21 @@ Your role is to help users complete complex tasks by breaking them down into man
 
 Key behaviors:
 1. Always create a clear plan before executing tasks
-2. ${this.supportsTools ? 'Use available MCP tools intelligently to accomplish objectives' : 'Work within the constraints of not having tool access'}
+2. ${this.supportsTools ? 'Use available MCP tools intelligently to accomplish objectives' : 'Since this model does not support tools, provide detailed step-by-step instructions that the user can follow'}
 3. Maintain context in working memory throughout execution
 4. Provide transparent reasoning for decisions
 5. Adapt plans when steps fail or new information emerges
-6. Request user intervention only when necessary
+6. ${this.supportsTools ? 'Request user intervention only when necessary' : 'Clearly explain what actions the user should take to accomplish each step'}
 
 Current model: ${config.model || 'gpt-4o'} (Provider: ${this.modelProvider})
-${!this.supportsTools ? '\nNote: This model does not support tool calling. Plan accordingly.' : ''}
+${!this.supportsTools ? '\nIMPORTANT: This model does not support tool calling. I will provide detailed instructions and guidance instead of directly executing actions. Please follow the steps I outline to accomplish your objective.' : ''}
+
+When working without tools:
+- Break down tasks into clear, actionable steps
+- Provide specific commands or actions the user should take
+- Explain the expected outcomes of each step
+- Offer troubleshooting advice if something might go wrong
+- Maintain a helpful and instructive tone
 
 ${config.customInstructions ? `\nAdditional instructions:\n${config.customInstructions}` : ''}
 

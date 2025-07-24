@@ -114,8 +114,8 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   }, []);
 
   return (
-    <div className="flex-1 overflow-hidden">
-      <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full px-6 py-4">
+    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full">
+      <div className="px-6 py-4">
         {/* Agent Mode Indicator */}
         {agentMode !== 'idle' && (
           <div className="mb-4 flex items-center gap-2 rounded-lg bg-accent/50 px-4 py-3">
@@ -167,7 +167,7 @@ export default function ChatHistory(_props: ChatHistoryProps) {
         <div className="space-y-4">
           {chatHistory.map((msg, index) => (
             <div
-              key={msg.id || index}
+              key={`${msg.id || 'msg'}-${index}`}
               className={cn(
                 'p-3 rounded-lg',
                 msg.role === 'user'
@@ -232,7 +232,7 @@ export default function ChatHistory(_props: ChatHistoryProps) {
             </div>
           ))}
         </div>
-      </ScrollArea>
-    </div>
+      </div>
+    </ScrollArea>
   );
 }

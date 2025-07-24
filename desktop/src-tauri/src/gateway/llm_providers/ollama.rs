@@ -37,6 +37,16 @@ async fn proxy_handler(
     State(service): State<Arc<Service>>,
     req: Request<Body>,
 ) -> impl IntoResponse {
+    // Handle CORS preflight requests
+    if req.method() == axum::http::Method::OPTIONS {
+        return Response::builder()
+            .status(StatusCode::OK)
+            .header("Access-Control-Allow-Origin", "*")
+            .header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+            .header("Access-Control-Allow-Headers", "Content-Type, Authorization, User-Agent")
+            .body(Body::empty())
+            .unwrap();
+    }
     let path_and_query = req
         .uri()
         .path_and_query()
@@ -66,10 +76,19 @@ async fn proxy_handler(
             let status = resp.status();
             let mut response_builder = Response::builder().status(status);
 
-            // Copy headers from the upstream response
+            // Copy headers from the upstream response, but skip CORS headers to avoid duplicates
             for (name, value) in resp.headers().iter() {
-                response_builder = response_builder.header(name, value);
+                let name_str = name.as_str().to_lowercase();
+                if !name_str.starts_with("access-control-") {
+                    response_builder = response_builder.header(name, value);
+                }
             }
+
+            // Add CORS headers
+            response_builder = response_builder
+                .header("Access-Control-Allow-Origin", "*")
+                .header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+                .header("Access-Control-Allow-Headers", "Content-Type, Authorization, User-Agent");
 
             // Convert the response body into a stream
             let body_stream = resp.bytes_stream();
@@ -92,7 +111,13 @@ async fn proxy_handler(
                     .into_response()
             })
         }
-        Err(e) => (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response(),
+        Err(e) => Response::builder()
+            .status(StatusCode::BAD_GATEWAY)
+            .header("Access-Control-Allow-Origin", "*")
+            .header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+            .header("Access-Control-Allow-Headers", "Content-Type, Authorization, User-Agent")
+            .body(Body::from(format!("Proxy error: {e}")))
+            .unwrap(),
     }
 }
 

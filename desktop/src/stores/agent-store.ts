@@ -244,10 +244,18 @@ export const useAgentStore = create<AgentStore>()(
 
       if (!supportsTools && mcpTools.length > 0) {
         // Warn user that tools won't be available
-        const { sendChatMessage } = useChatStore.getState();
-        sendChatMessage(
-          `⚠️ Model '${modelName}' does not support tool calling. The agent will work but won't be able to use MCP tools. Consider using an OpenAI model (gpt-4, gpt-3.5-turbo) for full functionality.`
-        );
+        const { chatHistory } = useChatStore.getState();
+        useChatStore.setState({
+          chatHistory: [
+            ...chatHistory,
+            {
+              id: Date.now().toString(),
+              role: 'system' as const,
+              content: `ℹ️ Model '${modelName}' does not support tool calling. The agent will provide step-by-step instructions instead of directly executing actions.`,
+              timestamp: new Date(),
+            },
+          ],
+        });
       }
 
       // Create agent instance with MCP tools
@@ -351,6 +359,26 @@ export const useAgentStore = create<AgentStore>()(
           message: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined,
         });
+        
+        // Add error message to chat
+        const { chatHistory } = useChatStore.getState();
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const friendlyError = errorMessage.includes('404') || errorMessage.includes('Not Found')
+          ? 'Failed to connect to the AI model. Please ensure Ollama is running and the selected model is installed.'
+          : `Agent error: ${errorMessage}`;
+        
+        useChatStore.setState({
+          chatHistory: [
+            ...chatHistory,
+            {
+              id: Date.now().toString(),
+              role: 'system' as const,
+              content: `❌ ${friendlyError}`,
+              timestamp: new Date(),
+            },
+          ],
+        });
+        
         // Clear the update interval on error
         const { streamingUpdateInterval } = get();
         if (streamingUpdateInterval) {
@@ -358,7 +386,6 @@ export const useAgentStore = create<AgentStore>()(
         }
 
         set({ mode: 'idle', isAgentActive: false, streamingUpdateInterval: null });
-        throw error;
       }
     },
 

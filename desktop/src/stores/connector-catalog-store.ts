@@ -62,7 +62,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
         throw new Error(response.error as string);
       }
     } catch (error) {
-      set({ errorFetchingConnectorCatalog: error as string });
+      set({ errorFetchingConnectorCatalog: error instanceof Error ? error.message : String(error) });
     } finally {
       set({ loadingConnectorCatalog: false });
     }
@@ -92,7 +92,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
             throw new Error(response.error as string);
           }
         } catch (error) {
-          set({ errorInstallingMCPServer: error as string });
+          set({ errorInstallingMCPServer: error instanceof Error ? error.message : String(error) });
         }
       } else {
         const response = await installMcpServerFromCatalog({
@@ -107,7 +107,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
         await useMCPServersStore.getState().loadInstalledMCPServers();
       }
     } catch (error) {
-      set({ errorInstallingMCPServer: error as string });
+      set({ errorInstallingMCPServer: error instanceof Error ? error.message : String(error) });
     } finally {
       set({ installingMCPServerName: null });
     }
@@ -131,7 +131,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
       // Remove from MCP servers store
       useMCPServersStore.getState().removeMCPServerFromInstalledMCPServers(mcpServerName);
     } catch (error) {
-      set({ errorUninstallingMCPServer: error as string });
+      set({ errorUninstallingMCPServer: error instanceof Error ? error.message : String(error) });
     } finally {
       set({ uninstallingMCPServerName: null });
     }

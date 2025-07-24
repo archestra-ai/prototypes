@@ -1,5 +1,8 @@
+import { LanguageModelV1, LanguageModelV1StreamPart } from '@ai-sdk/provider';
 import { openai } from '@ai-sdk/openai';
 import { createOllama } from 'ollama-ai-provider';
+
+import { ARCHESTRA_SERVER_OLLAMA_PROXY_URL } from '@/consts';
 
 /**
  * Interface for model providers that can be used with the AI SDK
@@ -62,11 +65,10 @@ export class OllamaProvider implements ModelProvider {
       this.interceptFetchRequests();
     }
 
-    // Ollama AI provider expects the base URL with /api suffix
-    const ollamaApiUrl = url.endsWith('/api') ? url : `${url}/api`;
-    console.log('🔧 [OllamaProvider] Creating Ollama instance with API URL:', ollamaApiUrl);
+    // Do NOT add /api suffix - the proxy URL already includes the full path
+    console.log('🔧 [OllamaProvider] Creating Ollama instance with base URL:', url);
 
-    this.ollama = createOllama({ baseURL: ollamaApiUrl });
+    this.ollama = createOllama({ baseURL: url });
   }
 
   private interceptFetchRequests() {
@@ -158,101 +160,265 @@ export class OllamaProvider implements ModelProvider {
   }
 
   private getOllamaBaseURL(): string {
-    // Use the default Ollama URL since we're not using the proxy
-    return 'http://localhost:11434';
+    // Use the Archestra proxy URL for Ollama
+    return ARCHESTRA_SERVER_OLLAMA_PROXY_URL;
   }
 
   createModel(modelName: string) {
     console.log('🤖 [OllamaProvider] Creating model:', modelName);
-    const model = this.ollama(modelName);
+    
+    // Try the standard ollama-ai-provider first
+    try {
+      const model = this.ollama(modelName);
 
-    // Log model instance details
-    console.log('🔧 [OllamaProvider] Model instance created:', {
-      modelName,
-      modelType: typeof model,
-      hasDoStream: 'doStream' in model,
-      hasDoGenerate: 'doGenerate' in model,
-      provider: model?.provider,
-      modelId: model?.modelId,
-      allKeys: model ? Object.keys(model) : [],
-      prototypeKeys: model ? Object.getOwnPropertyNames(Object.getPrototypeOf(model)) : [],
-    });
+      // Log model instance details
+      console.log('🔧 [OllamaProvider] Model instance created:', {
+        modelName,
+        modelType: typeof model,
+        hasDoStream: 'doStream' in model,
+        hasDoGenerate: 'doGenerate' in model,
+        provider: model?.provider,
+        modelId: model?.modelId,
+        allKeys: model ? Object.keys(model) : [],
+        prototypeKeys: model ? Object.getOwnPropertyNames(Object.getPrototypeOf(model)) : [],
+      });
 
-    // Test if this is a proper LanguageModelV1
-    if (model && typeof model.doGenerate === 'function') {
-      console.log('✅ [OllamaProvider] Model has doGenerate method');
-    } else {
-      console.error('❌ [OllamaProvider] Model missing doGenerate method!');
-    }
+      // Test if this is a proper LanguageModelV1
+      if (model && typeof model.doGenerate === 'function') {
+        console.log('✅ [OllamaProvider] Model has doGenerate method');
+      } else {
+        console.error('❌ [OllamaProvider] Model missing doGenerate method!');
+        // Fall back to custom implementation
+        return this.createCustomOllamaModel(modelName);
+      }
 
-    if (model && typeof model.doStream === 'function') {
-      console.log('✅ [OllamaProvider] Model has doStream method');
+      if (model && typeof model.doStream === 'function') {
+        console.log('✅ [OllamaProvider] Model has doStream method');
 
-      // Wrap doStream to add debugging
-      const originalDoStream = model.doStream.bind(model);
-      model.doStream = async (options: any) => {
-        console.log('🌊 [OllamaProvider] doStream called with options:', {
-          mode: options?.mode?.type,
-          hasTools: options?.mode?.tools?.length > 0,
-          temperature: options?.temperature,
-          responseFormat: options?.responseFormat,
-          prompt: options?.prompt,
-          promptLength: Array.isArray(options?.prompt) ? options.prompt.length : 0,
-          firstMessage: Array.isArray(options?.prompt) && options.prompt.length > 0 ? options.prompt[0] : null,
-        });
-
-        // Ollama doesn't support responseFormat, so remove it
-        if (options?.responseFormat) {
-          console.log('🔧 [OllamaProvider] Removing responseFormat for Ollama compatibility');
-          const { responseFormat, ...optionsWithoutFormat } = options;
-          options = optionsWithoutFormat;
-        }
-
-        try {
-          const result = await originalDoStream(options);
-          console.log('📦 [OllamaProvider] doStream returned:', {
-            hasStream: !!result?.stream,
-            streamType: typeof result?.stream,
-            streamConstructor: result?.stream?.constructor?.name,
-            isReadableStream: result?.stream instanceof ReadableStream,
-            resultKeys: result ? Object.keys(result) : [],
+        // Wrap doStream to add debugging and fix compatibility issues
+        const originalDoStream = model.doStream.bind(model);
+        model.doStream = async (options: any) => {
+          console.log('🌊 [OllamaProvider] doStream called with options:', {
+            mode: options?.mode?.type,
+            hasTools: options?.mode?.tools?.length > 0,
+            temperature: options?.temperature,
+            responseFormat: options?.responseFormat,
+            prompt: options?.prompt,
+            promptLength: Array.isArray(options?.prompt) ? options.prompt.length : 0,
+            firstMessage: Array.isArray(options?.prompt) && options.prompt.length > 0 ? options.prompt[0] : null,
           });
-          return result;
-        } catch (error) {
-          console.error('💥 [OllamaProvider] doStream error:', error);
-          throw error;
-        }
-      };
 
-      // Also wrap doGenerate for consistency
-      const originalDoGenerate = model.doGenerate.bind(model);
-      model.doGenerate = async (options: any) => {
-        console.log('🔄 [OllamaProvider] doGenerate called with options:', {
-          mode: options?.mode?.type,
-          hasTools: options?.mode?.tools?.length > 0,
-          temperature: options?.temperature,
-          responseFormat: options?.responseFormat,
+          // Ollama doesn't support responseFormat, so remove it
+          if (options?.responseFormat) {
+            console.log('🔧 [OllamaProvider] Removing responseFormat for Ollama compatibility');
+            const { responseFormat, ...optionsWithoutFormat } = options;
+            options = optionsWithoutFormat;
+          }
+
+          try {
+            const result = await originalDoStream(options);
+            console.log('📦 [OllamaProvider] doStream returned:', {
+              hasStream: !!result?.stream,
+              streamType: typeof result?.stream,
+              streamConstructor: result?.stream?.constructor?.name,
+              isReadableStream: result?.stream instanceof ReadableStream,
+              resultKeys: result ? Object.keys(result) : [],
+            });
+            return result;
+          } catch (error) {
+            console.error('💥 [OllamaProvider] doStream error:', error);
+            // If ollama-ai-provider fails, try custom implementation
+            if (error instanceof Error && (error.message.includes('404') || error.message.includes('Not Found'))) {
+              console.log('🔄 [OllamaProvider] Falling back to custom Ollama implementation');
+              const customModel = this.createCustomOllamaModel(modelName);
+              return customModel.doStream(options);
+            }
+            throw error;
+          }
+        };
+
+        // Also wrap doGenerate for consistency
+        const originalDoGenerate = model.doGenerate.bind(model);
+        model.doGenerate = async (options: any) => {
+          console.log('🔄 [OllamaProvider] doGenerate called with options:', {
+            mode: options?.mode?.type,
+            hasTools: options?.mode?.tools?.length > 0,
+            temperature: options?.temperature,
+            responseFormat: options?.responseFormat,
+          });
+
+          // Ollama doesn't support responseFormat, so remove it
+          if (options?.responseFormat) {
+            console.log('🔧 [OllamaProvider] Removing responseFormat for Ollama compatibility');
+            const { responseFormat, ...optionsWithoutFormat } = options;
+            options = optionsWithoutFormat;
+          }
+
+          try {
+            const result = await originalDoGenerate(options);
+            console.log('✅ [OllamaProvider] doGenerate succeeded');
+            return result;
+          } catch (error) {
+            console.error('💥 [OllamaProvider] doGenerate error:', error);
+            // If ollama-ai-provider fails, try custom implementation
+            if (error instanceof Error && (error.message.includes('404') || error.message.includes('Not Found'))) {
+              console.log('🔄 [OllamaProvider] Falling back to custom Ollama implementation');
+              const customModel = this.createCustomOllamaModel(modelName);
+              return customModel.doGenerate(options);
+            }
+            throw error;
+          }
+        };
+      }
+
+      return model;
+    } catch (error) {
+      console.error('❌ [OllamaProvider] Failed to create model with ollama-ai-provider:', error);
+      // Fall back to custom implementation
+      return this.createCustomOllamaModel(modelName);
+    }
+  }
+
+  /**
+   * Create a custom Ollama model that implements LanguageModelV1 interface
+   * This bypasses the ollama-ai-provider and directly calls Ollama's API
+   */
+  private createCustomOllamaModel(modelName: string): LanguageModelV1 {
+    const baseURL = this.getOllamaBaseURL();
+    
+    console.log('🛠️ [OllamaProvider] Creating custom Ollama model implementation');
+
+    return {
+      provider: 'ollama-custom',
+      modelId: modelName,
+      defaultObjectGenerationMode: 'json',
+      supportsStructuredOutputs: false,
+
+      async doGenerate(options: any): Promise<any> {
+        console.log('🔄 [CustomOllama] doGenerate called');
+        
+        // Convert AI SDK format to Ollama format
+        const messages = options.prompt.map((msg: any) => ({
+          role: msg.role === 'system' ? 'system' : msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content?.find((c: any) => c.type === 'text')?.text || ''
+        }));
+
+        const response = await fetch(`${baseURL}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: modelName,
+            messages,
+            stream: false,
+            options: {
+              temperature: options.temperature || 0.7,
+              top_p: options.topP,
+              max_tokens: options.maxTokens,
+            }
+          })
         });
 
-        // Ollama doesn't support responseFormat, so remove it
-        if (options?.responseFormat) {
-          console.log('🔧 [OllamaProvider] Removing responseFormat for Ollama compatibility');
-          const { responseFormat, ...optionsWithoutFormat } = options;
-          options = optionsWithoutFormat;
+        if (!response.ok) {
+          throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
         }
 
-        try {
-          const result = await originalDoGenerate(options);
-          console.log('✅ [OllamaProvider] doGenerate succeeded');
-          return result;
-        } catch (error) {
-          console.error('💥 [OllamaProvider] doGenerate error:', error);
-          throw error;
-        }
-      };
-    }
+        const data = await response.json();
+        
+        return {
+          finishReason: 'stop',
+          usage: {
+            promptTokens: data.prompt_eval_count || 0,
+            completionTokens: data.eval_count || 0,
+          },
+          text: data.message?.content || '',
+          toolCalls: [],
+          warnings: [],
+        };
+      },
 
-    return model;
+      async doStream(options: any): Promise<any> {
+        console.log('🌊 [CustomOllama] doStream called');
+        
+        // Convert AI SDK format to Ollama format
+        const messages = options.prompt.map((msg: any) => ({
+          role: msg.role === 'system' ? 'system' : msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content?.find((c: any) => c.type === 'text')?.text || ''
+        }));
+
+        const response = await fetch(`${baseURL}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: modelName,
+            messages,
+            stream: true,
+            options: {
+              temperature: options.temperature || 0.7,
+              top_p: options.topP,
+              max_tokens: options.maxTokens,
+            }
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+        }
+
+        // Create a transform stream that converts Ollama's format to AI SDK format
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        
+        const stream = new ReadableStream<LanguageModelV1StreamPart>({
+          async start(controller) {
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n').filter(line => line.trim());
+
+                for (const line of lines) {
+                  try {
+                    const data = JSON.parse(line);
+                    
+                    if (data.message?.content) {
+                      controller.enqueue({
+                        type: 'text-delta',
+                        textDelta: data.message.content,
+                      });
+                    }
+
+                    if (data.done) {
+                      controller.enqueue({
+                        type: 'finish',
+                        finishReason: 'stop',
+                        usage: {
+                          promptTokens: data.prompt_eval_count || 0,
+                          completionTokens: data.eval_count || 0,
+                        },
+                      });
+                    }
+                  } catch (e) {
+                    console.error('Failed to parse Ollama response line:', line, e);
+                  }
+                }
+              }
+            } catch (error) {
+              controller.error(error);
+            } finally {
+              controller.close();
+            }
+          },
+        });
+
+        return {
+          stream,
+          warnings: [],
+          rawCall: { rawPrompt: null, rawSettings: {} },
+        };
+      },
+    } as LanguageModelV1;
   }
 
   supportsTools(): boolean {

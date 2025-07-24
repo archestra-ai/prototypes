@@ -151,7 +151,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
 
       const response = await getInstalledMcpServers();
 
-      if ('data' in response && response.data) {
+      if (response.data) {
         // Convert from generated type to internal McpServerDefinition type
         const installedMCPServers = response.data.map(
           (server: McpServer): McpServerDefinition => ({
@@ -165,11 +165,9 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
         for (const server of installedMCPServers) {
           get().addMCPServerToInstalledMCPServers(server);
         }
-      } else if ('error' in response) {
-        throw new Error(response.error as string);
       }
     } catch (error) {
-      set({ errorLoadingInstalledMCPServers: error as string });
+      set({ errorLoadingInstalledMCPServers: error instanceof Error ? error.message : String(error) });
     } finally {
       set({ loadingInstalledMCPServers: false });
     }

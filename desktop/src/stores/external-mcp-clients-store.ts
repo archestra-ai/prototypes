@@ -58,7 +58,7 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
         throw new Error(response.error as string);
       }
     } catch (error) {
-      set({ errorLoadingSupportedExternalMCPClientNames: error as string });
+      set({ errorLoadingSupportedExternalMCPClientNames: error instanceof Error ? error.message : String(error) });
     } finally {
       set({ isLoadingSupportedExternalMCPClientNames: false });
     }
@@ -78,7 +78,7 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
         throw new Error(response.error as string);
       }
     } catch (error) {
-      set({ errorLoadingConnectedExternalMCPClients: error as string });
+      set({ errorLoadingConnectedExternalMCPClients: error instanceof Error ? error.message : String(error) });
     } finally {
       set({ isLoadingConnectedExternalMCPClients: false });
     }
@@ -101,7 +101,7 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
       // Refresh connected clients after successful connection
       await useExternalMCPClientsStore.getState().loadConnectedClients();
     } catch (error) {
-      set({ errorConnectingExternalMCPClient: error as string });
+      set({ errorConnectingExternalMCPClient: error instanceof Error ? error.message : String(error) });
     } finally {
       set({ isConnectingExternalMCPClient: false });
     }
@@ -124,7 +124,7 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
       // Refresh connected clients after successful disconnection
       await useExternalMCPClientsStore.getState().loadConnectedClients();
     } catch (error) {
-      set({ errorDisconnectingExternalMCPClient: error as string });
+      set({ errorDisconnectingExternalMCPClient: error instanceof Error ? error.message : String(error) });
     } finally {
       set({ isDisconnectingExternalMCPClient: false });
     }
