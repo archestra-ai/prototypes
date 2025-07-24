@@ -4,6 +4,11 @@ inputs:
   platform:
     description: ""
     required: true
+  install-tauri-driver:
+    description: "Whether or not to install tauri-driver"
+    required: false
+    default: "false"
+
 runs:
   using: composite
   steps:
@@ -19,17 +24,38 @@ runs:
         targets: ${{ inputs.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
         components: rustfmt,clippy
 
+    - name: Define Ubuntu Dependencies
+      if: inputs.platform == 'ubuntu-latest'
+      id: deps
+      shell: bash
+      run: |
+        DEPS="libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev"
+        if [ "${{ inputs.install-tauri-driver }}" = "true" ]; then
+          DEPS="$DEPS webkit2gtk-driver xvfb"
+        fi
+        echo "ubuntu_deps=$DEPS" >> $GITHUB_OUTPUT
+        echo "cache_key=ubuntu-deps-$(echo $DEPS | tr ' ' '-')-${{ runner.os }}" >> $GITHUB_OUTPUT
+
     - name: Cache Ubuntu Dependencies
       if: inputs.platform == 'ubuntu-latest'
       uses: actions/cache@v4
       id: ubuntu-deps-cache
       with:
         path: /var/cache/apt
-        key: ubuntu-deps-${{ env.UBUNTU_DEPS }}-${{ runner.os }}
+        key: ${{ steps.deps.outputs.cache_key }}
 
-    - name: Install Ubuntu Dependencies
+    # install system dependencies that Tauri needs to compile on Linux.
+    # note the extra dependencies for `tauri-driver` to run which are: `webkit2gtk-driver` and `xvfb`
+    # see https://v2.tauri.app/develop/tests/webdriver/ci/
+    - name: Install Tauri Ubuntu Dependencies
       if: inputs.platform == 'ubuntu-latest' && steps.ubuntu-deps-cache.outputs.cache-hit != 'true'
       shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ${{ env.UBUNTU_DEPS }}
+      run: sudo apt update && sudo apt-get install -y ${{ steps.deps.outputs.ubuntu_deps }}
+
+    # install the latest version of `tauri-driver`.
+    # note: the tauri-driver version is independent of any other Tauri versions
+    # see https://v2.tauri.app/develop/tests/webdriver/ci/
+    - name: Install tauri-driver
+      if: inputs.install-tauri-driver == 'true'
+      shell: bash
+      run: cargo install tauri-driver --locked

@@ -5,9 +5,6 @@ on:
     branches:
       - main
 
-env:
-  UBUNTU_DEPS: "libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf"
-
 concurrency:
   # Cancel any running workflow for the same branch when new commits are pushed.
   # We group both by ref_name (available when CI is triggered by a push to a branch/tag)
@@ -16,6 +13,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint-pr-title:
+    name: PR Title Linter
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Lint PR title
+        uses: grafana/shared-workflows/actions/lint-pr-title@19d8fb5687bb386849f7f53673c5f429e6387cf5 # v1.2.0
+        with:
+          config-path: "${{ github.workspace }}/.github/commitlint.config.js"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # See here for more information
   # https://github.com/tauri-apps/tauri-action
   rust-linting-and-tests:
@@ -37,7 +48,8 @@ jobs:
         working-directory: ./desktop/src-tauri
     name: Rust Linting and Tests (${{ matrix.platform }})
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout project
+        uses: actions/checkout@v4
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -46,7 +58,7 @@ jobs:
 
       - name: Check Rust formatting
         run: cargo fmt --check
-        
+
       - name: Run tests
         run: cargo test
 
@@ -68,7 +80,8 @@ jobs:
     name: Frontend Linting and Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout project
+        uses: actions/checkout@v4
 
       - name: Setup frontend dependencies
         uses: ./.github/actions/setup-frontend
@@ -89,7 +102,8 @@ jobs:
     name: Verify Open API schema is up to date
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout project
+        uses: actions/checkout@v4
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
