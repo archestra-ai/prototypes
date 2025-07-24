@@ -1,0 +1,53 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  # Cancel any running workflow for the same branch when new commits are pushed.
+  # We group both by ref_name (available when CI is triggered by a push to a branch/tag)
+  # and head_ref (available when CI is triggered by a PR).
+  group: "${{ github.ref_name }}-${{ github.head_ref }}"
+  cancel-in-progress: true
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    outputs:
+      desktop_release_created: ${{ steps.release-please.outputs['desktop--release_created'] }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: googleapis/release-please-action@4.2.0
+        id: release-please
+        with:
+          config-file: .github/release-please/release-please-config.json
+          manifest-file: .github/release-please/.release-please-manifest.json
+          target-branch: main
+
+      - name: Log release-please outputs
+        # HACK to get toJson to sorta print the output to the console without failing this job
+        continue-on-error: true
+        run: |
+          echo "${{ toJson(steps.release-please.outputs) }}"
+
+  build-desktop-application-and-create-github-release:
+    name: Build desktop application and create GitHub release
+    runs-on: ubuntu-latest
+    if: needs.release-please.outputs.desktop_release_created
+    needs:
+      - release-please
+    steps:
+      - run: |
+          echo "placeholder to build and publish desktop application"

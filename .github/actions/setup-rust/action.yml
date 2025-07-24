@@ -4,6 +4,10 @@ inputs:
   platform:
     description: ""
     required: true
+  install-tauri-driver:
+    description: "Whether or not to install tauri-driver"
+    required: false
+    default: "false"
 runs:
   using: composite
   steps:
@@ -27,13 +31,30 @@ runs:
         targets: ${{ inputs.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
         components: rustfmt,clippy
 
-    - name: Install Ubuntu Dependencies
+    # install system dependencies that Tauri needs to compile on Linux.
+    # note the extra dependencies for `tauri-driver` to run which are: `webkit2gtk-driver` and `xvfb`
+    # see https://v2.tauri.app/develop/tests/webdriver/ci/
+    - name: Install Tauri Ubuntu Dependencies
       if: inputs.platform == 'ubuntu-latest'
       shell: bash
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          libwebkit2gtk-4.1-dev \
-          libappindicator3-dev \
-          librsvg2-dev \
-          patchelf
+        sudo apt update && sudo apt install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            webkit2gtk-driver \
+            xvfb
+
+    # install the latest version of `tauri-driver`.
+    # note: the tauri-driver version is independent of any other Tauri versions
+    # see https://v2.tauri.app/develop/tests/webdriver/ci/
+    - name: Install tauri-driver
+      if: inputs.install-tauri-driver == 'true'
+      shell: bash
+      run: cargo install tauri-driver --locked
