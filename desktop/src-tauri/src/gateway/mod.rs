@@ -3,10 +3,10 @@ use sea_orm::DatabaseConnection;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
-mod api;
+pub mod api;
 mod llm_providers;
 mod mcp;
-mod proxy;
+mod mcp_proxy;
 
 pub const GATEWAY_SERVER_PORT: u16 = 54587;
 
@@ -15,12 +15,12 @@ pub async fn start_gateway(
     db: DatabaseConnection,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mcp_service = mcp::create_streamable_http_service(user_id, db.clone()).await;
-    let proxy_router = proxy::create_router(db.clone());
+    let mcp_proxy_router = mcp_proxy::create_router(db.clone());
     let api_router = api::create_router(db.clone());
     let llm_providers_router = llm_providers::create_router(db.clone());
 
     let app = Router::new()
-        .nest("/proxy", proxy_router)
+        .nest("/mcp_proxy", mcp_proxy_router)
         .nest("/llm", llm_providers_router)
         .nest("/api", api_router)
         .nest_service("/mcp", mcp_service);
@@ -30,7 +30,7 @@ pub async fn start_gateway(
 
     println!("Gateway started successfully on http://{addr}");
     println!("  - Archestra MCP endpoint (streamable HTTP): http://{addr}/mcp");
-    println!("  - Proxy endpoints: http://{addr}/proxy/<server_name>");
+    println!("  - Proxy endpoints: http://{addr}/mcp_proxy/<server_name>");
     println!("  - LLM endpoints: http://{addr}/llm/<provider>");
     println!("  - API endpoints: http://{addr}/api");
 

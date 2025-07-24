@@ -3,5 +3,5 @@ use sea_orm::DatabaseConnection;
 mod ollama;
 
 pub fn create_router(db: DatabaseConnection) -> Router {
-    Router::new().nest_service("/ollama", ollama::create_ollama_router(db))
+    Router::new().nest_service("/ollama", ollama::create_router(db))
 }

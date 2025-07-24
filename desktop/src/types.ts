@@ -1,19 +1,9 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-export interface ServerConfig {
-  transport: string;
-  command: string;
-  args: string[];
-  env: { [key: string]: string };
-}
+import type { McpServerDefinition } from '@/lib/api-client';
 
-export interface MCPServer {
-  name: string;
-  server_config?: ServerConfig;
-  meta?: { [key: string]: any };
-}
-export interface ConnectedMCPServer extends MCPServer {
+export interface ConnectedMCPServer extends McpServerDefinition {
   url: string;
   client: Client | null;
   tools: Tool[];

@@ -1,29 +1,17 @@
-import { invoke } from '@tauri-apps/api/core';
 import { create } from 'zustand';
 
-import { MCPServer, ServerConfig } from '@/types';
+import {
+  type McpConnectorCatalogEntry,
+  getMcpConnectorCatalog,
+  installMcpServerFromCatalog,
+  startMcpServerOauth,
+  uninstallMcpServer,
+} from '@/lib/api-client';
 
 import { useMCPServersStore } from './mcp-servers-store';
 
-interface OAuthConfig {
-  provider: string;
-  required: boolean;
-}
-
-interface ConnectorCatalogEntry {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  tags: string[];
-  author: string;
-  version: string;
-  homepage: string;
-  repository: string;
-  oauth?: OAuthConfig;
-  server_config: ServerConfig;
-  image?: string;
-}
+// Use the generated types but maintain backwards compatibility
+type ConnectorCatalogEntry = McpConnectorCatalogEntry;
 
 interface ConnectorCatalogState {
   connectorCatalog: ConnectorCatalogEntry[];
@@ -61,13 +49,18 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
         errorFetchingConnectorCatalog: null,
       });
 
-      const catalogData = await invoke<ConnectorCatalogEntry[]>('get_mcp_connector_catalog');
-      set({
-        connectorCatalog: catalogData.map((entry) => ({
-          ...entry,
-          tools: [],
-        })),
-      });
+      const response = await getMcpConnectorCatalog();
+
+      if ('data' in response && response.data) {
+        set({
+          connectorCatalog: response.data.map((entry) => ({
+            ...entry,
+            tools: [],
+          })),
+        });
+      } else if ('error' in response) {
+        throw new Error(response.error as string);
+      }
     } catch (error) {
       set({ errorFetchingConnectorCatalog: error as string });
     } finally {
@@ -88,18 +81,30 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
       if (oauth?.required) {
         try {
           // Start OAuth flow
-          await invoke('start_oauth_auth', { service: id });
+          const response = await startMcpServerOauth({
+            body: { mcp_connector_id: id },
+          });
 
-          // For OAuth connectors, the backend will handle the installation after successful auth
-          alert(`OAuth setup started for ${title}. Please complete the authentication in your browser.`);
+          if ('data' in response && response.data) {
+            // For OAuth connectors, the backend will handle the installation after successful auth
+            alert(`OAuth setup started for ${title}. Please complete the authentication in your browser.`);
+          } else if ('error' in response) {
+            throw new Error(response.error as string);
+          }
         } catch (error) {
           set({ errorInstallingMCPServer: error as string });
         }
       } else {
-        const result = await invoke<MCPServer>('save_mcp_server_from_catalog', { connectorId: id });
+        const response = await installMcpServerFromCatalog({
+          body: { mcp_connector_id: id },
+        });
 
-        // Add to MCP servers store
-        useMCPServersStore.getState().addMCPServerToInstalledMCPServers(result);
+        if ('error' in response) {
+          throw new Error(response.error as string);
+        }
+
+        // Refresh the MCP servers list
+        await useMCPServersStore.getState().loadInstalledMCPServers();
       }
     } catch (error) {
       set({ errorInstallingMCPServer: error as string });
@@ -115,7 +120,13 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
         errorUninstallingMCPServer: null,
       });
 
-      await invoke('uninstall_mcp_server', { name: mcpServerName });
+      const response = await uninstallMcpServer({
+        path: { mcp_server_name: mcpServerName },
+      });
+
+      if ('error' in response) {
+        throw new Error(response.error as string);
+      }
 
       // Remove from MCP servers store
       useMCPServersStore.getState().removeMCPServerFromInstalledMCPServers(mcpServerName);

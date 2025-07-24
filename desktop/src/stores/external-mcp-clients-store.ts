@@ -1,17 +1,18 @@
-import { invoke } from '@tauri-apps/api/core';
 import { create } from 'zustand';
 
-interface ExternalMCPClient {
-  client_name: string;
-  created_at: string;
-  updated_at: string;
-}
+import {
+  type ExternalMcpClient,
+  connectExternalMcpClient,
+  disconnectExternalMcpClient,
+  getConnectedExternalMcpClients,
+  getSupportedExternalMcpClients,
+} from '@/lib/api-client';
 
 interface ExternalMCPClientsState {
   supportedExternalMCPClientNames: string[];
   isLoadingSupportedExternalMCPClientNames: boolean;
   errorLoadingSupportedExternalMCPClientNames: string | null;
-  connectedExternalMCPClients: ExternalMCPClient[];
+  connectedExternalMCPClients: ExternalMcpClient[];
   isLoadingConnectedExternalMCPClients: boolean;
   errorLoadingConnectedExternalMCPClients: string | null;
   isConnectingExternalMCPClient: boolean;
@@ -50,8 +51,12 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
         errorLoadingSupportedExternalMCPClientNames: null,
       });
 
-      const clients = await invoke<string[]>('get_supported_external_mcp_client_names');
-      set({ supportedExternalMCPClientNames: clients });
+      const response = await getSupportedExternalMcpClients();
+      if ('data' in response && response.data) {
+        set({ supportedExternalMCPClientNames: response.data });
+      } else if ('error' in response) {
+        throw new Error(response.error as string);
+      }
     } catch (error) {
       set({ errorLoadingSupportedExternalMCPClientNames: error as string });
     } finally {
@@ -66,8 +71,12 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
         errorLoadingConnectedExternalMCPClients: null,
       });
 
-      const clients = await invoke<ExternalMCPClient[]>('get_connected_external_mcp_clients');
-      set({ connectedExternalMCPClients: clients });
+      const response = await getConnectedExternalMcpClients();
+      if ('data' in response && response.data) {
+        set({ connectedExternalMCPClients: response.data });
+      } else if ('error' in response) {
+        throw new Error(response.error as string);
+      }
     } catch (error) {
       set({ errorLoadingConnectedExternalMCPClients: error as string });
     } finally {
@@ -82,7 +91,12 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
         errorConnectingExternalMCPClient: null,
       });
 
-      await invoke('connect_external_mcp_client', { clientName });
+      const response = await connectExternalMcpClient({
+        body: { client_name: clientName },
+      });
+      if ('error' in response) {
+        throw new Error(response.error as string);
+      }
 
       // Refresh connected clients after successful connection
       await useExternalMCPClientsStore.getState().loadConnectedClients();
@@ -100,7 +114,12 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
         errorDisconnectingExternalMCPClient: null,
       });
 
-      await invoke('disconnect_external_mcp_client', { clientName });
+      const response = await disconnectExternalMcpClient({
+        path: { client_name: clientName },
+      });
+      if ('error' in response) {
+        throw new Error(response.error as string);
+      }
 
       // Refresh connected clients after successful disconnection
       await useExternalMCPClientsStore.getState().loadConnectedClients();

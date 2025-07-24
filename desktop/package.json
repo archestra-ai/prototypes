@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "codegen": "openapi-ts",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest",
@@ -55,6 +56,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "^0.76.0",
     "@tauri-apps/cli": "^2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",

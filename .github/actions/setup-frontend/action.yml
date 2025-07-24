@@ -1,0 +1,20 @@
+name: Setup frontend dependencies
+description: Setup node/pnpm + install frontend dependencies
+runs:
+  using: composite
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 10.13.1
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "24.4.1"
+        cache: "pnpm"
+        cache-dependency-path: desktop/pnpm-lock.yaml
+
+    - name: Install dependencies
+      shell: bash
+      run: cd desktop && pnpm install --frozen-lockfile --prefer-offline

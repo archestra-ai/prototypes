@@ -11,44 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      # # Cache the cargo registry to speed up the build
-      # # https://github.com/actions/cache/blob/main/examples.md#rust---cargo
-      # - uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       ~/.cargo/bin/
-      #       ~/.cargo/registry/index/
-      #       ~/.cargo/registry/cache/
-      #       ~/.cargo/git/db/
-      #       target/
-      #     key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
         with:
-          components: rustfmt,clippy
-          
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      # - name: Cache Ubuntu Dependencies
-      #   uses: actions/cache@v4
-      #   id: cache-ubuntu-deps
-      #   with:
-      #     path: /var/cache/apt
-      #     key: ${{ runner.os }}-apt
-
-      - name: Install Ubuntu Dependencies
-        if: steps.cache-ubuntu-deps.outputs.cache-hit != 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-          libwebkit2gtk-4.1-dev \
-          libappindicator3-dev \
-          librsvg2-dev \
-          patchelf
+          platform: ${{ matrix.platform }}
 
       - name: Check Rust formatting
         working-directory: desktop/src-tauri
@@ -68,21 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.13.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24.4.1"
-          cache: "pnpm"
-          cache-dependency-path: desktop/pnpm-lock.yaml
-
-      - name: Install dependencies
-        working-directory: desktop
-        run: pnpm install --frozen-lockfile
+      - name: Setup frontend dependencies
+        uses: ./.github/actions/setup-frontend
 
       - name: Check prettier formatting
         working-directory: desktop
@@ -95,3 +49,37 @@ jobs:
       - name: Build
         working-directory: desktop
         run: pnpm build
+
+  verify-openapi-schema-is-up-to-date:
+    name: Verify Open API schema is up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          platform: ubuntu-latest
+
+      - name: Setup frontend dependencies
+        uses: ./.github/actions/setup-frontend
+
+      - name: Generate OpenAPI schema
+        working-directory: desktop/src-tauri
+        run: cargo run --bin dump_openapi
+
+      - name: Generate TypeScript client
+        working-directory: desktop
+        run: pnpm codegen
+
+      - name: Check for uncommitted changes
+        working-directory: desktop
+        run: |
+          if ! git diff --exit-code; then
+            echo "❌ OpenAPI schema or TypeScript client is out of date!"
+            echo "Please run the following commands and commit the changes:"
+            echo "  cd desktop/src-tauri && cargo run --bin dump_openapi"
+            echo "  cd desktop && pnpm codegen"
+            exit 1
+          fi
+          echo "✅ OpenAPI schema and TypeScript client are up to date"
