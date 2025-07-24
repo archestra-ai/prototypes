@@ -6,8 +6,6 @@ inputs:
     required: true
 runs:
   using: composite
-  env:
-    UBUNTU_DEPS: "libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf"
   steps:
     - uses: Swatinem/rust-cache@v2
       with:
