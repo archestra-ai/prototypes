@@ -41,6 +41,9 @@ jobs:
       - name: Check Rust formatting
         working-directory: desktop/src-tauri
         run: cargo fmt --check
+        
+      - name: Build tests (reduces clippy rebuilds)
+        run: cargo test --no-run
 
       - name: Run Clippy Linting
         working-directory: desktop/src-tauri
