@@ -44,7 +44,7 @@ jobs:
 
       - name: Run Clippy Linting
         working-directory: desktop/src-tauri
-        run: cargo clippy --workspace --all-targets --all-features tauri-mcp -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Run tests
         working-directory: desktop/src-tauri
