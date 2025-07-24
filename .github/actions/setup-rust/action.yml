@@ -25,7 +25,7 @@ runs:
       id: ubuntu-deps-cache
       with:
         path: /var/cache/apt
-        key: ubuntu-deps-${{ hashFiles(env.UBUNTU_DEPS) }}-${{ runner.os }}
+        key: ubuntu-deps-${{ env.UBUNTU_DEPS }}-${{ runner.os }}
 
     - name: Install Ubuntu Dependencies
       if: inputs.platform == 'ubuntu-latest' && steps.ubuntu-deps-cache.outputs.cache-hit != 'true'
