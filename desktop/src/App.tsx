@@ -1,9 +1,10 @@
-import { Bot, ChevronRight, Download, MessageCircle, Plus, Settings } from 'lucide-react';
+import { Bot, ChevronRight, Download, MessageCircle, Plus, Settings, Trash2 } from 'lucide-react';
 import * as React from 'react';
 import { useState } from 'react';
 
 import { SiteHeader } from './components/SiteHeader';
 import { ToolHoverCard } from './components/ToolHoverCard';
+import { TypewriterText } from './components/TypewriterText';
 import { ToolContext } from './components/kibo/ai-input';
 import { Input } from './components/ui/input';
 import {
@@ -23,6 +24,7 @@ import ChatPage from './pages/ChatPage';
 import ConnectorCatalogPage from './pages/ConnectorCatalogPage';
 import LLMProvidersPage from './pages/LLMProvidersPage';
 import SettingsPage from './pages/SettingsPage';
+import { useChatStore } from './stores/chat-store';
 import { useMCPServersStore } from './stores/mcp-servers-store';
 import { useThemeStore } from './stores/theme-store';
 
@@ -32,6 +34,7 @@ function App() {
   useThemeStore();
   const { loadingInstalledMCPServers } = useMCPServersStore();
   const allTools = useMCPServersStore.getState().allAvailableTools();
+  const { chats, currentChatId, isLoadingChats, selectChat, createNewChat, deleteCurrentChat } = useChatStore();
 
   const [activeView, setActiveView] = useState<'chat' | 'mcp' | 'llm-providers' | 'settings'>('chat');
   const [activeSubView, setActiveSubView] = useState<'ollama'>('ollama');
@@ -156,13 +159,16 @@ function App() {
         <SiteHeader
           title={navigationItems.find((item) => item.key === activeView)?.title}
           breadcrumbs={
-            activeView === 'llm-providers' && activeSubView
-              ? [
-                  navigationItems.find((item) => item.key === activeView)?.title || '',
-                  activeSubView.charAt(0).toUpperCase() + activeSubView.slice(1),
-                ]
-              : [navigationItems.find((item) => item.key === activeView)?.title || '']
+            activeView === 'chat' && currentChatId && chats.length > 0
+              ? ['Chat', chats.find((chat) => chat.id === currentChatId)?.title || 'New Chat']
+              : activeView === 'llm-providers' && activeSubView
+                ? [
+                    navigationItems.find((item) => item.key === activeView)?.title || '',
+                    activeSubView.charAt(0).toUpperCase() + activeSubView.slice(1),
+                  ]
+                : [navigationItems.find((item) => item.key === activeView)?.title || '']
           }
+          isAnimatedTitle={activeView === 'chat' && currentChatId !== null}
         />
         <div className="flex flex-1 overflow-hidden">
           <Sidebar
@@ -191,6 +197,59 @@ function App() {
                             <span>{item.title}</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
+                        {item.key === 'chat' && activeView === 'chat' && (
+                          <>
+                            <SidebarMenuItem className="ml-6 group-data-[collapsible=icon]:hidden">
+                              <SidebarMenuButton onClick={createNewChat} size="sm" className="text-sm">
+                                <Plus className="h-3 w-3" />
+                                <span>New Chat</span>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            {isLoadingChats ? (
+                              <SidebarMenuItem className="ml-6 group-data-[collapsible=icon]:hidden">
+                                <div className="flex items-center gap-2 px-2 py-1.5">
+                                  <div className="h-3 w-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
+                                  <span className="text-xs text-muted-foreground">Loading chats...</span>
+                                </div>
+                              </SidebarMenuItem>
+                            ) : chats.length === 0 ? (
+                              <SidebarMenuItem className="ml-6 group-data-[collapsible=icon]:hidden">
+                                <div className="px-2 py-1.5 text-xs text-muted-foreground">No chats yet</div>
+                              </SidebarMenuItem>
+                            ) : (
+                              chats.map((chat) => (
+                                <SidebarMenuItem key={chat.id} className="ml-6 group-data-[collapsible=icon]:hidden">
+                                  <SidebarMenuButton
+                                    onClick={() => selectChat(chat.id)}
+                                    isActive={currentChatId === chat.id}
+                                    size="sm"
+                                    className="text-sm justify-between group"
+                                  >
+                                    <span className="truncate flex-1">
+                                      {currentChatId === chat.id ? (
+                                        <TypewriterText text={chat.title} speed={20} />
+                                      ) : (
+                                        chat.title
+                                      )}
+                                    </span>
+                                    {currentChatId === chat.id && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          deleteCurrentChat();
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                                      >
+                                        <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                        <span className="sr-only">Delete chat</span>
+                                      </button>
+                                    )}
+                                  </SidebarMenuButton>
+                                </SidebarMenuItem>
+                              ))
+                            )}
+                          </>
+                        )}
                         {item.key === 'llm-providers' && activeView === 'llm-providers' && (
                           <SidebarMenuItem className="ml-6 group-data-[collapsible=icon]:hidden">
                             <SidebarMenuButton
