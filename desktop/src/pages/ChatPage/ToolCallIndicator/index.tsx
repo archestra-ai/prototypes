@@ -1,7 +1,8 @@
-import { AlertCircle, CheckCircle, Settings } from 'lucide-react';
+import { AlertCircle, CheckCircle, ChevronDown, ChevronRight, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ToolCallInfo } from '@/types';
 
 interface ToolCallIndicatorProps {
@@ -11,6 +12,7 @@ interface ToolCallIndicatorProps {
 
 export default function ToolCallIndicator({ toolCalls, isExecuting }: ToolCallIndicatorProps) {
   const [dots, setDots] = useState('');
+  const [showResults, setShowResults] = useState(false);
 
   useEffect(() => {
     if (!isExecuting) return;
@@ -51,11 +53,37 @@ export default function ToolCallIndicator({ toolCalls, isExecuting }: ToolCallIn
       )}
 
       {completedCalls.length > 0 && (
-        <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <span className="text-sm text-green-700 dark:text-green-300">
-            {completedCalls.length} tool{completedCalls.length !== 1 ? 's' : ''} completed successfully
-          </span>
+        <div className="p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span className="text-sm text-green-700 dark:text-green-300">
+              {completedCalls.length} tool{completedCalls.length !== 1 ? 's' : ''} completed successfully
+            </span>
+          </div>
+
+          <Collapsible open={showResults} onOpenChange={setShowResults}>
+            <CollapsibleTrigger className="flex items-center gap-1 mt-2 text-xs text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200 transition-colors">
+              {showResults ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              View results
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <div className="space-y-1 pl-4">
+                {completedCalls.map((call, index) => (
+                  <div
+                    key={call.id}
+                    className="text-xs text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 p-2 rounded border-l-2 border-green-400"
+                  >
+                    <div className="font-medium mb-1">
+                      {call.serverName}.{call.toolName}
+                    </div>
+                    <div className="font-mono text-green-600 dark:text-green-400 whitespace-pre-wrap">
+                      {call.result}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       )}
 

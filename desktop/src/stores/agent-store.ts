@@ -37,8 +37,6 @@ function createAgentEventCallbacks(
     },
 
     onMessage: (message: string) => {
-      console.log('💬 [AgentEventCallbacks] Message received:', message);
-
       // Accumulate streaming content
       setState((state: AgentStoreState) => {
         const currentContent = state.streamingContent || '';
@@ -262,7 +260,7 @@ export const useAgentStore = create<AgentStore>()(
       const agentConfig: ArchestraAgentConfig = {
         model: modelName,
         mcpTools,
-        maxSteps: 10,
+        maxSteps: 30, // Increased to allow for tool execution
         temperature: 0.7,
         reasoningMode: state.reasoningMode,
         memoryConfig: {
@@ -724,7 +722,7 @@ function initializeAgentStore() {
     const agentConfig: ArchestraAgentConfig = {
       model: selectedModel || 'gpt-4o',
       mcpTools,
-      maxSteps: 10,
+      maxSteps: 30, // Increased to allow for tool execution
       temperature: 0.7,
       reasoningMode: agentState.reasoningMode,
       memoryConfig: {

@@ -1,4 +1,5 @@
-import { Bot, ChevronRight, Download, MessageCircle, Plus, Settings } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
+import { Bot, Bug, ChevronRight, Download, MessageCircle, Plus, Settings } from 'lucide-react';
 import * as React from 'react';
 import { useState } from 'react';
 
@@ -98,6 +99,14 @@ function App() {
     setSelectedTools((prev) =>
       prev.filter((tool) => !(tool.serverName === toolToRemove.serverName && tool.toolName === toolToRemove.toolName))
     );
+  };
+
+  const handleOpenDevtools = async () => {
+    try {
+      await invoke('open_devtools');
+    } catch (error) {
+      console.error('Failed to open devtools:', error);
+    }
   };
 
   const navigationItems = [
@@ -334,6 +343,15 @@ function App() {
           </SidebarInset>
         </div>
       </SidebarProvider>
+
+      {/* Debug/DevTools Button */}
+      <button
+        onClick={handleOpenDevtools}
+        className="fixed bottom-4 right-4 p-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400 rounded-md shadow-sm transition-colors z-50 opacity-70 hover:opacity-100"
+        title="Open DevTools"
+      >
+        <Bug className="h-4 w-4" />
+      </button>
     </div>
   );
 }

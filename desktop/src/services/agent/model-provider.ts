@@ -73,30 +73,13 @@ export class OllamaProvider implements ModelProvider {
   private interceptFetchRequests() {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async (...args) => {
-      const [resource, config] = args;
-
-      // Log outgoing requests
-      if (typeof resource === 'string' && resource.includes('localhost')) {
-        console.log('🌐 [FETCH Debug] Outgoing request:', {
-          url: resource,
-          method: config?.method || 'GET',
-          headers: config?.headers,
-          body: config?.body ? (typeof config.body === 'string' ? JSON.parse(config.body) : config.body) : undefined,
-        });
-      }
+      const [resource] = args;
 
       try {
         const response = await originalFetch(...args);
 
         // Log response status
         if (typeof resource === 'string' && resource.includes('localhost')) {
-          console.log('📥 [FETCH Debug] Response:', {
-            url: resource,
-            status: response.status,
-            statusText: response.statusText,
-            ok: response.ok,
-          });
-
           // Clone response to read body without consuming it
           if (!response.ok) {
             const clonedResponse = response.clone();
@@ -295,6 +278,9 @@ export class OllamaProvider implements ModelProvider {
     // Create Ollama client instance
     const ollamaClient = new Ollama({ host: baseURL });
 
+    // Store supportsTools result to avoid context issues
+    const modelSupportsTools = this.supportsTools();
+
     return {
       specificationVersion: 'v1',
       provider: 'ollama-custom',
@@ -303,7 +289,14 @@ export class OllamaProvider implements ModelProvider {
       supportsStructuredOutputs: false,
 
       async doGenerate(options: any): Promise<any> {
-        console.log('🔄 [CustomOllama] doGenerate called');
+        console.log('🔄 [CustomOllama] doGenerate called with options:', {
+          mode: options?.mode,
+          hasTools: options?.mode?.tools?.length > 0,
+          toolsCount: options?.mode?.tools?.length || 0,
+        });
+
+        // Extract tools from options if available
+        const tools = options?.mode?.tools || [];
 
         // Convert AI SDK format to Ollama format
         const messages = options.prompt.map((msg: any) => {
@@ -337,10 +330,30 @@ export class OllamaProvider implements ModelProvider {
 
           for (let i = 0; i < maxRetries; i++) {
             try {
+              // Convert AI SDK tools to Ollama format if model supports tools
+              const ollamaTools =
+                modelSupportsTools && tools.length > 0
+                  ? tools.map((tool: any) => ({
+                      type: 'function',
+                      function: {
+                        name: tool.name,
+                        description: tool.description || 'No description provided',
+                        parameters: tool.parameters || {},
+                      },
+                    }))
+                  : [];
+
+              console.log('🔧 [CustomOllama] Calling Ollama with tools:', {
+                toolsCount: ollamaTools.length,
+                modelSupportsTools: modelSupportsTools,
+                tools: ollamaTools.map((t: any) => t.function.name),
+              });
+
               response = await ollamaClient.chat({
                 model: modelName,
                 messages,
                 stream: false,
+                ...(ollamaTools.length > 0 ? { tools: ollamaTools } : {}),
                 options: {
                   temperature: options.temperature || 0.7,
                   top_p: options.topP || 0.95,
@@ -373,6 +386,17 @@ export class OllamaProvider implements ModelProvider {
 
           console.log('✅ [CustomOllama] Got response:', response);
 
+          // Handle tool calls if present
+          const toolCalls =
+            response.message?.tool_calls?.map((tc: any) => ({
+              type: 'function' as const,
+              id: tc.id || crypto.randomUUID(),
+              function: {
+                name: tc.function?.name || '',
+                arguments: JSON.stringify(tc.function?.arguments || {}),
+              },
+            })) || [];
+
           return {
             finishReason: 'stop',
             usage: {
@@ -380,7 +404,7 @@ export class OllamaProvider implements ModelProvider {
               completionTokens: response.eval_count || 0,
             },
             text: response.message?.content || '',
-            toolCalls: [],
+            toolCalls,
             warnings: [],
           };
         } catch (error) {
@@ -390,12 +414,15 @@ export class OllamaProvider implements ModelProvider {
       },
 
       async doStream(options: any): Promise<any> {
-        console.log('🌊 [CustomOllama] doStream called');
-        console.log('📝 [CustomOllama] Prompt structure:', {
-          promptLength: options.prompt?.length,
-          firstMessage: options.prompt?.[0],
-          messageTypes: options.prompt?.map((m: any) => ({ role: m.role, contentType: typeof m.content })),
+        console.log('🌊 [CustomOllama] doStream called with options:', {
+          mode: options?.mode,
+          hasTools: options?.mode?.tools?.length > 0,
+          toolsCount: options?.mode?.tools?.length || 0,
+          temperature: options?.temperature,
         });
+
+        // Extract tools from options if available
+        const tools = options?.mode?.tools || [];
 
         // Convert AI SDK format to Ollama format
         const messages = options.prompt.map((msg: any) => {
@@ -430,10 +457,30 @@ export class OllamaProvider implements ModelProvider {
 
           for (let i = 0; i < maxRetries; i++) {
             try {
+              // Convert AI SDK tools to Ollama format if model supports tools
+              const ollamaTools =
+                modelSupportsTools && tools.length > 0
+                  ? tools.map((tool: any) => ({
+                      type: 'function',
+                      function: {
+                        name: tool.name,
+                        description: tool.description || 'No description provided',
+                        parameters: tool.parameters || {},
+                      },
+                    }))
+                  : [];
+
+              console.log('🔧 [CustomOllama] Calling Ollama with tools:', {
+                toolsCount: ollamaTools.length,
+                modelSupportsTools: modelSupportsTools,
+                tools: ollamaTools.map((t: any) => t.function.name),
+              });
+
               response = await ollamaClient.chat({
                 model: modelName,
                 messages,
                 stream: true,
+                ...(ollamaTools.length > 0 ? { tools: ollamaTools } : {}),
                 options: {
                   temperature: options.temperature || 0.7,
                   top_p: options.topP || 0.95,
@@ -469,13 +516,43 @@ export class OllamaProvider implements ModelProvider {
             async start(controller) {
               try {
                 for await (const part of response) {
-                  console.log('🔄 [CustomOllama] Stream part:', part);
+                  // console.log('🔄 [CustomOllama] Stream part:', part);
 
+                  // Handle regular text content
                   if (part.message?.content) {
                     controller.enqueue({
                       type: 'text-delta',
                       textDelta: part.message.content,
                     });
+                  }
+
+                  // Handle tool calls
+                  if (part.message?.tool_calls) {
+                    console.log(
+                      '🛠️ [CustomOllama] Tool calls detected:',
+                      JSON.stringify(part.message.tool_calls, null, 2)
+                    );
+                    for (const toolCall of part.message.tool_calls) {
+                      // Extract tool information with better logging
+                      const toolName = toolCall.function?.name || toolCall.name || '';
+                      const toolArgs = toolCall.function?.arguments || toolCall.arguments || {};
+                      const toolId = toolCall.id || toolCall.function?.id || crypto.randomUUID();
+
+                      console.log('📞 [CustomOllama] Enqueuing tool call:', {
+                        toolName,
+                        toolId,
+                        args: toolArgs,
+                        originalToolCall: toolCall,
+                      });
+
+                      controller.enqueue({
+                        type: 'tool-call',
+                        toolCallType: 'function',
+                        toolCallId: toolId,
+                        toolName: toolName,
+                        args: JSON.stringify(toolArgs),
+                      });
+                    }
                   }
 
                   if (part.done) {

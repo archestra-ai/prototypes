@@ -161,10 +161,13 @@ export class AgentEventHandler {
         // With our polyfill, ReadableStream should now be async iterable
         for await (const event of stream as any) {
           this.eventCount++;
-          console.log(`📨 [AgentEventHandler] Event #${this.eventCount}:`, {
-            type: event?.type,
-            eventKeys: event ? Object.keys(event) : [],
-          });
+          // Reduce logging - only log important events
+          if (event?.type === 'tool_execution_event' || event?.type === 'error_event') {
+            console.log(`📨 [AgentEventHandler] Event #${this.eventCount}:`, {
+              type: event?.type,
+              eventKeys: event ? Object.keys(event) : [],
+            });
+          }
           await this.processEvent(event);
         }
 
@@ -195,10 +198,13 @@ export class AgentEventHandler {
       // Handle regular async iterable
       for await (const event of stream) {
         this.eventCount++;
-        console.log(`📨 [AgentEventHandler] Event #${this.eventCount}:`, {
-          type: event?.type,
-          eventKeys: event ? Object.keys(event) : [],
-        });
+        // Reduce logging - only log important events
+        if (event?.type === 'tool_execution_event' || event?.type === 'error_event') {
+          console.log(`📨 [AgentEventHandler] Event #${this.eventCount}:`, {
+            type: event?.type,
+            eventKeys: event ? Object.keys(event) : [],
+          });
+        }
         await this.processEvent(event);
       }
 
@@ -229,12 +235,15 @@ export class AgentEventHandler {
       event.timestamp = new Date();
     }
 
-    console.log(`🎯 [AgentEventHandler] Processing event type: ${event.type}`, {
-      eventDetails: event,
-      hasAgent: !!event.agent,
-      hasItem: !!event.item,
-      hasDelta: !!event.delta,
-    });
+    // Reduce verbose logging - only log tool and error events
+    if (event.type === 'tool_execution_event' || event.type === 'error_event' || event.type?.includes('tool')) {
+      console.log(`🎯 [AgentEventHandler] Processing event type: ${event.type}`, {
+        eventDetails: event,
+        hasAgent: !!event.agent,
+        hasItem: !!event.item,
+        hasDelta: !!event.delta,
+      });
+    }
 
     switch (event.type) {
       case 'agent_updated_stream_event':
@@ -243,12 +252,10 @@ export class AgentEventHandler {
         break;
 
       case 'item_stream_event':
-        console.log('📦 [AgentEventHandler] Item stream event');
         await this.handleItemEvent(event as RunItemStreamEvent);
         break;
 
       case 'raw_model_stream_event':
-        console.log('🤖 [AgentEventHandler] Raw model stream event');
         this.handleModelStream(event as RawModelStreamEvent);
         break;
 
@@ -273,7 +280,6 @@ export class AgentEventHandler {
         break;
 
       case 'run_item_stream_event':
-        console.log('📋 [AgentEventHandler] Run item stream event');
         await this.handleRunItemStreamEvent(event);
         break;
 
@@ -375,13 +381,87 @@ export class AgentEventHandler {
 
     switch (item.type) {
       case 'tool_call':
-        await this.handleToolCallItem(item);
+        // Legacy tool call event - log it but don't execute
+        // The SDK handles tool execution internally
+        console.log('🔧 Tool call event (legacy):', {
+          name: item.name,
+          hasArguments: !!item.arguments,
+          hasResult: !!item.result,
+          hasError: !!item.error,
+        });
+
+        // If this event includes a result, it means the tool was already executed
+        if (item.result !== undefined || item.error !== undefined) {
+          // This is a tool completion notification
+          const status = item.error ? 'failed' : 'completed';
+          const message = item.error
+            ? `Tool ${item.name} failed: ${item.error}`
+            : `Tool ${item.name} completed successfully`;
+
+          this.callbacks.onMessage(message, item.error ? 'error' : 'info');
+
+          // Add to memory
+          if (item.result || item.error) {
+            const memoryEntry: MemoryEntry = {
+              id: crypto.randomUUID(),
+              type: item.error ? 'error' : 'result',
+              content: message,
+              metadata: {
+                toolName: item.name,
+                arguments: item.arguments,
+                result: item.result,
+                error: item.error,
+              },
+              timestamp: new Date(),
+              relevanceScore: 0.8,
+            };
+            this.callbacks.onMemoryUpdate(memoryEntry);
+          }
+        } else {
+          // Tool is being called - just log it
+          this.callbacks.onMessage(`Executing tool: ${item.name}`, 'info');
+        }
         break;
 
       case 'message':
         if (item.content) {
           this.callbacks.onMessage(item.content, 'info');
         }
+        break;
+
+      case 'tool_call_output_item':
+        // Handle tool call output
+        if (item.output?.content) {
+          const content = Array.isArray(item.output.content)
+            ? item.output.content.map((c: any) => c.text || '').join('')
+            : item.output.content;
+          console.log(`🔧 Tool ${item.name} completed with output`);
+        }
+        break;
+
+      case 'tool_call_item':
+        // The OpenAI Agents SDK is notifying us that it's about to call a tool
+        // The actual execution is handled by the SDK through the tool's execute function
+        console.log('🔨 Tool call initiated by SDK:', {
+          type: item.type,
+          id: item.id,
+          // Log the structure to understand what we're receiving
+          itemKeys: Object.keys(item),
+          hasCall: !!item.call,
+          hasFunction: !!item.function,
+          hasFunctionCall: !!item.function_call,
+          // Log the full item to see its structure
+          fullItem: JSON.stringify(item, null, 2),
+        });
+
+        // Extract tool name for logging
+        const toolName = item.call?.name || item.function?.name || item.function_call?.name || item.name || 'unknown';
+
+        console.log(`🔧 SDK is calling tool: ${toolName}`);
+
+        // Just notify that a tool is being called - don't execute it
+        // The SDK handles the execution through the tool's execute function
+        this.callbacks.onMessage(`Calling tool: ${toolName}`, 'info');
         break;
 
       case 'reasoning':
@@ -399,44 +479,6 @@ export class AgentEventHandler {
       default:
         console.log('Unknown item type:', item.type, item);
         break;
-    }
-  }
-
-  /**
-   * Handle tool call items
-   */
-  private async handleToolCallItem(item: any): Promise<void> {
-    try {
-      await this.callbacks.onToolExecution({
-        id: item.id || crypto.randomUUID(),
-        name: item.name,
-        arguments: item.arguments || {},
-        status: item.status || 'pending',
-        result: item.result,
-        error: item.error,
-      });
-
-      // Create memory entry for tool execution
-      if (item.result || item.error) {
-        const memoryEntry: MemoryEntry = {
-          id: crypto.randomUUID(),
-          type: item.error ? 'error' : 'result',
-          content: `Tool ${item.name}: ${item.error || 'Success'}`,
-          metadata: {
-            toolName: item.name,
-            arguments: item.arguments,
-            result: item.result,
-            error: item.error,
-          },
-          timestamp: new Date(),
-          relevanceScore: 0.8,
-        };
-
-        this.callbacks.onMemoryUpdate(memoryEntry);
-      }
-    } catch (error) {
-      console.error('Error handling tool call:', error);
-      this.callbacks.onError(error);
     }
   }
 
@@ -522,17 +564,6 @@ export class AgentEventHandler {
    * Handle raw model streaming events
    */
   private handleModelStream(event: RawModelStreamEvent): void {
-    // Log the raw event data to understand what we're receiving
-    console.log('🔍 [AgentEventHandler] Raw model stream data:', {
-      hasData: !!event.data,
-      dataType: event.data?.type,
-      dataContent: event.data,
-      // Log the entire event to see all fields
-      fullEvent: JSON.stringify(event, null, 2),
-      hasDelta: !!event.delta,
-      deltaContent: event.delta,
-    });
-
     if (event.delta?.content) {
       this.callbacks.onStateChange({
         streamingContent: event.delta.content,
