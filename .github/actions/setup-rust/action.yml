@@ -7,18 +7,9 @@ inputs:
 runs:
   using: composite
   steps:
-    # Cache the cargo registry to speed up the build
-    # https://github.com/actions/cache/blob/main/examples.md#rust---cargo
-    - name: Cache cargo registry
-      uses: actions/cache@v4
+    - uses: Swatinem/rust-cache@v2
       with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        cache-on-failure: true
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
