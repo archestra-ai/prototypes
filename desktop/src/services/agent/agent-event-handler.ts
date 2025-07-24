@@ -1,8 +1,8 @@
 import { AgentState, MemoryEntry, ReasoningEntry, TaskProgress } from '../../types/agent';
 
 // Polyfill for ReadableStream async iterator if not available
-if (typeof ReadableStream !== 'undefined' && !ReadableStream.prototype[Symbol.asyncIterator]) {
-  ReadableStream.prototype[Symbol.asyncIterator] = async function* () {
+if (typeof ReadableStream !== 'undefined' && !(Symbol.asyncIterator in ReadableStream.prototype)) {
+  (ReadableStream.prototype as any)[Symbol.asyncIterator] = async function* (this: ReadableStream) {
     const reader = this.getReader();
     try {
       while (true) {

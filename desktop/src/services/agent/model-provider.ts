@@ -1,8 +1,6 @@
 import { openai } from '@ai-sdk/openai';
 import { createOllama } from 'ollama-ai-provider';
 
-import { useOllamaStore } from '../../stores/ollama-store';
-
 /**
  * Interface for model providers that can be used with the AI SDK
  */
@@ -160,12 +158,8 @@ export class OllamaProvider implements ModelProvider {
   }
 
   private getOllamaBaseURL(): string {
-    const { ollamaPort } = useOllamaStore.getState();
-    if (!ollamaPort) {
-      console.warn('Ollama port not initialized, using default');
-      return 'http://localhost:11434';
-    }
-    return `http://localhost:${ollamaPort}`;
+    // Use the default Ollama URL since we're not using the proxy
+    return 'http://localhost:11434';
   }
 
   createModel(modelName: string) {

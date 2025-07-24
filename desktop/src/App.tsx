@@ -8,13 +8,11 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarHeader,
   SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
 } from './components/ui/sidebar';
 import ChatPage from './pages/ChatPage';
 import ConnectorCatalogPage from './pages/ConnectorCatalogPage';
@@ -88,10 +86,10 @@ function App() {
           breadcrumbs={
             activeView === 'llm-providers' && activeSubView
               ? [
-                  navigationItems.find((item) => item.key === activeView)?.title,
+                  navigationItems.find((item) => item.key === activeView)?.title || '',
                   activeSubView.charAt(0).toUpperCase() + activeSubView.slice(1),
                 ]
-              : [navigationItems.find((item) => item.key === activeView)?.title]
+              : [navigationItems.find((item) => item.key === activeView)?.title || '']
           }
         />
         <div className="flex flex-1 overflow-hidden">

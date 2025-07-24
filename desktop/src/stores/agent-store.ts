@@ -94,6 +94,7 @@ interface AgentStoreState extends AgentState {
   currentObjective: string | null;
   preferences: AgentPreferences;
   streamingMessageId: string | null;
+  streamingUpdateInterval: NodeJS.Timeout | null;
 }
 
 interface AgentActions {
@@ -161,6 +162,7 @@ export const useAgentStore = create<AgentStore>()(
     isAgentActive: false,
     agentInstance: null,
     streamingMessageId: null,
+    streamingUpdateInterval: null,
     preferences: {
       autoApproveCategories: ['read', 'search'] as ToolCategory[],
       autoApproveServers: [],

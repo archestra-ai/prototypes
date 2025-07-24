@@ -15,7 +15,12 @@ import { useSidebar } from '@/components/ui/sidebar';
 
 import { ModeToggle } from './mode-toggle';
 
-export function SiteHeader(props) {
+interface SiteHeaderProps {
+  breadcrumbs?: string[];
+  title?: string;
+}
+
+export function SiteHeader(props: SiteHeaderProps) {
   const { toggleSidebar } = useSidebar();
 
   return (
@@ -51,11 +56,11 @@ export function SiteHeader(props) {
             <BreadcrumbItem>
               <BreadcrumbLink>Archestra</BreadcrumbLink>
             </BreadcrumbItem>
-            {props.breadcrumbs?.map((breadcrumb, index) => (
+            {props.breadcrumbs?.map((breadcrumb: string, index: number) => (
               <React.Fragment key={`sep-${index}`}>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  {index === props.breadcrumbs.length - 1 ? (
+                  {index === (props.breadcrumbs?.length ?? 0) - 1 ? (
                     <BreadcrumbPage>{breadcrumb}</BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink>{breadcrumb}</BreadcrumbLink>

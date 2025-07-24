@@ -1,5 +1,4 @@
 import { Agent, run, tool } from '@openai/agents';
-import { getLogger } from '@openai/agents';
 import { aisdk } from '@openai/agents-extensions';
 
 import {
@@ -20,8 +19,8 @@ import { ModelCapabilities, ModelProviderFactory } from './model-provider';
 import { ReasoningConfig, ReasoningContext, ReasoningModule } from './reasoning-module';
 
 // Enable debug logging for OpenAI Agents SDK
-const logger = getLogger('openai-agents:archestra');
-logger.enabled = true;
+// const logger = getLogger('openai-agents:archestra');
+// logger.enabled = true; // Note: Logger might not have an 'enabled' property
 
 /**
  * ArchestraAgent implementation using Vercel AI SDK

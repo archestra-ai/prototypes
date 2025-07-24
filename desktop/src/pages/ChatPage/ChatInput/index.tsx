@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, FileText, MicIcon, PaperclipIcon, Settings, Wrench } from 'lucide-react';
+import { FileText, Settings, Wrench } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -30,19 +30,12 @@ export default function ChatInput(_props: ChatInputProps) {
   const { loadingInstalledMCPServers } = useMCPServersStore();
   const allToolsObject = useMCPServersStore.getState().allAvailableTools();
   const allTools = Object.values(allToolsObject).flat();
-  const { sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
+  const { sendChatMessage, cancelStreaming } = useChatStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const isStreaming = useIsStreaming();
 
-  const {
-    installedModels,
-    loadingInstalledModels,
-    loadingInstalledModelsError,
-    selectedModel,
-    setSelectedModel,
-    initializeOllama,
-    ollamaClient,
-  } = useOllamaStore();
+  const { installedModels, loadingInstalledModels, loadingInstalledModelsError, selectedModel, setSelectedModel } =
+    useOllamaStore();
 
   const { isAgentActive, mode: agentMode } = useAgentStore();
 
@@ -52,12 +45,10 @@ export default function ChatInput(_props: ChatInputProps) {
 
   const disabled = isStreaming || (isAgentActive && agentMode === 'initializing');
 
-  // Initialize Ollama when component mounts
+  // Fetch installed models when component mounts
   useEffect(() => {
-    if (!ollamaClient) {
-      initializeOllama().catch(console.error);
-    }
-  }, [ollamaClient, initializeOllama]);
+    useOllamaStore.getState().fetchInstalledModels();
+  }, []);
 
   useEffect(() => {
     if (isStreaming) {

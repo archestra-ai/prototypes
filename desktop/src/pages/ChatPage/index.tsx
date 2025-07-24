@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 
-import MCPServers from '../SettingsPage/MCPServers';
 import ChatHistory from './ChatHistory';
 import ChatInput from './ChatInput';
 
