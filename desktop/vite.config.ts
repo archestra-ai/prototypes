@@ -35,6 +35,25 @@ export default defineConfig(async () => ({
       // 3. tell vite to ignore watching `src-tauri`
       ignored: ['**/src-tauri/**'],
     },
+    // Proxy API requests to Tauri backend during development
+    proxy: {
+      '/api': {
+        target: 'http://localhost:54587',
+        changeOrigin: true,
+      },
+      '/mcp': {
+        target: 'http://localhost:54587',
+        changeOrigin: true,
+      },
+      '/mcp_proxy': {
+        target: 'http://localhost:54587',
+        changeOrigin: true,
+      },
+      '/llm': {
+        target: 'http://localhost:54587',
+        changeOrigin: true,
+      },
+    },
   },
   test: {
     environment: 'jsdom',
