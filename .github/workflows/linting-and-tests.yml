@@ -42,9 +42,9 @@ jobs:
         working-directory: desktop/src-tauri
         run: cargo fmt --check
         
-      - name: Build tests (reduces clippy rebuilds)
+      - name: Build shared compilation artifacts
         working-directory: desktop/src-tauri
-        run: cargo test --no-run
+        run: cargo check --workspace --all-targets --all-features
 
       - name: Run Clippy Linting
         working-directory: desktop/src-tauri
