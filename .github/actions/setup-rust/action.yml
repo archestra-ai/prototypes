@@ -8,8 +8,8 @@ runs:
   using: composite
   steps:
     - uses: Swatinem/rust-cache@v2
-      working-directory: ./desktop/src-tauri
       with:
+        workspaces: desktop/src-tauri
         cache-on-failure: true
 
     - name: Install Rust
