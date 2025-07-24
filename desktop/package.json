@@ -57,6 +57,7 @@
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.80.1",
+    "@shikijs/types": "^3.8.1",
     "@tauri-apps/cli": "^2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",

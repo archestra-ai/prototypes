@@ -132,6 +132,9 @@ importers:
       '@hey-api/openapi-ts':
         specifier: ^0.80.1
         version: 0.80.1(typescript@5.8.3)
+      '@shikijs/types':
+        specifier: ^3.8.1
+        version: 3.8.1
       '@tauri-apps/cli':
         specifier: ^2
         version: 2.7.1
