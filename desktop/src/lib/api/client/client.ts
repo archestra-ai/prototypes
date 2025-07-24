@@ -41,6 +41,10 @@ export const createClient = (config: Config = {}): Client => {
       });
     }
 
+    if (opts.requestValidator) {
+      await opts.requestValidator(opts);
+    }
+
     if (opts.body && opts.bodySerializer) {
       opts.body = opts.bodySerializer(opts.body);
     }
@@ -129,14 +133,16 @@ export const createClient = (config: Config = {}): Client => {
           };
     }
 
-    let error = await response.text();
+    const textError = await response.text();
+    let jsonError: unknown;
 
     try {
-      error = JSON.parse(error);
+      jsonError = JSON.parse(textError);
     } catch {
       // noop
     }
 
+    const error = jsonError ?? textError;
     let finalError = error;
 
     for (const fn of interceptors.error._fns) {
