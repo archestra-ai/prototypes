@@ -125,7 +125,7 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
     set({ selectedModel: model });
   },
 
-  chat: (messages: OllamaMessage[], tools: OllamaTool[] = []) => {
+  chat: (messages: OllamaMessage[], tools?: OllamaTool[]) => {
     return ollamaClient.chat({
       model: get().selectedModel,
       messages,
