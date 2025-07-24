@@ -25,11 +25,12 @@ jobs:
       desktop_release_created: ${{ steps.release-please.outputs['desktop--release_created'] }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - uses: googleapis/release-please-action@4.2.0
+      - uses: googleapis/release-please-action@a02a34c4d625f9be7cb89156071d8567266a2445 # v4.2.0
         id: release-please
         with:
           config-file: .github/release-please/release-please-config.json
@@ -39,8 +40,10 @@ jobs:
       - name: Log release-please outputs
         # HACK to get toJson to sorta print the output to the console without failing this job
         continue-on-error: true
+        env:
+          OUTPUTS: ${{ toJson(steps.release-please.outputs) }}
         run: |
-          echo "${{ toJson(steps.release-please.outputs) }}"
+          echo "$OUTPUTS"
 
   build-desktop-application-and-create-github-release:
     name: Build desktop application and create GitHub release
@@ -48,6 +51,8 @@ jobs:
     if: needs.release-please.outputs.desktop_release_created
     needs:
       - release-please
+    permissions:
+      contents: read
     steps:
       - run: |
           echo "placeholder to build and publish desktop application"

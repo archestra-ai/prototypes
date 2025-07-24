@@ -4,20 +4,22 @@ name: "Copilot Setup Steps"
 # Allow testing of the setup steps from your repository's "Actions" tab.
 on: workflow_dispatch
 
+# Set the permissions to the lowest permissions possible needed for your steps.
+# Copilot will be given its own token for its operations.
+permissions:
+  contents: read
+
 jobs:
   # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
   copilot-setup-steps:
     runs-on: ubuntu-latest
-    # Set the permissions to the lowest permissions possible needed for your steps.
-    # Copilot will be given its own token for its operations.
-    # permissions:
-    #   id-token: write
-    #   contents: read
     # You can define any steps you want, and they will run before the agent starts.
     # If you do not check out your code, Copilot will do this for you.
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust

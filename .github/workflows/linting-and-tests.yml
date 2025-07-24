@@ -12,13 +12,18 @@ concurrency:
   group: "${{ github.ref_name }}-${{ github.head_ref }}"
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   lint-pr-title:
     name: PR Title Linter
     runs-on: ubuntu-latest
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Lint PR title
         uses: grafana/shared-workflows/actions/lint-pr-title@19d8fb5687bb386849f7f53673c5f429e6387cf5 # v1.2.0
@@ -49,7 +54,9 @@ jobs:
     name: Rust Linting and Tests (${{ matrix.platform }})
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -66,7 +73,7 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       # NOTE: use this once we want to start building the application binaries for Mac/Windows/Linux
-      # - uses: tauri-apps/tauri-action@v0.5.22
+      # - uses: tauri-apps/tauri-action@564aea5a8075c7a54c167bb0cf5b3255314a7f9d # v0.5.22
       #   with:
       #     tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
       #     projectPath: desktop
@@ -81,7 +88,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Setup frontend dependencies
         uses: ./.github/actions/setup-frontend
@@ -103,7 +112,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -132,3 +143,17 @@ jobs:
             exit 1
           fi
           echo "✅ OpenAPI schema and TypeScript client are up to date"
+
+  zizmor:
+    name: Zizmor GitHub Actions static analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor 🌈
+        uses: zizmorcore/zizmor-action@f52a838cfabf134edcbaa7c8b3677dde20045018 # v0.1.1
