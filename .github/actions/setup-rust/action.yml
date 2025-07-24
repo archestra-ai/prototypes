@@ -6,6 +6,8 @@ inputs:
     required: true
 runs:
   using: composite
+  env:
+    UBUNTU_DEPS: "libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf"
   steps:
     - uses: Swatinem/rust-cache@v2
       with:
@@ -19,13 +21,17 @@ runs:
         targets: ${{ inputs.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
         components: rustfmt,clippy
 
-    - name: Install Ubuntu Dependencies
+    - name: Cache Ubuntu Dependencies
       if: inputs.platform == 'ubuntu-latest'
+      uses: actions/cache@v4
+      id: ubuntu-deps-cache
+      with:
+        path: /var/cache/apt
+        key: ubuntu-deps-${{ hashFiles(env.UBUNTU_DEPS) }}-${{ runner.os }}
+
+    - name: Install Ubuntu Dependencies
+      if: inputs.platform == 'ubuntu-latest' && steps.ubuntu-deps-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
-          libwebkit2gtk-4.1-dev \
-          libappindicator3-dev \
-          librsvg2-dev \
-          patchelf
+        sudo apt-get install -y ${{ env.UBUNTU_DEPS }}
