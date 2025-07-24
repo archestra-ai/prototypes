@@ -144,3 +144,269 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         )
         .with_state(service)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_fixtures::database;
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
+    use rstest::*;
+    use serde_json::json;
+    use tower::ServiceExt;
+
+    fn app(db: DatabaseConnection) -> Router {
+        create_router(db)
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_get_connected_external_mcp_clients_empty(#[future] database: DatabaseConnection) {
+        let app = app(database.await);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let clients: Vec<ExternalMCPClient> = serde_json::from_slice(&body).unwrap();
+        assert_eq!(clients.len(), 0);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_get_supported_external_mcp_clients(#[future] database: DatabaseConnection) {
+        let app = app(database.await);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/supported")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let supported_clients: Vec<String> = serde_json::from_slice(&body).unwrap();
+
+        // Check that we get the expected supported clients
+        assert!(supported_clients.contains(&"claude".to_string()));
+        assert!(supported_clients.contains(&"cursor".to_string()));
+        assert!(supported_clients.contains(&"vscode".to_string()));
+        assert_eq!(supported_clients.len(), 3);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_connect_external_mcp_client_success(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let app = app(db.clone());
+
+        let request_body = json!({
+            "client_name": "claude"
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/connect")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_string(&request_body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // Verify the client was actually connected
+        let service = Service::new(db);
+        let connected_clients = service.get_connected_external_mcp_clients().await.unwrap();
+        assert_eq!(connected_clients.len(), 1);
+        assert_eq!(connected_clients[0].client_name, "claude");
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_connect_external_mcp_client_invalid_name(#[future] database: DatabaseConnection) {
+        let app = app(database.await);
+
+        let request_body = json!({
+            "client_name": "invalid-client-name"
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/connect")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_string(&request_body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_disconnect_external_mcp_client_success(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        // First connect a client
+        let service = Service::new(db.clone());
+        service
+            .connect_external_mcp_client("claude".to_string())
+            .await
+            .unwrap();
+
+        // Verify it's connected
+        let connected_clients = service.get_connected_external_mcp_clients().await.unwrap();
+        assert_eq!(connected_clients.len(), 1);
+
+        // Now disconnect it via the API
+        let app = app(db.clone());
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/claude/disconnect")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // Disconnect succeeds even if the client is in DB (it modifies config files)
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_disconnect_external_mcp_client_not_connected(
+        #[future] database: DatabaseConnection,
+    ) {
+        let app = app(database.await);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/claude/disconnect")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // Should return OK - disconnect succeeds even if not connected
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_connect_multiple_clients_and_list(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let service = Service::new(db.clone());
+
+        // Connect multiple clients
+        service
+            .connect_external_mcp_client("claude".to_string())
+            .await
+            .unwrap();
+        service
+            .connect_external_mcp_client("cursor".to_string())
+            .await
+            .unwrap();
+        service
+            .connect_external_mcp_client("vscode".to_string())
+            .await
+            .unwrap();
+
+        // Get connected clients via API
+        let app = app(db);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let clients: Vec<ExternalMCPClient> = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(clients.len(), 3);
+        let client_names: Vec<String> = clients.iter().map(|c| c.client_name.clone()).collect();
+        assert!(client_names.contains(&"claude".to_string()));
+        assert!(client_names.contains(&"cursor".to_string()));
+        assert!(client_names.contains(&"vscode".to_string()));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_connect_duplicate_client(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let service = Service::new(db.clone());
+
+        // Connect a client
+        service
+            .connect_external_mcp_client("claude".to_string())
+            .await
+            .unwrap();
+
+        // Try to connect the same client again via API
+        let app = app(db.clone());
+        let request_body = json!({
+            "client_name": "claude"
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/connect")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_string(&request_body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // Should return OK since connecting again succeeds (upsert)
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // Verify still only one client is connected (upsert behavior)
+        let connected_clients = service.get_connected_external_mcp_clients().await.unwrap();
+        assert_eq!(connected_clients.len(), 1);
+    }
+}

@@ -297,3 +297,239 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .route("/{server_name}", post(handler))
         .with_state(Arc::new(Service::new(db)))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_fixtures::database;
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
+    use rstest::*;
+    use tower::ServiceExt;
+
+    fn app(db: DatabaseConnection) -> Router {
+        create_router(db)
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_extract_client_info(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let _service = Service::new(db);
+
+        let mut headers = HeaderMap::new();
+        headers.insert("user-agent", "test-agent/1.0".parse().unwrap());
+        headers.insert("x-client-name", "test-client".parse().unwrap());
+        headers.insert("x-client-version", "1.0.0".parse().unwrap());
+        headers.insert("x-client-platform", "linux".parse().unwrap());
+
+        let client_info = Service::extract_client_info(&headers);
+
+        assert_eq!(client_info.user_agent, Some("test-agent/1.0".to_string()));
+        assert_eq!(client_info.client_name, Some("test-client".to_string()));
+        assert_eq!(client_info.client_version, Some("1.0.0".to_string()));
+        assert_eq!(client_info.client_platform, Some("linux".to_string()));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_extract_session_ids(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let _service = Service::new(db);
+
+        let mut headers = HeaderMap::new();
+        headers.insert("x-session-id", "session-123".parse().unwrap());
+        headers.insert("mcp-session-id", "mcp-456".parse().unwrap());
+
+        let (session_id, mcp_session_id) = Service::extract_session_ids(&headers);
+
+        assert_eq!(session_id, Some("session-123".to_string()));
+        assert_eq!(mcp_session_id, Some("mcp-456".to_string()));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_headers_to_hashmap(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let _service = Service::new(db);
+
+        let mut headers = HeaderMap::new();
+        headers.insert("content-type", "application/json".parse().unwrap());
+        headers.insert("authorization", "Bearer token123".parse().unwrap());
+
+        let hashmap = Service::headers_to_hashmap(&headers);
+
+        assert_eq!(
+            hashmap.get("content-type"),
+            Some(&"application/json".to_string())
+        );
+        assert_eq!(
+            hashmap.get("authorization"),
+            Some(&"Bearer token123".to_string())
+        );
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_extract_method_from_request(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let _service = Service::new(db);
+
+        // Valid JSON-RPC request
+        let request_body = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#;
+        let method = Service::extract_method_from_request(request_body);
+        assert_eq!(method, Some("tools/list".to_string()));
+
+        // Invalid JSON
+        let invalid_body = "not json";
+        let method = Service::extract_method_from_request(invalid_body);
+        assert_eq!(method, None);
+
+        // JSON without method
+        let no_method_body = r#"{"jsonrpc":"2.0","id":1}"#;
+        let method = Service::extract_method_from_request(no_method_body);
+        assert_eq!(method, None);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_proxy_invalid_utf8_request(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let app = app(db);
+
+        // Create a request with invalid UTF-8 bytes
+        let invalid_utf8 = vec![0xFF, 0xFE, 0xFD];
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/test-server")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(invalid_utf8))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert_eq!(body_str, "Invalid UTF-8 in request body");
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_proxy_with_headers(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let app = app(db);
+
+        let request_body = r#"{"jsonrpc":"2.0","id":1,"method":"test","params":{}}"#;
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/test-server")
+                    .header("Content-Type", "application/json")
+                    .header("x-session-id", "session-789")
+                    .header("x-client-name", "test-client")
+                    .header("user-agent", "test/1.0")
+                    .body(Body::from(request_body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // Since we can't easily mock forward_raw_request in tests,
+        // we expect an internal server error when it tries to forward
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(json["jsonrpc"], "2.0");
+        assert!(json["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("MCP Proxy error"));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_concurrent_proxy_requests(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let service = Arc::new(Service::new(db));
+
+        let mut handles = vec![];
+
+        for i in 0..5 {
+            let service_clone = service.clone();
+            let handle = tokio::spawn(async move {
+                let request_body =
+                    format!(r#"{{"jsonrpc":"2.0","id":{i},"method":"test","params":{{}}}}"#);
+                let req = Request::builder()
+                    .method("POST")
+                    .uri(format!("/server-{i}"))
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(request_body))
+                    .unwrap();
+
+                let response = service_clone.call(format!("server-{i}"), req).await;
+                response.status()
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            let status = handle.await.unwrap();
+            // All should fail with internal server error since forward_raw_request isn't mocked
+            assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_service_logging(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let service = Service::new(db.clone());
+
+        let request_body = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#;
+        let req = Request::builder()
+            .method("POST")
+            .uri("/test-server")
+            .header("Content-Type", "application/json")
+            .header("x-session-id", "test-session")
+            .body(Body::from(request_body))
+            .unwrap();
+
+        // Call the service
+        let _response = service.call("test-server".to_string(), req).await;
+
+        // Give time for async logging to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        // Check that a log entry was created
+        use crate::models::mcp_request_log::{Column, Entity};
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+
+        let logs = Entity::find()
+            .filter(Column::ServerName.eq("test-server"))
+            .all(&db)
+            .await
+            .unwrap();
+
+        assert!(!logs.is_empty());
+        let log = &logs[0];
+        assert_eq!(log.server_name, "test-server");
+        assert_eq!(log.method, Some("tools/list".to_string()));
+        assert_eq!(log.status_code, 500); // Failed since forward_raw_request isn't mocked
+    }
+}

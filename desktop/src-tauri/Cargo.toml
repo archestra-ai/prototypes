@@ -58,3 +58,4 @@ tempfile = "3.8"
 rstest = "0.25.0"
 rstest_reuse = "0.7.0"
 sea-orm-cli = "1.1.14"
+tower = { version = "0.5", features = ["util"] }
