@@ -225,7 +225,7 @@ impl Model {
             meta: None,
         };
 
-        let result = Model::save_server(&db, &definition)
+        let result = Model::save_server(db, &definition)
             .await
             .map_err(|e| format!("Failed to save MCP server: {e}"))?;
 

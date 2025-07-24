@@ -78,7 +78,7 @@ async fn proxy_handler(
             let mapped_stream = body_stream.map(|result| {
                 result
                     .map(|bytes| axum::body::Bytes::from(bytes.to_vec()))
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                    .map_err(std::io::Error::other)
             });
 
             // Create a streaming body from the mapped stream
@@ -92,7 +92,7 @@ async fn proxy_handler(
                     .into_response()
             })
         }
-        Err(e) => (StatusCode::BAD_GATEWAY, format!("Proxy error: {}", e)).into_response(),
+        Err(e) => (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response(),
     }
 }
 
