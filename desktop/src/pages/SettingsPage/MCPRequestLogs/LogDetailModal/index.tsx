@@ -17,9 +17,9 @@ interface LogDetailModalProps {
 export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalProps) {
   const { parseClientInfo, parseHeaders } = useMCPLogsStore();
 
-  const clientInfo = parseClientInfo(log.client_info);
-  const requestHeaders = parseHeaders(log.request_headers);
-  const responseHeaders = parseHeaders(log.response_headers);
+  const clientInfo = parseClientInfo(log.client_info ?? undefined);
+  const requestHeaders = parseHeaders(log.request_headers ?? undefined);
+  const responseHeaders = parseHeaders(log.response_headers ?? undefined);
 
   const formatJson = (jsonString?: string) => {
     if (!jsonString) return 'N/A';
@@ -66,7 +66,7 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
                 <Label>Duration</Label>
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  {formatDuration(log.duration_ms)}
+                  {formatDuration(log.duration_ms ?? undefined)}
                 </div>
               </div>
               <div className="space-y-2">
@@ -139,7 +139,7 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
             <div>
               <Label>Request Body</Label>
               <pre className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md text-sm overflow-auto max-h-64 mt-2">
-                {formatJson(log.request_body)}
+                {formatJson(log.request_body ?? undefined)}
               </pre>
             </div>
           </div>
@@ -156,7 +156,7 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
             <div>
               <Label>Response Body</Label>
               <pre className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md text-sm overflow-auto max-h-64 mt-2">
-                {formatJson(log.response_body)}
+                {formatJson(log.response_body ?? undefined)}
               </pre>
             </div>
           </div>

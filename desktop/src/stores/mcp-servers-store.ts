@@ -5,9 +5,9 @@ import { fetch } from '@tauri-apps/plugin-http';
 import { create } from 'zustand';
 
 import { ARCHESTRA_SERVER_MCP_PROXY_URL, ARCHESTRA_SERVER_MCP_URL } from '@/consts';
-import { type McpServer, getInstalledMcpServers } from '@/lib/api-client';
+import { type McpServer, type McpServerDefinition, getInstalledMcpServers } from '@/lib/api-client';
 
-import type { ConnectedMCPServer, MCPServer } from '../types';
+import type { ConnectedMCPServer } from '../types';
 
 export type MCPServerTools = Record<string, Tool[]>;
 
@@ -19,7 +19,7 @@ interface MCPServersState {
 }
 
 interface MCPServersActions {
-  addMCPServerToInstalledMCPServers: (mcpServer: MCPServer) => void;
+  addMCPServerToInstalledMCPServers: (mcpServer: McpServerDefinition) => void;
   removeMCPServerFromInstalledMCPServers: (mcpServerName: string) => void;
   executeTool: (serverName: string, request: CallToolRequest['params']) => Promise<any>;
   loadInstalledMCPServers: () => Promise<void>;
@@ -62,6 +62,17 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
   // State
   archestraMCPServer: {
     name: 'Archestra',
+    /**
+     * server_config and meta aren't needed for the Archestra MCP server, they're simply added
+     * here to appease the ConnectedMCPServer type.
+     */
+    server_config: {
+      transport: 'http',
+      command: '',
+      args: [],
+      env: {},
+    },
+    meta: undefined,
     url: ARCHESTRA_SERVER_MCP_URL,
     client: null,
     tools: [],
@@ -73,7 +84,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
   errorLoadingInstalledMCPServers: null,
 
   // Actions
-  addMCPServerToInstalledMCPServers: (mcpServer: MCPServer) => {
+  addMCPServerToInstalledMCPServers: (mcpServer: McpServerDefinition) => {
     set((state) => ({
       installedMCPServers: [
         ...state.installedMCPServers,
@@ -141,13 +152,11 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
       const response = await getInstalledMcpServers();
 
       if ('data' in response && response.data) {
-        // Convert from generated type to internal MCPServer type
+        // Convert from generated type to internal McpServerDefinition type
         const installedMCPServers = response.data.map(
-          (server: McpServer): MCPServer => ({
-            id: server.id,
+          (server: McpServer): McpServerDefinition => ({
             name: server.name,
             server_config: JSON.parse(server.server_config),
-            created_at: server.created_at,
             meta: server.meta ? JSON.parse(server.meta) : undefined,
           })
         );

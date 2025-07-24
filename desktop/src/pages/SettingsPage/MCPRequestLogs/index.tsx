@@ -242,7 +242,7 @@ export default function MCPRequestLogs() {
                             {log.method || 'N/A'}
                           </code>
                         </TableCell>
-                        <TableCell>{formatDuration(log.duration_ms)}</TableCell>
+                        <TableCell>{formatDuration(log.duration_ms ?? undefined)}</TableCell>
                         <TableCell>
                           <div className="space-y-1">
                             {log.session_id && (

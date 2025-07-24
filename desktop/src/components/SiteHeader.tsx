@@ -15,7 +15,12 @@ import { useSidebar } from '@/components/ui/sidebar';
 
 import { ModeToggle } from './mode-toggle';
 
-export function SiteHeader(props) {
+interface SiteHeaderProps {
+  title: string | undefined;
+  breadcrumbs: string[];
+}
+
+export function SiteHeader(props: SiteHeaderProps) {
   const { toggleSidebar } = useSidebar();
 
   return (
