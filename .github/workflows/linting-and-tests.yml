@@ -47,14 +47,13 @@ jobs:
       - name: Check Rust formatting
         run: cargo fmt --check
         
-      - name: Build shared compilation artifacts
-        run: cargo check --workspace --all-targets --all-features
+      - name: Run tests
+        run: cargo test
 
       - name: Run Clippy Linting
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: Run tests
-        run: cargo test
+
 
       # NOTE: use this once we want to start building the application binaries for Mac/Windows/Linux
       # - uses: tauri-apps/tauri-action@v0.5.22

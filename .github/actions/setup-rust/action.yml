@@ -7,10 +7,10 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: Swatinem/rust-cache@v2
-      with:
-        workspaces: desktop/src-tauri
-        cache-on-failure: true
+    # - uses: Swatinem/rust-cache@v2
+    #   with:
+    #     workspaces: desktop/src-tauri
+    #     cache-on-failure: true
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
