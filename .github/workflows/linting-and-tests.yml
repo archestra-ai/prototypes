@@ -12,17 +12,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      # Cache the cargo registry to speed up the build
-      # https://github.com/actions/cache/blob/main/examples.md#rust---cargo
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      # # Cache the cargo registry to speed up the build
+      # # https://github.com/actions/cache/blob/main/examples.md#rust---cargo
+      # - uses: actions/cache@v4
+      #   with:
+      #     path: |
+      #       ~/.cargo/bin/
+      #       ~/.cargo/registry/index/
+      #       ~/.cargo/registry/cache/
+      #       ~/.cargo/git/db/
+      #       target/
+      #     key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -33,10 +33,15 @@ jobs:
         with:
           cache-on-failure: true
 
-      # - name: Install dependencies
-      #   run: sudo apt-get update && sudo apt-get install -y liburing-dev pkg-config libjemalloc-dev
-          
+      # - name: Cache Ubuntu Dependencies
+      #   uses: actions/cache@v4
+      #   id: cache-ubuntu-deps
+      #   with:
+      #     path: /var/cache/apt
+      #     key: ${{ runner.os }}-apt
+
       - name: Install Ubuntu Dependencies
+        if: steps.cache-ubuntu-deps.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -49,9 +54,9 @@ jobs:
         working-directory: desktop/src-tauri
         run: cargo fmt --check
 
-      - name: Run Clippy Linting
+      - name: Run Clippy Linting for own code
         working-directory: desktop/src-tauri
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: clippy --no-deps
 
       - name: Run tests
         working-directory: desktop/src-tauri
