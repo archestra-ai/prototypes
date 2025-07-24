@@ -211,7 +211,7 @@ function App() {
 
               {/* Tools Group - Only show when on chat page */}
               {activeView === 'chat' && (
-                <SidebarGroup>
+                <SidebarGroup className="group-data-[collapsible=icon]:hidden">
                   <SidebarGroupLabel>Tools</SidebarGroupLabel>
                   <SidebarGroupContent>
                     {/* Search Input */}
