@@ -30,18 +30,6 @@ runs:
         key: ubuntu-deps-${{ env.UBUNTU_DEPS }}-${{ runner.os }}
 
     - name: Install Ubuntu Dependencies
-<<<<<<< HEAD
-
-      if: inputs.platform == 'ubuntu-latest'
-      uses: actions/cache@v4
-      id: ubuntu-deps-cache
-      with:
-        path: /var/cache/apt
-        key: ubuntu-deps-${{ env.UBUNTU_DEPS }}-${{ runner.os }}
-
-    - name: Install Ubuntu Dependencies
-=======
->>>>>>> cefa394 (Speedup CI)
       if: inputs.platform == 'ubuntu-latest' && steps.ubuntu-deps-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
