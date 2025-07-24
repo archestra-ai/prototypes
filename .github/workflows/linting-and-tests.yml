@@ -43,6 +43,7 @@ jobs:
         run: cargo fmt --check
         
       - name: Build tests (reduces clippy rebuilds)
+        working-directory: desktop/src-tauri
         run: cargo test --no-run
 
       - name: Run Clippy Linting
