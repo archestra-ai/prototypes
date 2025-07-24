@@ -1,13 +1,13 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { CallToolRequest, ClientCapabilities, Tool } from '@modelcontextprotocol/sdk/types.js';
-import { invoke } from '@tauri-apps/api/core';
 import { fetch } from '@tauri-apps/plugin-http';
 import { create } from 'zustand';
 
 import { ARCHESTRA_SERVER_MCP_PROXY_URL, ARCHESTRA_SERVER_MCP_URL } from '@/consts';
+import { type McpServer, type McpServerDefinition, getInstalledMcpServers } from '@/lib/api-client';
 
-import type { ConnectedMCPServer, MCPServer } from '../types';
+import type { ConnectedMCPServer } from '../types';
 
 export type MCPServerTools = Record<string, Tool[]>;
 
@@ -19,7 +19,7 @@ interface MCPServersState {
 }
 
 interface MCPServersActions {
-  addMCPServerToInstalledMCPServers: (mcpServer: MCPServer) => void;
+  addMCPServerToInstalledMCPServers: (mcpServer: McpServerDefinition) => void;
   removeMCPServerFromInstalledMCPServers: (mcpServerName: string) => void;
   executeTool: (serverName: string, request: CallToolRequest['params']) => Promise<any>;
   loadInstalledMCPServers: () => Promise<void>;
@@ -62,6 +62,17 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
   // State
   archestraMCPServer: {
     name: 'Archestra',
+    /**
+     * server_config and meta aren't needed for the Archestra MCP server, they're simply added
+     * here to appease the ConnectedMCPServer type.
+     */
+    server_config: {
+      transport: 'http',
+      command: '',
+      args: [],
+      env: {},
+    },
+    meta: undefined,
     url: ARCHESTRA_SERVER_MCP_URL,
     client: null,
     tools: [],
@@ -73,7 +84,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
   errorLoadingInstalledMCPServers: null,
 
   // Actions
-  addMCPServerToInstalledMCPServers: (mcpServer: MCPServer) => {
+  addMCPServerToInstalledMCPServers: (mcpServer: McpServerDefinition) => {
     set((state) => ({
       installedMCPServers: [
         ...state.installedMCPServers,
@@ -138,11 +149,24 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
         errorLoadingInstalledMCPServers: null,
       });
 
-      const installedMCPServers = await invoke<MCPServer[]>('load_installed_mcp_servers');
+      const response = await getInstalledMcpServers();
 
-      // Add servers and connect to them
-      for (const server of installedMCPServers) {
-        get().addMCPServerToInstalledMCPServers(server);
+      if ('data' in response && response.data) {
+        // Convert from generated type to internal McpServerDefinition type
+        const installedMCPServers = response.data.map(
+          (server: McpServer): McpServerDefinition => ({
+            name: server.name,
+            server_config: JSON.parse(server.server_config),
+            meta: server.meta ? JSON.parse(server.meta) : undefined,
+          })
+        );
+
+        // Add servers and connect to them
+        for (const server of installedMCPServers) {
+          get().addMCPServerToInstalledMCPServers(server);
+        }
+      } else if ('error' in response) {
+        throw new Error(response.error as string);
       }
     } catch (error) {
       set({ errorLoadingInstalledMCPServers: error as string });

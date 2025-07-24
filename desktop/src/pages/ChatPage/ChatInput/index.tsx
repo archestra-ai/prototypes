@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import {
   AIInput,
   AIInputButton,
+  AIInputContextPills,
   AIInputModelSelect,
   AIInputModelSelectContent,
   AIInputModelSelectItem,
@@ -15,22 +16,22 @@ import {
   AIInputTextarea,
   AIInputToolbar,
   AIInputTools,
+  ToolContext,
 } from '@/components/kibo/ai-input';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAgentStore } from '@/stores/agent-store';
 import { useChatStore, useIsStreaming } from '@/stores/chat-store';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
-import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
 
-interface ChatInputProps {}
+interface ChatInputProps {
+  selectedTools?: ToolContext[];
+  onToolRemove?: (tool: ToolContext) => void;
+}
 
-export default function ChatInput(_props: ChatInputProps) {
-  const { loadingInstalledMCPServers } = useMCPServersStore();
-  const allToolsObject = useMCPServersStore.getState().allAvailableTools();
-  const allTools = Object.values(allToolsObject).flat();
-  const { sendChatMessage, cancelStreaming } = useChatStore();
+export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInputProps) {
+  const { sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const isStreaming = useIsStreaming();
 
@@ -41,7 +42,6 @@ export default function ChatInput(_props: ChatInputProps) {
 
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'submitted' | 'streaming' | 'ready' | 'error'>('ready');
-  const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
 
   const disabled = isStreaming || (isAgentActive && agentMode === 'initializing');
 
@@ -79,8 +79,16 @@ export default function ChatInput(_props: ChatInputProps) {
     setStatus('submitted');
 
     try {
+      let finalMessage = message.trim();
+
+      // Add tool context to the message if tools are selected
+      if (selectedTools.length > 0) {
+        const toolContexts = selectedTools.map((tool) => `Use ${tool.toolName} from ${tool.serverName}`).join(', ');
+        finalMessage = `${toolContexts}. ${finalMessage}`;
+      }
+
       setMessage('');
-      await sendChatMessage(trimmedMessage);
+      await sendChatMessage(finalMessage, selectedTools);
       setStatus('ready');
     } catch (error) {
       setStatus('error');
@@ -111,53 +119,16 @@ export default function ChatInput(_props: ChatInputProps) {
     }
   };
 
-  const totalNumberOfTools = allTools.length;
+  const handleModelChange = (modelName: string) => {
+    setSelectedModel(modelName);
+    clearChatHistory();
+  };
 
   return (
     <TooltipProvider>
       <div className="space-y-2">
-        {isToolsMenuOpen && (totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
-          <div className="border rounded-lg p-3 bg-muted/50">
-            {loadingInstalledMCPServers ? (
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <span className="text-sm text-muted-foreground">Loading available tools...</span>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-3">
-                  <Wrench className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium">Available Tools</span>
-                  <Badge variant="secondary" className="text-xs">
-                    Total: {totalNumberOfTools}
-                  </Badge>
-                </div>
-                <div className="space-y-1">
-                  {allTools.map((tool, idx) => (
-                    <div
-                      key={idx}
-                      className="group flex cursor-pointer items-start gap-2 rounded-md p-2 hover:bg-accent"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const toolCommand = `Use the ${tool.name} tool`;
-                        setMessage(toolCommand);
-                        setIsToolsMenuOpen(false);
-                      }}
-                    >
-                      <Wrench className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                      <div className="flex-1">
-                        <div className="font-medium">{tool.name}</div>
-                        <div className="text-xs text-muted-foreground">{tool.description}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         <AIInput onSubmit={onSubmit} className="bg-inherit">
+          <AIInputContextPills tools={selectedTools} onRemoveTool={onToolRemove || (() => {})} />
           <AIInputTextarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -212,23 +183,6 @@ export default function ChatInput(_props: ChatInputProps) {
                   <span>Toggle system prompt</span>
                 </TooltipContent>
               </Tooltip>
-              {(totalNumberOfTools > 0 || loadingInstalledMCPServers) && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AIInputButton
-                      onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)}
-                      className={isToolsMenuOpen ? 'bg-primary/20' : ''}
-                    >
-                      <Settings size={16} />
-                    </AIInputButton>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <span>
-                      {loadingInstalledMCPServers ? 'Loading tools...' : `${totalNumberOfTools} tools available`}
-                    </span>
-                  </TooltipContent>
-                </Tooltip>
-              )}
             </AIInputTools>
             <AIInputSubmit
               status={isStreaming ? 'streaming' : status}

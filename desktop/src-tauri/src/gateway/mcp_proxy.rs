@@ -1,6 +1,6 @@
 use crate::models::mcp_request_log::ClientInfo;
+use crate::models::mcp_request_log::{CreateLogRequest, Model as MCPRequestLog};
 use crate::models::mcp_server::sandbox::forward_raw_request;
-use crate::models::{CreateLogRequest, MCPRequestLog};
 use axum::{
     body::Body,
     extract::{Path, State},
@@ -88,7 +88,7 @@ impl Service {
         let start_time = Instant::now();
         let request_id = Uuid::new_v4().to_string();
 
-        println!("🚀 Gateway proxy: Starting request to server '{server_name}' (ID: {request_id})");
+        println!("🚀 MCP Proxy: Starting request to server '{server_name}' (ID: {request_id})");
 
         // Extract headers and session info before consuming the request
         let headers = req.headers().clone();
@@ -230,7 +230,7 @@ impl Service {
                     .unwrap()
             }
             Err(e) => {
-                println!("❌ Gateway proxy: Failed to forward request to '{server_name}': {e}");
+                println!("❌ MCP Proxy: Failed to forward request to '{server_name}': {e}");
 
                 let duration_ms = start_time.elapsed().as_millis() as i32;
 
@@ -240,7 +240,7 @@ impl Service {
                     "id": null,
                     "error": {
                         "code": -32603,
-                        "message": format!("Proxy error: {}", e)
+                        "message": format!("MCP Proxy error: {}", e)
                     }
                 });
 

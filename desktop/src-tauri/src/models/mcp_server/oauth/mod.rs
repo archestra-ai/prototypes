@@ -1,15 +1,16 @@
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri_plugin_opener::OpenerExt;
+use utoipa::ToSchema;
 
 pub mod gmail;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[schema(as = MCPOAuthResponse)]
 pub struct AuthResponse {
     pub auth_url: String,
 }
 
-#[tauri::command]
 pub async fn start_oauth_auth(
     app: tauri::AppHandle,
     service: String,

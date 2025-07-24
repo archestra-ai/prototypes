@@ -1,12 +1,13 @@
 import { Message as OllamaMessage, ToolCall as OllamaToolCall } from 'ollama/browser';
 import { create } from 'zustand';
 
+import type { ToolContext } from '../components/kibo/ai-input';
 import { ChatMessage, ToolCallInfo } from '../types';
 import { useAgentStore } from './agent-store';
 import { useDeveloperModeStore } from './developer-mode-store';
 import { useMCPServersStore } from './mcp-servers-store';
 import { useOllamaStore } from './ollama-store';
-import { convertMCPServerToolsToOllamaTools, convertOllamaToolNameToServerAndToolName } from './ollama-store/utils';
+import { convertOllamaToolNameToServerAndToolName, convertSelectedOrAllToolsToOllamaTools } from './ollama-store/utils';
 
 interface ParsedContent {
   thinking: string;
@@ -21,7 +22,7 @@ interface ChatState {
 }
 
 interface ChatActions {
-  sendChatMessage: (message: string) => Promise<void>;
+  sendChatMessage: (message: string, selectedTools?: ToolContext[]) => Promise<void>;
   clearChatHistory: () => void;
   cancelStreaming: () => void;
   updateStreamingMessage: (messageId: string, content: string) => void;
@@ -217,8 +218,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }));
   },
 
-  sendChatMessage: async (message: string) => {
+  sendChatMessage: async (message: string, selectedTools?: ToolContext[]) => {
     const { chat, selectedModel } = useOllamaStore.getState();
+
     const allTools = useMCPServersStore.getState().allAvailableTools();
     const { activateAgent, isAgentActive } = useAgentStore.getState();
     const { isDeveloperMode, systemPrompt } = useDeveloperModeStore.getState();
@@ -412,7 +414,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         { role: 'user', content: message }
       );
 
-      const ollamaFormattedTools = hasTools && modelSupportsTools ? convertMCPServerToolsToOllamaTools(allTools) : [];
+      const ollamaFormattedTools =
+        hasTools && modelSupportsTools ? convertSelectedOrAllToolsToOllamaTools(selectedTools, allTools) : [];
       const response = await chat(ollamaMessages, ollamaFormattedTools);
 
       let accumulatedContent = '';

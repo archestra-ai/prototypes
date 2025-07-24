@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
 import { AgentControlPanel, AgentModeIndicator, ReasoningPanel } from '@/components/agent';
+import { ToolContext } from '@/components/kibo/ai-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Label } from '@/components/ui/label';
@@ -11,9 +12,12 @@ import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 import ChatHistory from './ChatHistory';
 import ChatInput from './ChatInput';
 
-interface ChatPageProps {}
+interface ChatPageProps {
+  selectedTools?: ToolContext[];
+  onToolRemove?: (tool: ToolContext) => void;
+}
 
-export default function ChatPage(_props: ChatPageProps) {
+export default function ChatPage({ selectedTools, onToolRemove }: ChatPageProps) {
   const [showAgentControls, setShowAgentControls] = useState(false);
   const { isDeveloperMode, systemPrompt, setSystemPrompt } = useDeveloperModeStore();
 
@@ -72,7 +76,7 @@ export default function ChatPage(_props: ChatPageProps) {
             )}
 
             <div className="flex-shrink-0">
-              <ChatInput />
+              <ChatInput selectedTools={selectedTools} onToolRemove={onToolRemove} />
             </div>
           </CardContent>
         </Card>

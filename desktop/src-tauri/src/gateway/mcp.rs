@@ -52,6 +52,7 @@ struct SetActiveModelsRequest {
     pub models: Vec<String>,
 }
 
+#[derive(Clone)]
 pub struct Service {
     resources: Arc<Mutex<HashMap<String, ArchestraResource>>>,
     context: Arc<Mutex<ArchestraContext>>,
@@ -311,198 +312,154 @@ pub async fn create_streamable_http_service(
     )
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::test_fixtures::database;
-//     use rstest::*;
-//     use std::net::{IpAddr, Ipv4Addr};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_fixtures::database;
+    use rstest::*;
 
-//     #[fixture]
-//     async fn service_and_db(
-//         #[future] database: DatabaseConnection,
-//     ) -> (Service, DatabaseConnection) {
-//         let db = database.await;
-//         let service = Service::new("test_user_123".to_string(), db.clone());
-//         (service, db)
-//     }
+    #[fixture]
+    async fn service_and_db(
+        #[future] database: DatabaseConnection,
+    ) -> (Service, DatabaseConnection) {
+        let db = database.await;
+        let service = Service::new("test_user_123".to_string(), db.clone());
+        (service, db)
+    }
 
-//     // Test server info
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_server_info(#[future] service_and_db: (Service, DatabaseConnection)) {
-//         let (service, _) = service_and_db.await;
-//         let info = <Service as ServerHandler>::get_info(&service);
+    #[rstest]
+    #[tokio::test]
+    async fn test_server_info(#[future] service_and_db: (Service, DatabaseConnection)) {
+        let (service, _) = service_and_db.await;
+        let info = <Service as ServerHandler>::get_info(&service);
 
-//         assert_eq!(info.protocol_version, ProtocolVersion::V_2025_03_26);
-//         assert!(info.capabilities.tools.is_some());
-//         assert!(info.capabilities.resources.is_some());
-//         assert!(info.capabilities.logging.is_none());
-//         assert!(info.capabilities.prompts.is_none());
-//     }
+        assert_eq!(info.protocol_version, ProtocolVersion::V_2025_03_26);
+        assert!(info.capabilities.tools.is_some());
+        assert!(info.capabilities.resources.is_some());
+        assert!(info.capabilities.logging.is_none());
+        assert!(info.capabilities.prompts.is_none());
+    }
 
-//     // Test startup of the mcp server
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_server_startup(#[future] service_and_db: (Service, DatabaseConnection)) {
-//         let (_service, db) = service_and_db.await;
-//         let user_id = "test_user".to_string();
+    #[rstest]
+    #[tokio::test]
+    async fn test_get_context_tool(#[future] service_and_db: (Service, DatabaseConnection)) {
+        let (service, _) = service_and_db.await;
 
-//         // Start server in a background task
-//         let server_task = tokio::spawn(async move {
-//             let result = Gateway::start_gateway(user_id, db).await;
-//             // Server should run until cancelled
-//             assert!(result.is_ok() || result.is_err());
-//         });
+        let result = service.get_context().await;
+        assert!(result.is_ok());
 
-//         // Give server time to start
-//         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        let tool_result = result.unwrap();
+        assert!(!tool_result.content.is_empty());
 
-//         // Test that server is listening on the expected port
-//         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), GATEWAY_SERVER_PORT);
-//         let connection_result = tokio::net::TcpStream::connect(addr).await;
-//         assert!(
-//             connection_result.is_ok(),
-//             "Server should be listening on port {GATEWAY_SERVER_PORT}"
-//         );
+        let first_content = tool_result.content.first().unwrap();
+        match &first_content.raw {
+            rmcp::model::RawContent::Text(text) => {
+                let context: serde_json::Value = serde_json::from_str(&text.text).unwrap();
+                assert_eq!(context["user_id"], "test_user_123");
+                assert!(context["session_id"].is_string());
+                assert!(context["project_context"].is_object());
+                assert!(context["active_models"].is_array());
+            }
+            _ => panic!("Expected text content"),
+        }
+    }
 
-//         // Clean up - abort the server task
-//         server_task.abort();
-//     }
+    #[rstest]
+    #[tokio::test]
+    async fn test_update_context_tool(#[future] service_and_db: (Service, DatabaseConnection)) {
+        let (service, _) = service_and_db.await;
 
-//     // Test get_context tool
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_get_context_tool(#[future] gateway_and_db: (Gateway, DatabaseConnection)) {
-//         let (gateway, _) = gateway_and_db.await;
+        let params = UpdateContextRequest {
+            key: "environment".to_string(),
+            value: "production".to_string(),
+        };
 
-//         let result = gateway.get_context().await;
-//         assert!(result.is_ok());
+        let result = service.update_context(Parameters(params)).await;
+        assert!(result.is_ok());
 
-//         let tool_result = result.unwrap();
-//         assert!(!tool_result.content.is_empty());
+        let context = service.context.lock().await;
+        assert_eq!(
+            context.project_context.get("environment"),
+            Some(&"production".to_string())
+        );
+    }
 
-//         // Verify the context contains expected fields
-//         let first_content = tool_result.content.first().unwrap();
-//         match &first_content.raw {
-//             rmcp::model::RawContent::Text(text) => {
-//                 let context: serde_json::Value = serde_json::from_str(&text.text).unwrap();
-//                 assert_eq!(context["user_id"], "test_user_123");
-//                 assert!(context["session_id"].is_string());
-//                 assert!(context["project_context"].is_object());
-//                 assert!(context["active_models"].is_array());
-//             }
-//             _ => panic!("Expected text content"),
-//         }
-//     }
+    #[rstest]
+    #[tokio::test]
+    async fn test_set_active_models_tool(#[future] service_and_db: (Service, DatabaseConnection)) {
+        let (service, _) = service_and_db.await;
 
-//     // Test update_context tool
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_update_context_tool(#[future] gateway_and_db: (Gateway, DatabaseConnection)) {
-//         let (gateway, _) = gateway_and_db.await;
+        let params = SetActiveModelsRequest {
+            models: vec!["gpt-4".to_string(), "claude-3-opus".to_string()],
+        };
 
-//         // Update context with a key-value pair
-//         let params = UpdateContextRequest {
-//             key: "environment".to_string(),
-//             value: "production".to_string(),
-//         };
+        let result = service.set_active_models(Parameters(params)).await;
+        assert!(result.is_ok());
 
-//         let result = gateway.update_context(Parameters(params)).await;
-//         assert!(result.is_ok());
+        let context = service.context.lock().await;
+        assert_eq!(context.active_models.len(), 2);
+        assert_eq!(context.active_models[0], "gpt-4");
+        assert_eq!(context.active_models[1], "claude-3-opus");
+    }
 
-//         // Verify the context was updated
-//         let context = gateway.context.lock().await;
-//         assert_eq!(
-//             context.project_context.get("environment"),
-//             Some(&"production".to_string())
-//         );
-//     }
+    #[rstest]
+    #[tokio::test]
+    async fn test_concurrent_context_updates(
+        #[future] service_and_db: (Service, DatabaseConnection),
+    ) {
+        let (service, _) = service_and_db.await;
 
-//     // Test set_active_models tool
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_set_active_models_tool(#[future] gateway_and_db: (Gateway, DatabaseConnection)) {
-//         let (gateway, _) = gateway_and_db.await;
+        let mut handles = vec![];
 
-//         let params = SetActiveModelsRequest {
-//             models: vec!["gpt-4".to_string(), "claude-3-opus".to_string()],
-//         };
+        for i in 0..10 {
+            let service_clone = service.clone();
+            let handle = tokio::spawn(async move {
+                let params = UpdateContextRequest {
+                    key: format!("key_{i}"),
+                    value: format!("value_{i}"),
+                };
+                service_clone.update_context(Parameters(params)).await
+            });
+            handles.push(handle);
+        }
 
-//         let result = gateway.set_active_models(Parameters(params)).await;
-//         assert!(result.is_ok());
+        for handle in handles {
+            let result = handle.await.unwrap();
+            assert!(result.is_ok());
+        }
 
-//         // Verify models were set
-//         let context = gateway.context.lock().await;
-//         assert_eq!(context.active_models.len(), 2);
-//         assert_eq!(context.active_models[0], "gpt-4");
-//         assert_eq!(context.active_models[1], "claude-3-opus");
-//     }
+        let context = service.context.lock().await;
+        for i in 0..10 {
+            assert_eq!(
+                context.project_context.get(&format!("key_{i}")),
+                Some(&format!("value_{i}"))
+            );
+        }
+    }
 
-//     // Test concurrent context updates
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_concurrent_context_updates(
-//         #[future] gateway_and_db: (Gateway, DatabaseConnection),
-//     ) {
-//         let (gateway, _) = gateway_and_db.await;
+    #[rstest]
+    #[tokio::test]
+    async fn test_list_installed_mcp_servers_tool(
+        #[future] service_and_db: (Service, DatabaseConnection),
+    ) {
+        let (service, _) = service_and_db.await;
 
-//         // Spawn multiple tasks that update context concurrently
-//         let mut handles = vec![];
+        let result = service.list_installed_mcp_servers().await;
+        assert!(result.is_ok());
 
-//         for i in 0..10 {
-//             let gateway_clone = gateway.clone();
-//             let handle = tokio::spawn(async move {
-//                 let params = UpdateContextRequest {
-//                     key: format!("key_{i}"),
-//                     value: format!("value_{i}"),
-//                 };
-//                 gateway_clone.update_context(Parameters(params)).await
-//             });
-//             handles.push(handle);
-//         }
+        let tool_result = result.unwrap();
+        assert!(!tool_result.content.is_empty());
 
-//         // Wait for all tasks to complete
-//         for handle in handles {
-//             let result = handle.await.unwrap();
-//             assert!(result.is_ok());
-//         }
-
-//         // Verify all updates were applied
-//         let context = gateway.context.lock().await;
-//         for i in 0..10 {
-//             assert_eq!(
-//                 context.project_context.get(&format!("key_{i}")),
-//                 Some(&format!("value_{i}"))
-//             );
-//         }
-//     }
-
-//     // Test list_installed_mcp_servers tool
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_list_installed_mcp_servers_tool(
-//         #[future] gateway_and_db: (Gateway, DatabaseConnection),
-//     ) {
-//         let (gateway, _) = gateway_and_db.await;
-
-//         let result = gateway.list_installed_mcp_servers().await;
-//         assert!(result.is_ok());
-
-//         let tool_result = result.unwrap();
-//         assert!(!tool_result.content.is_empty());
-
-//         // Verify the response contains expected fields
-//         let first_content = tool_result.content.first().unwrap();
-//         match &first_content.raw {
-//             rmcp::model::RawContent::Text(text) => {
-//                 let servers_response: serde_json::Value = serde_json::from_str(&text.text).unwrap();
-//                 assert!(servers_response["servers"].is_array());
-//                 assert!(servers_response["total_count"].is_number());
-//                 // Empty database should have 0 servers
-//                 assert_eq!(servers_response["total_count"], 0);
-//             }
-//             _ => panic!("Expected text content"),
-//         }
-//     }
-// }
+        let first_content = tool_result.content.first().unwrap();
+        match &first_content.raw {
+            rmcp::model::RawContent::Text(text) => {
+                let servers_response: serde_json::Value = serde_json::from_str(&text.text).unwrap();
+                assert!(servers_response["servers"].is_array());
+                assert!(servers_response["total_count"].is_number());
+                // Empty database should have 0 servers
+                assert_eq!(servers_response["total_count"], 0);
+            }
+            _ => panic!("Expected text content"),
+        }
+    }
+}

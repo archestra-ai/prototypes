@@ -4,17 +4,21 @@ use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::PathBuf;
+use utoipa::ToSchema;
 
 const ARCHESTRA_MCP_SERVER_KEY: &str = "archestra.ai";
 const ARCHESTRA_SERVER_BASE_URL: &str = "http://localhost:54587";
 const INSTALLED_MCP_SERVER_KEY_SUFFIX: &str = "(archestra.ai)";
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize, ToSchema)]
 #[sea_orm(table_name = "external_mcp_clients")]
+#[schema(as = ExternalMCPClient)]
 pub struct Model {
     #[sea_orm(unique, primary_key)]
     pub client_name: String,
+    #[schema(value_type = String, format = DateTime)]
     pub created_at: DateTimeUtc,
+    #[schema(value_type = String, format = DateTime)]
     pub updated_at: DateTimeUtc,
 }
 
@@ -33,11 +37,17 @@ pub struct ExternalMCPClientDefinition {
     pub client_name: String,
 }
 
-const CLAUDE_DESKTOP_CLIENT_NAME: &str = "claude";
-const CURSOR_CLIENT_NAME: &str = "cursor";
-const VSCODE_CLIENT_NAME: &str = "vscode";
-
 impl Model {
+    const CLAUDE_DESKTOP_CLIENT_NAME: &'static str = "claude";
+    const CURSOR_CLIENT_NAME: &'static str = "cursor";
+    const VSCODE_CLIENT_NAME: &'static str = "vscode";
+
+    pub const SUPPORTED_CLIENT_NAMES: [&'static str; 3] = [
+        Self::CLAUDE_DESKTOP_CLIENT_NAME,
+        Self::CURSOR_CLIENT_NAME,
+        Self::VSCODE_CLIENT_NAME,
+    ];
+
     /// Save the external MCP client to the database using definition
     pub async fn save_external_mcp_client(
         db: &DatabaseConnection,
@@ -101,12 +111,12 @@ impl Model {
     /// Get the config path for a specific client
     pub fn get_config_path_for_external_mcp_client(client_name: &str) -> Result<PathBuf, String> {
         match client_name {
-            CURSOR_CLIENT_NAME => {
+            Self::CURSOR_CLIENT_NAME => {
                 let home_dir =
                     std::env::var("HOME").map_err(|_| "Could not determine home directory")?;
                 Ok(PathBuf::from(home_dir).join(".cursor").join("mcp.json"))
             }
-            CLAUDE_DESKTOP_CLIENT_NAME => {
+            Self::CLAUDE_DESKTOP_CLIENT_NAME => {
                 let home_dir =
                     std::env::var("HOME").map_err(|_| "Could not determine home directory")?;
                 Ok(PathBuf::from(home_dir)
@@ -115,7 +125,7 @@ impl Model {
                     .join("Claude")
                     .join("claude_desktop_config.json"))
             }
-            VSCODE_CLIENT_NAME => {
+            Self::VSCODE_CLIENT_NAME => {
                 let home_dir =
                     std::env::var("HOME").map_err(|_| "Could not determine home directory")?;
                 Ok(PathBuf::from(home_dir).join(".vscode").join("mcp.json"))
@@ -357,60 +367,6 @@ impl Model {
     }
 }
 
-#[tauri::command]
-pub async fn get_supported_external_mcp_client_names() -> Result<Vec<String>, String> {
-    Ok(vec![
-        CURSOR_CLIENT_NAME.to_string(),
-        CLAUDE_DESKTOP_CLIENT_NAME.to_string(),
-        VSCODE_CLIENT_NAME.to_string(),
-    ])
-}
-
-#[tauri::command]
-pub async fn get_connected_external_mcp_clients(
-    app_handle: tauri::AppHandle,
-) -> Result<Vec<Model>, String> {
-    use crate::database::connection::get_database_connection_with_app;
-
-    let db = get_database_connection_with_app(&app_handle)
-        .await
-        .map_err(|e| format!("Failed to get database connection: {e}"))?;
-
-    let models = Model::get_connected_external_mcp_clients(&db)
-        .await
-        .map_err(|e| format!("Failed to get connected external MCP clients: {e}"))?;
-
-    Ok(models)
-}
-
-#[tauri::command]
-pub async fn connect_external_mcp_client(
-    app_handle: tauri::AppHandle,
-    client_name: String,
-) -> Result<(), String> {
-    use crate::database::connection::get_database_connection_with_app;
-
-    let db = get_database_connection_with_app(&app_handle)
-        .await
-        .map_err(|e| format!("Failed to get database connection: {e}"))?;
-
-    Model::connect_external_mcp_client(&db, &client_name).await
-}
-
-#[tauri::command]
-pub async fn disconnect_external_mcp_client(
-    app_handle: tauri::AppHandle,
-    client_name: String,
-) -> Result<(), String> {
-    use crate::database::connection::get_database_connection_with_app;
-
-    let db = get_database_connection_with_app(&app_handle)
-        .await
-        .map_err(|e| format!("Failed to get database connection: {e}"))?;
-
-    Model::disconnect_external_mcp_client(&db, &client_name).await
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -434,7 +390,7 @@ mod tests {
     #[test]
     fn test_get_config_path_for_external_mcp_client() {
         // Test cursor config path
-        let cursor_path = Model::get_config_path_for_external_mcp_client(CURSOR_CLIENT_NAME);
+        let cursor_path = Model::get_config_path_for_external_mcp_client(Model::CURSOR_CLIENT_NAME);
         assert!(cursor_path.is_ok());
         let path = cursor_path.unwrap();
         assert!(path.to_string_lossy().contains(".cursor"));
@@ -442,7 +398,7 @@ mod tests {
 
         // Test claude config path
         let claude_path =
-            Model::get_config_path_for_external_mcp_client(CLAUDE_DESKTOP_CLIENT_NAME);
+            Model::get_config_path_for_external_mcp_client(Model::CLAUDE_DESKTOP_CLIENT_NAME);
         assert!(claude_path.is_ok());
         let path = claude_path.unwrap();
         assert!(path.to_string_lossy().contains("Claude"));
@@ -451,7 +407,7 @@ mod tests {
             .ends_with("claude_desktop_config.json"));
 
         // Test vscode config path
-        let vscode_path = Model::get_config_path_for_external_mcp_client(VSCODE_CLIENT_NAME);
+        let vscode_path = Model::get_config_path_for_external_mcp_client(Model::VSCODE_CLIENT_NAME);
         assert!(vscode_path.is_ok());
         let path = vscode_path.unwrap();
         assert!(path.to_string_lossy().contains(".vscode"));

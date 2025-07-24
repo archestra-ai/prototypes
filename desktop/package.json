@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "codegen": "openapi-ts",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest",
@@ -24,6 +25,7 @@
     "@radix-ui/react-collapsible": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-dropdown-menu": "^2.1.15",
+    "@radix-ui/react-hover-card": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-progress": "^1.1.7",
     "@radix-ui/react-scroll-area": "^1.2.9",
@@ -60,6 +62,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "^0.76.0",
     "@tauri-apps/cli": "^2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",

@@ -16,8 +16,8 @@ import { useSidebar } from '@/components/ui/sidebar';
 import { ModeToggle } from './mode-toggle';
 
 interface SiteHeaderProps {
-  breadcrumbs?: string[];
   title?: string;
+  breadcrumbs?: string[];
 }
 
 export function SiteHeader(props: SiteHeaderProps) {
