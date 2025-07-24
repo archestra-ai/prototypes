@@ -439,7 +439,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("GET")
-                    .uri(&format!("/{id}"))
+                    .uri(format!("/{id}"))
                     .body(Body::empty())
                     .unwrap(),
             )
