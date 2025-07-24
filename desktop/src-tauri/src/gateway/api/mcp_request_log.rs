@@ -244,7 +244,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
             "/",
             get(get_mcp_request_logs).delete(clear_mcp_request_logs),
         )
-        .route("/:request_id", get(get_mcp_request_log_by_id))
+        .route("/{request_id}", get(get_mcp_request_log_by_id))
         .route("/stats", get(get_mcp_request_log_stats))
         .with_state(service)
 }
