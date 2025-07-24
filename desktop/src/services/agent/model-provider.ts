@@ -1,6 +1,6 @@
-import { LanguageModelV1, LanguageModelV1StreamPart } from '@ai-sdk/provider';
 import { openai } from '@ai-sdk/openai';
-import { createOllama } from 'ollama-ai-provider';
+import { LanguageModelV1, LanguageModelV1StreamPart } from '@ai-sdk/provider';
+import { Ollama } from 'ollama/browser';
 
 import { ARCHESTRA_SERVER_OLLAMA_PROXY_URL } from '@/consts';
 
@@ -46,7 +46,6 @@ export class OpenAIProvider implements ModelProvider {
  * Ollama model provider implementation
  */
 export class OllamaProvider implements ModelProvider {
-  private ollama: any;
   private modelName: string;
   private debugMode: boolean = true; // Enable debug mode
 
@@ -68,7 +67,7 @@ export class OllamaProvider implements ModelProvider {
     // Do NOT add /api suffix - the proxy URL already includes the full path
     console.log('🔧 [OllamaProvider] Creating Ollama instance with base URL:', url);
 
-    this.ollama = createOllama({ baseURL: url });
+    // Note: Using custom Ollama implementation instead of ollama-ai-provider
   }
 
   private interceptFetchRequests() {
@@ -166,10 +165,14 @@ export class OllamaProvider implements ModelProvider {
 
   createModel(modelName: string) {
     console.log('🤖 [OllamaProvider] Creating model:', modelName);
-    
-    // Try the standard ollama-ai-provider first
+
+    console.log('🔀 [OllamaProvider] Using custom Ollama implementation');
+    return this.createCustomOllamaModel(modelName);
+
+    // Original ollama-ai-provider code (disabled for now)
+    /*
     try {
-      const model = this.ollama(modelName);
+      const model = this._ollama(modelName);
 
       // Log model instance details
       console.log('🔧 [OllamaProvider] Model instance created:', {
@@ -277,6 +280,7 @@ export class OllamaProvider implements ModelProvider {
       // Fall back to custom implementation
       return this.createCustomOllamaModel(modelName);
     }
+    */
   }
 
   /**
@@ -285,10 +289,14 @@ export class OllamaProvider implements ModelProvider {
    */
   private createCustomOllamaModel(modelName: string): LanguageModelV1 {
     const baseURL = this.getOllamaBaseURL();
-    
+
     console.log('🛠️ [OllamaProvider] Creating custom Ollama model implementation');
 
+    // Create Ollama client instance
+    const ollamaClient = new Ollama({ host: baseURL });
+
     return {
+      specificationVersion: 'v1',
       provider: 'ollama-custom',
       modelId: modelName,
       defaultObjectGenerationMode: 'json',
@@ -296,127 +304,209 @@ export class OllamaProvider implements ModelProvider {
 
       async doGenerate(options: any): Promise<any> {
         console.log('🔄 [CustomOllama] doGenerate called');
-        
-        // Convert AI SDK format to Ollama format
-        const messages = options.prompt.map((msg: any) => ({
-          role: msg.role === 'system' ? 'system' : msg.role === 'user' ? 'user' : 'assistant',
-          content: msg.content?.find((c: any) => c.type === 'text')?.text || ''
-        }));
 
-        const response = await fetch(`${baseURL}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: modelName,
-            messages,
-            stream: false,
-            options: {
-              temperature: options.temperature || 0.7,
-              top_p: options.topP,
-              max_tokens: options.maxTokens,
-            }
-          })
+        // Convert AI SDK format to Ollama format
+        const messages = options.prompt.map((msg: any) => {
+          let content = '';
+
+          // Handle different content formats
+          if (typeof msg.content === 'string') {
+            content = msg.content;
+          } else if (Array.isArray(msg.content)) {
+            // If content is an array, find the text content
+            const textContent = msg.content.find((c: any) => c.type === 'text');
+            content = textContent?.text || '';
+          } else if (msg.content && typeof msg.content === 'object' && msg.content.text) {
+            // If content is an object with text property
+            content = msg.content.text;
+          }
+
+          return {
+            role: msg.role === 'system' ? 'system' : msg.role === 'user' ? 'user' : 'assistant',
+            content,
+          };
         });
 
-        if (!response.ok) {
-          throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
-        }
+        console.log('📤 [CustomOllama] Using Ollama client to chat');
+        console.log('📦 [CustomOllama] Messages:', messages);
 
-        const data = await response.json();
-        
-        return {
-          finishReason: 'stop',
-          usage: {
-            promptTokens: data.prompt_eval_count || 0,
-            completionTokens: data.eval_count || 0,
-          },
-          text: data.message?.content || '',
-          toolCalls: [],
-          warnings: [],
-        };
+        try {
+          let response: any;
+          let lastError: any;
+          const maxRetries = 3;
+
+          for (let i = 0; i < maxRetries; i++) {
+            try {
+              response = await ollamaClient.chat({
+                model: modelName,
+                messages,
+                stream: false,
+                options: {
+                  temperature: options.temperature || 0.7,
+                  top_p: options.topP || 0.95,
+                  num_predict: options.maxTokens || 2048,
+                },
+              });
+              break; // Success, exit retry loop
+            } catch (error: any) {
+              lastError = error;
+              console.log(`🔄 [CustomOllama] Retry attempt ${i + 1}/${maxRetries} after error:`, error.message);
+
+              // Check if it's a connection error that might resolve
+              if (
+                error.message?.includes('502') ||
+                error.message?.includes('Bad Gateway') ||
+                error.message?.includes('error sending request')
+              ) {
+                // Wait a bit before retrying (exponential backoff)
+                await new Promise((resolve) => setTimeout(resolve, (i + 1) * 1000));
+              } else {
+                // If it's not a connection error, don't retry
+                throw error;
+              }
+            }
+          }
+
+          if (!response) {
+            throw lastError || new Error('Failed to get response from Ollama');
+          }
+
+          console.log('✅ [CustomOllama] Got response:', response);
+
+          return {
+            finishReason: 'stop',
+            usage: {
+              promptTokens: response.prompt_eval_count || 0,
+              completionTokens: response.eval_count || 0,
+            },
+            text: response.message?.content || '',
+            toolCalls: [],
+            warnings: [],
+          };
+        } catch (error) {
+          console.error('❌ [CustomOllama] Chat error:', error);
+          throw error;
+        }
       },
 
       async doStream(options: any): Promise<any> {
         console.log('🌊 [CustomOllama] doStream called');
-        
-        // Convert AI SDK format to Ollama format
-        const messages = options.prompt.map((msg: any) => ({
-          role: msg.role === 'system' ? 'system' : msg.role === 'user' ? 'user' : 'assistant',
-          content: msg.content?.find((c: any) => c.type === 'text')?.text || ''
-        }));
-
-        const response = await fetch(`${baseURL}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: modelName,
-            messages,
-            stream: true,
-            options: {
-              temperature: options.temperature || 0.7,
-              top_p: options.topP,
-              max_tokens: options.maxTokens,
-            }
-          })
+        console.log('📝 [CustomOllama] Prompt structure:', {
+          promptLength: options.prompt?.length,
+          firstMessage: options.prompt?.[0],
+          messageTypes: options.prompt?.map((m: any) => ({ role: m.role, contentType: typeof m.content })),
         });
 
-        if (!response.ok) {
-          throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
-        }
+        // Convert AI SDK format to Ollama format
+        const messages = options.prompt.map((msg: any) => {
+          let content = '';
 
-        // Create a transform stream that converts Ollama's format to AI SDK format
-        const reader = response.body!.getReader();
-        const decoder = new TextDecoder();
-        
-        const stream = new ReadableStream<LanguageModelV1StreamPart>({
-          async start(controller) {
+          // Handle different content formats
+          if (typeof msg.content === 'string') {
+            content = msg.content;
+          } else if (Array.isArray(msg.content)) {
+            // If content is an array, find the text content
+            const textContent = msg.content.find((c: any) => c.type === 'text');
+            content = textContent?.text || '';
+          } else if (msg.content && typeof msg.content === 'object' && msg.content.text) {
+            // If content is an object with text property
+            content = msg.content.text;
+          }
+
+          return {
+            role: msg.role === 'system' ? 'system' : msg.role === 'user' ? 'user' : 'assistant',
+            content,
+          };
+        });
+
+        console.log('📤 [CustomOllama] Using Ollama client to stream');
+        console.log('📦 [CustomOllama] Messages:', messages);
+
+        try {
+          // Get the streaming response from Ollama with retry logic
+          let response: any;
+          let lastError: any;
+          const maxRetries = 3;
+
+          for (let i = 0; i < maxRetries; i++) {
             try {
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+              response = await ollamaClient.chat({
+                model: modelName,
+                messages,
+                stream: true,
+                options: {
+                  temperature: options.temperature || 0.7,
+                  top_p: options.topP || 0.95,
+                  num_predict: options.maxTokens || 2048,
+                },
+              });
+              break; // Success, exit retry loop
+            } catch (error: any) {
+              lastError = error;
+              console.log(`🔄 [CustomOllama] Retry attempt ${i + 1}/${maxRetries} after error:`, error.message);
 
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n').filter(line => line.trim());
+              // Check if it's a connection error that might resolve
+              if (
+                error.message?.includes('502') ||
+                error.message?.includes('Bad Gateway') ||
+                error.message?.includes('error sending request')
+              ) {
+                // Wait a bit before retrying (exponential backoff)
+                await new Promise((resolve) => setTimeout(resolve, (i + 1) * 1000));
+              } else {
+                // If it's not a connection error, don't retry
+                throw error;
+              }
+            }
+          }
 
-                for (const line of lines) {
-                  try {
-                    const data = JSON.parse(line);
-                    
-                    if (data.message?.content) {
-                      controller.enqueue({
-                        type: 'text-delta',
-                        textDelta: data.message.content,
-                      });
-                    }
+          if (!response) {
+            throw lastError || new Error('Failed to get streaming response from Ollama');
+          }
 
-                    if (data.done) {
-                      controller.enqueue({
-                        type: 'finish',
-                        finishReason: 'stop',
-                        usage: {
-                          promptTokens: data.prompt_eval_count || 0,
-                          completionTokens: data.eval_count || 0,
-                        },
-                      });
-                    }
-                  } catch (e) {
-                    console.error('Failed to parse Ollama response line:', line, e);
+          // Create a transform stream that converts Ollama's format to AI SDK format
+          const stream = new ReadableStream<LanguageModelV1StreamPart>({
+            async start(controller) {
+              try {
+                for await (const part of response) {
+                  console.log('🔄 [CustomOllama] Stream part:', part);
+
+                  if (part.message?.content) {
+                    controller.enqueue({
+                      type: 'text-delta',
+                      textDelta: part.message.content,
+                    });
+                  }
+
+                  if (part.done) {
+                    controller.enqueue({
+                      type: 'finish',
+                      finishReason: 'stop',
+                      usage: {
+                        promptTokens: part.prompt_eval_count || 0,
+                        completionTokens: part.eval_count || 0,
+                      },
+                    });
                   }
                 }
+              } catch (error) {
+                console.error('❌ [CustomOllama] Stream error:', error);
+                controller.error(error);
+              } finally {
+                controller.close();
               }
-            } catch (error) {
-              controller.error(error);
-            } finally {
-              controller.close();
-            }
-          },
-        });
+            },
+          });
 
-        return {
-          stream,
-          warnings: [],
-          rawCall: { rawPrompt: null, rawSettings: {} },
-        };
+          return {
+            stream,
+            warnings: [],
+            rawCall: { rawPrompt: null, rawSettings: {} },
+          };
+        } catch (error) {
+          console.error('❌ [CustomOllama] Stream chat error:', error);
+          throw error;
+        }
       },
     } as LanguageModelV1;
   }

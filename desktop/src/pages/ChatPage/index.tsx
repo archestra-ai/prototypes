@@ -1,8 +1,6 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
-
-
 import { AgentControlPanel, AgentModeIndicator, ReasoningPanel } from '@/components/agent';
 import { ToolContext } from '@/components/kibo/ai-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +18,7 @@ interface ChatPageProps {
 }
 
 export default function ChatPage({ selectedTools, onToolRemove }: ChatPageProps) {
-  const [showAgentControls, setShowAgentControls] = useState(true);
+  const [showAgentControls, setShowAgentControls] = useState(false);
   const { isDeveloperMode, systemPrompt, setSystemPrompt } = useDeveloperModeStore();
 
   return (

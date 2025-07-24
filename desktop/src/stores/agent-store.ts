@@ -302,6 +302,26 @@ export const useAgentStore = create<AgentStore>()(
         });
         set({ streamingMessageId: assistantMessageId });
 
+        const updateInterval = setInterval(() => {
+          const { streamingContent, streamingMessageId } = get();
+          if (streamingMessageId && streamingContent) {
+            const { chatHistory } = useChatStore.getState();
+            useChatStore.setState({
+              chatHistory: chatHistory.map((msg) =>
+                msg.id === streamingMessageId
+                  ? {
+                      ...msg,
+                      content: streamingContent,
+                      isStreaming: true,
+                    }
+                  : msg
+              ),
+            });
+          }
+        }, 100);
+
+        set({ streamingUpdateInterval: updateInterval });
+
         console.log('📞 [AgentStore] Calling agent.executeObjective');
         const streamResult = await agent.executeObjective(objective);
         console.log('📦 [AgentStore] executeObjective returned:', {
@@ -333,6 +353,12 @@ export const useAgentStore = create<AgentStore>()(
         await eventHandler.handleStreamedResult(stream);
         console.log('✅ [AgentStore] Stream processing completed');
 
+        // Clear the update interval
+        const { streamingUpdateInterval } = get();
+        if (streamingUpdateInterval) {
+          clearInterval(streamingUpdateInterval);
+        }
+
         // Finalize the assistant message with accumulated content
         const { streamingContent, streamingMessageId } = get();
         if (streamingMessageId && streamingContent) {
@@ -350,7 +376,7 @@ export const useAgentStore = create<AgentStore>()(
           });
         }
 
-        set({ mode: 'completed', streamingContent: '', streamingMessageId: null });
+        set({ mode: 'completed', streamingContent: '', streamingMessageId: null, streamingUpdateInterval: null });
         console.log('🏁 [AgentStore] Agent execution completed successfully');
       } catch (error) {
         console.error('💥 [AgentStore] Agent execution error:', error);
@@ -359,14 +385,24 @@ export const useAgentStore = create<AgentStore>()(
           message: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined,
         });
-        
+
         // Add error message to chat
         const { chatHistory } = useChatStore.getState();
         const errorMessage = error instanceof Error ? error.message : String(error);
-        const friendlyError = errorMessage.includes('404') || errorMessage.includes('Not Found')
-          ? 'Failed to connect to the AI model. Please ensure Ollama is running and the selected model is installed.'
-          : `Agent error: ${errorMessage}`;
-        
+        let friendlyError = `Agent error: ${errorMessage}`;
+
+        if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
+          friendlyError =
+            'Failed to connect to the AI model. Please ensure Ollama is running and the selected model is installed.';
+        } else if (
+          errorMessage.includes('502') ||
+          errorMessage.includes('Bad Gateway') ||
+          errorMessage.includes('Proxy error')
+        ) {
+          friendlyError =
+            'Cannot connect to Ollama. Please ensure:\n1. Ollama is running (run `ollama serve` in terminal)\n2. The Archestra proxy server is running\n3. Try again in a few seconds as services may still be starting up';
+        }
+
         useChatStore.setState({
           chatHistory: [
             ...chatHistory,
@@ -378,7 +414,7 @@ export const useAgentStore = create<AgentStore>()(
             },
           ],
         });
-        
+
         // Clear the update interval on error
         const { streamingUpdateInterval } = get();
         if (streamingUpdateInterval) {

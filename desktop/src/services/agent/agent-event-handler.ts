@@ -272,6 +272,11 @@ export class AgentEventHandler {
         this.handleErrorEvent(event as ErrorEvent);
         break;
 
+      case 'run_item_stream_event':
+        console.log('📋 [AgentEventHandler] Run item stream event');
+        await this.handleRunItemStreamEvent(event);
+        break;
+
       default:
         // Handle unknown event types gracefully
         console.log('❓ [AgentEventHandler] Unknown event type:', event.type, event);
@@ -468,6 +473,30 @@ export class AgentEventHandler {
       };
 
       this.callbacks.onProgressUpdate(progress);
+    }
+  }
+
+  private async handleRunItemStreamEvent(event: any): Promise<void> {
+    console.log('📄 [AgentEventHandler] Processing run_item_stream_event:', {
+      name: event.name,
+      itemType: event.item?.type,
+      hasContent: !!event.item?.content,
+    });
+
+    // Handle different types of run item stream events
+    if (event.name === 'message_output_created' && event.item) {
+      // This is a message output from the agent
+      if (event.item.content) {
+        // Send the content to onMessage callback
+        this.callbacks.onMessage(event.item.content, 'info');
+      }
+    } else if (event.item) {
+      // Try to handle as a regular item event
+      await this.handleItemEvent({
+        type: 'item_stream_event',
+        item: event.item,
+        timestamp: event.timestamp,
+      } as RunItemStreamEvent);
     }
   }
 
