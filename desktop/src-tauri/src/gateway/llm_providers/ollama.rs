@@ -122,7 +122,7 @@ mod tests {
     async fn test_service_creation(#[future] database: DatabaseConnection) {
         let db = database.await;
         let service = Service::new(db);
-        
+
         // Just ensure the service is created successfully
         // (We can't easily test the timeout configuration)
         assert!(Arc::strong_count(&service._db) > 0);
@@ -133,7 +133,7 @@ mod tests {
     async fn test_proxy_get_request(#[future] database: DatabaseConnection) {
         let db = database.await;
         let app = app(db);
-        
+
         let response = app
             .oneshot(
                 Request::builder()
@@ -147,8 +147,10 @@ mod tests {
 
         // This will fail with BAD_GATEWAY since Ollama isn't running
         assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
-        
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
         assert!(body_str.contains("Proxy error"));
     }
@@ -178,8 +180,10 @@ mod tests {
 
         // This will fail with BAD_GATEWAY since Ollama isn't running
         assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
-        
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
         assert!(body_str.contains("Proxy error"));
     }
@@ -255,7 +259,7 @@ mod tests {
         let service = Arc::new(Service::new(db));
 
         let mut handles = vec![];
-        
+
         for i in 0..5 {
             let service_clone = service.clone();
             let handle = tokio::spawn(async move {
@@ -264,12 +268,11 @@ mod tests {
                     .uri(format!("/api/test/{i}"))
                     .body(Body::empty())
                     .unwrap();
-                
-                let response = proxy_handler(
-                    State(service_clone),
-                    req
-                ).await.into_response();
-                
+
+                let response = proxy_handler(State(service_clone), req)
+                    .await
+                    .into_response();
+
                 response.status()
             });
             handles.push(handle);
@@ -312,7 +315,7 @@ mod tests {
         let app = app(db);
 
         let methods = ["GET", "POST", "PUT", "DELETE", "PATCH"];
-        
+
         for method_str in &methods {
             let response = app
                 .clone()

@@ -15,7 +15,7 @@ fn main() {
     // Run prettier to format the JSON file
     println!("Running prettier on openapi.json...");
     let prettier_result = Command::new("pnpm")
-        .args(&["prettier", "--write", "openapi.json"])
+        .args(["prettier", "--write", "openapi.json"])
         .current_dir("..")
         .output();
 
@@ -31,7 +31,7 @@ fn main() {
             }
         }
         Err(e) => {
-            eprintln!("Failed to run prettier: {}", e);
+            eprintln!("Failed to run prettier: {e}");
             eprintln!("Make sure to run 'pnpm install' in the desktop directory");
             std::process::exit(1);
         }

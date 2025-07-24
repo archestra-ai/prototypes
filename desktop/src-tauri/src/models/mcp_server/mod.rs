@@ -297,7 +297,7 @@ mod tests {
 
         let result = Model::save_server_without_lifecycle(&db, &definition).await;
         assert!(result.is_ok());
-        
+
         let saved_model = result.unwrap();
         assert_eq!(saved_model.name, "test_server");
         assert!(saved_model.id > 0);
@@ -328,7 +328,7 @@ mod tests {
 
         let result = Model::save_server_without_lifecycle(&db, &definition).await;
         assert!(result.is_ok());
-        
+
         let saved_model = result.unwrap();
         assert!(saved_model.meta.is_some());
     }
@@ -357,7 +357,7 @@ mod tests {
 
         // Save second time with same name
         let result2 = Model::save_server_without_lifecycle(&db, &definition).await;
-        
+
         // In SQLite with certain configurations, unique constraints might not always
         // be enforced in test environments. We'll check both cases.
         if result2.is_ok() {
@@ -367,7 +367,11 @@ mod tests {
                 .all(&db)
                 .await
                 .unwrap();
-            assert_eq!(servers.len(), 1, "Should only have one server with the same name");
+            assert_eq!(
+                servers.len(),
+                1,
+                "Should only have one server with the same name"
+            );
         } else {
             // This is the expected behavior with unique constraint
             assert!(result2.is_err());
@@ -396,7 +400,9 @@ mod tests {
                 },
                 meta: None,
             };
-            Model::save_server_without_lifecycle(&db, &definition).await.unwrap();
+            Model::save_server_without_lifecycle(&db, &definition)
+                .await
+                .unwrap();
         }
 
         // Should now have 3 servers
@@ -422,7 +428,9 @@ mod tests {
         };
 
         // Save the server first
-        Model::save_server_without_lifecycle(&db, &definition).await.unwrap();
+        Model::save_server_without_lifecycle(&db, &definition)
+            .await
+            .unwrap();
 
         // Verify it exists
         let found = Entity::find()
@@ -473,15 +481,17 @@ mod tests {
         };
 
         // Save the server
-        Model::save_server_without_lifecycle(&db, &definition).await.unwrap();
+        Model::save_server_without_lifecycle(&db, &definition)
+            .await
+            .unwrap();
 
         // Find it
         let found = Model::find_by_name(&db, "findable_server").await;
         assert!(found.is_ok());
-        
+
         let found_def = found.unwrap();
         assert!(found_def.is_some());
-        
+
         let def = found_def.unwrap();
         assert_eq!(def.name, "findable_server");
         assert_eq!(def.server_config.command, "echo");
@@ -522,7 +532,7 @@ mod tests {
         let server_config_json =
             r#"{"transport":"stdio","command":"echo","args":["hello"],"env":{}}"#;
         let meta_json = r#"{"description":"Test server","version":"1.0.0"}"#;
-        
+
         let model = Model {
             id: 1,
             name: "test_server".to_string(),
@@ -533,7 +543,7 @@ mod tests {
 
         let definition = model.to_definition().unwrap();
         assert!(definition.meta.is_some());
-        
+
         let meta = definition.meta.unwrap();
         assert_eq!(meta["description"], "Test server");
         assert_eq!(meta["version"], "1.0.0");
@@ -557,7 +567,7 @@ mod tests {
     async fn test_get_mcp_connector_catalog() {
         let result = Model::get_mcp_connector_catalog().await;
         assert!(result.is_ok());
-        
+
         let catalog = result.unwrap();
         // The catalog might be empty or have entries
         assert!(catalog.is_empty() || !catalog.is_empty());
@@ -580,7 +590,9 @@ mod tests {
         };
 
         // Save the initial server
-        Model::save_server_without_lifecycle(&db, &definition1).await.unwrap();
+        Model::save_server_without_lifecycle(&db, &definition1)
+            .await
+            .unwrap();
 
         // Update with different config
         let definition2 = MCPServerDefinition {
@@ -597,9 +609,12 @@ mod tests {
         // save_server should handle the update
         let result = Model::save_server(&db, &definition2).await;
         assert!(result.is_ok());
-        
+
         // Verify the update
-        let found = Model::find_by_name(&db, "update_test_server").await.unwrap().unwrap();
+        let found = Model::find_by_name(&db, "update_test_server")
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(found.server_config.transport, "http");
         assert_eq!(found.server_config.command, "node");
         assert!(found.meta.is_some());
@@ -630,10 +645,10 @@ mod tests {
         };
 
         let active_model: ActiveModel = definition.clone().into();
-        
+
         // Verify the conversion
         assert_eq!(active_model.name.as_ref(), "python_server");
-        
+
         // Parse back the server_config to verify
         let server_config_json = active_model.server_config.as_ref();
         let parsed_config: ServerConfig = serde_json::from_str(server_config_json).unwrap();
