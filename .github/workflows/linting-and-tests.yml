@@ -43,6 +43,9 @@ jobs:
           - platform: "windows-latest"
             args: ""
     runs-on: ${{ matrix.platform }}
+    defaults:
+      run:
+        working-directory: ./desktop/src-tauri
     name: Rust Linting and Tests (${{ matrix.platform }})
     steps:
       - name: Checkout project
@@ -54,16 +57,13 @@ jobs:
           platform: ${{ matrix.platform }}
 
       - name: Check Rust formatting
-        working-directory: desktop/src-tauri
         run: cargo fmt --check
 
-      - name: Run Clippy Linting
-        working-directory: desktop/src-tauri
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
       - name: Run tests
-        working-directory: desktop/src-tauri
         run: cargo test
+
+      - name: Run Clippy Linting
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       # NOTE: use this once we want to start building the application binaries for Mac/Windows/Linux
       # - uses: tauri-apps/tauri-action@v0.5.22
