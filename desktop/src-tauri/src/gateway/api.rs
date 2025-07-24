@@ -9,13 +9,11 @@ use axum::{
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
 
-struct Service {
-    db: Arc<DatabaseConnection>,
-}
+struct Service {}
 
 impl Service {
-    pub fn new(db: DatabaseConnection) -> Self {
-        Self { db: Arc::new(db) }
+    pub fn new(_db: DatabaseConnection) -> Self {
+        Self {}
     }
 
     async fn call(&self, _request: Request<Body>) -> impl IntoResponse {

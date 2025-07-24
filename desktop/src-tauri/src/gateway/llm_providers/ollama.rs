@@ -17,14 +17,12 @@ use std::time::Duration;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(180);
 
 pub struct OllamaProxyService {
-    db: Arc<DatabaseConnection>,
     http_client: Client,
 }
 
 impl OllamaProxyService {
-    pub fn new(db: DatabaseConnection) -> Self {
+    pub fn new(_db: DatabaseConnection) -> Self {
         Self {
-            db: Arc::new(db),
             http_client: Client::builder()
                 .timeout(REQUEST_TIMEOUT)
                 .build()
@@ -92,7 +90,7 @@ pub async fn proxy_handler(
                     .into_response()
             })
         }
-        Err(e) => (StatusCode::BAD_GATEWAY, format!("Proxy error: {}", e)).into_response(),
+        Err(e) => (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response(),
     }
 }
 
