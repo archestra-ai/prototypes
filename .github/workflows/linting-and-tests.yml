@@ -72,17 +72,6 @@ jobs:
       - name: Run Clippy Linting
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      # NOTE: use this once we want to start building the application binaries for Mac/Windows/Linux
-      # - uses: tauri-apps/tauri-action@564aea5a8075c7a54c167bb0cf5b3255314a7f9d # v0.5.22
-      #   with:
-      #     tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-      #     projectPath: desktop
-      #     releaseName: "App v__VERSION__"
-      #     releaseBody: "See the assets to download this version and install."
-      #     releaseDraft: true
-      #     prerelease: false
-      #     args: ${{ matrix.args }}
-
   frontend-linting-and-tests:
     name: Frontend Linting and Tests
     runs-on: ubuntu-latest
