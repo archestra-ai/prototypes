@@ -56,7 +56,9 @@
   "packages": {
     "desktop": {
       "component": "desktop",
-      "release-type": "simple"
+      "release-type": "simple",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true
     }
   },
   "plugins": [],
