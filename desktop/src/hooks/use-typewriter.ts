@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 
-export function useTypewriter(text: string, speed: number = 50) {
+export function useTypewriter(text: string, speed: number = 100) {
   const [displayedText, setDisplayedText] = useState('');
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
-    if (!text) {
+    if (!text || text === 'undefined' || text === 'null') {
       setDisplayedText('');
       setIsComplete(false);
       return;

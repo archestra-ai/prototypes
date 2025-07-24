@@ -29,8 +29,6 @@ struct OllamaMessage {
 struct OllamaChatRequest {
     model: String,
     messages: Vec<OllamaMessage>,
-    #[serde(default)]
-    stream: bool,
 }
 
 struct Service {
@@ -130,28 +128,26 @@ async fn proxy_handler(
                 let service_clone = service.clone();
                 let chat_request = chat_request.unwrap();
 
-                // Collect the entire response body
-                let response_bytes = match resp.bytes().await {
-                    Ok(bytes) => bytes,
-                    Err(e) => {
-                        return (
-                            StatusCode::BAD_GATEWAY,
-                            format!("Failed to read response: {e}"),
-                        )
-                            .into_response();
+                // Create a channel to collect chunks
+                use tokio::sync::mpsc;
+                let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
+                
+                // Stream the response while capturing chunks
+                let body_stream = resp.bytes_stream();
+                let db = service_clone.db.clone();
+                let model = chat_request.model.clone();
+                
+                // Spawn a task to collect chunks and save the message
+                tokio::spawn(async move {
+                    let mut accumulated_chunks = Vec::new();
+                    while let Some(chunk) = rx.recv().await {
+                        accumulated_chunks.extend_from_slice(&chunk);
                     }
-                };
-
-                // Parse the response and save assistant message
-                if !response_bytes.is_empty() {
-                    let db = service_clone.db.clone();
-                    let model = chat_request.model.clone();
-                    let response_data = response_bytes.clone();
-
-                    tokio::spawn(async move {
+                    
+                    // Save message after stream completes
+                    if !accumulated_chunks.is_empty() {
                         if let Ok(chat_id) = create_or_get_chat(&db, &model).await {
-                            // Try to parse streaming responses or single response
-                            let content = extract_assistant_content(&response_data);
+                            let content = extract_assistant_content(&accumulated_chunks);
                             if !content.is_empty() {
                                 let assistant_msg = OllamaMessage {
                                     role: "assistant".to_string(),
@@ -167,19 +163,28 @@ async fn proxy_handler(
                                 }
                             }
                         }
-                    });
-                }
-
-                // Return the response body as-is
-                response_builder
-                    .body(Body::from(response_bytes.to_vec()))
-                    .unwrap_or_else(|_| {
-                        (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            "Failed to build response",
-                        )
-                            .into_response()
-                    })
+                    }
+                });
+                
+                let mapped_stream = body_stream.map(move |result| {
+                    match result {
+                        Ok(bytes) => {
+                            // Send a copy of the chunk to the collector
+                            let _ = tx.send(bytes.to_vec());
+                            Ok(axum::body::Bytes::from(bytes.to_vec()))
+                        }
+                        Err(e) => Err(std::io::Error::other(e))
+                    }
+                });
+                
+                let body = Body::from_stream(mapped_stream);
+                response_builder.body(body).unwrap_or_else(|_| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Failed to build response",
+                    )
+                        .into_response()
+                })
             } else {
                 // Non-chat endpoints: stream as-is
                 let body_stream = resp.bytes_stream();
@@ -294,8 +299,7 @@ async fn generate_chat_title(db: Arc<DatabaseConnection>, chat_id: i32) {
 
     // Request title generation from Ollama
     let prompt = format!(
-        "Based on this conversation, generate a brief 5-6 word title that captures the main topic. Return only the title, no quotes or extra text:\n\n{}",
-        context
+        "Based on this conversation, generate a brief 5-6 word title that captures the main topic. Return only the title, no quotes or extra text:\n\n{context}"
     );
 
     let request_body = serde_json::json!({
@@ -322,7 +326,7 @@ async fn generate_chat_title(db: Arc<DatabaseConnection>, chat_id: i32) {
                     let title = title.trim().to_string();
 
                     // Update chat title
-                    if let Ok(_) = Chat::update_title(chat_id, title.clone(), &db).await {
+                    if Chat::update_title(chat_id, title.clone(), &db).await.is_ok() {
                         // Emit event to frontend
                         emit_chat_title_updated(chat_id, title);
                     }

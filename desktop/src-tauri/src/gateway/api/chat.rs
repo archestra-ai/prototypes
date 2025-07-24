@@ -2,7 +2,7 @@ use crate::models::chat::{ChatDefinition, ChatWithMessages, Model as Chat};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
-use axum::routing::{delete, get};
+use axum::routing::get;
 use axum::Router;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
@@ -191,7 +191,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("GET")
-                    .uri(&format!("/{}", created_chat.id))
+                    .uri(format!("/{}", created_chat.id))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -269,7 +269,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("DELETE")
-                    .uri(&format!("/{}", created_chat.id))
+                    .uri(format!("/{}", created_chat.id))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -283,7 +283,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("GET")
-                    .uri(&format!("/{}", created_chat.id))
+                    .uri(format!("/{}", created_chat.id))
                     .body(Body::empty())
                     .unwrap(),
             )

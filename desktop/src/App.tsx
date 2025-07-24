@@ -1,7 +1,8 @@
-import { Bot, ChevronRight, Download, MessageCircle, Plus, Settings, Trash2 } from 'lucide-react';
+import { Bot, ChevronRight, Download, MessageCircle, Plus, Settings } from 'lucide-react';
 import * as React from 'react';
 import { useState } from 'react';
 
+import { DeleteChatConfirmation } from './components/DeleteChatConfirmation';
 import { SiteHeader } from './components/SiteHeader';
 import { ToolHoverCard } from './components/ToolHoverCard';
 import { TypewriterText } from './components/TypewriterText';
@@ -160,7 +161,14 @@ function App() {
           title={navigationItems.find((item) => item.key === activeView)?.title}
           breadcrumbs={
             activeView === 'chat' && currentChatId && chats.length > 0
-              ? ['Chat', chats.find((chat) => chat.id === currentChatId)?.title || 'New Chat']
+              ? (() => {
+                  const currentChat = chats.find((chat) => chat.id === currentChatId);
+                  /**
+                   * title may be empty as this gets asynchronously updated on the backend.
+                   * This is done after several messages have been sent in the chat, via an LLM prompt.
+                   */
+                  return ['Chat', currentChat?.title || 'New Chat'];
+                })()
               : activeView === 'llm-providers' && activeSubView
                 ? [
                     navigationItems.find((item) => item.key === activeView)?.title || '',
@@ -233,16 +241,7 @@ function App() {
                                       )}
                                     </span>
                                     {currentChatId === chat.id && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          deleteCurrentChat();
-                                        }}
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity ml-1"
-                                      >
-                                        <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                                        <span className="sr-only">Delete chat</span>
-                                      </button>
+                                      <DeleteChatConfirmation onDelete={deleteCurrentChat} />
                                     )}
                                   </SidebarMenuButton>
                                 </SidebarMenuItem>
