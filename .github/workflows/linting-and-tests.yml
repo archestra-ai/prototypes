@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Lint PR title
-        uses: grafana/shared-workflows/actions/lint-pr-title@v1.2.0
+        uses: grafana/shared-workflows/actions/lint-pr-title@19d8fb5687bb386849f7f53673c5f429e6387cf5 # v1.2.0
         with:
           config-path: "${{ github.workspace }}/.github/commitlint.config.js"
         env:
