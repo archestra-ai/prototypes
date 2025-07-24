@@ -131,19 +131,19 @@ async fn proxy_handler(
                 // Create a channel to collect chunks
                 use tokio::sync::mpsc;
                 let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
-                
+
                 // Stream the response while capturing chunks
                 let body_stream = resp.bytes_stream();
                 let db = service_clone.db.clone();
                 let model = chat_request.model.clone();
-                
+
                 // Spawn a task to collect chunks and save the message
                 tokio::spawn(async move {
                     let mut accumulated_chunks = Vec::new();
                     while let Some(chunk) = rx.recv().await {
                         accumulated_chunks.extend_from_slice(&chunk);
                     }
-                    
+
                     // Save message after stream completes
                     if !accumulated_chunks.is_empty() {
                         if let Ok(chat_id) = create_or_get_chat(&db, &model).await {
@@ -165,7 +165,7 @@ async fn proxy_handler(
                         }
                     }
                 });
-                
+
                 let mapped_stream = body_stream.map(move |result| {
                     match result {
                         Ok(bytes) => {
@@ -173,10 +173,10 @@ async fn proxy_handler(
                             let _ = tx.send(bytes.to_vec());
                             Ok(axum::body::Bytes::from(bytes.to_vec()))
                         }
-                        Err(e) => Err(std::io::Error::other(e))
+                        Err(e) => Err(std::io::Error::other(e)),
                     }
                 });
-                
+
                 let body = Body::from_stream(mapped_stream);
                 response_builder.body(body).unwrap_or_else(|_| {
                     (
@@ -326,7 +326,10 @@ async fn generate_chat_title(db: Arc<DatabaseConnection>, chat_id: i32) {
                     let title = title.trim().to_string();
 
                     // Update chat title
-                    if Chat::update_title(chat_id, title.clone(), &db).await.is_ok() {
+                    if Chat::update_title(chat_id, title.clone(), &db)
+                        .await
+                        .is_ok()
+                    {
                         // Emit event to frontend
                         emit_chat_title_updated(chat_id, title);
                     }
