@@ -24,7 +24,6 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      releases: write
       id-token: write
     outputs:
       desktop_release_created: ${{ steps.release-please.outputs['desktop--release_created'] }}
