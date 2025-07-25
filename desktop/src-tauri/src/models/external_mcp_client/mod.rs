@@ -113,9 +113,11 @@ impl Model {
         #[cfg(target_os = "windows")]
         {
             std::env::var("USERPROFILE")
-                .or_else(|_| std::env::var("HOMEDRIVE").and_then(|drive| 
-                    std::env::var("HOMEPATH").map(|path| format!("{}{}", drive, path))
-                ))
+                .or_else(|_| {
+                    std::env::var("HOMEDRIVE").and_then(|drive| {
+                        std::env::var("HOMEPATH").map(|path| format!("{}{}", drive, path))
+                    })
+                })
                 .map(PathBuf::from)
                 .map_err(|_| "Could not determine home directory".to_string())
         }
@@ -129,11 +131,9 @@ impl Model {
 
     pub fn get_config_path_for_external_mcp_client(client_name: &str) -> Result<PathBuf, String> {
         let home_dir = Self::get_home_directory()?;
-        
+
         match client_name {
-            Self::CURSOR_CLIENT_NAME => {
-                Ok(home_dir.join(".cursor").join("mcp.json"))
-            }
+            Self::CURSOR_CLIENT_NAME => Ok(home_dir.join(".cursor").join("mcp.json")),
             Self::CLAUDE_DESKTOP_CLIENT_NAME => {
                 #[cfg(target_os = "macos")]
                 {
@@ -159,9 +159,7 @@ impl Model {
                         .join("claude_desktop_config.json"))
                 }
             }
-            Self::VSCODE_CLIENT_NAME => {
-                Ok(home_dir.join(".vscode").join("mcp.json"))
-            }
+            Self::VSCODE_CLIENT_NAME => Ok(home_dir.join(".vscode").join("mcp.json")),
             _ => Err(format!("Unknown client: {client_name}")),
         }
     }
