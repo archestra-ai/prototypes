@@ -23,9 +23,20 @@ jobs:
   claude-update-claude-md:
     name: Claude Update CLAUDE.md
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read # Required for Claude to read CI results on PRs
     steps:
       - name: Run Claude Code
         uses: anthropics/claude-code-action@e26577a930883943cf9d90885cd1e8da510078dd # beta tag
         with:
           direct_prompt: |
             Update the CLAUDE.md file to reflect the changes made in this PR.
+
+          # This is an optional setting that allows Claude to read CI results on PRs
+          # See https://github.com/anthropics/claude-code-action?tab=readme-ov-file#additional-permissions-for-cicd-integration
+          additional_permissions: |
+            actions: read
