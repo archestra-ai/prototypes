@@ -19,6 +19,7 @@ import {
   ToolContext,
 } from '@/components/kibo/ai-input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useSSEChat } from '@/hooks/use-sse-chat';
 import { useAgentStore } from '@/stores/agent-store';
 import { useChatStore, useIsStreaming } from '@/stores/chat-store';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
@@ -30,17 +31,17 @@ interface ChatInputProps {
 }
 
 export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInputProps) {
-  const { sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
+  // Use SSE chat hook for sending messages
+  const { sendMessage: sendSSEMessage, status: sseStatus, stop: cancelStreaming, input, setInput } = useSSEChat();
+
+  const { clearChatHistory } = useChatStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
-  const isStreaming = useIsStreaming();
+  const isStreaming = sseStatus === 'streaming' || sseStatus === 'submitted';
 
   const { installedModels, loadingInstalledModels, loadingInstalledModelsError, selectedModel, setSelectedModel } =
     useOllamaStore();
 
   const { isAgentActive, mode: agentMode } = useAgentStore();
-
-  const [message, setMessage] = useState('');
-  const [status, setStatus] = useState<'submitted' | 'streaming' | 'ready' | 'error'>('ready');
 
   const disabled = isStreaming || (isAgentActive && agentMode === 'initializing');
 
@@ -49,34 +50,17 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
     useOllamaStore.getState().fetchInstalledModels();
   }, []);
 
-  useEffect(() => {
-    if (isStreaming) {
-      setStatus('streaming');
-    } else {
-      setStatus('ready');
-    }
-  }, [isStreaming]);
-
-  // Subscribe to agent state changes
-  useEffect(() => {
-    if (isAgentActive && agentMode === 'completed') {
-      setStatus('ready');
-    }
-  }, [isAgentActive, agentMode]);
-
   const onSubmit = async (e?: React.FormEvent<HTMLFormElement>) => {
     if (e) {
       e.preventDefault();
     }
 
-    if (!message.trim() || disabled || !selectedModel) {
+    if (!input.trim() || disabled || !selectedModel) {
       return;
     }
 
-    setStatus('submitted');
-
     try {
-      let finalMessage = message.trim();
+      let finalMessage = input.trim();
 
       // Add tool context to the message if tools are selected
       if (selectedTools.length > 0) {
@@ -84,12 +68,12 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
         finalMessage = `${toolContexts}. ${finalMessage}`;
       }
 
-      setMessage('');
-      await sendChatMessage(finalMessage, selectedTools);
-      setStatus('ready');
+      setInput('');
+      await sendSSEMessage(finalMessage, {
+        tools: selectedTools.map((tool) => `${tool.serverName}_${tool.toolName}`),
+      });
     } catch (error) {
-      setStatus('error');
-      setTimeout(() => setStatus('ready'), 2000);
+      console.error('Failed to send message:', error);
     }
   };
 
@@ -100,8 +84,8 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
         const textarea = e.currentTarget;
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
-        const newMessage = message.substring(0, start) + '\n' + message.substring(end);
-        setMessage(newMessage);
+        const newMessage = input.substring(0, start) + '\n' + input.substring(end);
+        setInput(newMessage);
 
         // Move cursor position after the new line
         setTimeout(() => {
@@ -127,8 +111,8 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
         <AIInput onSubmit={onSubmit} className="bg-inherit">
           <AIInputContextPills tools={selectedTools} onRemoveTool={onToolRemove || (() => {})} />
           <AIInputTextarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
               disabled
@@ -182,9 +166,9 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
               </Tooltip>
             </AIInputTools>
             <AIInputSubmit
-              status={isStreaming ? 'streaming' : status}
+              status={isStreaming ? 'streaming' : 'ready'}
               onClick={isStreaming ? cancelStreaming : undefined}
-              disabled={!message.trim() && status !== 'streaming'}
+              disabled={!input.trim() && sseStatus !== 'streaming'}
             />
           </AIInputToolbar>
         </AIInput>

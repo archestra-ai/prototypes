@@ -1,8 +1,6 @@
 import { Brain, Loader2, Wifi, WifiOff } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-// import { useChat } from '@ai-sdk/react'; // Will be enabled when SSE endpoint is ready
-
 import {
   MemoizedAgentModeIndicator,
   MemoizedChatMessage,
@@ -14,8 +12,8 @@ import {
 } from '@/components/agent/performance-optimizations';
 import { AIResponse } from '@/components/kibo/ai-response';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useMessageParts, useSSEChat } from '@/hooks/use-sse-chat';
 import { useAgentStore } from '@/stores/agent-store';
-import { useChatStore } from '@/stores/chat-store';
 import { ReasoningDataPart, TaskProgressDataPart } from '@/types/agent';
 
 const CHAT_SCROLL_AREA_ID = 'chat-scroll-area';
@@ -24,19 +22,17 @@ const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-ar
 interface ChatHistoryProps {}
 
 export default function ChatHistory(_props: ChatHistoryProps) {
-  // TODO: Once SSE endpoint is ready (task 12), enable useChat hook
-  // const { messages, isLoading, error } = useChat({
-  //   api: '/api/agent/chat',
-  //   onError: (error) => {
-  //     console.error('[ChatHistory] SSE error:', error);
-  //   },
-  // });
+  // Use the new SSE chat hook
+  const { messages, status, error } = useSSEChat({
+    onError: (error) => {
+      console.error('[ChatHistory] SSE error:', error);
+    },
+    onFinish: (message, { usage }) => {
+      console.log('[ChatHistory] Message finished:', { message, usage });
+    },
+  });
 
-  // For now, use existing chat store until SSE endpoint is implemented
-  const { chatHistory } = useChatStore();
-  const messages = chatHistory; // Map to v5 format when ready
-  const isLoading = chatHistory.some((msg) => msg.isStreaming || msg.isToolExecuting);
-  const error = null;
+  const isLoading = status === 'streaming' || status === 'submitted';
 
   const { mode: agentMode, plan, reasoningMode, currentObjective } = useAgentStore();
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
@@ -89,162 +85,164 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   }, []);
 
   // Memoized helper function to render message content
-  const renderMessageContent = useCallback((content: any): React.ReactNode => {
-    if (typeof content === 'string') {
-      return content;
-    }
+  const renderMessageContent = useCallback(
+    (content: any): React.ReactNode => {
+      if (typeof content === 'string') {
+        return content;
+      }
 
-    if (Array.isArray(content)) {
-      return content.map((part, index) => {
-        if (typeof part === 'string') {
-          return <span key={index}>{part}</span>;
-        }
+      if (Array.isArray(content)) {
+        return content.map((part, index) => {
+          if (typeof part === 'string') {
+            return <span key={index}>{part}</span>;
+          }
 
-        if (part.type === 'text') {
-          return <span key={index}>{part.text}</span>;
-        }
+          if (part.type === 'text') {
+            return <span key={index}>{part.text}</span>;
+          }
 
-        if (part.type === 'data') {
-          return renderDataPart(part.data, index);
-        }
+          if (part.type === 'data') {
+            return renderDataPart(part.data, index);
+          }
 
-        return null;
-      });
-    }
+          return null;
+        });
+      }
 
-    return JSON.stringify(content);
-  }, [renderDataPart]);
+      return JSON.stringify(content);
+    },
+    [renderDataPart]
+  );
 
   // Memoized helper function to render assistant messages with tool calls and data parts
-  const renderAssistantMessage = useCallback((msg: any, messageIndex: number): React.ReactNode => {
-    // Handle both v5 UIMessage format and current ChatMessage format
-    // const isV5Message = 'content' in msg && (typeof msg.content !== 'string' || Array.isArray(msg.content));
-    const isCurrentFormat = 'thinkingContent' in msg || 'toolCalls' in msg || 'agentMetadata' in msg;
-    const parts: React.ReactNode[] = [];
-    let textContent = '';
-    let reasoningParts: ReasoningDataPart[] = [];
-    let taskProgressParts: TaskProgressDataPart[] = [];
-    let toolCalls: any[] = [];
+  const renderAssistantMessage = useCallback(
+    (msg: any, messageIndex: number): React.ReactNode => {
+      // Handle v5 UIMessage format with parts
+      const parts: React.ReactNode[] = [];
+      let textContent = '';
+      let reasoningParts: ReasoningDataPart[] = [];
+      let taskProgressParts: TaskProgressDataPart[] = [];
+      let toolCalls: any[] = [];
 
-    // Extract content and data parts
-    if (isCurrentFormat) {
-      // Handle current ChatMessage format
-      textContent = msg.content || '';
-
-      // Extract reasoning from agent metadata
-      if (msg.agentMetadata?.reasoningText) {
-        reasoningParts.push({
-          type: 'data',
-          data: {
-            type: 'reasoning',
-            entry: {
-              id: msg.agentMetadata.reasoningText.id,
-              type: msg.agentMetadata.reasoningText.type,
-              content: msg.agentMetadata.reasoningText.content,
-              alternatives: msg.agentMetadata.reasoningText.alternatives,
-              timestamp: new Date(),
-              confidence: 0.8,
-            },
-          },
-        } as ReasoningDataPart);
-      }
-
-      // Use existing tool calls
-      if (msg.toolCalls) {
-        toolCalls = msg.toolCalls.map((tc: any) => ({
-          ...tc,
-          state: tc.status === 'completed' ? 'result' : tc.status === 'executing' ? 'call' : 'pending',
-        }));
-      }
-    } else if (typeof msg.content === 'string') {
-      textContent = msg.content;
-    } else if (Array.isArray(msg.content)) {
-      // Handle v5 message parts
-      msg.content.forEach((part: any) => {
-        if (typeof part === 'string') {
-          textContent += part;
-        } else if (part.type === 'text') {
-          textContent += part.text || '';
-        } else if (part.type === 'data') {
-          // Handle data parts
-          if (part.data?.type === 'reasoning') {
-            reasoningParts.push(part.data);
-          } else if (part.data?.type === 'task-progress') {
-            taskProgressParts.push(part.data);
+      // Extract content and data parts from v5 message format
+      if (msg.parts && Array.isArray(msg.parts)) {
+        // Handle v5 message parts
+        msg.parts.forEach((part: any) => {
+          if (part.type === 'text') {
+            textContent += part.text || '';
+          } else if (part.type === 'reasoning') {
+            reasoningParts.push({
+              type: 'data',
+              data: {
+                type: 'reasoning',
+                entry: {
+                  id: crypto.randomUUID(),
+                  type: 'analysis',
+                  content: part.text || '',
+                  alternatives: [],
+                  timestamp: new Date(),
+                  confidence: 0.8,
+                },
+              },
+            } as ReasoningDataPart);
+          } else if (part.type === 'tool-call') {
+            toolCalls.push({
+              id: part.toolCallId,
+              toolName: part.toolName,
+              args: part.args,
+              state: 'call',
+            });
+          } else if (part.type === 'tool-result') {
+            // Find and update the corresponding tool call
+            const toolCallIndex = toolCalls.findIndex((tc) => tc.id === part.toolCallId);
+            if (toolCallIndex >= 0) {
+              toolCalls[toolCallIndex] = {
+                ...toolCalls[toolCallIndex],
+                state: 'result',
+                result: part.result,
+              };
+            }
           }
-        } else if (part.type === 'tool-call') {
-          toolCalls.push(part);
-        }
-      });
-    }
+        });
+      } else if (typeof msg.content === 'string') {
+        // Fallback for simple string content
+        textContent = msg.content;
+      } else {
+        // Handle current ChatMessage format
+        textContent = msg.content || '';
 
-    // Extract tool calls from message
-    if (msg.toolInvocations) {
-      toolCalls = [...toolCalls, ...msg.toolInvocations];
-    }
+        // Kept for backward compatibility with old format
+      }
 
-    // Render tool calls indicator
-    if (toolCalls.length > 0) {
-      const toolCallInfos = toolCalls.map((tc: any) => ({
-        id: tc.toolCallId || tc.id || crypto.randomUUID(),
-        serverName: tc.toolName?.split('_')[0] || 'unknown',
-        toolName: tc.toolName?.split('_').slice(1).join('_') || tc.toolName || 'unknown',
-        arguments: tc.args || {},
-        status: (tc.state === 'result' ? 'completed' : tc.state === 'call' ? 'executing' : 'pending') as
-          | 'pending'
-          | 'executing'
-          | 'completed'
-          | 'error',
-        result: tc.result,
-        startTime: new Date(),
-      }));
+      // Extract tool calls from message
+      if (msg.toolInvocations) {
+        toolCalls = [...toolCalls, ...msg.toolInvocations];
+      }
 
-      parts.push(
-        <MemoizedToolCallDisplay
-          key="tool-calls"
-          toolCallInfos={toolCallInfos}
-          isExecuting={toolCalls.some((tc) => tc.state === 'call')}
-        />
-      );
-    }
+      // Render tool calls indicator
+      if (toolCalls.length > 0) {
+        const toolCallInfos = toolCalls.map((tc: any) => ({
+          id: tc.toolCallId || tc.id || crypto.randomUUID(),
+          serverName: tc.toolName?.split('_')[0] || 'unknown',
+          toolName: tc.toolName?.split('_').slice(1).join('_') || tc.toolName || 'unknown',
+          arguments: tc.args || {},
+          status: (tc.state === 'result' ? 'completed' : tc.state === 'call' ? 'executing' : 'pending') as
+            | 'pending'
+            | 'executing'
+            | 'completed'
+            | 'error',
+          result: tc.result,
+          startTime: new Date(),
+        }));
 
-    // Render reasoning if available
-    if (reasoningMode === 'verbose') {
-      parts.push(
-        <MemoizedReasoningDisplay
-          key="reasoning"
-          reasoningParts={reasoningParts}
-          isThinking={isCurrentFormat && msg.isThinkingStreaming}
-          thinkingContent={isCurrentFormat ? msg.thinkingContent : undefined}
-        />
-      );
-    }
+        parts.push(
+          <MemoizedToolCallDisplay
+            key="tool-calls"
+            toolCallInfos={toolCallInfos}
+            isExecuting={toolCalls.some((tc) => tc.state === 'call')}
+          />
+        );
+      }
 
-    // Render main content
-    if (textContent) {
-      parts.push(<AIResponse key="main-content">{textContent}</AIResponse>);
-    }
+      // Render reasoning if available
+      if (reasoningMode === 'verbose') {
+        parts.push(
+          <MemoizedReasoningDisplay
+            key="reasoning"
+            reasoningParts={reasoningParts}
+            isThinking={isCurrentFormat && msg.isThinkingStreaming}
+            thinkingContent={isCurrentFormat ? msg.thinkingContent : undefined}
+          />
+        );
+      }
 
-    // Render task progress
-    if (taskProgressParts.length > 0) {
-      parts.push(<MemoizedTaskProgressDisplay key="task-progress" taskProgressParts={taskProgressParts} />);
-    }
+      // Render main content
+      if (textContent) {
+        parts.push(<AIResponse key="main-content">{textContent}</AIResponse>);
+      }
 
-    // Show loading indicator if still streaming
-    if (
-      (isLoading && messageIndex === messages.length - 1) ||
-      (isCurrentFormat && (msg.isStreaming || msg.isToolExecuting))
-    ) {
-      parts.push(
-        <div key="loading" className="flex items-center space-x-2 mt-2">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground text-sm">{msg.isToolExecuting ? 'Executing tools...' : 'Loading...'}</p>
-        </div>
-      );
-    }
+      // Render task progress
+      if (taskProgressParts.length > 0) {
+        parts.push(<MemoizedTaskProgressDisplay key="task-progress" taskProgressParts={taskProgressParts} />);
+      }
 
-    return <>{parts}</>;
-  }, [reasoningMode, isLoading, messages.length]);
+      // Show loading indicator if still streaming
+      if (
+        (isLoading && messageIndex === messages.length - 1) ||
+        (isCurrentFormat && (msg.isStreaming || msg.isToolExecuting))
+      ) {
+        parts.push(
+          <div key="loading" className="flex items-center space-x-2 mt-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+            <p className="text-muted-foreground text-sm">{msg.isToolExecuting ? 'Executing tools...' : 'Loading...'}</p>
+          </div>
+        );
+      }
+
+      return <>{parts}</>;
+    },
+    [reasoningMode, isLoading, messages.length]
+  );
 
   // Scroll to bottom when new messages are added or content changes
   const scrollToBottom = useCallback(() => {
