@@ -219,8 +219,9 @@ export const useItemStore = create<StoreState>((set) => ({
 
 ### CI/CD Workflow
 
-The GitHub Actions workflow (`.github/workflows/linting-and-tests.yml`) includes:
+The GitHub Actions CI/CD pipeline consists of several workflows:
 
+#### Main Testing Workflow (`.github/workflows/linting-and-tests.yml`)
 - PR title linting with conventional commits
 - Rust formatting and linting checks
 - Rust tests on Ubuntu, macOS (ARM64 & x86_64), and Windows
@@ -228,6 +229,18 @@ The GitHub Actions workflow (`.github/workflows/linting-and-tests.yml`) includes
 - Frontend build verification
 - OpenAPI schema freshness check (ensures schema and TypeScript client are up-to-date)
 - Zizmor security analysis for GitHub Actions
+
+#### Pull Request Workflow (`.github/workflows/on-pull-requests.yml`)
+- Runs the main testing workflow on all PRs
+- **Automated Claude Code Reviews**: Uses Claude Code Action to provide automated PR reviews with feedback on code quality, security, and best practices
+- **Automated CLAUDE.md Updates**: Automatically updates documentation to reflect changes made in PRs
+- Both Claude jobs skip release-please PRs and WIP PRs
+
+#### Interactive Claude Workflow (`.github/workflows/claude.yml`)
+- Triggers on `@claude` mentions in issues, PR comments, and reviews  
+- Provides comprehensive development environment with Rust and frontend tooling
+- Supports extensive bash commands for testing, building, formatting, and code generation
+- Uses Claude Opus 4 model for complex development tasks
 
 ### Development Notes
 
