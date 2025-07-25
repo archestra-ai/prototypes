@@ -115,6 +115,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 
 - `components/`: Reusable UI components
   - `ui/`: Base UI components (shadcn/ui style) - DO NOT MODIFY
+    - `popover.tsx`: Added for UI interactions (installed via shadcn)
   - `kibo/`: AI-specific components (messages, code blocks, reasoning)
   - `DeleteChatConfirmation.tsx`: Dialog for chat deletion confirmation
   - `TypewriterText.tsx`: Animated text display component
@@ -283,6 +284,13 @@ Response: 204 No Content
 - **Pre-commit Hooks**: Prettier formatting via Husky
 - **OpenAPI Generation**: Clean output directory, Prettier formatting
 
+### Key Dependencies Added for Chat Persistence
+
+- **Frontend**: 
+  - `@radix-ui/react-popover`: For popover UI component (required by shadcn/ui)
+- **Backend**:
+  - `tokio`: Enhanced with async runtime features for spawning background tasks
+
 ### CI/CD Workflow
 
 The GitHub Actions CI/CD pipeline consists of several workflows with concurrency controls to optimize resource usage:
@@ -325,18 +333,34 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - Frontend API calls should use the generated client, not Tauri commands
 - Database migrations should be created for schema changes using SeaORM
 - **Chat Persistence**: All chat conversations are automatically saved to SQLite database
-  - Messages are intercepted and saved during the Ollama proxy streaming process
-  - The system handles both user and assistant messages transparently
-  - Chat creation is automatic when the first message is sent
+  - The Ollama proxy (`/llm/ollama/api/chat`) transparently intercepts and saves messages:
+    - User messages are parsed from the request and saved before forwarding to Ollama
+    - Assistant responses are captured from the streaming chunks and saved after completion
+  - Messages are saved asynchronously using spawned tasks to avoid blocking the stream
+  - Chat creation is automatic when the first message is sent (using the most recent chat or creating new)
+  - The `create_or_get_chat` function manages chat lifecycle seamlessly
 - **Chat Title Generation**: 
-  - Triggers after 4 messages (not after first exchange as might be expected)
-  - Uses a background task to avoid blocking the conversation flow
-  - Generates titles using the same model as the chat for consistency
+  - Triggers automatically after the 4th message in a chat (2 user + 2 assistant messages)
+  - Uses a background task (`generate_chat_title`) to avoid blocking the conversation flow
+  - Generates titles using the same LLM model as the chat for consistency
+  - Title generation prompt asks for a "brief 5-6 word title that captures the main topic"
+  - Uses a 30-second timeout for title generation to prevent hanging
 - **Event-Driven Updates**: 
-  - Backend emits Tauri events (e.g., `chat-title-updated`) for real-time UI updates
-  - Frontend stores subscribe to these events on initialization
-- **Database Relationships**: Messages have CASCADE delete with chats for data consistency
+  - Backend emits Tauri events for real-time UI updates:
+    - `chat-title-updated` event with `{chatId, title}` payload
+  - Frontend chat store subscribes to these events in `initializeStore()`
+  - Events enable instant UI updates without polling
+- **Database Relationships**: 
+  - Messages have CASCADE delete foreign key constraint with chats
+  - Deleting a chat automatically removes all associated messages
+  - Ensures data consistency and prevents orphaned messages
+- **Message Streaming Architecture**:
+  - Ollama proxy uses `tokio::sync::mpsc` channels to collect streaming chunks
+  - Chunks are forwarded to the client while being accumulated for storage
+  - Assistant content is extracted from either streaming JSON lines or single response format
+  - The `extract_assistant_content` function handles both Ollama response formats
 - **Testing Patterns**:
   - Use rstest fixtures from `test_fixtures` for Rust database tests
-  - The chat API includes comprehensive integration tests
-  - Mock external dependencies appropriately in tests
+  - The chat API includes comprehensive integration tests covering CRUD operations
+  - Message persistence tests verify ordering and cascade deletion
+  - Mock Ollama responses return BAD_GATEWAY in tests since server isn't running
