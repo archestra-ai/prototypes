@@ -10,6 +10,13 @@ on:
   pull_request_review:
     types: [submitted]
 
+# TODO: check pricing
+# + Consider using GitHub’s concurrency controls to limit parallel runs
+# only allow one run per issue/PR
+# https://docs.anthropic.com/en/docs/claude-code/github-actions#ci-costs
+# https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions
+# https://www.anthropic.com/api
+
 jobs:
   claude:
     if: |
@@ -52,12 +59,13 @@ jobs:
 
           # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
           model: "claude-opus-4-20250514"
+          fallback_model: "TODO:"
 
           # Optional: Customize the trigger phrase (default: @claude)
           # trigger_phrase: "/claude"
 
           # Optional: Trigger when specific user is assigned to an issue
-          # assignee_trigger: "claude-bot"
+          assignee_trigger: "claude-bot"
 
           # Optional: Allow Claude to run specific commands
           allowed_tools: |
