@@ -8,7 +8,6 @@ inputs:
     description: "Whether or not to install tauri-driver"
     required: false
     default: "false"
-
 runs:
   using: composite
   steps:
