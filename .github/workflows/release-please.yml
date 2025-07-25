@@ -52,7 +52,7 @@ jobs:
   build-desktop-application-and-create-github-release:
     name: Build desktop application and create GitHub release
     runs-on: ${{ matrix.platform }}
-    if: needs.release-please.outputs.desktop_release_created
+    # if: needs.release-please.outputs.desktop_release_created
     needs:
       - release-please
     strategy:
