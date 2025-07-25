@@ -63,6 +63,9 @@ jobs:
   frontend-linting-and-tests:
     name: Frontend Linting and Tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./desktop
     steps:
       - name: Checkout project
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -73,15 +76,12 @@ jobs:
         uses: ./.github/actions/setup-frontend
 
       - name: Check prettier formatting
-        working-directory: desktop
         run: pnpm prettier --check .
 
       - name: Run tests
-        working-directory: desktop
         run: pnpm test
 
       - name: Build
-        working-directory: desktop
         run: pnpm build
 
   verify-openapi-schema-is-up-to-date:
