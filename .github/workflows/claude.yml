@@ -31,6 +31,14 @@ jobs:
           fetch-depth: 10 # give Claude a bit more context
           persist-credentials: false
 
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          platform: ubuntu-latest
+
+      - name: Setup frontend dependencies
+        uses: ./.github/actions/setup-frontend
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@e26577a930883943cf9d90885cd1e8da510078dd # beta tag
@@ -43,7 +51,7 @@ jobs:
             actions: read
 
           # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
-          # model: "claude-opus-4-20250514"
+          model: "claude-opus-4-20250514"
 
           # Optional: Customize the trigger phrase (default: @claude)
           # trigger_phrase: "/claude"
@@ -52,7 +60,14 @@ jobs:
           # assignee_trigger: "claude-bot"
 
           # Optional: Allow Claude to run specific commands
-          # allowed_tools: "Bash(npm install),Bash(npm run build),Bash(npm run test:*),Bash(npm run lint:*)"
+          allowed_tools: |
+            Bash(pnpm install)
+            Bash(pnpm test)
+            Bash(pnpm build)
+            Bash(cargo test)
+            Bash(cargo build)
+            Bash(cargo fmt)
+            Bash(cargo clippy)
 
           # Optional: Add custom instructions for Claude to customize its behavior for your project
           # custom_instructions: |

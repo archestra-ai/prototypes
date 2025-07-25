@@ -39,10 +39,13 @@ jobs:
       - name: Run Claude Code
         uses: anthropics/claude-code-action@e26577a930883943cf9d90885cd1e8da510078dd # beta tag
         with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
           direct_prompt: |
             Update the CLAUDE.md file to reflect the changes made in this PR.
 
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
+          model: "claude-opus-4-20250514"
 
           # This is an optional setting that allows Claude to read CI results on PRs
           # See https://github.com/anthropics/claude-code-action?tab=readme-ov-file#additional-permissions-for-cicd-integration
