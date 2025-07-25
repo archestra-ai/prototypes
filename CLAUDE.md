@@ -258,7 +258,7 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - Manages automated releases using Google's release-please action
 - Creates and maintains release PRs with changelogs
 - **Triggers**: Runs on pushes to `main` branch and any `release-*` branches
-- **Permissions**: Has `releases: write` permission to create and manage GitHub releases
+- **Authentication**: Uses `ARCHESTRA_RELEASER_GITHUB_APP_CLIENT_SECRET` for the tauri-action to create releases
 - **Multi-platform desktop builds**: When a desktop release is created:
   - Builds Tauri desktop applications for Linux (ubuntu-latest) and Windows (windows-latest)
   - Uses matrix strategy with `fail-fast: false` to ensure all platforms build
