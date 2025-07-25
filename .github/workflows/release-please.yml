@@ -73,7 +73,7 @@ jobs:
         id: generate-token
         uses: actions/create-github-app-token@v2
         with:
-          app-id: ${{ vars.ARCHESTRA_RELEASER_GITHUB_APP_ID }}
+          app-id: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_ID }}
           private-key: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY }}
 
       - name: Fetch GitHub release for app-v0.1.0
