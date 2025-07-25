@@ -131,15 +131,18 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 
 - `src/database/`: Database layer with SeaORM entities and migrations
 - `src/models/`: Business logic and data models
+  - `chat/`: Chat management with CRUD operations and title generation
+  - `message/`: Message persistence and chat history management
   - `mcp_server/`: MCP server models including OAuth support
   - `external_mcp_client/`: External MCP client configurations
   - `mcp_request_log/`: Request logging and analytics
 - `src/gateway/`: HTTP gateway exposing the following APIs:
   - `/api`: REST API for Archestra resources (OpenAPI documented)
+    - `/api/chat`: Chat CRUD operations (create, read, update, delete chats)
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
   - `/llm/:provider`: Proxies requests to LLM providers
-- `src/ollama.rs`: Ollama integration for local LLM
+- `src/ollama.rs`: Ollama integration for local LLM and chat title generation
 - `src/openapi.rs`: OpenAPI schema configuration using utoipa
 - `binaries/`: Embedded Ollama binaries for different platforms
 - `sandbox-exec-profiles/`: macOS sandbox profiles for security
@@ -148,10 +151,34 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 
 1. **MCP Integration**: Supports MCP servers for extending AI capabilities with tools via rmcp library
 2. **Local LLM Support**: Runs Ollama locally for privacy-focused AI interactions
-3. **OAuth Authentication**: Handles OAuth flows for services like Gmail
-4. **Chat Interface**: Full-featured chat UI with streaming responses and tool execution
-5. **Security**: Uses macOS sandbox profiles for MCP server execution
-6. **API Documentation**: Auto-generated OpenAPI schema with TypeScript client
+3. **Chat Persistence**: Full CRUD operations for chat conversations with SQLite database storage
+4. **Intelligent Chat Titles**: Automatic LLM-generated chat titles based on conversation content
+5. **OAuth Authentication**: Handles OAuth flows for services like Gmail
+6. **Chat Interface**: Full-featured chat UI with streaming responses and tool execution
+7. **Security**: Uses macOS sandbox profiles for MCP server execution
+8. **API Documentation**: Auto-generated OpenAPI schema with TypeScript client
+
+### Database Schema
+
+The application uses SQLite with SeaORM for database management. Key tables include:
+
+#### Chat Management Tables
+
+- **chats**: Stores chat sessions with metadata
+  - `id` (Primary Key): Auto-incrementing chat identifier
+  - `title`: Chat title (auto-generated or user-defined)
+  - `llm_provider`: LLM provider used (e.g., "ollama")
+  - `llm_model`: Specific model name (e.g., "llama3.2")
+  - `created_at`, `updated_at`: Timestamps
+
+- **messages**: Stores individual messages within chats
+  - `id` (Primary Key): Auto-incrementing message identifier
+  - `chat_id` (Foreign Key): References chats.id with CASCADE delete
+  - `role`: Message role ("user", "assistant", "system")
+  - `content`: Message content as text
+  - `created_at`: Timestamp
+
+The relationship ensures that deleting a chat automatically removes all associated messages.
 
 ### Key Patterns
 
@@ -207,6 +234,31 @@ export const useItemStore = create<StoreState>((set) => ({
 }));
 ```
 
+#### Chat API Endpoints
+
+The application provides RESTful endpoints for chat management:
+
+```typescript
+// Get all chats (ordered by updated_at DESC)
+GET /api/chat
+Response: Chat[]
+
+// Get specific chat with messages
+GET /api/chat/{id}  
+Response: ChatWithMessages
+
+// Create new chat
+POST /api/chat
+Body: { llm_provider: string, llm_model: string }
+Response: Chat (with auto-generated title "New Chat")
+
+// Delete chat and all messages
+DELETE /api/chat/{id}
+Response: 204 No Content
+```
+
+**Chat Title Generation**: After the first user-assistant exchange, the system automatically generates a descriptive 5-6 word title using the configured LLM model and updates the chat title in the background.
+
 ### Important Configuration
 
 - **Package Manager**: pnpm v10.13.1 (NEVER use npm or yarn)
@@ -255,5 +307,8 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - OpenAPI schema must be regenerated after API changes (CI will catch if forgotten)
 - Frontend API calls should use the generated client, not Tauri commands
 - Database migrations should be created for schema changes using SeaORM
+- **Chat Persistence**: All chat conversations are automatically saved to SQLite database
+- **Chat Title Generation**: Runs asynchronously after first assistant response using background tasks
+- **Database Relationships**: Messages have CASCADE delete with chats for data consistency
 - Use rstest fixtures from `test_fixtures` for Rust database tests
 - Mock external dependencies appropriately in tests
