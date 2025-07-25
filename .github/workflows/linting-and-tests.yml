@@ -3,9 +3,6 @@ name: Linting and Tests
 on:
   workflow_call:
 
-permissions:
-  contents: read
-
 jobs:
   lint-pr-title:
     name: PR Title Linter
