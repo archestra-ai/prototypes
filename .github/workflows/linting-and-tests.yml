@@ -117,8 +117,6 @@ jobs:
       - name: Check for changes and commit if needed
         working-directory: desktop
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
           
           if ! git diff --exit-code; then
             echo "📝 OpenAPI schema or TypeScript client has changes, committing automatically..."
