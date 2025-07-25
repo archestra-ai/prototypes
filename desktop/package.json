@@ -11,7 +11,8 @@
     "tauri": "tauri",
     "test": "vitest",
     "prepare": "cd .. && husky desktop/.husky",
-    "prettier": "prettier --write ."
+    "prettier": "prettier --write .",
+    "dbstudio": "node scripts/run-sqlite-web.js"
   },
   "dependencies": {
     "@icons-pack/react-simple-icons": "^13.6.0",

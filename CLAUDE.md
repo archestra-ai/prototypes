@@ -85,6 +85,19 @@ pnpm codegen
 # Both commands MUST be run after modifying API endpoints
 ```
 
+### Database Inspection
+
+```bash
+# Launch sqlite-web to inspect the database in browser
+pnpm dbstudio
+
+# The script will:
+# - Automatically find the database location (~/Library/Application Support/com.archestra-ai.app/archestra.db on macOS)
+# - Install sqlite-web via uv if not available (falls back to pip)
+# - Open the database at http://localhost:8080
+# - Allow browsing tables, running queries, and viewing schema
+```
+
 ### OAuth Proxy Service
 
 ```bash
