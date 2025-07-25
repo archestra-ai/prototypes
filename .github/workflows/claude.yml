@@ -10,12 +10,11 @@ on:
   pull_request_review:
     types: [submitted]
 
-# TODO: check pricing
-# + Consider using GitHub’s concurrency controls to limit parallel runs
-# only allow one run per issue/PR
-# https://docs.anthropic.com/en/docs/claude-code/github-actions#ci-costs
-# https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions
-# https://www.anthropic.com/api
+concurrency:
+  # Group by issue/PR number to prevent multiple Claude runs on the same issue/PR
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  # Cancel any in-progress runs when a new one is triggered
+  cancel-in-progress: true
 
 jobs:
   claude:
@@ -59,7 +58,7 @@ jobs:
 
           # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
           model: "claude-opus-4-20250514"
-          fallback_model: "TODO:"
+          fallback_model: "claude-sonnet-4-20250514"
 
           # Optional: Customize the trigger phrase (default: @claude)
           # trigger_phrase: "/claude"
