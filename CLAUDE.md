@@ -236,11 +236,11 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 
 #### Main Testing Workflow (`.github/workflows/linting-and-tests.yml`)
 - PR title linting with conventional commits
-- Rust formatting and linting checks
+- **Automatic Rust formatting and fixes**: CI automatically applies `cargo fix` and `cargo fmt` changes and commits them back to the PR
 - Rust tests on Ubuntu, macOS (ARM64 & x86_64), and Windows
 - Frontend formatting and tests
 - Frontend build verification
-- OpenAPI schema freshness check (ensures schema and TypeScript client are up-to-date)
+- **Automatic OpenAPI schema updates**: CI automatically regenerates and commits OpenAPI schema and TypeScript client if they're outdated
 - Zizmor security analysis for GitHub Actions
 
 #### Pull Request Workflow (`.github/workflows/on-pull-requests.yml`)
