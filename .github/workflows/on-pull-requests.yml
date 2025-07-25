@@ -21,87 +21,17 @@ jobs:
       security-events: write
     uses: ./.github/workflows/linting-and-tests.yml
 
-  claude-review:
-    name: Claude PR review
+  claude-code:
+    name: Claude Code
+    runs-on: ubuntu-latest
     # Optional: Filter by PR author
     # if: |
     #   github.event.pull_request.user.login == 'external-contributor' ||
     #   github.event.pull_request.user.login == 'new-developer' ||
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-    # Don't run if PR is from release-please bot
+    # Don't run if PR is from release-please bot or is a WIP PR
     if: |
-      github.event.pull_request.head.ref != 'release-please--branches--main'
-
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      id-token: write
-      actions: read # Required for Claude to read CI results on PRs
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 10 # give Claude a bit more context
-          persist-credentials: true # credentials are needed here as Claude will use them to read stuffs
-
-      - name: Run Claude Code Review
-        id: claude-review
-        uses: anthropics/claude-code-action@e26577a930883943cf9d90885cd1e8da510078dd # beta tag
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-          # This is an optional setting that allows Claude to read CI results on PRs
-          # See https://github.com/anthropics/claude-code-action?tab=readme-ov-file#additional-permissions-for-cicd-integration
-          additional_permissions: |
-            actions: read
-
-          # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
-          model: "claude-opus-4-20250514"
-          fallback_model: "claude-sonnet-4-20250514"
-
-          # Direct prompt for automated review (no @claude mention needed)
-          direct_prompt: |
-            Please review this pull request and provide feedback on:
-            - Code quality and best practices
-            - Potential bugs or issues
-            - Performance considerations
-            - Security concerns
-            - Test coverage
-
-            Be constructive and helpful in your feedback.
-
-          # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
-          use_sticky_comment: true
-
-          # Optional: Customize review based on file types
-          # direct_prompt: |
-          #   Review this PR focusing on:
-          #   - For TypeScript files: Type safety and proper interface usage
-          #   - For API endpoints: Security, input validation, and error handling
-          #   - For React components: Performance, accessibility, and best practices
-          #   - For tests: Coverage, edge cases, and test quality
-
-          # Optional: Different prompts for different authors
-          # direct_prompt: |
-          #   ${{ github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' &&
-          #   'Welcome! Please review this PR from a first-time contributor. Be encouraging and provide detailed explanations for any suggestions.' ||
-          #   'Please provide a thorough code review focusing on our coding standards and best practices.' }}
-
-          # Optional: Add specific tools for running tests or linting
-          # allowed_tools: "Bash(npm run test),Bash(npm run lint),Bash(npm run typecheck)"
-
-          # Optional: Skip review for certain conditions
-          if: |
-            !contains(github.event.pull_request.title, '[WIP]')
-
-  claude-update-claude-md:
-    name: Claude Update CLAUDE.md
-    runs-on: ubuntu-latest
-    # Don't run if PR is from release-please bot
-    if: |
-      github.event.pull_request.head.ref != 'release-please--branches--main'
+      github.event.pull_request.head.ref != 'release-please--branches--main' && !contains(github.event.pull_request.title, '[WIP]')
     permissions:
       contents: write
       pull-requests: write
@@ -120,17 +50,25 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-          direct_prompt: |
-            So I want you to do a few things to help with the current pull request:
-            1. Update the CLAUDE.md file to reflect the changes made in this PR.
-            2. If the pull request description is missing, add one based on the changes.
+          # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
+          use_sticky_comment: true
 
           # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
-          # NOTE: for updating CLAUDE.md we don't need a "powerful" model
-          # model: "claude-opus-4-20250514"
-          # fallback_model: "claude-sonnet-4-20250514"
+          model: "claude-opus-4-20250514"
+          fallback_model: "claude-sonnet-4-20250514"
 
           # This is an optional setting that allows Claude to read CI results on PRs
           # See https://github.com/anthropics/claude-code-action?tab=readme-ov-file#additional-permissions-for-cicd-integration
           additional_permissions: |
             actions: read
+
+          direct_prompt: |
+            So I want you to do a few things to help with the current pull request:
+            1. Update the CLAUDE.md file to reflect the changes made in this PR.
+            2. If the pull request description is missing, add one based on the changes.
+            3. Please review this pull request and provide feedback on the below items, be constructive and helpful in your feedback:
+              - Code quality and best practices
+              - Potential bugs or issues
+              - Performance considerations
+              - Security concerns
+              - Test coverage
