@@ -29,9 +29,14 @@ jobs:
     #   github.event.pull_request.user.login == 'external-contributor' ||
     #   github.event.pull_request.user.login == 'new-developer' ||
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-    # Don't run if PR is from release-please bot or is a WIP PR
+    #
+    # Don't run if PR is from release-please bot, is a WIP PR, or if the commit
+    # is from Claude (to avoid "infinite loops" of calling this workflow job)
     if: |
-      github.event.pull_request.head.ref != 'release-please--branches--main' && !contains(github.event.pull_request.title, '[WIP]')
+      github.event.pull_request.head.ref != 'release-please--branches--main' && 
+      !contains(github.event.pull_request.title, '[WIP]') &&
+      github.event.pull_request.user.login != 'claude[bot]' &&
+      github.event.pull_request.user.login != 'claude-bot'
     permissions:
       contents: write
       pull-requests: write
@@ -64,11 +69,16 @@ jobs:
 
           direct_prompt: |
             So I want you to do a few things to help with the current pull request:
-            1. Update the CLAUDE.md file to reflect the changes made in this PR.
-            2. If the pull request description is missing, add one based on the changes.
-            3. Please review this pull request and provide feedback on the below items, be constructive and helpful in your feedback:
+            1. If the pull request description is missing, add one based on the changes.
+            2. Update the CLAUDE.md file to reflect the changes made in this PR.
+            3. Please review this pull request and provide feedback on the below items, be constructive and helpful in
+            your feedback:
               - Code quality and best practices
               - Potential bugs or issues
               - Performance considerations
               - Security concerns
               - Test coverage
+
+            For every step after step 1 above, if you need to make any changes, PLEASE make sure that they are all
+            commited in a single commit and that you push this commit at the very end of your work!
+            This is very important.
