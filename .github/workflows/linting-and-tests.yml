@@ -52,11 +52,14 @@ jobs:
           platform: ${{ matrix.platform }}
 
       - name: Apply Rust fixes and formatting
+        shell: bash
         run: |
           cargo fix --allow-dirty --allow-staged
           cargo fmt
           
           if ! git diff --exit-code; then
+            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
             git add .
             git commit -m "fix: apply cargo fix and formatting changes"
             git push --no-verify
@@ -127,6 +130,8 @@ jobs:
         run: |
           
           if ! git diff --exit-code; then
+            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
             git add openapi.json src/lib/api/
             git commit -m "chore: update OpenAPI schema and TypeScript client"
             git push --no-verify
