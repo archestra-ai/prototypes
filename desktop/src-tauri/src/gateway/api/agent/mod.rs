@@ -30,7 +30,22 @@ struct OllamaChatRequest {
     messages: Vec<OllamaMessage>,
     stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    tools: Option<Vec<serde_json::Value>>,
+    tools: Option<Vec<OllamaTool>>,
+}
+
+/// Ollama tool format
+#[derive(Debug, Serialize, Deserialize)]
+struct OllamaTool {
+    #[serde(rename = "type")]
+    tool_type: String,
+    function: OllamaToolFunction,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OllamaToolFunction {
+    name: String,
+    description: String,
+    parameters: serde_json::Value,
 }
 
 #[derive(Debug, Serialize)]
@@ -125,6 +140,8 @@ struct AgentChatRequest {
     model: Option<String>,
     #[serde(default)]
     stream: Option<bool>,
+    #[serde(default)]
+    tools: Option<Vec<String>>,
 }
 
 /// Handle agent chat requests with SSE streaming
@@ -259,12 +276,19 @@ async fn execute_agent_stream(
         })
         .collect();
     
+    // Convert tool names to Ollama tool format if provided
+    let tools = if let Some(tool_names) = request.tools {
+        Some(convert_tools_to_ollama_format(&service.db, tool_names).await?)
+    } else {
+        None
+    };
+    
     // Build Ollama request
     let ollama_request = OllamaChatRequest {
         model: request.model.unwrap_or_else(|| "llama3.2".to_string()),
         messages: ollama_messages,
         stream: true,
-        tools: None, // TODO: Add tool support
+        tools,
     };
     
     // Call Ollama API
@@ -307,15 +331,39 @@ async fn execute_agent_stream(
                     if let Some(tool_calls) = chat_chunk.message.tool_calls {
                         for tool_call in tool_calls {
                             let tool_id = tool_call.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+                            let tool_name = tool_call.function.name.clone();
+                            
+                            // Send tool call start event
                             tx.send(SseMessage::ToolCallStart {
                                 tool_call_id: tool_id.clone(),
-                                tool_name: tool_call.function.name.clone(),
+                                tool_name: tool_name.clone(),
                             }).await?;
                             
+                            // Send tool arguments
                             tx.send(SseMessage::ToolCallDelta {
                                 tool_call_id: tool_id.clone(),
                                 args_delta: tool_call.function.arguments.to_string(),
                             }).await?;
+                            
+                            // Execute tool server-side
+                            match execute_mcp_tool(&service.db, &tool_name, &tool_call.function.arguments).await {
+                                Ok(result) => {
+                                    tx.send(SseMessage::ToolCallResult {
+                                        tool_call_id: tool_id,
+                                        tool_name,
+                                        result,
+                                    }).await?;
+                                }
+                                Err(e) => {
+                                    tx.send(SseMessage::ToolCallResult {
+                                        tool_call_id: tool_id,
+                                        tool_name,
+                                        result: serde_json::json!({
+                                            "error": format!("Tool execution failed: {}", e)
+                                        }),
+                                    }).await?;
+                                }
+                            }
                         }
                     }
                     
@@ -348,6 +396,86 @@ async fn execute_agent_stream(
     }
     
     Ok(())
+}
+
+/// Convert tool names (serverName_toolName) to Ollama tool format
+/// For now, we create basic tool definitions based on the tool names
+/// In the future, this could query the actual tool schemas from MCP servers
+async fn convert_tools_to_ollama_format(
+    _db: &DatabaseConnection,
+    tool_names: Vec<String>,
+) -> Result<Vec<OllamaTool>, Box<dyn std::error::Error + Send + Sync>> {
+    let mut ollama_tools = Vec::new();
+    
+    for tool_name in tool_names {
+        // For now, create a basic tool definition
+        // The actual tool execution will happen through the MCP proxy
+        ollama_tools.push(OllamaTool {
+            tool_type: "function".to_string(),
+            function: OllamaToolFunction {
+                name: tool_name.clone(),
+                description: format!("MCP tool: {}", tool_name),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                }),
+            },
+        });
+    }
+    
+    Ok(ollama_tools)
+}
+
+/// Execute an MCP tool through the proxy
+async fn execute_mcp_tool(
+    _db: &DatabaseConnection,
+    tool_name: &str,
+    arguments: &serde_json::Value,
+) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
+    // Split serverName_toolName
+    let parts: Vec<&str> = tool_name.splitn(2, '_').collect();
+    if parts.len() != 2 {
+        return Err(format!("Invalid tool name format: {}", tool_name).into());
+    }
+    
+    let server_name = parts[0];
+    let tool_name_only = parts[1];
+    
+    // Create JSON-RPC request for MCP proxy
+    let mcp_request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": uuid::Uuid::new_v4().to_string(),
+        "method": "tools/call",
+        "params": {
+            "name": tool_name_only,
+            "arguments": arguments
+        }
+    });
+    
+    // Call MCP proxy endpoint
+    let client = reqwest::Client::new();
+    let proxy_url = format!("http://localhost:{}/mcp_proxy/{}", crate::gateway::GATEWAY_SERVER_PORT, server_name);
+    
+    let response = client
+        .post(&proxy_url)
+        .json(&mcp_request)
+        .send()
+        .await?;
+    
+    if !response.status().is_success() {
+        let error_text = response.text().await?;
+        return Err(format!("MCP proxy error: {}", error_text).into());
+    }
+    
+    let result: serde_json::Value = response.json().await?;
+    
+    // Extract result from JSON-RPC response
+    if let Some(error) = result.get("error") {
+        return Err(format!("MCP tool error: {}", error).into());
+    }
+    
+    Ok(result.get("result").cloned().unwrap_or(serde_json::Value::Null))
 }
 
 #[cfg(test)]

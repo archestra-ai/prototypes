@@ -10,6 +10,7 @@ import { useOllamaStore } from '@/stores/ollama-store';
 interface UseSSEChatOptions {
   onError?: (error: Error) => void;
   onFinish?: (message: any, options: { usage?: any; finishReason?: string }) => void;
+  onToolCall?: (toolCall: { toolCallId: string; toolName: string; args: any }) => void | Promise<void>;
 }
 
 /**
@@ -22,7 +23,7 @@ export function useSSEChat(options?: UseSSEChatOptions) {
   const [customInput, setCustomInput] = useState('');
 
   // Configure useChat with our SSE endpoint
-  const { messages, sendMessage, status, error, stop, reload, isLoading, setMessages } = useChat({
+  const { messages, sendMessage, status, error, stop, reload, isLoading, setMessages, addToolResult } = useChat({
     transport: new DefaultChatTransport({
       api: `${ARCHESTRA_SERVER_API_URL}/agent/chat`,
       headers: () => ({
@@ -31,6 +32,7 @@ export function useSSEChat(options?: UseSSEChatOptions) {
     }),
     onError: options?.onError,
     onFinish: options?.onFinish,
+    onToolCall: options?.onToolCall,
   });
 
   // Custom sendMessage that includes our metadata
@@ -48,12 +50,12 @@ export function useSSEChat(options?: UseSSEChatOptions) {
         {
           body: {
             model: selectedModel,
+            tools: options?.tools,
             agent_context:
               options?.agentContext ||
               (isAgentActive
                 ? {
                     mode: 'autonomous',
-                    tools: options?.tools,
                   }
                 : undefined),
           },
@@ -118,6 +120,7 @@ export function useSSEChat(options?: UseSSEChatOptions) {
     sendMessage: sendChatMessage,
     stop,
     reload,
+    addToolResult,
 
     // Status
     status,

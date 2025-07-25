@@ -26,6 +26,3 @@ mcp.json
 .serena/
 docs
 CLAUDE.md
-AGENT-TOOL-EXECUTION-PROBLEM.md
-OLLAMA-AGENT-ISSUE.md
-.ai-sdk
