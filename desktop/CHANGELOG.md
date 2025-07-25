@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.3](https://github.com/archestra-ai/archestra/compare/desktop-v0.0.2...desktop-v0.0.3) (2025-07-25)
+
+
+### Bug Fixes
+
+* improve Ollama server lifecycle management and app shutdown ([#74](https://github.com/archestra-ai/archestra/issues/74)) ([bb99422](https://github.com/archestra-ai/archestra/commit/bb994224b3d4e643371f3a31a27b1683a895d31e))
+
 ## [0.0.2](https://github.com/archestra-ai/archestra/compare/desktop-v0.0.1...desktop-v0.0.2) (2025-07-25)
 
 
