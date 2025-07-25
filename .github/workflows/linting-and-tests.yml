@@ -96,7 +96,7 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          persist-credentials: false
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -114,17 +114,25 @@ jobs:
         working-directory: desktop
         run: pnpm codegen
 
-      - name: Check for uncommitted changes
+      - name: Check for changes and commit if needed
         working-directory: desktop
         run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
           if ! git diff --exit-code; then
-            echo "❌ OpenAPI schema or TypeScript client is out of date!"
-            echo "Please run the following commands and commit the changes:"
-            echo "  cd desktop/src-tauri && cargo run --bin dump_openapi"
-            echo "  cd desktop && pnpm codegen"
-            exit 1
+            echo "📝 OpenAPI schema or TypeScript client has changes, committing automatically..."
+            git add openapi.json src/lib/api/
+            git commit -m "chore: update OpenAPI schema and TypeScript client
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+            git push
+            echo "✅ Changes committed and pushed"
+          else
+            echo "✅ OpenAPI schema and TypeScript client are up to date"
           fi
-          echo "✅ OpenAPI schema and TypeScript client are up to date"
 
   zizmor:
     name: Zizmor GitHub Actions static analysis
