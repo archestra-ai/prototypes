@@ -93,9 +93,8 @@ jobs:
           # allowed_tools: "Bash(npm run test),Bash(npm run lint),Bash(npm run typecheck)"
 
           # Optional: Skip review for certain conditions
-          #   !contains(github.event.pull_request.title, '[skip-review]') &&
           if: |
-            !contains(github.event.pull_request.title.lower(), '[wip]')
+            !contains(github.event.pull_request.title, '[WIP]')
 
   claude-update-claude-md:
     name: Claude Update CLAUDE.md
