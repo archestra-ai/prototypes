@@ -39,7 +39,7 @@ export interface RunAgentUpdatedStreamEvent extends StreamEvent {
 export interface RunItemStreamEvent extends StreamEvent {
   type: 'item_stream_event';
   item: {
-    type: 'tool_call' | 'message' | 'reasoning' | 'progress' | 'memory';
+    type: 'tool_call' | 'message' | 'reasoning' | 'progress' | 'memory' | 'tool_call_output_item' | 'tool_call_item';
     id?: string;
     name?: string;
     content?: string;
@@ -48,6 +48,18 @@ export interface RunItemStreamEvent extends StreamEvent {
     error?: string;
     status?: 'pending' | 'executing' | 'completed' | 'error';
     metadata?: Record<string, any>;
+    output?: {
+      content: any[] | string;
+    };
+    call?: {
+      name: string;
+    };
+    function?: {
+      name: string;
+    };
+    function_call?: {
+      name: string;
+    };
   };
 }
 
@@ -84,7 +96,7 @@ export interface ToolExecutionEvent extends StreamEvent {
 
 export interface ReasoningEvent extends StreamEvent {
   type: 'reasoning_event';
-  reasoning: {
+  reasoningText: {
     type: 'planning' | 'decision' | 'evaluation' | 'adaptation';
     content: string;
     confidence: number;
@@ -115,6 +127,27 @@ export interface ErrorEvent extends StreamEvent {
   };
 }
 
+// Vercel AI SDK specific event types
+export interface AISDKStreamEvent extends StreamEvent {
+  type: 'model';
+  event: {
+    type: 'text' | 'tool-call' | 'tool-result' | 'finish' | 'error' | 'step-finish' | 'response-metadata';
+    textDelta?: string;
+    toolName?: string;
+    toolCallId?: string;
+    args?: any;
+    result?: any;
+    error?: Error;
+    finishReason?: string;
+    usage?: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    };
+    metadata?: Record<string, any>;
+  };
+}
+
 // Union type for all possible stream events
 export type AgentStreamEvent =
   | RunAgentUpdatedStreamEvent
@@ -123,7 +156,8 @@ export type AgentStreamEvent =
   | ToolExecutionEvent
   | ReasoningEvent
   | ProgressEvent
-  | ErrorEvent;
+  | ErrorEvent
+  | AISDKStreamEvent;
 
 // Callback interface for event handling
 export interface AgentEventCallbacks {
@@ -283,6 +317,27 @@ export class AgentEventHandler {
         await this.handleRunItemStreamEvent(event);
         break;
 
+      case 'model':
+        // Vercel AI SDK event
+        await this.handleAISDKEvent(event as AISDKStreamEvent);
+        break;
+
+      // Handle Vercel AI SDK direct events
+      case 'text':
+      case 'tool-call':
+      case 'tool-result':
+      case 'step-finish':
+      case 'finish':
+      case 'error':
+      case 'response-metadata':
+        // These are direct AI SDK events, wrap them in the expected format
+        await this.handleAISDKEvent({
+          type: 'model',
+          event: event,
+          timestamp: event.timestamp,
+        } as AISDKStreamEvent);
+        break;
+
       default:
         // Handle unknown event types gracefully
         console.log('❓ [AgentEventHandler] Unknown event type:', event.type, event);
@@ -308,34 +363,6 @@ export class AgentEventHandler {
           console.log('📝 [AgentEventHandler] Output text delta:', event.delta);
           // Use onMessage to accumulate text (it now handles accumulation)
           this.callbacks.onMessage(event.delta, 'info');
-        }
-        // Check if this is a model event from AI SDK
-        else if (event.type === 'model' && event.event) {
-          console.log('🤖 [AgentEventHandler] Processing AI SDK model event:', {
-            eventType: event.event.type,
-            hasTextDelta: !!event.event.textDelta,
-            textDelta: event.event.textDelta,
-            fullEvent: event.event,
-          });
-          // Process the nested event
-          if (event.event.type === 'text-delta' && event.event.textDelta) {
-            // Filter out qwen3's thinking tags
-            const text = event.event.textDelta;
-            if (!text.includes('<think>') && !text.includes('</think>')) {
-              // Use onMessage to accumulate text (it now handles accumulation)
-              this.callbacks.onMessage(text, 'info');
-            }
-          } else if (event.event.type === 'tool-call') {
-            console.log('🛠️ [AgentEventHandler] Model is calling tool:', event.event.toolName);
-            this.callbacks.onMessage(`Calling tool: ${event.event.toolName}`, 'info');
-          } else if (event.event.type === 'finish') {
-            console.log('✅ [AgentEventHandler] Stream finished');
-          } else if (event.event.type === 'response-metadata') {
-            console.log('📋 [AgentEventHandler] Response metadata:', event.event);
-          } else if (event.event.type === 'error') {
-            console.error('❌ [AgentEventHandler] Stream error:', event.event.error);
-            this.callbacks.onError(event.event.error);
-          }
         }
         break;
     }
@@ -393,7 +420,6 @@ export class AgentEventHandler {
         // If this event includes a result, it means the tool was already executed
         if (item.result !== undefined || item.error !== undefined) {
           // This is a tool completion notification
-          const status = item.error ? 'failed' : 'completed';
           const message = item.error
             ? `Tool ${item.name} failed: ${item.error}`
             : `Tool ${item.name} completed successfully`;
@@ -432,9 +458,6 @@ export class AgentEventHandler {
       case 'tool_call_output_item':
         // Handle tool call output
         if (item.output?.content) {
-          const content = Array.isArray(item.output.content)
-            ? item.output.content.map((c: any) => c.text || '').join('')
-            : item.output.content;
           console.log(`🔧 Tool ${item.name} completed with output`);
         }
         break;
@@ -620,18 +643,18 @@ export class AgentEventHandler {
   private handleReasoningEvent(event: ReasoningEvent): void {
     const reasoningEntry: ReasoningEntry = {
       id: crypto.randomUUID(),
-      type: event.reasoning.type,
-      content: event.reasoning.content,
-      confidence: event.reasoning.confidence,
+      type: event.reasoningText.type,
+      content: event.reasoningText.content,
+      confidence: event.reasoningText.confidence,
       timestamp: event.timestamp || new Date(),
-      alternatives: event.reasoning.alternatives?.map((alt, index) => ({
+      alternatives: event.reasoningText.alternatives?.map((alt, index) => ({
         id: `${index}`,
         description: alt,
         pros: [],
         cons: [],
         feasibility: 0.5,
       })),
-      selectedOption: event.reasoning.selectedOption,
+      selectedOption: event.reasoningText.selectedOption,
     };
 
     this.callbacks.onReasoningUpdate(reasoningEntry);
@@ -669,8 +692,180 @@ export class AgentEventHandler {
   }
 
   /**
+   * Handle Vercel AI SDK model events
+   */
+  private async handleAISDKEvent(event: AISDKStreamEvent): Promise<void> {
+    const { event: aiEvent } = event;
+
+    console.log('🤖 [AgentEventHandler] Processing AI SDK model event:', {
+      eventType: aiEvent.type,
+      hasTextDelta: !!aiEvent.textDelta,
+      toolName: aiEvent.toolName,
+    });
+
+    switch (aiEvent.type) {
+      case 'text':
+        if (aiEvent.textDelta) {
+          // Filter out model thinking tags if present
+          const text = aiEvent.textDelta;
+          if (!text.includes('<think>') && !text.includes('</think>')) {
+            this.callbacks.onMessage(text, 'info');
+          }
+        }
+        break;
+
+      case 'tool-call':
+        if (aiEvent.toolName) {
+          console.log('🛠️ [AgentEventHandler] AI SDK tool call:', {
+            toolName: aiEvent.toolName,
+            toolCallId: aiEvent.toolCallId,
+            args: aiEvent.args,
+          });
+
+          // Add to memory that tool is being called
+          const memoryEntry: MemoryEntry = {
+            id: crypto.randomUUID(),
+            type: 'observation',
+            content: `Calling tool: ${aiEvent.toolName}`,
+            metadata: {
+              toolName: aiEvent.toolName,
+              toolCallId: aiEvent.toolCallId,
+              arguments: aiEvent.args,
+            },
+            timestamp: new Date(),
+            relevanceScore: 0.8,
+          };
+          this.callbacks.onMemoryUpdate(memoryEntry);
+
+          // Display tool call in chat
+          const toolDisplayName = aiEvent.toolName.replace(/_/g, ' ');
+          this.callbacks.onMessage(`🔧 Executing: ${toolDisplayName}`, 'info');
+        }
+        break;
+
+      case 'tool-result':
+        console.log('📊 [AgentEventHandler] AI SDK tool result:', {
+          toolCallId: aiEvent.toolCallId,
+          hasResult: !!aiEvent.result,
+          hasError: !!aiEvent.error,
+        });
+
+        if (aiEvent.error) {
+          // Tool execution failed
+          const errorMessage = `Tool execution failed: ${aiEvent.error.message || aiEvent.error}`;
+          this.callbacks.onMessage(`❌ ${errorMessage}`, 'error');
+
+          // Add error to memory
+          const errorEntry: MemoryEntry = {
+            id: crypto.randomUUID(),
+            type: 'error',
+            content: errorMessage,
+            metadata: {
+              toolCallId: aiEvent.toolCallId,
+              error: aiEvent.error,
+            },
+            timestamp: new Date(),
+            relevanceScore: 0.9,
+          };
+          this.callbacks.onMemoryUpdate(errorEntry);
+        } else if (aiEvent.result !== undefined) {
+          // Tool execution succeeded
+          const resultEntry: MemoryEntry = {
+            id: crypto.randomUUID(),
+            type: 'result',
+            content: `Tool completed successfully`,
+            metadata: {
+              toolCallId: aiEvent.toolCallId,
+              result: aiEvent.result,
+            },
+            timestamp: new Date(),
+            relevanceScore: 0.8,
+          };
+          this.callbacks.onMemoryUpdate(resultEntry);
+
+          // Display a summary of the result in chat
+          const resultSummary = this.summarizeToolResult(aiEvent.result);
+          if (resultSummary) {
+            this.callbacks.onMessage(`✅ ${resultSummary}`, 'info');
+          }
+        }
+        break;
+
+      case 'step-finish':
+        console.log('🏃 [AgentEventHandler] AI SDK step finished');
+        // Step completion is handled in the onStepFinish callback in ai-sdk-native-agent.ts
+        break;
+
+      case 'finish':
+        console.log('✅ [AgentEventHandler] AI SDK stream finished:', {
+          finishReason: aiEvent.finishReason,
+          usage: aiEvent.usage,
+        });
+
+        // Update state to indicate completion
+        this.callbacks.onStateChange({ mode: 'completed' });
+
+        // Log usage if available (but don't show in UI)
+        if (aiEvent.usage) {
+          console.log('📊 [AgentEventHandler] Token usage:', aiEvent.usage);
+        }
+        break;
+
+      case 'response-metadata':
+        console.log('📋 [AgentEventHandler] AI SDK response metadata:', aiEvent.metadata);
+        break;
+
+      case 'error':
+        console.error('❌ [AgentEventHandler] AI SDK stream error:', aiEvent.error);
+        this.callbacks.onError(aiEvent.error || new Error('Unknown AI SDK error'));
+        this.callbacks.onMessage(`AI SDK Error: ${aiEvent.error?.message || 'Unknown error occurred'}`, 'error');
+        break;
+
+      default:
+        console.log('❓ [AgentEventHandler] Unknown AI SDK event type:', aiEvent.type);
+        break;
+    }
+  }
+
+  /**
    * Get handler statistics
    */
+  /**
+   * Summarize tool results for display in chat
+   */
+  private summarizeToolResult(result: any): string | null {
+    if (!result) return null;
+
+    // Handle different types of results
+    if (typeof result === 'string') {
+      // Truncate long strings
+      return result.length > 200 ? result.substring(0, 200) + '...' : result;
+    } else if (typeof result === 'object') {
+      // Handle specific tool result formats
+      if (result.content) {
+        return typeof result.content === 'string'
+          ? result.content.length > 200
+            ? result.content.substring(0, 200) + '...'
+            : result.content
+          : 'Tool completed successfully';
+      } else if (result.message) {
+        return result.message;
+      } else if (result.success !== undefined) {
+        return result.success ? 'Operation completed successfully' : 'Operation failed';
+      } else if (Array.isArray(result)) {
+        return `Returned ${result.length} items`;
+      }
+
+      // For other objects, try to create a summary
+      const keys = Object.keys(result);
+      if (keys.length > 0) {
+        return `Completed with ${keys.length} result${keys.length === 1 ? '' : 's'}`;
+      }
+    }
+
+    return 'Tool executed successfully';
+  }
+
   getStatistics() {
     return {
       eventCount: this.eventCount,

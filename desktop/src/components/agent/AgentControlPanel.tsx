@@ -243,27 +243,29 @@ export function AgentControlPanel({ className }: AgentControlPanelProps) {
               <div className="space-y-2">
                 <Label>Auto-approve Tool Categories</Label>
                 <div className="space-y-2">
-                  {(['read', 'search', 'write', 'execute'] as const).map((category) => {
-                    const isApproved = preferences.autoApproveCategories.includes(category);
-                    return (
-                      <div key={category} className="flex items-center justify-between">
-                        <Label htmlFor={`auto-approve-${category}`} className="text-sm font-normal capitalize">
-                          {category} operations
-                        </Label>
-                        <Switch
-                          id={`auto-approve-${category}`}
-                          checked={isApproved}
-                          onCheckedChange={(checked: boolean) => {
-                            if (checked) {
-                              addAutoApproveCategory(category);
-                            } else {
-                              removeAutoApproveCategory(category);
-                            }
-                          }}
-                        />
-                      </div>
-                    );
-                  })}
+                  {([ToolCategory.FILE, ToolCategory.DATA, ToolCategory.SYSTEM, ToolCategory.OTHER] as const).map(
+                    (category) => {
+                      const isApproved = preferences.autoApproveCategories.includes(category);
+                      return (
+                        <div key={category} className="flex items-center justify-between">
+                          <Label htmlFor={`auto-approve-${category}`} className="text-sm font-normal capitalize">
+                            {category} operations
+                          </Label>
+                          <Switch
+                            id={`auto-approve-${category}`}
+                            checked={isApproved}
+                            onCheckedChange={(checked: boolean) => {
+                              if (checked) {
+                                addAutoApproveCategory(category);
+                              } else {
+                                removeAutoApproveCategory(category);
+                              }
+                            }}
+                          />
+                        </div>
+                      );
+                    }
+                  )}
                 </div>
               </div>
 

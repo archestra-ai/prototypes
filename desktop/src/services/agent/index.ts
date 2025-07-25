@@ -1,4 +1,4 @@
-export { ArchestraAgent } from './ai-sdk-agent';
+export { ArchestraAgentNative as ArchestraAgent } from './ai-sdk-native-agent';
 export { AgentEventHandler, createDefaultEventHandler } from './agent-event-handler';
 export { MemoryManager } from './memory-manager';
 export { ReasoningModule } from './reasoning-module';

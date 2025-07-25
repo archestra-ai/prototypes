@@ -159,8 +159,8 @@ export function TaskProgress({ className, compact = false }: TaskProgressProps) 
                     </span>
                   </div>
                   {step.result?.error && <p className="mt-1 text-xs text-destructive">{step.result.error}</p>}
-                  {step.reasoning && step.status === 'in_progress' && (
-                    <p className="mt-1 text-xs text-muted-foreground">{step.reasoning}</p>
+                  {step.reasoningText && step.status === 'in_progress' && (
+                    <p className="mt-1 text-xs text-muted-foreground">{step.reasoningText}</p>
                   )}
                 </div>
               </div>

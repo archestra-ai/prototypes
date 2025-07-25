@@ -1,6 +1,6 @@
 import { AgentError, AgentErrorCode } from '@/types/agent';
 
-import { ToolCategory, categorizeeTool, isToolSensitive } from './mcp-tool-wrapper';
+import { ToolCategory, categorizeeTool, isToolSensitive } from './mcp-tool-wrapper-ai-sdk';
 
 /**
  * Represents a tool that requires approval before execution

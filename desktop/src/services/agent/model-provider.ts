@@ -1,5 +1,6 @@
 import { openai } from '@ai-sdk/openai';
-import { LanguageModelV1, LanguageModelV1StreamPart } from '@ai-sdk/provider';
+import { LanguageModelV2, LanguageModelV2StreamPart } from '@ai-sdk/provider';
+import { createOllama } from 'ollama-ai-provider';
 import { Ollama } from 'ollama/browser';
 
 import { ARCHESTRA_SERVER_OLLAMA_PROXY_URL } from '@/consts';
@@ -143,134 +144,48 @@ export class OllamaProvider implements ModelProvider {
 
   private getOllamaBaseURL(): string {
     // Use the Archestra proxy URL for Ollama
-    return ARCHESTRA_SERVER_OLLAMA_PROXY_URL;
+    // ollama-ai-provider will append /chat to the base URL
+    // Our proxy expects: http://localhost:54587/llm/ollama/api/chat
+    // So we return: http://localhost:54587/llm/ollama/api
+    return ARCHESTRA_SERVER_OLLAMA_PROXY_URL + '/api';
   }
 
   createModel(modelName: string) {
     console.log('🤖 [OllamaProvider] Creating model:', modelName);
 
-    console.log('🔀 [OllamaProvider] Using custom Ollama implementation');
-    return this.createCustomOllamaModel(modelName);
-
-    // Original ollama-ai-provider code (disabled for now)
-    /*
     try {
-      const model = this._ollama(modelName);
+      // Create a custom ollama instance with the proxy URL
+      const baseURL = this.getOllamaBaseURL();
+      console.log('🔗 [OllamaProvider] Using base URL:', baseURL);
 
-      // Log model instance details
-      console.log('🔧 [OllamaProvider] Model instance created:', {
-        modelName,
-        modelType: typeof model,
-        hasDoStream: 'doStream' in model,
-        hasDoGenerate: 'doGenerate' in model,
-        provider: model?.provider,
-        modelId: model?.modelId,
-        allKeys: model ? Object.keys(model) : [],
-        prototypeKeys: model ? Object.getOwnPropertyNames(Object.getPrototypeOf(model)) : [],
+      const ollama = createOllama({
+        baseURL: baseURL,
       });
 
-      // Test if this is a proper LanguageModelV1
-      if (model && typeof model.doGenerate === 'function') {
-        console.log('✅ [OllamaProvider] Model has doGenerate method');
-      } else {
-        console.error('❌ [OllamaProvider] Model missing doGenerate method!');
-        // Fall back to custom implementation
-        return this.createCustomOllamaModel(modelName);
-      }
+      // Create the model using the custom ollama instance
+      const model = ollama(modelName);
 
-      if (model && typeof model.doStream === 'function') {
-        console.log('✅ [OllamaProvider] Model has doStream method');
-
-        // Wrap doStream to add debugging and fix compatibility issues
-        const originalDoStream = model.doStream.bind(model);
-        model.doStream = async (options: any) => {
-          console.log('🌊 [OllamaProvider] doStream called with options:', {
-            mode: options?.mode?.type,
-            hasTools: options?.mode?.tools?.length > 0,
-            temperature: options?.temperature,
-            responseFormat: options?.responseFormat,
-            prompt: options?.prompt,
-            promptLength: Array.isArray(options?.prompt) ? options.prompt.length : 0,
-            firstMessage: Array.isArray(options?.prompt) && options.prompt.length > 0 ? options.prompt[0] : null,
-          });
-
-          // Ollama doesn't support responseFormat, so remove it
-          if (options?.responseFormat) {
-            console.log('🔧 [OllamaProvider] Removing responseFormat for Ollama compatibility');
-            const { responseFormat, ...optionsWithoutFormat } = options;
-            options = optionsWithoutFormat;
-          }
-
-          try {
-            const result = await originalDoStream(options);
-            console.log('📦 [OllamaProvider] doStream returned:', {
-              hasStream: !!result?.stream,
-              streamType: typeof result?.stream,
-              streamConstructor: result?.stream?.constructor?.name,
-              isReadableStream: result?.stream instanceof ReadableStream,
-              resultKeys: result ? Object.keys(result) : [],
-            });
-            return result;
-          } catch (error) {
-            console.error('💥 [OllamaProvider] doStream error:', error);
-            // If ollama-ai-provider fails, try custom implementation
-            if (error instanceof Error && (error.message.includes('404') || error.message.includes('Not Found'))) {
-              console.log('🔄 [OllamaProvider] Falling back to custom Ollama implementation');
-              const customModel = this.createCustomOllamaModel(modelName);
-              return customModel.doStream(options);
-            }
-            throw error;
-          }
-        };
-
-        // Also wrap doGenerate for consistency
-        const originalDoGenerate = model.doGenerate.bind(model);
-        model.doGenerate = async (options: any) => {
-          console.log('🔄 [OllamaProvider] doGenerate called with options:', {
-            mode: options?.mode?.type,
-            hasTools: options?.mode?.tools?.length > 0,
-            temperature: options?.temperature,
-            responseFormat: options?.responseFormat,
-          });
-
-          // Ollama doesn't support responseFormat, so remove it
-          if (options?.responseFormat) {
-            console.log('🔧 [OllamaProvider] Removing responseFormat for Ollama compatibility');
-            const { responseFormat, ...optionsWithoutFormat } = options;
-            options = optionsWithoutFormat;
-          }
-
-          try {
-            const result = await originalDoGenerate(options);
-            console.log('✅ [OllamaProvider] doGenerate succeeded');
-            return result;
-          } catch (error) {
-            console.error('💥 [OllamaProvider] doGenerate error:', error);
-            // If ollama-ai-provider fails, try custom implementation
-            if (error instanceof Error && (error.message.includes('404') || error.message.includes('Not Found'))) {
-              console.log('🔄 [OllamaProvider] Falling back to custom Ollama implementation');
-              const customModel = this.createCustomOllamaModel(modelName);
-              return customModel.doGenerate(options);
-            }
-            throw error;
-          }
-        };
-      }
+      console.log('✅ [OllamaProvider] Model created with ollama-ai-provider:', {
+        modelName,
+        baseURL,
+        provider: model?.provider,
+        modelId: model?.modelId,
+      });
 
       return model;
     } catch (error) {
       console.error('❌ [OllamaProvider] Failed to create model with ollama-ai-provider:', error);
       // Fall back to custom implementation
+      console.log('🔄 [OllamaProvider] Falling back to custom Ollama implementation');
       return this.createCustomOllamaModel(modelName);
     }
-    */
   }
 
   /**
    * Create a custom Ollama model that implements LanguageModelV1 interface
    * This bypasses the ollama-ai-provider and directly calls Ollama's API
    */
-  private createCustomOllamaModel(modelName: string): LanguageModelV1 {
+  private createCustomOllamaModel(modelName: string): LanguageModelV2 {
     const baseURL = this.getOllamaBaseURL();
 
     console.log('🛠️ [OllamaProvider] Creating custom Ollama model implementation');
@@ -282,11 +197,11 @@ export class OllamaProvider implements ModelProvider {
     const modelSupportsTools = this.supportsTools();
 
     return {
-      specificationVersion: 'v1',
+      specificationVersion: 'v2' as const,
       provider: 'ollama-custom',
       modelId: modelName,
-      defaultObjectGenerationMode: 'json',
-      supportsStructuredOutputs: false,
+      defaultObjectGenerationMode: 'tool' as const,
+      supportedUrls: {},
 
       async doGenerate(options: any): Promise<any> {
         console.log('🔄 [CustomOllama] doGenerate called with options:', {
@@ -357,7 +272,7 @@ export class OllamaProvider implements ModelProvider {
                 options: {
                   temperature: options.temperature || 0.7,
                   top_p: options.topP || 0.95,
-                  num_predict: options.maxTokens || 2048,
+                  num_predict: options.maxOutputTokens || 2048,
                 },
               });
               break; // Success, exit retry loop
@@ -400,8 +315,9 @@ export class OllamaProvider implements ModelProvider {
           return {
             finishReason: 'stop',
             usage: {
-              promptTokens: response.prompt_eval_count || 0,
-              completionTokens: response.eval_count || 0,
+              inputTokens: response.prompt_eval_count || 0,
+              outputTokens: response.eval_count || 0,
+              totalTokens: (response.prompt_eval_count || 0) + (response.eval_count || 0),
             },
             text: response.message?.content || '',
             toolCalls,
@@ -484,7 +400,7 @@ export class OllamaProvider implements ModelProvider {
                 options: {
                   temperature: options.temperature || 0.7,
                   top_p: options.topP || 0.95,
-                  num_predict: options.maxTokens || 2048,
+                  num_predict: options.maxOutputTokens || 2048,
                 },
               });
               break; // Success, exit retry loop
@@ -512,7 +428,7 @@ export class OllamaProvider implements ModelProvider {
           }
 
           // Create a transform stream that converts Ollama's format to AI SDK format
-          const stream = new ReadableStream<LanguageModelV1StreamPart>({
+          const stream = new ReadableStream<LanguageModelV2StreamPart>({
             async start(controller) {
               try {
                 for await (const part of response) {
@@ -522,7 +438,8 @@ export class OllamaProvider implements ModelProvider {
                   if (part.message?.content) {
                     controller.enqueue({
                       type: 'text-delta',
-                      textDelta: part.message.content,
+                      id: crypto.randomUUID(),
+                      delta: part.message.content,
                     });
                   }
 
@@ -550,8 +467,8 @@ export class OllamaProvider implements ModelProvider {
                         toolCallType: 'function',
                         toolCallId: toolId,
                         toolName: toolName,
-                        args: JSON.stringify(toolArgs),
-                      });
+                        args: toolArgs,
+                      } as any);
                     }
                   }
 
@@ -560,8 +477,9 @@ export class OllamaProvider implements ModelProvider {
                       type: 'finish',
                       finishReason: 'stop',
                       usage: {
-                        promptTokens: part.prompt_eval_count || 0,
-                        completionTokens: part.eval_count || 0,
+                        inputTokens: part.prompt_eval_count || 0,
+                        outputTokens: part.eval_count || 0,
+                        totalTokens: (part.prompt_eval_count || 0) + (part.eval_count || 0),
                       },
                     });
                   }
@@ -585,7 +503,7 @@ export class OllamaProvider implements ModelProvider {
           throw error;
         }
       },
-    } as LanguageModelV1;
+    } as LanguageModelV2;
   }
 
   supportsTools(): boolean {
@@ -599,6 +517,8 @@ export class OllamaProvider implements ModelProvider {
       this.modelName.includes('hermes') ||
       this.modelName.includes('llama3.1') ||
       this.modelName.includes('llama-3.1') ||
+      this.modelName.includes('llama3.2') ||
+      this.modelName.includes('llama-3.2') ||
       this.modelName.includes('phi') ||
       this.modelName.includes('granite')
     );

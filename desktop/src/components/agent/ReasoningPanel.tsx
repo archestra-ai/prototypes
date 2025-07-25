@@ -28,7 +28,7 @@ interface ReasoningPanelProps {
 }
 
 export function ReasoningPanel({ className, maxHeight = '400px' }: ReasoningPanelProps) {
-  const reasoning = useAgentStore((state) => state.reasoning);
+  const reasoning = useAgentStore((state) => state.reasoningText);
   const reasoningMode = useAgentStore((state) => state.reasoningMode);
   const setReasoningMode = useAgentStore((state) => state.setReasoningMode);
   const formatReasoningForUI = useAgentStore((state) => state.formatReasoningForUI);

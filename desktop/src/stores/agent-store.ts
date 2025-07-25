@@ -3,8 +3,9 @@ import { subscribeWithSelector } from 'zustand/middleware';
 
 import { ArchestraAgent, MemorySearchCriteria, ModelCapabilities } from '../services/agent';
 import { AgentEventCallbacks, AgentEventHandler } from '../services/agent/agent-event-handler';
+import { ArchestraAgentNative } from '../services/agent/ai-sdk-native-agent';
 import { HumanInLoopHandler } from '../services/agent/human-in-loop';
-import { ToolCategory, extractToolsFromServers as extractMCPTools } from '../services/agent/mcp-tool-wrapper';
+import { ToolCategory, extractToolsFromServersAISDK } from '../services/agent/mcp-tool-wrapper-ai-sdk';
 import {
   AgentMode,
   AgentState,
@@ -27,8 +28,8 @@ function createAgentEventCallbacks(
 
   return {
     onStateChange: (state: Partial<AgentState>) => {
-      console.log('📝 [AgentEventCallbacks] State change:', state);
-      setState(state);
+      console.log('🔄 [AgentEventCallbacks] State change:', state);
+      setState(state as Partial<AgentStoreState>);
     },
 
     onToolExecution: async (tool: any) => {
@@ -49,7 +50,7 @@ function createAgentEventCallbacks(
     onReasoningUpdate: (entry: ReasoningEntry) => {
       console.log('🧠 [AgentEventCallbacks] Reasoning update:', entry);
       setState((state: AgentStoreState) => ({
-        reasoning: [...state.reasoning, entry],
+        reasoningText: [...state.reasoningText, entry],
       }));
     },
 
@@ -88,7 +89,7 @@ interface AgentPreferences {
 interface AgentStoreState extends AgentState {
   reasoningMode: 'verbose' | 'concise' | 'hidden';
   isAgentActive: boolean;
-  agentInstance: ArchestraAgent | null;
+  agentInstance: ArchestraAgent | ArchestraAgentNative | null;
   currentObjective: string | null;
   preferences: AgentPreferences;
   streamingMessageId: string | null;
@@ -146,7 +147,7 @@ export const useAgentStore = create<AgentStore>()(
     currentAgent: undefined,
     plan: undefined,
     progress: { completed: 0, total: 0, currentStep: null },
-    reasoning: [],
+    reasoningText: [],
     workingMemory: {
       id: crypto.randomUUID(),
       agentSessionId: crypto.randomUUID(),
@@ -162,7 +163,7 @@ export const useAgentStore = create<AgentStore>()(
     streamingMessageId: null,
     streamingUpdateInterval: null,
     preferences: {
-      autoApproveCategories: ['read', 'search'] as ToolCategory[],
+      autoApproveCategories: [ToolCategory.FILE, ToolCategory.DATA] as ToolCategory[],
       autoApproveServers: [],
     },
 
@@ -199,36 +200,58 @@ export const useAgentStore = create<AgentStore>()(
 
       console.log('🔧 [AgentStore] Extracting MCP tools from servers:', allServers.length);
 
-      const mcpTools = extractMCPTools(allServers, {
-        autoApproveCategories: state.preferences.autoApproveCategories,
-        autoApproveServers: state.preferences.autoApproveServers,
-        customApprovalCheck: async (serverName, toolName, args) => {
-          // Get the human-in-the-loop handler from window (set by ToolApprovalQueue)
-          const handler = (window as any).__toolApprovalHandler as HumanInLoopHandler;
-          if (!handler) {
-            // If no handler available, check if tool requires approval
-            return !state.preferences.autoApproveServers.includes(serverName);
+      // Use native AI SDK tools if useNativeAISDK is true
+      const useNativeAISDK = true; // Feature flag for new implementation
+
+      let mcpTools: any;
+      if (useNativeAISDK) {
+        const wrappers = await extractToolsFromServersAISDK(
+          allServers.map((s) => s.name),
+          {
+            autoApprove: false,
+            customApprovalCheck: async (toolName: string, args: any) => {
+              const serverName = allServers.find((s) => s.tools?.some((t) => t.name === toolName))?.name || 'unknown';
+
+              // Get the human-in-the-loop handler from window (set by ToolApprovalQueue)
+              const handler = (window as any).__toolApprovalHandler as HumanInLoopHandler;
+              if (!handler) {
+                // If no handler available, check if tool requires approval
+                return !state.preferences.autoApproveServers.includes(serverName);
+              }
+
+              // Use handler to check if approval is required
+              const requiresApproval = await handler.requiresApproval(toolName, serverName, args);
+
+              if (requiresApproval) {
+                // Request approval through the handler
+                const result = await handler.requestApproval(toolName, serverName, args, {
+                  description: `Execute ${toolName} on ${serverName}`,
+                  metadata: {
+                    riskLevel: 'medium',
+                    potentialImpact: [`Execute tool ${toolName} with provided arguments`],
+                  },
+                });
+
+                return result.approved;
+              }
+
+              return true; // Auto-approve if not required
+            },
           }
-
-          // Use handler to check if approval is required
-          const requiresApproval = await handler.requiresApproval(toolName, serverName, args);
-
-          if (requiresApproval) {
-            // Request approval through the handler
-            const result = await handler.requestApproval(toolName, serverName, args, {
-              description: `Execute ${toolName} on ${serverName}`,
-              metadata: {
-                riskLevel: 'medium',
-                potentialImpact: [`Execute tool ${toolName} with provided arguments`],
-              },
-            });
-
-            return result.approved;
-          }
-
-          return true; // Auto-approve if not required
-        },
-      });
+        );
+        // For native AI SDK, we need to pass tools as a Record<string, CoreTool>
+        // Create an object where keys match the tool names
+        const toolsRecord: Record<string, any> = {};
+        for (const wrapper of wrappers) {
+          // Use the unique tool name as the key
+          const toolName = wrapper.serverName + '_' + wrapper.mcpTool.name;
+          toolsRecord[toolName] = wrapper.tool;
+        }
+        mcpTools = toolsRecord;
+      } else {
+        // Legacy code path - no longer used since we're using AI SDK 5
+        throw new Error('OpenAI SDK adapter is no longer supported. Please use the native AI SDK implementation.');
+      }
 
       // Check if model supports tools
       const modelName = selectedModel || 'gpt-4o';
@@ -272,7 +295,13 @@ export const useAgentStore = create<AgentStore>()(
 
       console.log('🏗️ [AgentStore] Creating ArchestraAgent with config:', agentConfig);
 
-      const agent = new ArchestraAgent(agentConfig);
+      // Use native AI SDK implementation to fix tool execution issues
+      const agent = useNativeAISDK ? new ArchestraAgentNative(agentConfig) : new ArchestraAgent(agentConfig);
+
+      console.log(
+        '🤖 [AgentStore] Using agent implementation:',
+        useNativeAISDK ? 'Native AI SDK' : 'OpenAI SDK Adapter'
+      );
       set({ agentInstance: agent });
 
       console.log('✅ [AgentStore] Agent created successfully');
@@ -501,7 +530,7 @@ export const useAgentStore = create<AgentStore>()(
 
     addReasoningEntry: (entry: ReasoningEntry) => {
       set((state) => ({
-        reasoning: [...state.reasoning, entry],
+        reasoningText: [...state.reasoningText, entry],
       }));
     },
 
@@ -558,8 +587,8 @@ export const useAgentStore = create<AgentStore>()(
     },
 
     getFormattedReasoningHistory: (limit?: number) => {
-      const { reasoning, reasoningMode, agentInstance } = get();
-      const entries = limit ? reasoning.slice(-limit) : reasoning;
+      const { reasoningText, reasoningMode, agentInstance } = get();
+      const entries = limit ? reasoningText.slice(-limit) : reasoningText;
 
       return entries.map((entry) => ({
         entry,
@@ -670,7 +699,7 @@ export const useAgentStore = create<AgentStore>()(
         currentAgent: undefined,
         plan: undefined,
         progress: { completed: 0, total: 0, currentStep: null },
-        reasoning: [],
+        reasoningText: [],
         workingMemory: {
           id: crypto.randomUUID(),
           agentSessionId: crypto.randomUUID(),
@@ -714,26 +743,47 @@ function initializeAgentStore() {
       allServers.push(archestraMCPServer);
     }
 
-    const mcpTools = extractMCPTools(allServers, {
-      autoApproveCategories: agentState.preferences.autoApproveCategories,
-      autoApproveServers: agentState.preferences.autoApproveServers,
-    });
+    // Use native AI SDK tools if useNativeAISDK is true
+    const useNativeAISDK = true; // Same flag as in activateAgent
 
-    const agentConfig: ArchestraAgentConfig = {
-      model: selectedModel || 'gpt-4o',
-      mcpTools,
-      maxSteps: 30, // Increased to allow for tool execution
-      temperature: 0.7,
-      reasoningMode: agentState.reasoningMode,
-      memoryConfig: {
-        maxEntries: 1000,
-        ttlSeconds: 3600,
-        summarizationThreshold: 0.8,
-      },
-    };
+    let mcpTools: any;
+    (async () => {
+      if (useNativeAISDK) {
+        const wrappers = await extractToolsFromServersAISDK(
+          allServers.map((s) => s.name),
+          {
+            autoApprove: false,
+          }
+        );
+        // For native AI SDK, we need to pass tools as a Record<string, CoreTool>
+        const toolsRecord: Record<string, any> = {};
+        for (const wrapper of wrappers) {
+          // Use the unique tool name as the key
+          const toolName = wrapper.serverName + '_' + wrapper.mcpTool.name;
+          toolsRecord[toolName] = wrapper.tool;
+        }
+        mcpTools = toolsRecord;
+      } else {
+        // Legacy code path - no longer used since we're using AI SDK 5
+        throw new Error('OpenAI SDK adapter is no longer supported. Please use the native AI SDK implementation.');
+      }
 
-    const agent = new ArchestraAgent(agentConfig);
-    useAgentStore.setState({ agentInstance: agent });
+      const agentConfig: ArchestraAgentConfig = {
+        model: selectedModel || 'gpt-4o',
+        mcpTools,
+        maxSteps: 30, // Increased to allow for tool execution
+        temperature: 0.7,
+        reasoningMode: agentState.reasoningMode,
+        memoryConfig: {
+          maxEntries: 1000,
+          ttlSeconds: 3600,
+          summarizationThreshold: 0.8,
+        },
+      };
+
+      const agent = useNativeAISDK ? new ArchestraAgentNative(agentConfig) : new ArchestraAgent(agentConfig);
+      useAgentStore.setState({ agentInstance: agent });
+    })();
   }
 
   // Defer subscription to avoid initialization issues

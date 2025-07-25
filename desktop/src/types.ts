@@ -38,7 +38,7 @@ export interface ChatMessage {
   agentMetadata?: {
     planId?: string;
     stepId?: string;
-    reasoning?: {
+    reasoningText?: {
       id: string;
       type: 'planning' | 'decision' | 'evaluation' | 'adaptation';
       content: string;

@@ -1,4 +1,4 @@
-import { tool } from '@openai/agents';
+import type { Tool } from 'ai';
 
 import { ChatMessage, ToolCallInfo } from '../types';
 
@@ -24,7 +24,7 @@ export interface AgentState {
   currentAgent?: string; // For tracking handoffs
   plan?: TaskPlan;
   progress: TaskProgress;
-  reasoning: ReasoningEntry[];
+  reasoningText: ReasoningEntry[];
   workingMemory: WorkingMemory;
   runState?: any; // SDK's internal state for recovery
   streamingContent?: string; // For real-time updates
@@ -48,7 +48,7 @@ export interface TaskStep {
   estimatedDuration: number;
   status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'skipped';
   result?: StepResult;
-  reasoning?: string;
+  reasoningText?: string;
   retryCount: number;
   maxRetries: number;
   dependencies?: string[]; // Step IDs this step depends on
@@ -153,7 +153,7 @@ export interface AgentChatMessage extends ChatMessage {
   agentMetadata?: {
     planId: string;
     stepId: string;
-    reasoning?: ReasoningEntry;
+    reasoningText?: ReasoningEntry;
     memorySnapshot?: string;
     isAgentGenerated: boolean;
   };
@@ -318,7 +318,7 @@ export interface PlanValidation {
 // Agent Instance Configuration
 export interface ArchestraAgentConfig {
   model?: string;
-  mcpTools: ReturnType<typeof tool>[];
+  mcpTools: Tool[] | Record<string, Tool>;
   maxSteps?: number;
   temperature?: number;
   systemPrompt?: string;

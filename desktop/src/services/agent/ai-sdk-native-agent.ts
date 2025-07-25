@@ -1,5 +1,5 @@
-import { Agent, run, tool } from '@openai/agents';
-import { aisdk } from '@openai/agents-extensions';
+import type { LanguageModel, Tool } from 'ai';
+import { stepCountIs, streamText, tool } from 'ai';
 
 import {
   AgentContext,
@@ -11,27 +11,22 @@ import {
   EnvironmentState,
   ReasoningEntry,
   TaskProgress,
-  TaskStep,
   UserPreferences,
 } from '../../types/agent';
 import { MemoryManager } from './memory-manager';
 import { ModelCapabilities, ModelProviderFactory } from './model-provider';
 import { ReasoningConfig, ReasoningContext, ReasoningModule } from './reasoning-module';
 
-// Enable debug logging for OpenAI Agents SDK
-// const logger = getLogger('openai-agents:archestra');
-// logger.enabled = true; // Note: Logger might not have an 'enabled' property
-
 /**
- * ArchestraAgent implementation using Vercel AI SDK
- * Supports both OpenAI and Ollama models through the AI SDK adapter
+ * ArchestraAgent implementation using Vercel AI SDK directly
+ * No adapter layer - direct integration with AI SDK
  */
-export class ArchestraAgent {
-  private agent: Agent;
+export class ArchestraAgentNative {
   private config: ArchestraAgentConfig;
   private state: AgentState;
   private abortController: AbortController | null = null;
-  private mcpTools: ReturnType<typeof tool>[] = [];
+  private tools: Record<string, Tool> = {};
+  private aiModel: LanguageModel;
   private memoryManager: MemoryManager;
   private reasoningModule: ReasoningModule;
   private modelProvider: string;
@@ -58,7 +53,7 @@ export class ArchestraAgent {
     this.state = {
       mode: 'idle',
       progress: { completed: 0, total: 0, currentStep: null },
-      reasoning: [],
+      reasoningText: [],
       workingMemory: this.memoryManager.exportMemory(),
     };
 
@@ -67,66 +62,28 @@ export class ArchestraAgent {
     this.modelProvider = ModelCapabilities.getProviderName(modelName);
     this.supportsTools = ModelCapabilities.supportsTools(modelName);
 
-    // MCP tools are already in SDK format from the wrapper
-    // Only use tools if the model supports them
-    this.mcpTools = this.supportsTools ? config.mcpTools : [];
-
     // Create AI model using the appropriate provider
     const provider = ModelProviderFactory.create(modelName);
-    const aiModel = provider.createModel(modelName);
+    this.aiModel = provider.createModel(modelName);
 
-    console.log('🎯 [ArchestraAgent] Creating AI SDK adapter:', {
+    console.log('🎯 [ArchestraAgentNative] Creating native AI SDK agent:', {
       modelName,
       providerType: provider.getProviderName(),
-      aiModelType: typeof aiModel,
-      aiModelKeys: Object.keys(aiModel || {}),
+      supportsTools: this.supportsTools,
+      toolCount: Array.isArray(config.mcpTools) ? config.mcpTools.length : Object.keys(config.mcpTools || {}).length,
     });
 
-    // Log Ollama-specific details if it's an Ollama model
-    if (provider.getProviderName() === 'ollama') {
-      console.log('🦙 [ArchestraAgent] Ollama model details:', {
-        provider: aiModel?.provider,
-        modelId: aiModel?.modelId,
-        hasDoGenerate: typeof aiModel?.doGenerate === 'function',
-        hasDoStream: typeof aiModel?.doStream === 'function',
-      });
-    }
-
-    const adaptedModel = aisdk(aiModel);
-
-    console.log('✅ [ArchestraAgent] AI SDK adapter created:', {
-      adaptedModelType: typeof adaptedModel,
-      adaptedModelKeys: Object.keys(adaptedModel || {}),
-      isValidModel: adaptedModel && typeof adaptedModel === 'object',
-    });
-
-    // Configure Agent using AI SDK adapter
-    try {
-      console.log('🏗️ [ArchestraAgent] Creating Agent instance with:', {
-        name: 'ArchestraAgent',
-        instructionsLength: this.buildInstructions(config).length,
-        toolsCount: this.mcpTools.length,
-        hasModel: !!adaptedModel,
-      });
-
-      this.agent = new Agent({
-        name: 'ArchestraAgent',
-        instructions: this.buildInstructions(config),
-        tools: this.supportsTools ? this.mcpTools : [],
-        model: adaptedModel,
-      });
-
-      console.log('✅ [ArchestraAgent] Agent instance created successfully');
-    } catch (error) {
-      console.error('❌ [ArchestraAgent] Failed to create Agent instance:', error);
-      if (error instanceof Error) {
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack,
-          name: error.name,
-        });
+    // Store tools directly if model supports tools
+    this.tools = {};
+    if (this.supportsTools && config.mcpTools) {
+      if (Array.isArray(config.mcpTools)) {
+        // Legacy: If mcpTools is an array, convert it
+        this.tools = this.convertMCPToolsToAISDK(config.mcpTools);
+      } else if (typeof config.mcpTools === 'object') {
+        // Native AI SDK: mcpTools is already a Record<string, Tool>
+        this.tools = config.mcpTools;
       }
-      throw error;
+      console.log('🔧 [ArchestraAgentNative] Loaded AI SDK tools:', Object.keys(this.tools));
     }
 
     // Log initialization details
@@ -134,37 +91,47 @@ export class ArchestraAgent {
       model: modelName,
       provider: this.modelProvider,
       supportsTools: this.supportsTools,
-      toolCount: this.mcpTools.length,
+      toolCount: Object.keys(this.tools).length,
     });
   }
 
-  private buildInstructions(config: ArchestraAgentConfig): string {
-    const baseInstructions = `You are an autonomous AI agent operating within the Archestra desktop application.
-Your role is to help users complete complex tasks by breaking them down into manageable steps and executing them systematically.
+  /**
+   * Convert MCP tools from OpenAI SDK format to Vercel AI SDK format
+   */
+  private convertMCPToolsToAISDK(mcpTools: any[]): Record<string, Tool> {
+    const tools: Record<string, Tool> = {};
 
-Key behaviors:
-1. Always create a clear plan before executing tasks
-2. ${this.supportsTools ? 'Use available MCP tools intelligently to accomplish objectives' : 'Since this model does not support tools, provide detailed step-by-step instructions that the user can follow'}
-3. Maintain context in working memory throughout execution
-4. Provide transparent reasoning for decisions
-5. Adapt plans when steps fail or new information emerges
-6. ${this.supportsTools ? 'Request user intervention only when necessary' : 'Clearly explain what actions the user should take to accomplish each step'}
+    for (const mcpTool of mcpTools) {
+      // Extract the actual tool configuration
+      const toolConfig = mcpTool._config || mcpTool;
+      const toolName = toolConfig.name || mcpTool.name;
 
-Current model: ${config.model || 'gpt-4o'} (Provider: ${this.modelProvider})
-${!this.supportsTools ? '\nIMPORTANT: This model does not support tool calling. I will provide detailed instructions and guidance instead of directly executing actions. Please follow the steps I outline to accomplish your objective.' : ''}
+      if (!toolName) {
+        console.warn('⚠️ [ArchestraAgentNative] Skipping tool without name:', mcpTool);
+        continue;
+      }
 
-When working without tools:
-- Break down tasks into clear, actionable steps
-- Provide specific commands or actions the user should take
-- Explain the expected outcomes of each step
-- Offer troubleshooting advice if something might go wrong
-- Maintain a helpful and instructive tone
+      console.log('🔄 [ArchestraAgentNative] Converting tool:', {
+        name: toolName,
+        hasDescription: !!toolConfig.description,
+        hasParameters: !!toolConfig.parameters,
+        hasExecute: !!toolConfig.execute,
+      });
 
-${config.customInstructions ? `\nAdditional instructions:\n${config.customInstructions}` : ''}
+      // Create AI SDK tool
+      tools[toolName] = tool({
+        description: toolConfig.description || `Execute ${toolName}`,
+        inputSchema: toolConfig.parameters || {},
+        execute:
+          toolConfig.execute ||
+          (async (_args) => {
+            console.warn(`⚠️ [ArchestraAgentNative] No execute function for tool ${toolName}`);
+            return { error: 'Tool execution not implemented' };
+          }),
+      });
+    }
 
-${config.systemPrompt ? `\nSystem context:\n${config.systemPrompt}` : ''}`;
-
-    return baseInstructions;
+    return tools;
   }
 
   async executeObjective(objective: string, context?: Partial<AgentContext>): Promise<any> {
@@ -184,7 +151,16 @@ ${config.systemPrompt ? `\nSystem context:\n${config.systemPrompt}` : ''}`;
       // Build full context
       const fullContext: AgentContext = {
         objective,
-        availableTools: [], // Tools are now handled by SDK internally
+        availableTools: Object.keys(this.tools).map((name) => ({
+          name,
+          serverName: 'unknown', // This could be extracted from the tool name if needed
+          capabilities: [],
+          performance: {
+            averageLatency: 0,
+            successRate: 1,
+          },
+          requiresPermission: false,
+        })),
         workingMemory: this.memoryManager.exportMemory(),
         environmentState: context?.environmentState || this.getDefaultEnvironmentState(),
         userPreferences: context?.userPreferences || this.getDefaultUserPreferences(),
@@ -199,94 +175,119 @@ ${config.systemPrompt ? `\nSystem context:\n${config.systemPrompt}` : ''}`;
       );
 
       if (this.supportsTools) {
-        this.memoryManager.addEntry('observation', `Available tools: ${this.mcpTools.length} tools configured`);
+        this.memoryManager.addEntry(
+          'observation',
+          `Available tools: ${Object.keys(this.tools).length} tools configured`
+        );
       }
 
       // Initialize the agent with the objective
       this.updateState({ mode: 'planning' });
 
-      // Use SDK's run function for execution with streaming
-      console.log('🚀 [ArchestraAgent] Calling SDK run function with:', {
+      // Build the system prompt with context
+      const systemPrompt = this.buildSystemPrompt(fullContext);
+
+      console.log('🚀 [ArchestraAgentNative] Using Vercel AI SDK streamText with:', {
         objective,
-        stream: true,
-        maxTurns: this.config.maxSteps || 10,
-        hasSignal: !!this.abortController?.signal,
-        contextKeys: Object.keys(fullContext),
+        maxSteps: this.config.maxSteps || 10,
+        hasTools: Object.keys(this.tools).length > 0,
+        toolNames: Object.keys(this.tools),
       });
 
-      let streamResult;
-      try {
-        streamResult = await run(this.agent, objective, {
-          stream: true,
-          context: fullContext,
-          maxTurns: this.config.maxSteps || 10,
-          signal: this.abortController.signal,
-        });
-
-        console.log('📦 [ArchestraAgent] SDK run returned:', {
-          resultType: typeof streamResult,
-          hasToStream: streamResult && typeof (streamResult as any).toStream === 'function',
-          resultKeys: streamResult ? Object.keys(streamResult) : [],
-        });
-      } catch (runError) {
-        console.error('💥 [ArchestraAgent] SDK run function failed:', runError);
-        if (runError instanceof Error) {
-          console.error('Run error details:', {
-            message: runError.message,
-            stack: runError.stack,
-            name: runError.name,
-            // Check if it's an API error
-            response: (runError as any).response,
-            status: (runError as any).status,
-            statusText: (runError as any).statusText,
+      // Use Vercel AI SDK's streamText for multi-step agent execution
+      const streamResult = streamText({
+        model: this.aiModel,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: objective,
+          },
+        ],
+        tools: this.supportsTools ? this.tools : undefined,
+        stopWhen: stepCountIs(this.config.maxSteps || 10),
+        abortSignal: this.abortController.signal,
+        onStepFinish: ({ text, toolCalls, toolResults, finishReason }) => {
+          console.log('📍 [ArchestraAgentNative] Step finished:', {
+            hasText: !!text,
+            toolCallCount: toolCalls?.length || 0,
+            toolResultCount: toolResults?.length || 0,
+            finishReason,
           });
-        }
-        throw runError;
+
+          // Update progress
+          if (this.state.plan) {
+            this.updateProgress({
+              completed: this.state.progress.completed + 1,
+            });
+          }
+
+          // Log tool executions
+          if (toolCalls && toolCalls.length > 0) {
+            for (const toolCall of toolCalls) {
+              this.memoryManager.addEntry('observation', `Tool called: ${toolCall.toolName}`);
+            }
+          }
+        },
+      });
+
+      console.log('📦 [ArchestraAgentNative] Stream created, returning for processing', {
+        streamResultKeys: Object.keys(streamResult),
+        hasFullStream: 'fullStream' in streamResult,
+        hasTextStream: 'textStream' in streamResult,
+        hasToDataStream: typeof (streamResult as any).toDataStream === 'function',
+      });
+
+      // Use the fullStream which includes all events (tool calls, text, etc.)
+      // instead of just the textStream
+      if ('fullStream' in streamResult) {
+        return (streamResult as any).fullStream;
       }
 
-      // Return the stream for the store to handle
-      return streamResult;
+      // Fallback to wrapping the text stream if fullStream is not available
+      const eventStream = this.wrapTextStream((streamResult as any).textStream);
+
+      return eventStream;
     } catch (error) {
       this.handleExecutionError(error);
       throw error;
     }
   }
 
-  // Handle run state for serialization and recovery
-  async saveRunState(runState: any): Promise<void> {
-    this.updateState({ runState });
-    // This can be used to persist state for recovery
-  }
+  private buildSystemPrompt(context: AgentContext): string {
+    const baseInstructions = `You are an autonomous AI agent operating within the Archestra desktop application.
+Your role is to help users complete complex tasks by breaking them down into manageable steps and executing them systematically.
 
-  async loadRunState(): Promise<any | undefined> {
-    return this.state.runState;
+Key behaviors:
+1. Always create a clear plan before executing tasks
+2. ${this.supportsTools ? 'Use available tools intelligently to accomplish objectives' : 'Since this model does not support tools, provide detailed step-by-step instructions that the user can follow'}
+3. Maintain context in working memory throughout execution
+4. Provide transparent reasoning for decisions
+5. Adapt plans when steps fail or new information emerges
+6. ${this.supportsTools ? 'Request user intervention only when necessary' : 'Clearly explain what actions the user should take to accomplish each step'}
+
+Current model: ${this.config.model || 'gpt-4o'} (Provider: ${this.modelProvider})
+${!this.supportsTools ? '\nIMPORTANT: This model does not support tool calling. I will provide detailed instructions and guidance instead of directly executing actions. Please follow the steps I outline to accomplish your objective.' : ''}
+
+${this.supportsTools ? `Available tools: ${context.availableTools.join(', ')}` : ''}
+
+When working without tools:
+- Break down tasks into clear, actionable steps
+- Provide specific commands or actions the user should take
+- Explain the expected outcomes of each step
+- Offer troubleshooting advice if something might go wrong
+- Maintain a helpful and instructive tone
+
+${this.config.customInstructions ? `\nAdditional instructions:\n${this.config.customInstructions}` : ''}
+
+${this.config.systemPrompt ? `\nSystem context:\n${this.config.systemPrompt}` : ''}`;
+
+    return baseInstructions;
   }
 
   // Get current model for display/debugging
   get model(): string {
     return this.config.model || 'gpt-4o';
-  }
-
-  // Process streaming events (called by the store's event handler)
-  processStreamEvent(event: any): void {
-    switch (event.type) {
-      case 'agent_updated_stream_event':
-        // Handle agent handoffs
-        this.updateState({ currentAgent: event.agent?.name });
-        break;
-      case 'item_stream_event':
-        // Handle execution updates
-        if (event.item?.type === 'tool_call') {
-          this.memoryManager.addEntry('observation', `Tool called: ${event.item.name}`);
-        }
-        break;
-      case 'raw_model_stream_event':
-        // Handle model streaming
-        if (event.delta?.content) {
-          this.updateState({ streamingContent: event.delta.content });
-        }
-        break;
-    }
   }
 
   pause(): void {
@@ -306,14 +307,10 @@ ${config.systemPrompt ? `\nSystem context:\n${config.systemPrompt}` : ''}`;
     this.abortController = new AbortController();
     this.updateState({ mode: 'executing' });
 
-    // Resume execution using saved RunState if available
-    if (this.state.runState && this.state.currentTask) {
-      return await run(this.agent, this.state.currentTask, {
-        stream: true,
-        maxTurns: this.config.maxSteps || 10,
-        signal: this.abortController.signal,
-        // Resume functionality would need to be implemented based on SDK support
-      });
+    // For now, we'll need to restart the execution
+    // TODO: Implement proper pause/resume with conversation history
+    if (this.state.currentTask) {
+      return this.executeObjective(this.state.currentTask);
     }
 
     return null;
@@ -344,17 +341,17 @@ ${config.systemPrompt ? `\nSystem context:\n${config.systemPrompt}` : ''}`;
   }
 
   addReasoningEntry(entry: ReasoningEntry): void {
-    this.state.reasoning.push(entry);
+    this.state.reasoningText.push(entry);
 
     // Limit reasoning entries to prevent memory issues
     const maxEntries = 100;
-    if (this.state.reasoning.length > maxEntries) {
-      this.state.reasoning = this.state.reasoning.slice(-maxEntries);
+    if (this.state.reasoningText.length > maxEntries) {
+      this.state.reasoningText = this.state.reasoningText.slice(-maxEntries);
     }
   }
 
   // Reasoning module methods
-  createPlanningReasoning(objective: string, steps: TaskStep[]): ReasoningEntry {
+  createPlanningReasoning(objective: string, steps: import('../../types/agent').TaskStep[]): ReasoningEntry {
     const entry = this.reasoningModule.createPlanningReasoning(objective, steps);
     this.addReasoningEntry(entry);
     return entry;
@@ -369,9 +366,9 @@ ${config.systemPrompt ? `\nSystem context:\n${config.systemPrompt}` : ''}`;
     const fullContext: ReasoningContext = {
       objective: this.state.currentTask || '',
       currentState: this.state.mode,
-      availableResources: this.mcpTools.map((t) => t.name),
+      availableResources: Object.keys(this.tools),
       constraints: [],
-      previousDecisions: this.state.reasoning.filter((r) => r.type === 'decision'),
+      previousDecisions: this.state.reasoningText.filter((r) => r.type === 'decision'),
       ...context,
     };
 
@@ -400,7 +397,16 @@ ${config.systemPrompt ? `\nSystem context:\n${config.systemPrompt}` : ''}`;
   generateAlternatives(decision: string, maxAlternatives?: number): Alternative[] {
     const context: AgentContext = {
       objective: this.state.currentTask || '',
-      availableTools: [], // Tools are managed by SDK
+      availableTools: Object.keys(this.tools).map((name) => ({
+        name,
+        serverName: 'unknown',
+        capabilities: [],
+        performance: {
+          averageLatency: 0,
+          successRate: 1,
+        },
+        requiresPermission: false,
+      })),
       workingMemory: this.memoryManager.exportMemory(),
       environmentState: this.getDefaultEnvironmentState(),
       userPreferences: this.getDefaultUserPreferences(),
@@ -513,5 +519,42 @@ ${config.systemPrompt ? `\nSystem context:\n${config.systemPrompt}` : ''}`;
   // Export memory for state management
   exportMemory() {
     return this.memoryManager.exportMemory();
+  }
+
+  /**
+   * Wrap the Vercel AI SDK text stream to emit events in the format expected by our event handler
+   */
+  private async *wrapTextStream(textStream: AsyncIterable<any>): AsyncIterable<any> {
+    try {
+      for await (const chunk of textStream) {
+        console.log('🔍 [ArchestraAgentNative] Text stream chunk:', chunk);
+
+        // Emit the chunk as a model event that our handler understands
+        yield {
+          type: 'model',
+          event: {
+            type: 'text',
+            textDelta: chunk,
+          },
+        };
+      }
+
+      // Emit finish event
+      yield {
+        type: 'model',
+        event: {
+          type: 'finish',
+        },
+      };
+    } catch (error) {
+      console.error('❌ [ArchestraAgentNative] Error in text stream:', error);
+      yield {
+        type: 'model',
+        event: {
+          type: 'error',
+          error,
+        },
+      };
+    }
   }
 }

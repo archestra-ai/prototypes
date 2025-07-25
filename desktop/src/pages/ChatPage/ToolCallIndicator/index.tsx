@@ -68,7 +68,7 @@ export default function ToolCallIndicator({ toolCalls, isExecuting }: ToolCallIn
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2">
               <div className="space-y-1 pl-4">
-                {completedCalls.map((call, index) => (
+                {completedCalls.map((call) => (
                   <div
                     key={call.id}
                     className="text-xs text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 p-2 rounded border-l-2 border-green-400"
@@ -76,7 +76,7 @@ export default function ToolCallIndicator({ toolCalls, isExecuting }: ToolCallIn
                     <div className="font-medium mb-1">
                       {call.serverName}.{call.toolName}
                     </div>
-                    <div className="font-mono text-green-600 dark:text-green-400 whitespace-pre-wrap">
+                    <div className="font-mono text-green-600 dark:text-green-400 whitespace-pre-wrap break-words max-w-full">
                       {call.result}
                     </div>
                   </div>

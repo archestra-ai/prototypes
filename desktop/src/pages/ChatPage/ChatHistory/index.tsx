@@ -193,10 +193,10 @@ export default function ChatHistory(_props: ChatHistoryProps) {
                   )}
 
                   {/* Show thinking/reasoning content - prioritize agent reasoning over regular thinking */}
-                  {reasoningMode === 'verbose' && msg.agentMetadata?.reasoning ? (
+                  {reasoningMode === 'verbose' && msg.agentMetadata?.reasoningText ? (
                     <AIReasoning className="mb-4">
                       <AIReasoningTrigger />
-                      <AIReasoningContent>{msg.agentMetadata.reasoning.content}</AIReasoningContent>
+                      <AIReasoningContent>{msg.agentMetadata.reasoningText.content}</AIReasoningContent>
                     </AIReasoning>
                   ) : msg.thinkingContent ? (
                     <AIReasoning isStreaming={msg.isThinkingStreaming} className="mb-4">

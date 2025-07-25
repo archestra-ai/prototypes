@@ -59,5 +59,8 @@ export default defineConfig(async () => ({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/setup-tests.ts',
+    typecheck: {
+      exclude: ['**/*.e2e-spec.ts', '**/*.integration-spec.ts'],
+    },
   },
 }));

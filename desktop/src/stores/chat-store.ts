@@ -59,7 +59,7 @@ export function markMessageAsCancelled(message: ChatMessage): ChatMessage {
 }
 
 export function parseThinkingContent(content: string): ParsedContent {
-  if (!content) {
+  if (!content || typeof content !== 'string') {
     return { thinking: '', response: '', isThinkingStreaming: false };
   }
 
@@ -203,7 +203,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   updateStreamingMessage: (messageId: string, content: string) => {
-    const parsed = parseThinkingContent(content);
+    const parsed = parseThinkingContent(content || '');
     set((state) => ({
       chatHistory: state.chatHistory.map((msg) =>
         msg.id === messageId && msg.isStreaming
