@@ -31,10 +31,17 @@ function getDatabasePath() {
 // Check if sqlite-web is installed
 function checkSqliteWeb() {
   try {
+    // First try direct access
     execSync('sqlite-web --version', { stdio: 'ignore' });
-    return true;
+    return 'direct';
   } catch (error) {
-    return false;
+    try {
+      // Try via uv tool
+      execSync('uv tool run sqlite-web --version', { stdio: 'ignore' });
+      return 'uv';
+    } catch (error2) {
+      return false;
+    }
   }
 }
 
@@ -76,7 +83,8 @@ async function main() {
   console.log('================================');
 
   // Check if sqlite-web is installed
-  if (!checkSqliteWeb()) {
+  const sqliteWebAvailable = checkSqliteWeb();
+  if (!sqliteWebAvailable) {
     console.log('⚠️  sqlite-web not found. Installing...');
     if (!installSqliteWeb()) {
       process.exit(1);
@@ -101,7 +109,14 @@ async function main() {
   console.log('   Press Ctrl+C to stop');
   console.log('');
 
-  const child = spawn('sqlite-web', [dbPath, '--host', '0.0.0.0', '--port', '8080'], {
+  // Use appropriate command based on how sqlite-web is available
+  const command = sqliteWebAvailable === 'uv' ? 'uv' : 'sqlite-web';
+  const args =
+    sqliteWebAvailable === 'uv'
+      ? ['tool', 'run', 'sqlite-web', dbPath, '--host', '0.0.0.0', '--port', '8080']
+      : [dbPath, '--host', '0.0.0.0', '--port', '8080'];
+
+  const child = spawn(command, args, {
     stdio: 'inherit',
   });
 

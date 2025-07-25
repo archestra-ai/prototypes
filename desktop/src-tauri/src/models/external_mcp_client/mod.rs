@@ -115,7 +115,7 @@ impl Model {
             std::env::var("USERPROFILE")
                 .or_else(|_| {
                     std::env::var("HOMEDRIVE").and_then(|drive| {
-                        std::env::var("HOMEPATH").map(|path| format!("{}{}", drive, path))
+                        std::env::var("HOMEPATH").map(|path| format!("{drive}{path}"))
                     })
                 })
                 .map(PathBuf::from)
