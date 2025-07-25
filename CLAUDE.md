@@ -116,13 +116,17 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `components/`: Reusable UI components
   - `ui/`: Base UI components (shadcn/ui style) - DO NOT MODIFY
   - `kibo/`: AI-specific components (messages, code blocks, reasoning)
+  - `DeleteChatConfirmation.tsx`: Dialog for chat deletion confirmation
+  - `TypewriterText.tsx`: Animated text display component
 - `pages/`: Main application pages
   - `ChatPage/`: AI chat interface with streaming responses
   - `ConnectorCatalogPage/`: MCP server catalog and management
   - `LLMProvidersPage/`: LLM model management
   - `SettingsPage/`: Application settings
 - `stores/`: Zustand stores for state management
+  - `chat-store.ts`: Chat state management with persistence integration
 - `hooks/`: Custom React hooks including MCP client hooks
+  - `use-typewriter.ts`: Hook for typewriter text animation
 - `lib/`: Utility functions and helpers
   - `api/`: Generated TypeScript client from OpenAPI schema (DO NOT EDIT)
   - `api-client.ts`: Configured HTTP client instance
@@ -252,12 +256,22 @@ POST /api/chat
 Body: { llm_provider: string, llm_model: string }
 Response: Chat (with auto-generated title "New Chat")
 
-// Delete chat and all messages
+// Delete chat and all messages (CASCADE deletes all messages)
 DELETE /api/chat/{id}
 Response: 204 No Content
 ```
 
-**Chat Title Generation**: After the first user-assistant exchange, the system automatically generates a descriptive 5-6 word title using the configured LLM model and updates the chat title in the background.
+**Chat Persistence Workflow**:
+1. When a user sends their first message, the frontend automatically creates a new chat if none exists
+2. During conversation streaming through the Ollama proxy (`/llm/ollama/api/chat`), messages are automatically saved to the database
+3. User messages are saved before sending to the LLM
+4. Assistant responses are captured and saved after streaming completes
+
+**Chat Title Generation**: 
+- Triggers automatically after the 4th message in a chat (2 user + 2 assistant messages)
+- Uses the same LLM model as the chat to generate a concise 5-6 word title
+- Runs asynchronously in the background without blocking the conversation
+- Emits a `chat-title-updated` event that the frontend listens to for real-time UI updates
 
 ### Important Configuration
 
@@ -311,7 +325,18 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - Frontend API calls should use the generated client, not Tauri commands
 - Database migrations should be created for schema changes using SeaORM
 - **Chat Persistence**: All chat conversations are automatically saved to SQLite database
-- **Chat Title Generation**: Runs asynchronously after first assistant response using background tasks
+  - Messages are intercepted and saved during the Ollama proxy streaming process
+  - The system handles both user and assistant messages transparently
+  - Chat creation is automatic when the first message is sent
+- **Chat Title Generation**: 
+  - Triggers after 4 messages (not after first exchange as might be expected)
+  - Uses a background task to avoid blocking the conversation flow
+  - Generates titles using the same model as the chat for consistency
+- **Event-Driven Updates**: 
+  - Backend emits Tauri events (e.g., `chat-title-updated`) for real-time UI updates
+  - Frontend stores subscribe to these events on initialization
 - **Database Relationships**: Messages have CASCADE delete with chats for data consistency
-- Use rstest fixtures from `test_fixtures` for Rust database tests
-- Mock external dependencies appropriately in tests
+- **Testing Patterns**:
+  - Use rstest fixtures from `test_fixtures` for Rust database tests
+  - The chat API includes comprehensive integration tests
+  - Mock external dependencies appropriately in tests
