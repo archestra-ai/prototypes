@@ -131,8 +131,8 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
-    app.run(|_app_handle, event| match event {
-        tauri::RunEvent::ExitRequested { api: _, .. } => {
+    app.run(|_app_handle, event| {
+        if let tauri::RunEvent::ExitRequested { api: _, .. } = event {
             println!("Archestra is shutting down, cleaning up resources...");
 
             // Block on async cleanup
@@ -147,6 +147,5 @@ pub fn run() {
 
             println!("Cleanup completed");
         }
-        _ => {}
     });
 }
