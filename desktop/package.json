@@ -15,9 +15,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "ai": "beta",
-    "@ai-sdk/openai": "beta",
     "@ai-sdk/provider": "beta",
+    "@ai-sdk/react": "beta",
     "@icons-pack/react-simple-icons": "^13.5.0",
     "@modelcontextprotocol/sdk": "^1.16.0",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -44,11 +43,13 @@
     "@tauri-apps/plugin-http": "~2.5.1",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-shell": "~2",
+    "ai": "beta",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.525.0",
     "ollama": "^0.5.16",
     "ollama-ai-provider": "^1.2.0",
+    "ollama-ai-provider-v2": "1.0.0-alpha.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.60.0",
@@ -81,6 +82,9 @@
     "vitest": "^3.2.4"
   },
   "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "lint-staged": {
     "**/*": "prettier --write --ignore-unknown"
   }

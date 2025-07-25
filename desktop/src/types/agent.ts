@@ -1,6 +1,89 @@
-import type { Tool } from 'ai';
+import type { TextPart, Tool, ToolCallPart, ToolResultPart, UIMessage } from 'ai';
 
 import { ChatMessage, ToolCallInfo } from '../types';
+
+// AI SDK v5 Message Integration Types
+/**
+ * Extended UIMessage with agent-specific metadata
+ */
+export interface AgentUIMessage extends UIMessage {
+  metadata?: {
+    agentMode?: AgentMode;
+    planId?: string;
+    stepId?: string;
+    isFromAgent?: boolean;
+  };
+}
+
+/**
+ * Generic data part interface for custom data streaming
+ */
+export interface DataPart<T> {
+  type: 'data';
+  data: T;
+}
+
+/**
+ * Custom message parts for agent features
+ */
+export type AgentMessagePart =
+  | TextPart
+  | ToolCallPart
+  | ToolResultPart
+  | DataPart<{ type: 'reasoning'; entry: ReasoningEntry }>
+  | DataPart<{ type: 'task-progress'; progress: TaskProgress }>
+  | DataPart<{ type: 'alternatives'; alternatives: Alternative[] }>;
+
+/**
+ * Reasoning streaming part for real-time visibility
+ */
+export interface ReasoningDataPart {
+  type: 'data';
+  data: {
+    type: 'reasoning';
+    entry: ReasoningEntry;
+  };
+}
+
+/**
+ * Task progress streaming part for real-time updates
+ */
+export interface TaskProgressDataPart {
+  type: 'data';
+  data: {
+    type: 'task-progress';
+    progress: TaskProgress;
+  };
+}
+
+/**
+ * Enhanced tool result with v5 features
+ */
+export interface ToolResultV5 {
+  toolCallId: string;
+  toolName: string;
+  result: unknown; // Type-safe with outputSchema
+  timestamp: Date;
+  executionTime: number;
+}
+
+/**
+ * SSE event types for streaming
+ */
+export type UIMessageStreamEvent =
+  | { type: 'message'; message: UIMessage }
+  | { type: 'part'; part: AgentMessagePart }
+  | { type: 'error'; error: Error }
+  | { type: 'finish'; usage: TokenUsage };
+
+/**
+ * Token usage tracking
+ */
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
 
 // Core Agent Configuration
 export interface AgentConfig {
@@ -318,7 +401,7 @@ export interface PlanValidation {
 // Agent Instance Configuration
 export interface ArchestraAgentConfig {
   model?: string;
-  mcpTools: Tool[] | Record<string, Tool>;
+  mcpTools: Record<string, Tool>;
   maxSteps?: number;
   temperature?: number;
   systemPrompt?: string;

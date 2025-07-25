@@ -25,6 +25,7 @@ mcp.json
 # Serena and Claude files
 .serena/
 docs
-.openai-agents-sdk
+CLAUDE.md
 AGENT-TOOL-EXECUTION-PROBLEM.md
 OLLAMA-AGENT-ISSUE.md
+.ai-sdk

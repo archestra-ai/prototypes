@@ -1,5 +1,7 @@
-import { Bot, Loader2, Pause, Play, Settings, Square } from 'lucide-react';
-import { useState } from 'react';
+import { AlertCircle, Bot, Loader2, Pause, Play, Settings, Square, Wifi, WifiOff } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+
+// import { useChat } from '@ai-sdk/react'; // Will be enabled when SSE endpoint is ready
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { ToolCategory } from '@/services/agent/mcp-tool-wrapper-ai-sdk';
 import { useAgentStore } from '@/stores/agent-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
@@ -19,6 +22,30 @@ interface AgentControlPanelProps {
 }
 
 export function AgentControlPanel({ className }: AgentControlPanelProps) {
+  // TODO: Enable useChat when SSE endpoint is ready
+  // const {
+  //   messages,
+  //   append,
+  //   stop: abortChat,
+  //   isLoading: isChatLoading,
+  //   error: chatError
+  // } = useChat({
+  //   api: '/api/agent/chat',
+  //   onError: (error) => {
+  //     console.error('[AgentControlPanel] Chat error:', error);
+  //   },
+  // });
+
+  // Temporary mock for v5 integration preparation
+  const mockUseChat = {
+    messages: [],
+    append: async (message: any) => console.log('Will append:', message),
+    stop: () => console.log('Will abort chat'),
+    isLoading: false,
+    error: null as Error | null,
+  };
+  const { append, stop: abortChat, isLoading: isChatLoading, error: chatError } = mockUseChat;
+
   const {
     mode,
     isAgentActive,
@@ -39,21 +66,58 @@ export function AgentControlPanel({ className }: AgentControlPanelProps) {
 
   const [objective, setObjective] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connected');
 
-  // Handle agent activation
-  const handleActivate = async () => {
+  // Monitor v5 chat connection status
+  useEffect(() => {
+    if (chatError) {
+      setConnectionStatus('disconnected');
+    } else if (isChatLoading) {
+      setConnectionStatus('connecting');
+    } else {
+      setConnectionStatus('connected');
+    }
+  }, [isChatLoading, chatError]);
+
+  // Handle agent activation with v5 integration
+  const handleActivate = useCallback(async () => {
     if (!objective.trim()) return;
 
     try {
+      // When v5 is ready, use append to start conversation
+      if (append) {
+        await append({
+          role: 'user',
+          content: objective.trim(),
+          // Add agent metadata for v5
+          metadata: {
+            isAgentActivation: true,
+            agentMode: 'autonomous',
+            model: selectedModel,
+          },
+        });
+      }
+
+      // Still use store activation for now
       await activateAgent(objective.trim());
       setObjective(''); // Clear input after activation
     } catch (error) {
       console.error('Failed to activate agent:', error);
     }
-  };
+  }, [objective, activateAgent, append, selectedModel]);
 
-  // Handle key press in objective input
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  // Enhanced stop handler with v5 abort
+  const handleStop = useCallback(() => {
+    // Abort v5 chat stream if active
+    if (abortChat) {
+      abortChat();
+    }
+    // Stop agent through store
+    stopAgent();
+  }, [stopAgent, abortChat]);
+
+  // Handle key down in objective input
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (!isAgentActive && objective.trim()) {
@@ -93,6 +157,18 @@ export function AgentControlPanel({ className }: AgentControlPanelProps) {
             <CardTitle>Agent Control</CardTitle>
           </div>
           <div className="flex items-center gap-2">
+            {/* v5 Connection Status Indicator */}
+            {false && ( // Will enable when SSE is ready
+              <div className="flex items-center gap-1 text-xs">
+                {connectionStatus === 'connected' ? (
+                  <Wifi className="h-3 w-3 text-green-600" />
+                ) : connectionStatus === 'connecting' ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <WifiOff className="h-3 w-3 text-red-600" />
+                )}
+              </div>
+            )}
             {isAgentActive && <span className={cn('text-sm font-medium', getStatusColor())}>{formatMode(mode)}</span>}
           </div>
         </div>
@@ -112,15 +188,23 @@ export function AgentControlPanel({ className }: AgentControlPanelProps) {
                 placeholder="What would you like the agent to accomplish?"
                 value={objective}
                 onChange={(e) => setObjective(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 disabled={isAgentActive}
                 className="flex-1"
               />
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button onClick={handleActivate} disabled={!objective.trim() || isAgentActive} size="default">
-                      <Play className="h-4 w-4 mr-2" />
+                    <Button
+                      onClick={handleActivate}
+                      disabled={!objective.trim() || isAgentActive || isChatLoading}
+                      size="default"
+                    >
+                      {isChatLoading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Play className="h-4 w-4 mr-2" />
+                      )}
                       Activate
                     </Button>
                   </TooltipTrigger>
@@ -178,7 +262,7 @@ export function AgentControlPanel({ className }: AgentControlPanelProps) {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="destructive" size="sm" onClick={stopAgent}>
+                  <Button variant="destructive" size="sm" onClick={handleStop}>
                     <Square className="h-4 w-4 mr-2" />
                     Stop
                   </Button>
@@ -192,6 +276,17 @@ export function AgentControlPanel({ className }: AgentControlPanelProps) {
         )}
 
         <Separator />
+
+        {/* Error Display for v5 Chat */}
+        {chatError && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
+            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <div className="text-sm">
+              <p className="font-medium">Connection Error</p>
+              <p className="text-xs mt-1">{chatError.message}</p>
+            </div>
+          </div>
+        )}
 
         {/* Configuration Options */}
         <div className="space-y-4">

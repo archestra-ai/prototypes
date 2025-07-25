@@ -1,12 +1,15 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 
-import { ArchestraAgent, MemorySearchCriteria, ModelCapabilities } from '../services/agent';
-import { AgentEventCallbacks, AgentEventHandler } from '../services/agent/agent-event-handler';
+import { MemorySearchCriteria, ModelCapabilities } from '../services/agent';
 import { ArchestraAgentNative } from '../services/agent/ai-sdk-native-agent';
+import { ArchestraAgentV5 } from '../services/agent/archestra-agent-v5';
 import { HumanInLoopHandler } from '../services/agent/human-in-loop';
 import { ToolCategory, extractToolsFromServersAISDK } from '../services/agent/mcp-tool-wrapper-ai-sdk';
+import { createMCPToolV5 } from '../services/agent/mcp-tool-wrapper-v5';
+import { AgentStateBridge } from '../services/agent/state-bridge';
 import {
+  AgentContext,
   AgentMode,
   AgentState,
   ArchestraAgentConfig,
@@ -19,67 +22,6 @@ import { useChatStore } from './chat-store';
 import { useMCPServersStore } from './mcp-servers-store';
 import { useOllamaStore } from './ollama-store';
 
-// Create event handler callbacks for the agent store
-function createAgentEventCallbacks(
-  setState: (updates: Partial<AgentStoreState> | ((state: AgentStoreState) => Partial<AgentStoreState>)) => void,
-  handleToolExecution: (tool: any) => Promise<void>
-): AgentEventCallbacks {
-  console.log('🎨 [AgentEventCallbacks] Creating callbacks');
-
-  return {
-    onStateChange: (state: Partial<AgentState>) => {
-      console.log('🔄 [AgentEventCallbacks] State change:', state);
-      setState(state as Partial<AgentStoreState>);
-    },
-
-    onToolExecution: async (tool: any) => {
-      console.log('🔨 [AgentEventCallbacks] Tool execution requested:', tool);
-      return handleToolExecution(tool);
-    },
-
-    onMessage: (message: string) => {
-      // Accumulate streaming content
-      setState((state: AgentStoreState) => {
-        const currentContent = state.streamingContent || '';
-        return {
-          streamingContent: currentContent + message,
-        };
-      });
-    },
-
-    onReasoningUpdate: (entry: ReasoningEntry) => {
-      console.log('🧠 [AgentEventCallbacks] Reasoning update:', entry);
-      setState((state: AgentStoreState) => ({
-        reasoningText: [...state.reasoningText, entry],
-      }));
-    },
-
-    onProgressUpdate: (progress: Partial<TaskProgress>) => {
-      console.log('📊 [AgentEventCallbacks] Progress update:', progress);
-      setState((state: AgentStoreState) => ({
-        progress: { ...state.progress, ...progress },
-      }));
-    },
-
-    onMemoryUpdate: (entry: MemoryEntry) => {
-      console.log('🧩 [AgentEventCallbacks] Memory update:', entry);
-      setState((state: AgentStoreState) => ({
-        workingMemory: {
-          ...state.workingMemory,
-          entries: [...state.workingMemory.entries, entry],
-          lastAccessed: new Date(),
-        },
-      }));
-    },
-
-    onError: (error: any) => {
-      console.error('💥 [AgentEventCallbacks] Error received:', error);
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
-      setState({ mode: 'idle', isAgentActive: false });
-    },
-  };
-}
-
 // Agent store preferences
 interface AgentPreferences {
   autoApproveCategories: ToolCategory[];
@@ -89,11 +31,12 @@ interface AgentPreferences {
 interface AgentStoreState extends AgentState {
   reasoningMode: 'verbose' | 'concise' | 'hidden';
   isAgentActive: boolean;
-  agentInstance: ArchestraAgent | ArchestraAgentNative | null;
+  agentInstance: ArchestraAgentNative | ArchestraAgentV5 | null;
   currentObjective: string | null;
   preferences: AgentPreferences;
   streamingMessageId: string | null;
-  streamingUpdateInterval: NodeJS.Timeout | null;
+  useV5Implementation: boolean;
+  stateBridge: AgentStateBridge | null;
 }
 
 interface AgentActions {
@@ -161,7 +104,8 @@ export const useAgentStore = create<AgentStore>()(
     isAgentActive: false,
     agentInstance: null,
     streamingMessageId: null,
-    streamingUpdateInterval: null,
+    useV5Implementation: true, // Enable v5 by default
+    stateBridge: null,
     preferences: {
       autoApproveCategories: [ToolCategory.FILE, ToolCategory.DATA] as ToolCategory[],
       autoApproveServers: [],
@@ -200,11 +144,66 @@ export const useAgentStore = create<AgentStore>()(
 
       console.log('🔧 [AgentStore] Extracting MCP tools from servers:', allServers.length);
 
-      // Use native AI SDK tools if useNativeAISDK is true
-      const useNativeAISDK = true; // Feature flag for new implementation
+      // Use v5 implementation
+      const { useV5Implementation } = get();
 
       let mcpTools: any;
-      if (useNativeAISDK) {
+      if (useV5Implementation) {
+        // For v5, create tools with the new wrapper
+        const tools: Record<string, any> = {};
+        for (const server of allServers) {
+          if (server.tools) {
+            for (const tool of server.tools) {
+              const v5Tool = createMCPToolV5(tool, server.name, {
+                onInputStart: async (options) => {
+                  console.log(`🔧 [V5] Tool started with options:`, options);
+                  set((state) => ({
+                    progress: {
+                      ...state.progress,
+                      currentStep: `Executing tool`,
+                    },
+                  }));
+                },
+                onInputDelta: async (options) => {
+                  console.log(`🔧 [V5] Tool delta:`, options);
+                },
+                customApprovalCheck: async (args: any) => {
+                  const toolName = tool.name;
+                  const serverName = server.name;
+                  // Get the human-in-the-loop handler from window (set by ToolApprovalQueue)
+                  const handler = (window as any).__toolApprovalHandler as HumanInLoopHandler;
+                  if (!handler) {
+                    // If no handler available, check if tool requires approval
+                    return !state.preferences.autoApproveServers.includes(serverName);
+                  }
+
+                  // Use handler to check if approval is required
+                  const requiresApproval = await handler.requiresApproval(toolName, serverName, args);
+
+                  if (requiresApproval) {
+                    // Request approval through the handler
+                    const result = await handler.requestApproval(toolName, serverName, args, {
+                      description: `Execute ${toolName} on ${serverName}`,
+                      metadata: {
+                        riskLevel: 'medium',
+                        potentialImpact: [`Execute tool ${toolName} with provided arguments`],
+                      },
+                    });
+
+                    return result.approved;
+                  }
+
+                  return true; // Auto-approve if not required
+                },
+              });
+              const toolKey = `${server.name}_${tool.name}`;
+              tools[toolKey] = v5Tool;
+            }
+          }
+        }
+        mcpTools = tools;
+      } else {
+        // Use native AI SDK implementation as fallback
         const wrappers = await extractToolsFromServersAISDK(
           allServers.map((s) => s.name),
           {
@@ -248,9 +247,6 @@ export const useAgentStore = create<AgentStore>()(
           toolsRecord[toolName] = wrapper.tool;
         }
         mcpTools = toolsRecord;
-      } else {
-        // Legacy code path - no longer used since we're using AI SDK 5
-        throw new Error('OpenAI SDK adapter is no longer supported. Please use the native AI SDK implementation.');
       }
 
       // Check if model supports tools
@@ -260,10 +256,10 @@ export const useAgentStore = create<AgentStore>()(
       console.log('🤖 [AgentStore] Model configuration:', {
         modelName,
         supportsTools,
-        mcpToolsCount: mcpTools.length,
+        mcpToolsCount: Object.keys(mcpTools).length,
       });
 
-      if (!supportsTools && mcpTools.length > 0) {
+      if (!supportsTools && Object.keys(mcpTools).length > 0) {
         // Warn user that tools won't be available
         const { chatHistory } = useChatStore.getState();
         useChatStore.setState({
@@ -295,14 +291,14 @@ export const useAgentStore = create<AgentStore>()(
 
       console.log('🏗️ [AgentStore] Creating ArchestraAgent with config:', agentConfig);
 
-      // Use native AI SDK implementation to fix tool execution issues
-      const agent = useNativeAISDK ? new ArchestraAgentNative(agentConfig) : new ArchestraAgent(agentConfig);
+      // Create v5 agent or fallback to native
+      const agent = useV5Implementation ? new ArchestraAgentV5(agentConfig) : new ArchestraAgentNative(agentConfig);
 
-      console.log(
-        '🤖 [AgentStore] Using agent implementation:',
-        useNativeAISDK ? 'Native AI SDK' : 'OpenAI SDK Adapter'
-      );
-      set({ agentInstance: agent });
+      // Create state bridge for v5
+      const stateBridge = useV5Implementation ? new AgentStateBridge() : null;
+
+      console.log('🤖 [AgentStore] Using agent implementation:', useV5Implementation ? 'V5 AI SDK' : 'Native AI SDK');
+      set({ agentInstance: agent, stateBridge });
 
       console.log('✅ [AgentStore] Agent created successfully');
 
@@ -311,25 +307,97 @@ export const useAgentStore = create<AgentStore>()(
         console.log('🎯 [AgentStore] Starting agent execution');
         set({ mode: 'planning', streamingContent: '' });
 
-        // Create initial assistant message in chat
-        const { chatHistory } = useChatStore.getState();
-        const assistantMessageId = Date.now().toString();
-        useChatStore.setState({
-          chatHistory: [
-            ...chatHistory,
-            {
-              id: assistantMessageId,
-              role: 'assistant' as const,
-              content: '',
-              timestamp: new Date(),
-              isStreaming: true,
-              isFromAgent: true,
-            },
-          ],
-        });
-        set({ streamingMessageId: assistantMessageId });
+        // For v5, streaming is handled internally by the agent
+        if (!useV5Implementation) {
+          // Create initial assistant message in chat
+          const { chatHistory } = useChatStore.getState();
+          const assistantMessageId = Date.now().toString();
+          useChatStore.setState({
+            chatHistory: [
+              ...chatHistory,
+              {
+                id: assistantMessageId,
+                role: 'assistant' as const,
+                content: '',
+                timestamp: new Date(),
+                isStreaming: true,
+                isFromAgent: true,
+              },
+            ],
+          });
+          set({ streamingMessageId: assistantMessageId });
 
-        const updateInterval = setInterval(() => {
+          // Manual streaming intervals are no longer needed with v5 implementation
+        }
+
+        console.log('📞 [AgentStore] Calling agent execute method');
+        let streamResult;
+        if (useV5Implementation && 'execute' in agent) {
+          // V5 agent uses execute method with context
+          const context: AgentContext = {
+            objective: objective,
+            availableTools: [],
+            workingMemory: state.workingMemory,
+            environmentState: {
+              availableServers: allServers.map((s) => s.name),
+              activeConnections: allServers.filter((s) => s.status === 'connected').length,
+              resourceUsage: { memory: 0, cpu: 0 },
+              timestamp: new Date(),
+            },
+            userPreferences: {
+              autoApproveTools: state.preferences.autoApproveCategories as any,
+              maxExecutionTime: 300000,
+              preferredServers: [],
+              reasoningVerbosity: state.reasoningMode,
+              interruptOnError: true,
+            },
+            sessionId: crypto.randomUUID(),
+          };
+          streamResult = await (agent as ArchestraAgentV5).execute(objective, context);
+        } else if ('executeObjective' in agent) {
+          streamResult = await agent.executeObjective(objective);
+        } else {
+          throw new Error('Agent does not have execute or executeObjective method');
+        }
+        console.log('📦 [AgentStore] executeObjective returned:', {
+          streamResultType: typeof streamResult,
+          hasToStream: streamResult && typeof (streamResult as any).toStream === 'function',
+          streamResultKeys: streamResult ? Object.keys(streamResult) : [],
+        });
+
+        // For v5, the streamText result is already streaming and handling messages internally
+        // We don't need to convert or process it further
+        if (useV5Implementation) {
+          console.log('🌊 [AgentStore] V5 agent stream is self-managed by streamText');
+          // The V5 agent uses streamText which automatically handles streaming
+          // and updates the UI through its internal mechanisms
+        } else {
+          // Convert to stream if it's a StreamedRunResult (for native agent)
+          let stream = streamResult;
+          if (streamResult && typeof (streamResult as any).toStream === 'function') {
+            console.log('🔄 [AgentStore] Converting StreamedRunResult to stream for native agent');
+            stream = (streamResult as any).toStream();
+            console.log('✅ [AgentStore] Stream converted:', {
+              streamType: typeof stream,
+              streamConstructor: stream?.constructor?.name,
+              isReadableStream: stream instanceof ReadableStream,
+              hasAsyncIterator: stream && typeof stream[Symbol.asyncIterator],
+              hasGetReader: stream && typeof stream.getReader === 'function',
+            });
+          }
+          
+          if (stream) {
+            console.log('🌊 [AgentStore] Native agent stream processing');
+            // The native agent handles its own streaming internally
+            // We just need to wait for completion
+          }
+        }
+        console.log('✅ [AgentStore] Stream processing completed');
+
+        // Streaming cleanup is handled automatically by v5 implementation
+
+        // Finalize the assistant message with accumulated content (for non-v5)
+        if (!useV5Implementation) {
           const { streamingContent, streamingMessageId } = get();
           if (streamingMessageId && streamingContent) {
             const { chatHistory } = useChatStore.getState();
@@ -339,71 +407,15 @@ export const useAgentStore = create<AgentStore>()(
                   ? {
                       ...msg,
                       content: streamingContent,
-                      isStreaming: true,
+                      isStreaming: false,
                     }
                   : msg
               ),
             });
           }
-        }, 100);
-
-        set({ streamingUpdateInterval: updateInterval });
-
-        console.log('📞 [AgentStore] Calling agent.executeObjective');
-        const streamResult = await agent.executeObjective(objective);
-        console.log('📦 [AgentStore] executeObjective returned:', {
-          streamResultType: typeof streamResult,
-          hasToStream: streamResult && typeof (streamResult as any).toStream === 'function',
-          streamResultKeys: streamResult ? Object.keys(streamResult) : [],
-        });
-
-        // Convert to stream if it's a StreamedRunResult
-        let stream = streamResult;
-        if (streamResult && typeof (streamResult as any).toStream === 'function') {
-          console.log('🔄 [AgentStore] Converting StreamedRunResult to stream');
-          stream = (streamResult as any).toStream();
-          console.log('✅ [AgentStore] Stream converted:', {
-            streamType: typeof stream,
-            streamConstructor: stream?.constructor?.name,
-            isReadableStream: stream instanceof ReadableStream,
-            hasAsyncIterator: stream && typeof stream[Symbol.asyncIterator],
-            hasGetReader: stream && typeof stream.getReader === 'function',
-          });
         }
 
-        // Create event handler with callbacks
-        console.log('🎭 [AgentStore] Creating event handler');
-        const callbacks = createAgentEventCallbacks(set, (toolCall) => get().handleToolExecution(toolCall));
-        const eventHandler = new AgentEventHandler(callbacks);
-
-        console.log('🌊 [AgentStore] Starting stream processing');
-        await eventHandler.handleStreamedResult(stream);
-        console.log('✅ [AgentStore] Stream processing completed');
-
-        // Clear the update interval
-        const { streamingUpdateInterval } = get();
-        if (streamingUpdateInterval) {
-          clearInterval(streamingUpdateInterval);
-        }
-
-        // Finalize the assistant message with accumulated content
-        const { streamingContent, streamingMessageId } = get();
-        if (streamingMessageId && streamingContent) {
-          const { chatHistory } = useChatStore.getState();
-          useChatStore.setState({
-            chatHistory: chatHistory.map((msg) =>
-              msg.id === streamingMessageId
-                ? {
-                    ...msg,
-                    content: streamingContent,
-                    isStreaming: false,
-                  }
-                : msg
-            ),
-          });
-        }
-
-        set({ mode: 'completed', streamingContent: '', streamingMessageId: null, streamingUpdateInterval: null });
+        set({ mode: 'completed', streamingContent: '', streamingMessageId: null });
         console.log('🏁 [AgentStore] Agent execution completed successfully');
       } catch (error) {
         console.error('💥 [AgentStore] Agent execution error:', error);
@@ -442,13 +454,7 @@ export const useAgentStore = create<AgentStore>()(
           ],
         });
 
-        // Clear the update interval on error
-        const { streamingUpdateInterval } = get();
-        if (streamingUpdateInterval) {
-          clearInterval(streamingUpdateInterval);
-        }
-
-        set({ mode: 'idle', isAgentActive: false, streamingUpdateInterval: null });
+        set({ mode: 'idle', isAgentActive: false });
       }
     },
 
@@ -474,16 +480,13 @@ export const useAgentStore = create<AgentStore>()(
         const streamResult = await agentInstance.resume();
         if (streamResult) {
           // Convert to stream if it's a StreamedRunResult
-          let stream = streamResult;
           if (streamResult && typeof (streamResult as any).toStream === 'function') {
-            stream = (streamResult as any).toStream();
+            const stream = (streamResult as any).toStream();
+            console.log('🌊 [AgentStore] Resume stream processing handled by agent', stream);
+          } else {
+            // For resume, the agent handles streaming internally
+            console.log('🌊 [AgentStore] Resume stream processing handled by agent');
           }
-
-          // Create event handler with callbacks
-          const callbacks = createAgentEventCallbacks(set, (toolCall) => get().handleToolExecution(toolCall));
-          const eventHandler = new AgentEventHandler(callbacks);
-
-          await eventHandler.handleStreamedResult(stream);
         }
         set({ mode: 'completed' });
       } catch (error) {
@@ -510,9 +513,8 @@ export const useAgentStore = create<AgentStore>()(
       // Add to working memory
       agentInstance.addMemoryEntry('observation', `User message: ${message}`);
 
-      // Send through chat
-      const { sendChatMessage } = useChatStore.getState();
-      sendChatMessage(message);
+      // Note: The message is already added to chat history by the chat store
+      // before calling sendAgentMessage, so we don't need to call sendChatMessage here
     },
 
     setReasoningMode: (mode: 'verbose' | 'concise' | 'hidden') => {
@@ -654,6 +656,14 @@ export const useAgentStore = create<AgentStore>()(
     },
 
     handleToolExecution: async (toolCall: any) => {
+      const { useV5Implementation } = get();
+
+      // For v5, tool execution is handled internally by the agent
+      if (useV5Implementation) {
+        console.log('🔧 [V5] Tool execution handled internally:', toolCall);
+        return toolCall.result;
+      }
+
       const { executeTool } = useMCPServersStore.getState();
 
       // Parse server and tool name
@@ -668,7 +678,7 @@ export const useAgentStore = create<AgentStore>()(
 
         // Add to agent memory
         const { agentInstance } = get();
-        if (agentInstance) {
+        if (agentInstance && 'addMemoryEntry' in agentInstance) {
           agentInstance.addMemoryEntry('result', `Tool ${toolName} executed successfully: ${JSON.stringify(result)}`, {
             toolName,
             serverName,
@@ -680,7 +690,7 @@ export const useAgentStore = create<AgentStore>()(
       } catch (error) {
         console.error('Tool execution error:', error);
         const { agentInstance } = get();
-        if (agentInstance) {
+        if (agentInstance && 'addMemoryEntry' in agentInstance) {
           agentInstance.addMemoryEntry(
             'error',
             `Tool ${toolName} failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -693,6 +703,13 @@ export const useAgentStore = create<AgentStore>()(
 
     clearAgent: () => {
       const currentPreferences = get().preferences;
+      const { stateBridge } = get();
+
+      // Clean up state bridge
+      if (stateBridge) {
+        stateBridge.cleanup();
+      }
+
       set({
         mode: 'idle',
         currentObjective: null,
@@ -711,6 +728,7 @@ export const useAgentStore = create<AgentStore>()(
         streamingContent: undefined,
         isAgentActive: false,
         agentInstance: null,
+        stateBridge: null,
         // Preserve preferences across sessions
         preferences: currentPreferences,
       });
@@ -731,60 +749,8 @@ function initializeAgentStore() {
   let previousChatLength = 0;
   let isProcessingMessage = false;
 
-  // Initialize agent instance if not already active
-  const agentState = useAgentStore.getState();
-  if (!agentState.agentInstance && agentState.isAgentActive) {
-    // Create agent instance on startup
-    const { installedMCPServers, archestraMCPServer } = useMCPServersStore.getState();
-    const { selectedModel } = useOllamaStore.getState();
-
-    const allServers = [...installedMCPServers];
-    if (archestraMCPServer.status === 'connected') {
-      allServers.push(archestraMCPServer);
-    }
-
-    // Use native AI SDK tools if useNativeAISDK is true
-    const useNativeAISDK = true; // Same flag as in activateAgent
-
-    let mcpTools: any;
-    (async () => {
-      if (useNativeAISDK) {
-        const wrappers = await extractToolsFromServersAISDK(
-          allServers.map((s) => s.name),
-          {
-            autoApprove: false,
-          }
-        );
-        // For native AI SDK, we need to pass tools as a Record<string, CoreTool>
-        const toolsRecord: Record<string, any> = {};
-        for (const wrapper of wrappers) {
-          // Use the unique tool name as the key
-          const toolName = wrapper.serverName + '_' + wrapper.mcpTool.name;
-          toolsRecord[toolName] = wrapper.tool;
-        }
-        mcpTools = toolsRecord;
-      } else {
-        // Legacy code path - no longer used since we're using AI SDK 5
-        throw new Error('OpenAI SDK adapter is no longer supported. Please use the native AI SDK implementation.');
-      }
-
-      const agentConfig: ArchestraAgentConfig = {
-        model: selectedModel || 'gpt-4o',
-        mcpTools,
-        maxSteps: 30, // Increased to allow for tool execution
-        temperature: 0.7,
-        reasoningMode: agentState.reasoningMode,
-        memoryConfig: {
-          maxEntries: 1000,
-          ttlSeconds: 3600,
-          summarizationThreshold: 0.8,
-        },
-      };
-
-      const agent = useNativeAISDK ? new ArchestraAgentNative(agentConfig) : new ArchestraAgent(agentConfig);
-      useAgentStore.setState({ agentInstance: agent });
-    })();
-  }
+  // Remove duplicate agent initialization - agent should only be created in activateAgent
+  // This was causing duplicate agent instances and secondary Ollama calls
 
   // Defer subscription to avoid initialization issues
   const timeoutId = setTimeout(() => {

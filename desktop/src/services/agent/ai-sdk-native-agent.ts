@@ -1,5 +1,5 @@
 import type { LanguageModel, Tool } from 'ai';
-import { stepCountIs, streamText, tool } from 'ai';
+import { stepCountIs, streamText } from 'ai';
 
 import {
   AgentContext,
@@ -76,14 +76,7 @@ export class ArchestraAgentNative {
     // Store tools directly if model supports tools
     this.tools = {};
     if (this.supportsTools && config.mcpTools) {
-      if (Array.isArray(config.mcpTools)) {
-        // Legacy: If mcpTools is an array, convert it
-        this.tools = this.convertMCPToolsToAISDK(config.mcpTools);
-      } else if (typeof config.mcpTools === 'object') {
-        // Native AI SDK: mcpTools is already a Record<string, Tool>
-        this.tools = config.mcpTools;
-      }
-      console.log('🔧 [ArchestraAgentNative] Loaded AI SDK tools:', Object.keys(this.tools));
+      this.tools = config.mcpTools;
     }
 
     // Log initialization details
@@ -93,45 +86,6 @@ export class ArchestraAgentNative {
       supportsTools: this.supportsTools,
       toolCount: Object.keys(this.tools).length,
     });
-  }
-
-  /**
-   * Convert MCP tools from OpenAI SDK format to Vercel AI SDK format
-   */
-  private convertMCPToolsToAISDK(mcpTools: any[]): Record<string, Tool> {
-    const tools: Record<string, Tool> = {};
-
-    for (const mcpTool of mcpTools) {
-      // Extract the actual tool configuration
-      const toolConfig = mcpTool._config || mcpTool;
-      const toolName = toolConfig.name || mcpTool.name;
-
-      if (!toolName) {
-        console.warn('⚠️ [ArchestraAgentNative] Skipping tool without name:', mcpTool);
-        continue;
-      }
-
-      console.log('🔄 [ArchestraAgentNative] Converting tool:', {
-        name: toolName,
-        hasDescription: !!toolConfig.description,
-        hasParameters: !!toolConfig.parameters,
-        hasExecute: !!toolConfig.execute,
-      });
-
-      // Create AI SDK tool
-      tools[toolName] = tool({
-        description: toolConfig.description || `Execute ${toolName}`,
-        inputSchema: toolConfig.parameters || {},
-        execute:
-          toolConfig.execute ||
-          (async (_args) => {
-            console.warn(`⚠️ [ArchestraAgentNative] No execute function for tool ${toolName}`);
-            return { error: 'Tool execution not implemented' };
-          }),
-      });
-    }
-
-    return tools;
   }
 
   async executeObjective(objective: string, context?: Partial<AgentContext>): Promise<any> {

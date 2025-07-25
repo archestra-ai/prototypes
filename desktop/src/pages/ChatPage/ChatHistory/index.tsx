@@ -1,14 +1,22 @@
-import { Bot, Brain, CheckCircle, Loader2, Wrench } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Brain, Loader2, Wifi, WifiOff } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
+// import { useChat } from '@ai-sdk/react'; // Will be enabled when SSE endpoint is ready
+
+import {
+  MemoizedAgentModeIndicator,
+  MemoizedChatMessage,
+  MemoizedPlanSteps,
+  MemoizedReasoningDisplay,
+  MemoizedTaskProgressDisplay,
+  MemoizedToolCallDisplay,
+  useThrottledValue,
+} from '@/components/agent/performance-optimizations';
 import { AIResponse } from '@/components/kibo/ai-response';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
 import { useAgentStore } from '@/stores/agent-store';
 import { useChatStore } from '@/stores/chat-store';
-
-import ToolCallIndicator from '../ToolCallIndicator';
+import { ReasoningDataPart, TaskProgressDataPart } from '@/types/agent';
 
 const CHAT_SCROLL_AREA_ID = 'chat-scroll-area';
 const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-area-viewport]`;
@@ -16,20 +24,36 @@ const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-ar
 interface ChatHistoryProps {}
 
 export default function ChatHistory(_props: ChatHistoryProps) {
+  // TODO: Once SSE endpoint is ready (task 12), enable useChat hook
+  // const { messages, isLoading, error } = useChat({
+  //   api: '/api/agent/chat',
+  //   onError: (error) => {
+  //     console.error('[ChatHistory] SSE error:', error);
+  //   },
+  // });
+
+  // For now, use existing chat store until SSE endpoint is implemented
   const { chatHistory } = useChatStore();
+  const messages = chatHistory; // Map to v5 format when ready
+  const isLoading = chatHistory.some((msg) => msg.isStreaming || msg.isToolExecuting);
+  const error = null;
+
   const { mode: agentMode, plan, reasoningMode, currentObjective } = useAgentStore();
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connected');
   const scrollAreaRef = useRef<HTMLElement | null>(null);
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Helper function to format agent mode
-  const formatAgentMode = (mode: string) => {
-    return mode.charAt(0).toUpperCase() + mode.slice(1);
-  };
+  // Throttle plan updates to prevent excessive re-renders
+  const throttledPlan = useThrottledValue(plan, 100);
 
-  // Helper function to get agent mode color
-  const getAgentModeColor = (mode: string) => {
+  // Memoize helper functions to prevent recreating them on every render
+  const formatAgentMode = useCallback((mode: string) => {
+    return mode.charAt(0).toUpperCase() + mode.slice(1);
+  }, []);
+
+  const getAgentModeColor = useCallback((mode: string) => {
     switch (mode) {
       case 'initializing':
         return 'text-yellow-600';
@@ -44,7 +68,183 @@ export default function ChatHistory(_props: ChatHistoryProps) {
       default:
         return 'text-muted-foreground';
     }
-  };
+  }, []);
+
+  // Memoized helper function to render data parts
+  const renderDataPart = useCallback((data: any, index: number): React.ReactNode => {
+    if (data.type === 'reasoning') {
+      return null; // Handled in renderAssistantMessage
+    }
+
+    if (data.type === 'task-progress') {
+      return null; // Handled in renderAssistantMessage
+    }
+
+    // Generic data part rendering
+    return (
+      <div key={index} className="mt-2 p-2 bg-gray-50 dark:bg-gray-900 rounded text-xs font-mono">
+        {JSON.stringify(data, null, 2)}
+      </div>
+    );
+  }, []);
+
+  // Memoized helper function to render message content
+  const renderMessageContent = useCallback((content: any): React.ReactNode => {
+    if (typeof content === 'string') {
+      return content;
+    }
+
+    if (Array.isArray(content)) {
+      return content.map((part, index) => {
+        if (typeof part === 'string') {
+          return <span key={index}>{part}</span>;
+        }
+
+        if (part.type === 'text') {
+          return <span key={index}>{part.text}</span>;
+        }
+
+        if (part.type === 'data') {
+          return renderDataPart(part.data, index);
+        }
+
+        return null;
+      });
+    }
+
+    return JSON.stringify(content);
+  }, [renderDataPart]);
+
+  // Memoized helper function to render assistant messages with tool calls and data parts
+  const renderAssistantMessage = useCallback((msg: any, messageIndex: number): React.ReactNode => {
+    // Handle both v5 UIMessage format and current ChatMessage format
+    // const isV5Message = 'content' in msg && (typeof msg.content !== 'string' || Array.isArray(msg.content));
+    const isCurrentFormat = 'thinkingContent' in msg || 'toolCalls' in msg || 'agentMetadata' in msg;
+    const parts: React.ReactNode[] = [];
+    let textContent = '';
+    let reasoningParts: ReasoningDataPart[] = [];
+    let taskProgressParts: TaskProgressDataPart[] = [];
+    let toolCalls: any[] = [];
+
+    // Extract content and data parts
+    if (isCurrentFormat) {
+      // Handle current ChatMessage format
+      textContent = msg.content || '';
+
+      // Extract reasoning from agent metadata
+      if (msg.agentMetadata?.reasoningText) {
+        reasoningParts.push({
+          type: 'data',
+          data: {
+            type: 'reasoning',
+            entry: {
+              id: msg.agentMetadata.reasoningText.id,
+              type: msg.agentMetadata.reasoningText.type,
+              content: msg.agentMetadata.reasoningText.content,
+              alternatives: msg.agentMetadata.reasoningText.alternatives,
+              timestamp: new Date(),
+              confidence: 0.8,
+            },
+          },
+        } as ReasoningDataPart);
+      }
+
+      // Use existing tool calls
+      if (msg.toolCalls) {
+        toolCalls = msg.toolCalls.map((tc: any) => ({
+          ...tc,
+          state: tc.status === 'completed' ? 'result' : tc.status === 'executing' ? 'call' : 'pending',
+        }));
+      }
+    } else if (typeof msg.content === 'string') {
+      textContent = msg.content;
+    } else if (Array.isArray(msg.content)) {
+      // Handle v5 message parts
+      msg.content.forEach((part: any) => {
+        if (typeof part === 'string') {
+          textContent += part;
+        } else if (part.type === 'text') {
+          textContent += part.text || '';
+        } else if (part.type === 'data') {
+          // Handle data parts
+          if (part.data?.type === 'reasoning') {
+            reasoningParts.push(part.data);
+          } else if (part.data?.type === 'task-progress') {
+            taskProgressParts.push(part.data);
+          }
+        } else if (part.type === 'tool-call') {
+          toolCalls.push(part);
+        }
+      });
+    }
+
+    // Extract tool calls from message
+    if (msg.toolInvocations) {
+      toolCalls = [...toolCalls, ...msg.toolInvocations];
+    }
+
+    // Render tool calls indicator
+    if (toolCalls.length > 0) {
+      const toolCallInfos = toolCalls.map((tc: any) => ({
+        id: tc.toolCallId || tc.id || crypto.randomUUID(),
+        serverName: tc.toolName?.split('_')[0] || 'unknown',
+        toolName: tc.toolName?.split('_').slice(1).join('_') || tc.toolName || 'unknown',
+        arguments: tc.args || {},
+        status: (tc.state === 'result' ? 'completed' : tc.state === 'call' ? 'executing' : 'pending') as
+          | 'pending'
+          | 'executing'
+          | 'completed'
+          | 'error',
+        result: tc.result,
+        startTime: new Date(),
+      }));
+
+      parts.push(
+        <MemoizedToolCallDisplay
+          key="tool-calls"
+          toolCallInfos={toolCallInfos}
+          isExecuting={toolCalls.some((tc) => tc.state === 'call')}
+        />
+      );
+    }
+
+    // Render reasoning if available
+    if (reasoningMode === 'verbose') {
+      parts.push(
+        <MemoizedReasoningDisplay
+          key="reasoning"
+          reasoningParts={reasoningParts}
+          isThinking={isCurrentFormat && msg.isThinkingStreaming}
+          thinkingContent={isCurrentFormat ? msg.thinkingContent : undefined}
+        />
+      );
+    }
+
+    // Render main content
+    if (textContent) {
+      parts.push(<AIResponse key="main-content">{textContent}</AIResponse>);
+    }
+
+    // Render task progress
+    if (taskProgressParts.length > 0) {
+      parts.push(<MemoizedTaskProgressDisplay key="task-progress" taskProgressParts={taskProgressParts} />);
+    }
+
+    // Show loading indicator if still streaming
+    if (
+      (isLoading && messageIndex === messages.length - 1) ||
+      (isCurrentFormat && (msg.isStreaming || msg.isToolExecuting))
+    ) {
+      parts.push(
+        <div key="loading" className="flex items-center space-x-2 mt-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground text-sm">{msg.isToolExecuting ? 'Executing tools...' : 'Loading...'}</p>
+        </div>
+      );
+    }
+
+    return <>{parts}</>;
+  }, [reasoningMode, isLoading, messages.length]);
 
   // Scroll to bottom when new messages are added or content changes
   const scrollToBottom = useCallback(() => {
@@ -97,12 +297,17 @@ export default function ChatHistory(_props: ChatHistoryProps) {
     }
   }, [handleScroll]);
 
-  // Scroll to bottom when chat history changes (if auto-scroll is enabled)
+  // Scroll to bottom when messages change (if auto-scroll is enabled)
   useEffect(() => {
     // Small delay to ensure DOM is updated
     const timeoutId = setTimeout(scrollToBottom, 50);
     return () => clearTimeout(timeoutId);
-  }, [chatHistory, scrollToBottom]);
+  }, [messages, scrollToBottom]);
+
+  // Monitor SSE connection status
+  useEffect(() => {
+    setConnectionStatus(isLoading ? 'connecting' : error ? 'disconnected' : 'connected');
+  }, [isLoading, error]);
 
   // Clean up timeout on unmount
   useEffect(() => {
@@ -116,16 +321,31 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   return (
     <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full">
       <div className="px-6 py-4">
+        {/* SSE Connection Status - will show real status when useChat is enabled */}
+        {false && ( // Hide for now until SSE endpoint is ready
+          <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+            {connectionStatus === 'connected' ? (
+              <>
+                <Wifi className="h-3 w-3 text-green-600" /> Connected
+              </>
+            ) : connectionStatus === 'connecting' ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" /> Connecting...
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-3 w-3 text-red-600" /> Disconnected
+              </>
+            )}
+          </div>
+        )}
         {/* Agent Mode Indicator */}
         {agentMode !== 'idle' && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg bg-accent/50 px-4 py-3">
-            <Bot className={cn('h-4 w-4', getAgentModeColor(agentMode))} />
-            <span className="text-sm font-medium">
-              Agent Mode: <span className={getAgentModeColor(agentMode)}>{formatAgentMode(agentMode)}</span>
-            </span>
-            {agentMode === 'executing' && <Loader2 className="ml-auto h-4 w-4 animate-spin text-muted-foreground" />}
-            {agentMode === 'completed' && <CheckCircle className="ml-auto h-4 w-4 text-green-600" />}
-          </div>
+          <MemoizedAgentModeIndicator
+            agentMode={agentMode}
+            formatAgentMode={formatAgentMode}
+            getAgentModeColor={getAgentModeColor}
+          />
         )}
 
         {/* Current Objective */}
@@ -142,94 +362,22 @@ export default function ChatHistory(_props: ChatHistoryProps) {
         )}
 
         {/* Progress Indicators */}
-        {plan?.steps && plan.steps.length > 0 && agentMode !== 'idle' && (
-          <div className="mb-4 space-y-2">
-            {plan.steps.map((step, index) => (
-              <div
-                key={index}
-                className={cn(
-                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm',
-                  step.status === 'completed' && 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
-                  step.status === 'in_progress' && 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-                  step.status === 'pending' && 'bg-gray-50 text-gray-500 dark:bg-gray-900 dark:text-gray-400'
-                )}
-              >
-                {step.status === 'completed' && <CheckCircle className="h-3 w-3" />}
-                {step.status === 'in_progress' && <Loader2 className="h-3 w-3 animate-spin" />}
-                {step.status === 'pending' && <div className="h-3 w-3 rounded-full border-2 border-current" />}
-                <span>{step.description}</span>
-              </div>
-            ))}
-          </div>
+        {throttledPlan?.steps && throttledPlan.steps.length > 0 && agentMode !== 'idle' && (
+          <MemoizedPlanSteps steps={throttledPlan.steps} />
         )}
 
-        {/* Chat Messages */}
+        {/* Chat Messages with v5 Message Part Support */}
         <div className="space-y-4">
-          {chatHistory.map((msg, index) => (
-            <div
-              key={`${msg.id || 'msg'}-${index}`}
-              className={cn(
-                'p-3 rounded-lg',
-                msg.role === 'user'
-                  ? 'bg-primary/10 border border-primary/20 ml-8'
-                  : msg.role === 'assistant'
-                    ? 'bg-secondary/50 border border-secondary mr-8'
-                    : msg.role === 'error'
-                      ? 'bg-destructive/10 border border-destructive/20 text-destructive'
-                      : msg.role === 'system'
-                        ? 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-600'
-                        : msg.role === 'tool'
-                          ? 'bg-blue-500/10 border border-blue-500/20 text-blue-600'
-                          : 'bg-muted border'
-              )}
-            >
-              <div className="text-xs font-medium mb-1 opacity-70 capitalize">{msg.role}</div>
-              {msg.role === 'user' ? (
-                <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
-              ) : msg.role === 'assistant' ? (
-                <div className="relative">
-                  {(msg.isToolExecuting || msg.toolCalls) && (
-                    <ToolCallIndicator toolCalls={msg.toolCalls || []} isExecuting={!!msg.isToolExecuting} />
-                  )}
-
-                  {/* Show thinking/reasoning content - prioritize agent reasoning over regular thinking */}
-                  {reasoningMode === 'verbose' && msg.agentMetadata?.reasoningText ? (
-                    <AIReasoning className="mb-4">
-                      <AIReasoningTrigger />
-                      <AIReasoningContent>{msg.agentMetadata.reasoningText.content}</AIReasoningContent>
-                    </AIReasoning>
-                  ) : msg.thinkingContent ? (
-                    <AIReasoning isStreaming={msg.isThinkingStreaming} className="mb-4">
-                      <AIReasoningTrigger />
-                      <AIReasoningContent>{msg.thinkingContent}</AIReasoningContent>
-                    </AIReasoning>
-                  ) : null}
-
-                  <AIResponse>{msg.content}</AIResponse>
-
-                  {(msg.isStreaming || msg.isToolExecuting) && (
-                    <div className="flex items-center space-x-2 mt-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                      <p className="text-muted-foreground text-sm">
-                        {msg.isToolExecuting ? 'Executing tools...' : 'Loading...'}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : msg.role === 'tool' ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Wrench className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Tool Result</span>
-                  </div>
-                  <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <div className="text-sm whitespace-pre-wrap font-mono">{msg.content}</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
-              )}
-            </div>
+          {messages.map((msg, index) => (
+            <MemoizedChatMessage
+              key={msg.id || `msg-${index}`}
+              message={msg}
+              index={index}
+              reasoningMode={reasoningMode}
+              isLoading={isLoading}
+              renderMessageContent={renderMessageContent}
+              renderAssistantMessage={renderAssistantMessage}
+            />
           ))}
         </div>
       </div>

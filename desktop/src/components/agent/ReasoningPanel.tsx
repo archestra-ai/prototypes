@@ -5,11 +5,12 @@ import {
   Eye,
   EyeOff,
   Lightbulb,
+  Loader2,
   MessageSquare,
   RefreshCw,
   Target,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,21 +21,54 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useAgentStore } from '@/stores/agent-store';
-import { Alternative, ReasoningEntry } from '@/types/agent';
+import { Alternative, ReasoningDataPart, ReasoningEntry } from '@/types/agent';
 
 interface ReasoningPanelProps {
   className?: string;
   maxHeight?: string;
+  // Optional: reasoning from v5 message parts for real-time streaming
+  streamingReasoning?: ReasoningDataPart[];
+  isStreaming?: boolean;
 }
 
-export function ReasoningPanel({ className, maxHeight = '400px' }: ReasoningPanelProps) {
-  const reasoning = useAgentStore((state) => state.reasoningText);
+export const ReasoningPanel = React.memo(function ReasoningPanelInner({
+  className,
+  maxHeight = '400px',
+  streamingReasoning,
+  isStreaming = false,
+}: ReasoningPanelProps) {
+  const storeReasoning = useAgentStore((state) => state.reasoningText);
   const reasoningMode = useAgentStore((state) => state.reasoningMode);
   const setReasoningMode = useAgentStore((state) => state.setReasoningMode);
   const formatReasoningForUI = useAgentStore((state) => state.formatReasoningForUI);
   const isAgentActive = useAgentStore((state) => state.isAgentActive);
 
+  // Combine store reasoning with streaming reasoning from v5 message parts
+  const reasoning = useMemo(() => {
+    if (streamingReasoning && streamingReasoning.length > 0) {
+      // Extract reasoning entries from v5 data parts
+      const v5Entries = streamingReasoning.map((part) => part.data.entry);
+      // Merge with store reasoning, avoiding duplicates by ID
+      const existingIds = new Set(storeReasoning.map((r) => r.id));
+      const newEntries = v5Entries.filter((e) => !existingIds.has(e.id));
+      return [...storeReasoning, ...newEntries];
+    }
+    return storeReasoning;
+  }, [storeReasoning, streamingReasoning]);
+
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+
+  // Auto-scroll to bottom when new reasoning arrives during streaming
+  useEffect(() => {
+    if (isStreaming && autoScrollEnabled && scrollAreaRef.current) {
+      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollElement) {
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+      }
+    }
+  }, [reasoning, isStreaming, autoScrollEnabled]);
 
   // Toggle expanded state for an entry
   const toggleExpanded = (entryId: string) => {
@@ -114,9 +148,11 @@ export function ReasoningPanel({ className, maxHeight = '400px' }: ReasoningPane
             <CardTitle className="text-lg flex items-center gap-2">
               <Brain className="h-5 w-5" />
               Agent Reasoning
+              {isStreaming && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
             </CardTitle>
             <CardDescription className="mt-1">
               {reasoning.length} reasoning {reasoning.length === 1 ? 'entry' : 'entries'}
+              {isStreaming && ' • Streaming...'}
             </CardDescription>
           </div>
           <Select value={reasoningMode} onValueChange={setReasoningMode}>
@@ -149,7 +185,7 @@ export function ReasoningPanel({ className, maxHeight = '400px' }: ReasoningPane
 
       {reasoningMode !== 'hidden' && (
         <CardContent className="p-0">
-          <ScrollArea className="w-full" style={{ maxHeight }}>
+          <ScrollArea ref={scrollAreaRef} className="w-full" style={{ maxHeight }}>
             <div className="space-y-2 p-4">
               {filteredReasoning.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">No reasoning entries yet</div>
@@ -187,6 +223,14 @@ export function ReasoningPanel({ className, maxHeight = '400px' }: ReasoningPane
                                 <p className="text-sm text-muted-foreground line-clamp-2">
                                   {reasoningMode === 'concise' ? formattedContent.split('\n')[0] : formattedContent}
                                 </p>
+                                {/* Show streaming indicator for the latest entry */}
+                                {isStreaming && entry.id === reasoning[reasoning.length - 1]?.id && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <div className="h-1 w-1 bg-blue-600 rounded-full animate-pulse" />
+                                    <div className="h-1 w-1 bg-blue-600 rounded-full animate-pulse delay-75" />
+                                    <div className="h-1 w-1 bg-blue-600 rounded-full animate-pulse delay-150" />
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </Button>
@@ -270,8 +314,52 @@ export function ReasoningPanel({ className, maxHeight = '400px' }: ReasoningPane
               )}
             </div>
           </ScrollArea>
+
+          {/* Auto-scroll toggle for streaming mode */}
+          {isStreaming && (
+            <div className="p-2 border-t">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setAutoScrollEnabled(!autoScrollEnabled)}
+                className="text-xs"
+              >
+                {autoScrollEnabled ? 'Auto-scroll enabled' : 'Auto-scroll disabled'}
+              </Button>
+            </div>
+          )}
         </CardContent>
       )}
     </Card>
   );
+});
+
+// Helper hook to extract reasoning from v5 messages
+export function useReasoningFromMessages(messages: any[]): {
+  reasoning: ReasoningDataPart[];
+  isStreaming: boolean;
+} {
+  const reasoning = useMemo(() => {
+    const parts: ReasoningDataPart[] = [];
+
+    messages.forEach((msg) => {
+      if (msg.role === 'assistant' && Array.isArray(msg.content)) {
+        msg.content.forEach((part: any) => {
+          if (part.type === 'data' && part.data?.type === 'reasoning') {
+            parts.push(part as ReasoningDataPart);
+          }
+        });
+      }
+    });
+
+    return parts;
+  }, [messages]);
+
+  // Check if the last message is still streaming
+  const isStreaming =
+    messages.length > 0 &&
+    messages[messages.length - 1].role === 'assistant' &&
+    !messages[messages.length - 1].isComplete;
+
+  return { reasoning, isStreaming };
 }
