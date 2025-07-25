@@ -9,8 +9,10 @@ use axum::{
     Json, Router,
 };
 use futures_util::stream::{Stream, StreamExt};
+use reqwest::Client;
 use sea_orm::DatabaseConnection;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+
 use std::{convert::Infallible, time::Duration};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -18,11 +20,87 @@ use tokio_stream::wrappers::ReceiverStream;
 mod types;
 use types::*;
 
+use crate::ollama::OLLAMA_SERVER_PORT;
+use std::sync::Arc;
+
+/// Ollama chat request format
+#[derive(Debug, Serialize)]
+struct OllamaChatRequest {
+    model: String,
+    messages: Vec<OllamaMessage>,
+    stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<serde_json::Value>>,
+}
+
+#[derive(Debug, Serialize)]
+struct OllamaMessage {
+    role: String,
+    content: String,
+}
+
+/// Ollama streaming response chunk
+#[derive(Debug, Deserialize)]
+struct OllamaChatChunk {
+    model: String,
+    created_at: String,
+    message: OllamaMessageChunk,
+    done: bool,
+    #[serde(default)]
+    total_duration: Option<u64>,
+    #[serde(default)]
+    prompt_eval_count: Option<u32>,
+    #[serde(default)]
+    eval_count: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OllamaMessageChunk {
+    role: String,
+    content: String,
+    #[serde(default)]
+    tool_calls: Option<Vec<OllamaToolCall>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OllamaToolCall {
+    id: Option<String>,
+    #[serde(rename = "type")]
+    tool_type: Option<String>,
+    function: OllamaFunction,
+}
+
+#[derive(Debug, Deserialize)]
+struct OllamaFunction {
+    name: String,
+    arguments: serde_json::Value,
+}
+
+/// Service for handling agent requests
+struct AgentService {
+    db: Arc<DatabaseConnection>,
+    http_client: Client,
+}
+
+impl AgentService {
+    fn new(db: DatabaseConnection) -> Self {
+        Self {
+            db: Arc::new(db),
+            http_client: Client::builder()
+                .timeout(Duration::from_secs(180))
+                .build()
+                .unwrap_or_default(),
+        }
+    }
+}
+
 /// Create the agent router with SSE endpoints
 pub fn create_router(db: DatabaseConnection) -> Router {
+    let service = Arc::new(AgentService::new(db));
+    
     Router::new()
         .route("/chat", post(handle_agent_chat).options(handle_options))
-        .with_state(db)
+        .with_state(service)
 }
 
 /// Handle OPTIONS requests for CORS preflight
@@ -51,7 +129,7 @@ struct AgentChatRequest {
 
 /// Handle agent chat requests with SSE streaming
 async fn handle_agent_chat(
-    State(db): State<DatabaseConnection>,
+    State(service): State<Arc<AgentService>>,
     Json(payload): Json<AgentChatRequest>,
 ) -> Result<Response, StatusCode> {
     // Default to streaming unless explicitly set to false
@@ -63,7 +141,7 @@ async fn handle_agent_chat(
     }
     
     // Create SSE stream
-    let stream = create_agent_stream(db, payload).await;
+    let stream = create_agent_stream(service, payload).await;
     
     // Build response with CORS headers
     let mut headers = HeaderMap::new();
@@ -80,14 +158,14 @@ async fn handle_agent_chat(
 
 /// Create the SSE stream for agent responses
 async fn create_agent_stream(
-    db: DatabaseConnection,
+    service: Arc<AgentService>,
     request: AgentChatRequest,
 ) -> impl Stream<Item = Result<Event, Infallible>> {
     let (tx, rx) = mpsc::channel::<SseMessage>(100);
     
     // Spawn task to handle agent execution
     tokio::spawn(async move {
-        if let Err(e) = execute_agent_stream(db, request, tx.clone()).await {
+        if let Err(e) = execute_agent_stream(service, request, tx.clone()).await {
             // Send error event
             let _ = tx.send(SseMessage::Error {
                 error: format!("Agent execution failed: {}", e),
@@ -162,7 +240,7 @@ async fn create_agent_stream(
 
 /// Execute agent and stream results
 async fn execute_agent_stream(
-    _db: DatabaseConnection,
+    service: Arc<AgentService>,
     request: AgentChatRequest,
     tx: mpsc::Sender<SseMessage>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -173,78 +251,101 @@ async fn execute_agent_stream(
         role: "assistant".to_string(),
     }).await?;
     
-    // TODO: Integrate with actual agent execution
-    // For now, simulate a simple response
+    // Convert messages to Ollama format
+    let ollama_messages: Vec<OllamaMessage> = request.messages.into_iter()
+        .map(|msg| OllamaMessage {
+            role: msg.role,
+            content: msg.content,
+        })
+        .collect();
     
-    // Send some content
-    let test_content = "I'll help you with that. Let me process your request...";
-    for chunk in test_content.chars().collect::<Vec<_>>().chunks(5) {
-        tx.send(SseMessage::ContentDelta {
-            delta: chunk.iter().collect(),
-        }).await?;
-        tokio::time::sleep(Duration::from_millis(50)).await;
+    // Build Ollama request
+    let ollama_request = OllamaChatRequest {
+        model: request.model.unwrap_or_else(|| "llama3.2".to_string()),
+        messages: ollama_messages,
+        stream: true,
+        tools: None, // TODO: Add tool support
+    };
+    
+    // Call Ollama API
+    let ollama_url = format!("http://localhost:{}/api/chat", OLLAMA_SERVER_PORT);
+    let response = service.http_client
+        .post(&ollama_url)
+        .json(&ollama_request)
+        .send()
+        .await?;
+    
+    if !response.status().is_success() {
+        return Err(format!("Ollama API error: {}", response.status()).into());
     }
     
-    // If agent context has tools, simulate a tool call
-    if let Some(context) = request.agent_context {
-        if let Some(tools) = context.tools {
-            if !tools.is_empty() {
-                // Simulate tool call
-                let tool_call_id = uuid::Uuid::new_v4().to_string();
-                let tool_name = tools[0].clone();
-                
-                tx.send(SseMessage::ToolCallStart {
-                    tool_call_id: tool_call_id.clone(),
-                    tool_name: tool_name.clone(),
-                }).await?;
-                
-                // Simulate tool arguments
-                let args = r#"{"path": "/tmp/test.txt"}"#;
-                tx.send(SseMessage::ToolCallDelta {
-                    tool_call_id: tool_call_id.clone(),
-                    args_delta: args.to_string(),
-                }).await?;
-                
-                // Simulate tool result
-                tokio::time::sleep(Duration::from_millis(200)).await;
-                tx.send(SseMessage::ToolCallResult {
-                    tool_call_id,
-                    tool_name,
-                    result: serde_json::json!({
-                        "content": "File contents here..."
-                    }),
-                }).await?;
+    // Stream response chunks
+    let mut stream = response.bytes_stream();
+    let mut accumulated_content = String::new();
+    
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        let text = String::from_utf8_lossy(&chunk);
+        
+        // Parse each line as a JSON object (Ollama sends newline-delimited JSON)
+        for line in text.lines() {
+            if line.trim().is_empty() {
+                continue;
+            }
+            
+            match serde_json::from_str::<OllamaChatChunk>(line) {
+                Ok(chat_chunk) => {
+                    // Send content delta
+                    if !chat_chunk.message.content.is_empty() {
+                        accumulated_content.push_str(&chat_chunk.message.content);
+                        tx.send(SseMessage::ContentDelta {
+                            delta: chat_chunk.message.content.clone(),
+                        }).await?;
+                    }
+                    
+                    // Handle tool calls if present
+                    if let Some(tool_calls) = chat_chunk.message.tool_calls {
+                        for tool_call in tool_calls {
+                            let tool_id = tool_call.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+                            tx.send(SseMessage::ToolCallStart {
+                                tool_call_id: tool_id.clone(),
+                                tool_name: tool_call.function.name.clone(),
+                            }).await?;
+                            
+                            tx.send(SseMessage::ToolCallDelta {
+                                tool_call_id: tool_id.clone(),
+                                args_delta: tool_call.function.arguments.to_string(),
+                            }).await?;
+                        }
+                    }
+                    
+                    // If done, send usage stats
+                    if chat_chunk.done {
+                        if let (Some(prompt_tokens), Some(completion_tokens)) = 
+                            (chat_chunk.prompt_eval_count, chat_chunk.eval_count) {
+                            tx.send(SseMessage::MessageComplete {
+                                usage: Some(UsageStats {
+                                    prompt_tokens,
+                                    completion_tokens,
+                                    total_tokens: prompt_tokens + completion_tokens,
+                                }),
+                            }).await?;
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to parse Ollama chunk: {}, line: {}", e, line);
+                }
             }
         }
     }
     
-    // Send reasoning data
-    tx.send(SseMessage::DataPart {
-        data_type: "reasoning".to_string(),
-        data: serde_json::json!({
-            "type": "planning",
-            "content": "Analyzing the request and determining the best approach...",
-            "confidence": 0.9,
-        }),
-    }).await?;
-    
-    // Send more content after tool execution
-    let final_content = "\n\nBased on my analysis, here's what I found...";
-    for chunk in final_content.chars().collect::<Vec<_>>().chunks(5) {
-        tx.send(SseMessage::ContentDelta {
-            delta: chunk.iter().collect(),
+    // If no usage stats were sent (in case of early termination), send completion
+    if accumulated_content.is_empty() {
+        tx.send(SseMessage::MessageComplete {
+            usage: None,
         }).await?;
-        tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    
-    // Complete message
-    tx.send(SseMessage::MessageComplete {
-        usage: Some(UsageStats {
-            prompt_tokens: 150,
-            completion_tokens: 50,
-            total_tokens: 200,
-        }),
-    }).await?;
     
     Ok(())
 }
