@@ -282,3 +282,5 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - Database migrations should be created for schema changes using SeaORM
 - Use rstest fixtures from `test_fixtures` for Rust database tests
 - Mock external dependencies appropriately in tests
+- CI automatically formats Rust code and regenerates OpenAPI schemas, committing changes back to PRs
+- CI uses GitHub Actions bot credentials for automated commits
