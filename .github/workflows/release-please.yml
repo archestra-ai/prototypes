@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - release-*
   workflow_dispatch:
 
 permissions:
@@ -77,8 +78,7 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: latest
-          run_install: false
-        
+          run_install: true
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
