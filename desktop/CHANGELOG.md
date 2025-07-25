@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.4](https://github.com/archestra-ai/archestra/compare/desktop-v0.0.3...desktop-v0.0.4) (2025-07-25)
+
+
+### Bug Fixes
+
+* CI ([#77](https://github.com/archestra-ai/archestra/issues/77)) ([f3e0e74](https://github.com/archestra-ai/archestra/commit/f3e0e740e48955ae8b074e914f5f9125c05e10f5))
+
 ## [0.0.3](https://github.com/archestra-ai/archestra/compare/desktop-v0.0.2...desktop-v0.0.3) (2025-07-25)
 
 
