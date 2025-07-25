@@ -29,7 +29,8 @@ jobs:
     #   github.event.pull_request.user.login == 'new-developer' ||
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
     if: |
-      # TODO: don't run if branch is release-please--branches--main
+      # Don't run if PR is from release-please bot
+      github.event.pull_request.head.ref != 'release-please--branches--main'
 
     runs-on: ubuntu-latest
     permissions:
@@ -100,7 +101,8 @@ jobs:
     name: Claude Update CLAUDE.md
     runs-on: ubuntu-latest
     if: |
-      # TODO: don't run if branch is release-please--branches--main
+      # Don't run if PR is from release-please bot
+      github.event.pull_request.head.ref != 'release-please--branches--main'
     permissions:
       contents: write
       pull-requests: write
