@@ -101,3 +101,235 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .fallback(proxy_handler)
         .with_state(Arc::new(Service::new(db)))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_fixtures::database;
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
+    use rstest::*;
+    use tower::ServiceExt;
+
+    fn app(db: DatabaseConnection) -> Router {
+        create_router(db)
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_service_creation(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let service = Service::new(db);
+
+        // Just ensure the service is created successfully
+        // (We can't easily test the timeout configuration)
+        assert!(Arc::strong_count(&service._db) > 0);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_proxy_get_request(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let app = app(db);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/tags")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // This will fail with BAD_GATEWAY since Ollama isn't running
+        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("Proxy error"));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_proxy_with_body(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let app = app(db);
+
+        let request_body = serde_json::json!({
+            "model": "llama2",
+            "prompt": "Hello, world!"
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/generate")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(serde_json::to_string(&request_body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // This will fail with BAD_GATEWAY since Ollama isn't running
+        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("Proxy error"));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_proxy_with_headers(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let app = app(db);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/version")
+                    .header("Authorization", "Bearer test-token")
+                    .header("X-Custom-Header", "test-value")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // This will fail with BAD_GATEWAY since Ollama isn't running
+        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_proxy_path_and_query(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let app = app(db);
+
+        // Test with query parameters
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/pull?name=llama2&insecure=false")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_proxy_empty_path(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let app = app(db);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_concurrent_proxy_requests(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let service = Arc::new(Service::new(db));
+
+        let mut handles = vec![];
+
+        for i in 0..5 {
+            let service_clone = service.clone();
+            let handle = tokio::spawn(async move {
+                let req = Request::builder()
+                    .method("GET")
+                    .uri(format!("/api/test/{i}"))
+                    .body(Body::empty())
+                    .unwrap();
+
+                let response = proxy_handler(State(service_clone), req)
+                    .await
+                    .into_response();
+
+                response.status()
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            let status = handle.await.unwrap();
+            assert_eq!(status, StatusCode::BAD_GATEWAY);
+        }
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_proxy_large_body(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let app = app(db);
+
+        // Create a large body (1MB)
+        let large_body = "x".repeat(1024 * 1024);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/generate")
+                    .header("Content-Type", "text/plain")
+                    .body(Body::from(large_body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_proxy_various_methods(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let app = app(db);
+
+        let methods = ["GET", "POST", "PUT", "DELETE", "PATCH"];
+
+        for method_str in &methods {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(*method_str)
+                        .uri("/api/test")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+        }
+    }
+}

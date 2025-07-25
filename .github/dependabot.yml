@@ -1,0 +1,43 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: desktop
+    schedule:
+      interval: weekly
+    groups:
+      frontend-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies
+    commit-message:
+      prefix: deps(frontend)
+
+  - package-ecosystem: cargo
+    directory: desktop/src-tauri
+    schedule:
+      interval: weekly
+    groups:
+      rust-dependencies:
+        patterns:
+          - "*"
+    labels:
+      - dependencies
+    commit-message:
+      prefix: deps(backend)
+
+  - package-ecosystem: github-actions
+    directory: .github
+    groups:
+      github-actions-dependencies:
+        patterns:
+          - "*.yml"
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+    commit-message:
+      prefix: deps

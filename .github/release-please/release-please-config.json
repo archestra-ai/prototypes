@@ -1,4 +1,5 @@
 {
+  "bootstrap-sha": "d78ec51d21f8f58b0ff6f87795811aa2d7900099",
   "changelog-path": "CHANGELOG.md",
   "changelog-type": "default",
   "changelog-sections": [
@@ -56,7 +57,9 @@
   "packages": {
     "desktop": {
       "component": "desktop",
-      "release-type": "simple"
+      "release-type": "simple",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true
     }
   },
   "plugins": [],

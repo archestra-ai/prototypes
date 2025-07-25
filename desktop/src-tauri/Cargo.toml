@@ -24,7 +24,7 @@ tauri-build = { version = "2", features = [] }
 
 # https://v2.tauri.app/plugin/deep-linking/#desktop
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\"))".dependencies]
-tauri-plugin-single-instance = { version = "2.0.0", features = ["deep-link"] }
+tauri-plugin-single-instance = { version = "2.3.2", features = ["deep-link"] }
 
 [dependencies]
 tokio = { version = "1.37", features = ["process", "io-util", "macros", "rt-multi-thread", "io-std"] }
@@ -38,7 +38,7 @@ tauri-plugin-fs = "2"
 uuid = { version = "1.0", features = ["v4"] }
 reqwest = { version = "0.12", features = ["json", "stream", "blocking"] }
 futures-util = "0.3"
-tauri-plugin-deep-link = "2.4.0"
+tauri-plugin-deep-link = "2.4.1"
 url = "2.5"
 lazy_static = "1.4"
 http-body-util = "0.1"
@@ -58,3 +58,4 @@ tempfile = "3.8"
 rstest = "0.25.0"
 rstest_reuse = "0.7.0"
 sea-orm-cli = "1.1.14"
+tower = { version = "0.5", features = ["util"] }

@@ -20,7 +20,7 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const scrollAreaRef = useRef<HTMLElement | null>(null);
   const isScrollingRef = useRef(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Scroll to bottom when new messages are added or content changes
   const scrollToBottom = useCallback(() => {

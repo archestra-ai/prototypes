@@ -165,7 +165,9 @@ impl Model {
 
         let paginator = query.paginate(db, page_size);
         let total_pages = paginator.num_pages().await?;
-        let logs = paginator.fetch_page(page).await?;
+        // SeaORM uses 0-based page indexing, but our API uses 1-based
+        let page_index = if page > 0 { page - 1 } else { 0 };
+        let logs = paginator.fetch_page(page_index).await?;
 
         Ok((logs, total_pages))
     }
