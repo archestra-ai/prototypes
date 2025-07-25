@@ -69,6 +69,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Fetch GitHub release for app-v0.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_CLIENT_SECRET }}
+        run: |
+          echo "Fetching GitHub release for tag app-v0.1.0..."
+          gh release view app-v0.1.0 --json name,tagName,publishedAt,assets || echo "Release app-v0.1.0 not found or not accessible"
+
       - name: setup node
         uses: actions/setup-node@v4
         with:
