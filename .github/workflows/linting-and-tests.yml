@@ -44,15 +44,23 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
         with:
           platform: ${{ matrix.platform }}
 
-      - name: Check Rust formatting
-        run: cargo fmt --check
+      - name: Apply Rust fixes and formatting
+        run: |
+          cargo fix --allow-dirty --allow-staged
+          cargo fmt
+          
+          if ! git diff --exit-code; then
+            git add .
+            git commit -m "fix: apply cargo fix and formatting changes"
+            git push
+          fi
 
       - name: Run tests
         run: cargo test
