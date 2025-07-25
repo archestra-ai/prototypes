@@ -13,12 +13,12 @@ concurrency:
   group: "${{ github.ref_name }}-${{ github.head_ref }}"
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 jobs:
   linting-and-tests:
     name: Linting and Tests
+    permissions:
+      contents: read
+      security-events: write
     uses: ./.github/workflows/linting-and-tests.yml
 
   claude-review:
