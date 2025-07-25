@@ -121,7 +121,9 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
           direct_prompt: |
-            Update the CLAUDE.md file to reflect the changes made in this PR.
+            So I want you to do a few things to help with the current pull request:
+            1. Update the CLAUDE.md file to reflect the changes made in this PR.
+            2. If the pull request description is missing, add one based on the changes.
 
           # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
           # NOTE: for updating CLAUDE.md we don't need a "powerful" model
