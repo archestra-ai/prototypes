@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.5](https://github.com/archestra-ai/archestra/compare/desktop-v0.0.4...desktop-v0.0.5) (2025-07-25)
+
+
+### Miscellaneous Chores
+
+* trigger build ([3735453](https://github.com/archestra-ai/archestra/commit/37354531595270c3c0944fda386861ae1407d54f))
+* trigger build ([1a56580](https://github.com/archestra-ai/archestra/commit/1a56580c7c367dbaa41d4c2b04166db3be55b6b2))
+
 ## [0.0.4](https://github.com/archestra-ai/archestra/compare/desktop-v0.0.3...desktop-v0.0.4) (2025-07-25)
 
 
