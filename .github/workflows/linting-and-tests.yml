@@ -59,8 +59,7 @@ jobs:
 
       - name: Run Clippy Linting
         working-directory: desktop/src-tauri
-        # Only check all targets (including tests) on macOS as dev dependency mcp-tauri doesn't work on the rest
-        run: cargo clippy ${{ matrix.platform == 'macos-latest' && '--workspace --all-targets --all-features' || '--lib --bins --all-features' }} -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Run tests
         working-directory: desktop/src-tauri
