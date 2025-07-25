@@ -45,12 +45,17 @@ jobs:
         run: |
           echo "$OUTPUTS"
 
+  linting-and-tests:
+    name: Linting and Tests
+    needs: release-please
+    uses: ./.github/workflows/linting-and-tests.yml
+
   build-desktop-application-and-create-github-release:
     name: Build desktop application and create GitHub release
     runs-on: ubuntu-latest
     if: needs.release-please.outputs.desktop_release_created
     needs:
-      - release-please
+      - linting-and-tests
     permissions:
       contents: read
     steps:
