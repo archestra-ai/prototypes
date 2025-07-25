@@ -173,6 +173,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tempfile",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "tower",
  "url 2.5.4",

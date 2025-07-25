@@ -28,6 +28,7 @@ tauri-plugin-single-instance = { version = "2.3.2", features = ["deep-link"] }
 
 [dependencies]
 tokio = { version = "1.37", features = ["process", "io-util", "macros", "rt-multi-thread", "io-std"] }
+tokio-stream = "0.1"
 tokio-util = "0.7"
 tauri = { version = "2", features = ["test"] }
 tauri-plugin-opener = "2"
