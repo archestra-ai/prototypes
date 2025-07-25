@@ -123,11 +123,7 @@ jobs:
           if ! git diff --exit-code; then
             echo "📝 OpenAPI schema or TypeScript client has changes, committing automatically..."
             git add openapi.json src/lib/api/
-            git commit -m "chore: update OpenAPI schema and TypeScript client
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+            git commit -m "chore: update OpenAPI schema and TypeScript client"
             git push
             echo "✅ Changes committed and pushed"
           else
