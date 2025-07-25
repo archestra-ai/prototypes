@@ -57,11 +57,9 @@ jobs:
           cargo fmt
           
           if ! git diff --exit-code; then
-            git config --local user.email "${{ github.actor }}@users.noreply.github.com"
-            git config --local user.name "${{ github.actor }}"
             git add .
             git commit -m "fix: apply cargo fix and formatting changes"
-            git push
+            git push --no-verify
           fi
 
       - name: Run tests
@@ -129,11 +127,9 @@ jobs:
         run: |
           
           if ! git diff --exit-code; then
-            git config --local user.email "${{ github.actor }}@users.noreply.github.com"
-            git config --local user.name "${{ github.actor }}"
             git add openapi.json src/lib/api/
             git commit -m "chore: update OpenAPI schema and TypeScript client"
-            git push
+            git push --no-verify
           fi
 
   zizmor:
