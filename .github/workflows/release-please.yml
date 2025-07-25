@@ -50,31 +50,38 @@ jobs:
 
   build-desktop-application-and-create-github-release:
     name: Build desktop application and create GitHub release
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform }}
     if: needs.release-please.outputs.desktop_release_created
     needs:
       - release-please
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            args: ""
+          - platform: windows-latest
+            args: ""
     steps:
       - name: Checkout project
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
-      # TODO: use this once we want to start building the application binaries for Mac/Windows/Linux
-      # - name: Setup Rust
-      #   uses: ./.github/actions/setup-rust
-      #   with:
-      #     platform: ${{ matrix.platform }}
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          platform: ${{ matrix.platform }}
 
-      # - uses: tauri-apps/tauri-action@564aea5a8075c7a54c167bb0cf5b3255314a7f9d # v0.5.22
-      #   with:
-      #     tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-      #     projectPath: desktop
-      #     releaseName: "App v__VERSION__"
-      #     releaseBody: "See the assets to download this version and install."
-      #     releaseDraft: true
-      #     prerelease: false
-      #     args: ${{ matrix.args }}
+      - uses: tauri-apps/tauri-action@564aea5a8075c7a54c167bb0cf5b3255314a7f9d # v0.5.22
+        with:
+          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          projectPath: desktop
+          releaseName: "App v__VERSION__"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
 
       - run: |
           echo "placeholder to build and publish desktop application"
