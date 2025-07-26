@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.6](https://github.com/archestra-ai/archestra/compare/desktop-v0.0.5...desktop-v0.0.6) (2025-07-26)
+
+
+### Features
+
+* Chat CRUD + persist chats/messages + LLM-generated chat title ([#65](https://github.com/archestra-ai/archestra/issues/65)) ([666f2f4](https://github.com/archestra-ai/archestra/commit/666f2f43cc5dca23b1fbdf6dccc82f8ff100c0a7))
+
 ## [0.0.5](https://github.com/archestra-ai/archestra/compare/desktop-v0.0.4...desktop-v0.0.5) (2025-07-25)
 
 ### Miscellaneous Chores
