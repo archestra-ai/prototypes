@@ -140,7 +140,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `stores/`: Zustand stores for state management
   - `chat-store.ts`: Chat state management with persistence integration
 - `hooks/`: Custom React hooks including MCP client hooks
-  - `use-typewriter.ts`: Hook for typewriter text animation
+  - `use-typewriter/`: Hook for typewriter text animation with comprehensive tests
 - `lib/`: Utility functions and helpers
   - `api/`: Generated TypeScript client from OpenAPI schema (DO NOT EDIT)
   - `api-client.ts`: Configured HTTP client instance
@@ -316,6 +316,7 @@ Response: 204 No Content
 - **Prettier Config**: 120 character line width, single quotes, sorted imports
 - **Pre-commit Hooks**: Prettier formatting via Husky
 - **OpenAPI Generation**: Clean output directory, Prettier formatting
+- **Constants**: UI constants like `DEFAULT_CHAT_TITLE` are defined in `desktop/src/consts.ts`
 
 ### Key Dependencies Added for Chat Persistence
 
@@ -404,3 +405,26 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - **Frontend Tests**: Mock API responses for chat operations
 - **Streaming Tests**: Test message accumulation and persistence during streaming
 - **Event Tests**: Verify Tauri events are emitted correctly for UI updates
+
+#### Hook Testing
+
+- **Comprehensive Test Coverage**: Custom hooks should have dedicated test files with thorough coverage
+- **Timer Testing**: Use `vi.useFakeTimers()` for testing time-dependent behavior
+- **State Changes**: Test all state transitions and edge cases
+- **Cleanup Testing**: Verify proper cleanup on unmount
+- **Example**: See `desktop/src/hooks/use-typewriter/use-typewriter.test.ts` for a comprehensive hook test
+
+### UI Best Practices
+
+#### Event Handling
+
+- **Popover Components**: Always add `onClick={(e) => e.stopPropagation()}` to popover content to prevent event bubbling
+- **Flex Layout**: Use `flex-shrink-0` on components that should maintain their size in flex containers
+- **Loading States**: Provide visual feedback with loading spinners for async operations
+- **Hover States**: Use consistent hover transitions (`hover:bg-accent/50` pattern)
+
+#### Component Patterns
+
+- **Editable Components**: Implement inline editing with proper focus management and keyboard shortcuts
+- **Animation Hooks**: Place animation hooks in dedicated folders with accompanying tests
+- **State Management**: Use proper useCallback dependencies to avoid stale closures
