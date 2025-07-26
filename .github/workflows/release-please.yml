@@ -77,8 +77,9 @@ jobs:
 
       - name: Update version from release-please tag
         if: needs.release-please.outputs.desktop_release_created
+        env:
+          TAG_NAME: ${{ needs.release-please.outputs['desktop--tag_name'] }}
         run: |
-          TAG_NAME="${{ needs.release-please.outputs['desktop--tag_name'] }}"
           VERSION="${TAG_NAME#app-v}"
           echo "Updating version to $VERSION from tag $TAG_NAME"
           
