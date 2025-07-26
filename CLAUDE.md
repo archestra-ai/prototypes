@@ -258,7 +258,10 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - Manages automated releases using Google's release-please action
 - Creates and maintains release PRs with changelogs
 - **Triggers**: Runs on pushes to `main` branch
-- **Authentication**: Uses GitHub App authentication by generating a token from `ARCHESTRA_RELEASER_GITHUB_APP_ID` and `ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY` for creating releases
+- **Authentication**: Uses GitHub App authentication:
+  - Generates a GitHub App installation token using `actions/create-github-app-token@v2`
+  - Token is created from `ARCHESTRA_RELEASER_GITHUB_APP_ID` and `ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY` secrets
+  - Generated token is used for both fetching existing releases and creating new ones via tauri-action
 - **Version Management**: When a desktop release is created:
   - Automatically extracts version from release-please tag (format: `app-vX.Y.Z`)
   - Updates version in three locations:
