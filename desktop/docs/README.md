@@ -17,11 +17,13 @@ This directory contains architectural documentation and implementation guides fo
 - **[SSE Implementation Summary](./sse-implementation-summary.md)** - Complete SSE implementation with Vercel AI SDK v5 protocol
 - **[SSE Tool Implementation](./sse-tool-implementation.md)** - Tool calling implementation over SSE
 - **[Vercel AI SDK v5 Stream Protocol](./vercel-ai-sdk-v5-stream-protocol.md)** - Detailed v5 SSE protocol specification
+- **[Chat Simplification Analysis](./chat-simplification-analysis.md)** - Analysis of the current chat implementation and recommendations for simplification
+- **[Chat State Migration Plan](./chat-state-migration-plan.md)** - Plan for migrating chat state management to Vercel AI SDK v5
 
 ### Reference
 
 - **[Vercel AI Building Agents](./vercel-ai-building-agents.md)** - Official Vercel documentation on building AI agents
-- **[Agent v5 Debugging Learnings](./agent-v5-debugging-learnings.md)** - Lessons learned from v5 implementation
+- **[Chat Simplification Analysis](./chat-simplification-analysis.md)** - Analysis of the current chat implementation and recommendations for simplification
 
 ## Key Findings
 
