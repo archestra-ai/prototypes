@@ -139,7 +139,7 @@ pub fn run() {
             // Block on async cleanup
             tauri::async_runtime::block_on(async {
                 // Shutdown Ollama server
-                if let Err(e) = ollama::shutdown().await {
+                if let Err(e) = ollama::server::shutdown().await {
                     eprintln!("Failed to shutdown Ollama: {e}");
                 }
 

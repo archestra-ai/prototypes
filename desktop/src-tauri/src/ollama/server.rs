@@ -1,6 +1,6 @@
 use once_cell::sync::OnceCell;
 use std::sync::Arc;
-use tauri::{AppHandle};
+use tauri::AppHandle;
 use tauri_plugin_shell::{process::CommandChild, ShellExt};
 use tokio::sync::Mutex;
 
