@@ -115,7 +115,6 @@ const initializeCurrentChat = (): ChatWithInteractions => ({
   title: 'New Chat',
   created_at: new Date().toISOString(),
   session_id: '',
-  llm_model: '',
   llm_provider: '',
   interactions: [],
 });
@@ -152,12 +151,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   createNewChat: async () => {
-    const { selectedModel } = useOllamaStore.getState();
     try {
       const { data } = await createChat({
         body: {
           llm_provider: 'ollama',
-          llm_model: selectedModel,
         },
       });
       if (data) {

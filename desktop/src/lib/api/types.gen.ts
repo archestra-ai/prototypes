@@ -3,14 +3,12 @@
 export type Chat = {
   created_at: string;
   id: number;
-  llm_model: string;
   llm_provider: string;
   session_id: string;
   title?: string | null;
 };
 
 export type ChatDefinition = {
-  llm_model: string;
   llm_provider: string;
 };
 
@@ -29,7 +27,6 @@ export type ChatInteractionDefinition = {
 export type ChatWithInteractions = {
   created_at: string;
   id: number;
-  llm_model: string;
   llm_provider: string;
   session_id: string;
   title?: string | null;
@@ -42,7 +39,6 @@ export type ConnectExternalMcpClientRequest = {
 };
 
 export type CreateChatRequest = {
-  llm_model: string;
   llm_provider: string;
 };
 

@@ -103,7 +103,6 @@ mod tests {
         let chat = ChatActiveModel {
             title: Set(Some("Test Chat".to_string())),
             llm_provider: Set("ollama".to_string()),
-            llm_model: Set("llama3.2".to_string()),
             session_id: Set("test-session-123".to_string()),
             ..Default::default()
         }
@@ -151,7 +150,6 @@ mod tests {
         let _chat = ChatActiveModel {
             title: Set(Some("Test Chat".to_string())),
             llm_provider: Set("ollama".to_string()),
-            llm_model: Set("llama3.2".to_string()),
             session_id: Set("count-test-session".to_string()),
             ..Default::default()
         }
@@ -200,7 +198,6 @@ mod tests {
         let _chat1 = ChatActiveModel {
             title: Set(Some("Chat 1".to_string())),
             llm_provider: Set("ollama".to_string()),
-            llm_model: Set("llama3.2".to_string()),
             session_id: Set("session-1".to_string()),
             ..Default::default()
         }
@@ -211,7 +208,6 @@ mod tests {
         let _chat2 = ChatActiveModel {
             title: Set(Some("Chat 2".to_string())),
             llm_provider: Set("ollama".to_string()),
-            llm_model: Set("llama3.2".to_string()),
             session_id: Set("session-2".to_string()),
             ..Default::default()
         }

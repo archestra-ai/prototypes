@@ -636,7 +636,7 @@
     "schemas": {
       "Chat": {
         "type": "object",
-        "required": ["id", "session_id", "llm_provider", "llm_model", "created_at"],
+        "required": ["id", "session_id", "llm_provider", "created_at"],
         "properties": {
           "created_at": {
             "type": "string",
@@ -645,9 +645,6 @@
           "id": {
             "type": "integer",
             "format": "int32"
-          },
-          "llm_model": {
-            "type": "string"
           },
           "llm_provider": {
             "type": "string"
@@ -662,11 +659,8 @@
       },
       "ChatDefinition": {
         "type": "object",
-        "required": ["llm_provider", "llm_model"],
+        "required": ["llm_provider"],
         "properties": {
-          "llm_model": {
-            "type": "string"
-          },
           "llm_provider": {
             "type": "string"
           }
@@ -710,7 +704,7 @@
         "allOf": [
           {
             "type": "object",
-            "required": ["id", "session_id", "llm_provider", "llm_model", "created_at"],
+            "required": ["id", "session_id", "llm_provider", "created_at"],
             "properties": {
               "created_at": {
                 "type": "string",
@@ -719,9 +713,6 @@
               "id": {
                 "type": "integer",
                 "format": "int32"
-              },
-              "llm_model": {
-                "type": "string"
               },
               "llm_provider": {
                 "type": "string"
@@ -759,11 +750,8 @@
       },
       "CreateChatRequest": {
         "type": "object",
-        "required": ["llm_provider", "llm_model"],
+        "required": ["llm_provider"],
         "properties": {
-          "llm_model": {
-            "type": "string"
-          },
           "llm_provider": {
             "type": "string"
           }

@@ -12,7 +12,6 @@ use utoipa::ToSchema;
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreateChatRequest {
     pub llm_provider: String,
-    pub llm_model: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -39,7 +38,6 @@ impl Service {
     ) -> Result<ChatWithInteractions, sea_orm::DbErr> {
         let definition = ChatDefinition {
             llm_provider: request.llm_provider,
-            llm_model: request.llm_model,
         };
         Chat::save(definition, &self.db).await
     }
@@ -187,7 +185,6 @@ mod tests {
 
         let create_request = CreateChatRequest {
             llm_provider: "ollama".to_string(),
-            llm_model: "llama3.2".to_string(),
         };
 
         let response = router
@@ -209,7 +206,6 @@ mod tests {
         let created_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
         assert!(created_chat.title.is_none());
         assert_eq!(created_chat.llm_provider, "ollama");
-        assert_eq!(created_chat.llm_model, "llama3.2");
         assert!(!created_chat.session_id.is_empty());
     }
 
@@ -238,10 +234,9 @@ mod tests {
         assert_eq!(chats.len(), 0);
 
         // Create some chats
-        for i in 0..3 {
+        for _i in 0..3 {
             let create_request = CreateChatRequest {
                 llm_provider: "ollama".to_string(),
-                llm_model: format!("model-{i}"),
             };
 
             router
@@ -275,10 +270,6 @@ mod tests {
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let chats: Vec<ChatWithInteractions> = serde_json::from_slice(&body).unwrap();
         assert_eq!(chats.len(), 3);
-        // Chats should be ordered by created_at DESC (newest first)
-        assert!(chats.iter().any(|c| c.llm_model == "model-0"));
-        assert!(chats.iter().any(|c| c.llm_model == "model-1"));
-        assert!(chats.iter().any(|c| c.llm_model == "model-2"));
     }
 
     #[rstest]
@@ -289,7 +280,6 @@ mod tests {
 
         let create_request = CreateChatRequest {
             llm_provider: "ollama".to_string(),
-            llm_model: "llama3.2".to_string(),
         };
 
         let response = router
@@ -366,7 +356,6 @@ mod tests {
         // Create a chat first
         let create_request = CreateChatRequest {
             llm_provider: "ollama".to_string(),
-            llm_model: "llama3.2".to_string(),
         };
 
         let response = router

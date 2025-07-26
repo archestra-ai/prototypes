@@ -148,13 +148,11 @@ impl Service {
         }
     }
 
-    async fn generate_chat_title(&self, chat_session_id: String) -> Result<(), String> {
+    async fn generate_chat_title(&self, chat_session_id: String, chat_model: String) -> Result<(), String> {
         let chat = Chat::load_by_session_id(chat_session_id.clone(), &self.db)
             .await
             .map_err(|_| "Failed to load chat".to_string())?
             .ok_or_else(|| "Chat not found".to_string())?;
-
-        let chat_model = chat.llm_model.clone();
 
         // Build context from chat interactions
         let mut full_chat_context = String::new();
@@ -223,7 +221,6 @@ impl Service {
                 match Chat::save(
                     crate::models::chat::ChatDefinition {
                         llm_provider: "ollama".to_string(),
-                        llm_model: ollama_request.model_name.clone(),
                     },
                     &self.db,
                 )
@@ -235,6 +232,9 @@ impl Service {
             }
             Err(e) => return Err(format!("Failed to load chat: {e}")),
         };
+
+        // Extract model name before moving ollama_request
+        let model_name = ollama_request.model_name.clone();
 
         // Persist the chat interaction
         if let Some(last_msg) = ollama_request.messages.last() {
@@ -314,7 +314,7 @@ impl Service {
                                         ollama_client: ollama_client.clone(),
                                     };
                                     let _ =
-                                        service.generate_chat_title(chat_session_id.clone()).await;
+                                        service.generate_chat_title(chat_session_id.clone(), model_name.clone()).await;
                                 }
                             }
                         }
@@ -613,7 +613,6 @@ mod tests {
         let chat = Chat::save(
             ChatDefinition {
                 llm_provider: "ollama".to_string(),
-                llm_model: "llama3.2".to_string(),
             },
             &db,
         )
@@ -627,7 +626,6 @@ mod tests {
 
         // Verify chat was created
         assert_eq!(chat.llm_provider, "ollama");
-        assert_eq!(chat.llm_model, "llama3.2");
         assert_eq!(chat.session_id, "persistence-test-session");
     }
 

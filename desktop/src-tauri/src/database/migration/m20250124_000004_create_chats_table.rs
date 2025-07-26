@@ -19,7 +19,6 @@ impl MigrationTrait for Migration {
                     )
                     .col(string_null(Chats::Title))
                     .col(string(Chats::LlmProvider))
-                    .col(string(Chats::LlmModel))
                     .col(
                         timestamp_with_time_zone(Chats::CreatedAt)
                             .default(Expr::current_timestamp())
@@ -43,6 +42,5 @@ enum Chats {
     SessionId,
     Title,
     LlmProvider,
-    LlmModel,
     CreatedAt,
 }

@@ -18,7 +18,6 @@ pub struct Model {
     pub session_id: String,
     pub title: Option<String>,
     pub llm_provider: String,
-    pub llm_model: String,
     pub created_at: DateTime<Utc>,
 }
 
@@ -39,7 +38,6 @@ impl ActiveModelBehavior for ActiveModel {}
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ChatDefinition {
     pub llm_provider: String,
-    pub llm_model: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -65,7 +63,6 @@ impl Model {
     ) -> Result<ChatWithInteractions, DbErr> {
         let new_chat = ActiveModel {
             llm_provider: Set(definition.llm_provider),
-            llm_model: Set(definition.llm_model),
             ..Default::default()
         };
         let chat = new_chat.insert(db).await?;
@@ -149,14 +146,12 @@ mod tests {
 
         let definition = ChatDefinition {
             llm_provider: "ollama".to_string(),
-            llm_model: "llama3.2".to_string(),
         };
 
         // Create chat
         let chat = Model::save(definition, &db).await.unwrap();
         assert!(chat.title.is_none());
         assert_eq!(chat.llm_provider, "ollama");
-        assert_eq!(chat.llm_model, "llama3.2");
         assert!(!chat.session_id.is_empty());
 
         // Load by session_id
@@ -172,7 +167,6 @@ mod tests {
         assert_eq!(all_chats[0].id, chat.id);
         assert_eq!(all_chats[0].title, None);
         assert_eq!(all_chats[0].llm_provider, "ollama");
-        assert_eq!(all_chats[0].llm_model, "llama3.2");
         assert!(!all_chats[0].session_id.is_empty());
 
         // Update title
@@ -198,7 +192,6 @@ mod tests {
         let chat1 = Model::save(
             ChatDefinition {
                 llm_provider: "ollama".to_string(),
-                llm_model: "llama3.2".to_string(),
             },
             &db,
         )
@@ -208,7 +201,6 @@ mod tests {
         let chat2 = Model::save(
             ChatDefinition {
                 llm_provider: "ollama".to_string(),
-                llm_model: "llama3.1".to_string(),
             },
             &db,
         )
@@ -218,7 +210,6 @@ mod tests {
         let chat3 = Model::save(
             ChatDefinition {
                 llm_provider: "anthropic".to_string(),
-                llm_model: "claude-3".to_string(),
             },
             &db,
         )
@@ -246,13 +237,13 @@ mod tests {
         // Verify each chat has the expected content
         assert!(our_chats
             .iter()
-            .any(|c| c.id == chat1.id && c.llm_model == "llama3.2"));
+            .any(|c| c.id == chat1.id));
         assert!(our_chats
             .iter()
-            .any(|c| c.id == chat2.id && c.llm_model == "llama3.1"));
+            .any(|c| c.id == chat2.id));
         assert!(our_chats
             .iter()
-            .any(|c| c.id == chat3.id && c.llm_model == "claude-3"));
+            .any(|c| c.id == chat3.id));
     }
 
     #[rstest]
@@ -263,7 +254,6 @@ mod tests {
         let chat = Model::save(
             ChatDefinition {
                 llm_provider: "ollama".to_string(),
-                llm_model: "llama3.2".to_string(),
             },
             &db,
         )
@@ -306,7 +296,6 @@ mod tests {
         let chat1 = Model::save(
             ChatDefinition {
                 llm_provider: "ollama".to_string(),
-                llm_model: "llama3.2".to_string(),
             },
             &db,
         )
@@ -316,7 +305,6 @@ mod tests {
         let chat2 = Model::save(
             ChatDefinition {
                 llm_provider: "ollama".to_string(),
-                llm_model: "llama3.2".to_string(),
             },
             &db,
         )
@@ -334,7 +322,6 @@ mod tests {
             session_id: "test-session".to_string(),
             title: Some("Test Chat".to_string()),
             llm_provider: "ollama".to_string(),
-            llm_model: "llama3.2".to_string(),
             created_at: Utc::now(),
         };
 
@@ -359,7 +346,6 @@ mod tests {
         assert!(value.get("session_id").is_some());
         assert!(value.get("title").is_some());
         assert!(value.get("llm_provider").is_some());
-        assert!(value.get("llm_model").is_some());
         assert!(value.get("created_at").is_some());
         assert!(value.get("interactions").is_some());
         assert!(value.get("interactions").unwrap().is_array());
@@ -377,7 +363,6 @@ mod tests {
         let chat = Model::save(
             ChatDefinition {
                 llm_provider: "ollama".to_string(),
-                llm_model: "llama3.2".to_string(),
             },
             &db,
         )
