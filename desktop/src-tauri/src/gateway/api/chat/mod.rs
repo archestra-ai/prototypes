@@ -97,13 +97,13 @@ struct OllamaFunction {
     arguments: serde_json::Value,
 }
 
-/// Service for handling agent requests
-struct AgentService {
+/// Service for handling chat requests
+struct ChatService {
     db: Arc<DatabaseConnection>,
     http_client: Client,
 }
 
-impl AgentService {
+impl ChatService {
     fn new(db: DatabaseConnection) -> Self {
         Self {
             db: Arc::new(db),
@@ -115,9 +115,9 @@ impl AgentService {
     }
 }
 
-/// Create the agent router with SSE endpoints
+/// Create the chat router with SSE endpoints
 pub fn create_router(db: DatabaseConnection) -> Router {
-    let service = Arc::new(AgentService::new(db));
+    let service = Arc::new(ChatService::new(db));
     
     // Configure CORS to handle all responses including errors
     let cors = CorsLayer::new()
@@ -127,7 +127,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .max_age(std::time::Duration::from_secs(3600));
     
     Router::new()
-        .route("/chat", post(handle_agent_chat).options(handle_options))
+        .route("/", post(handle_chat).options(handle_options))
         .with_state(service)
         .layer(cors)
 }
@@ -143,10 +143,10 @@ async fn handle_options() -> Result<Response, StatusCode> {
     Ok((headers, "").into_response())
 }
 
-/// Request body for agent chat endpoint
+/// Request body for chat endpoint
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
-struct AgentChatRequest {
+struct ChatRequest {
     messages: Vec<ChatMessage>,
     #[serde(default)]
     agent_context: Option<AgentContext>,
@@ -158,10 +158,10 @@ struct AgentChatRequest {
     tools: Option<Vec<String>>,
 }
 
-/// Handle agent chat requests with SSE streaming
-async fn handle_agent_chat(
-    State(service): State<Arc<AgentService>>,
-    Json(payload): Json<AgentChatRequest>,
+/// Handle chat requests with SSE streaming
+async fn handle_chat(
+    State(service): State<Arc<ChatService>>,
+    Json(payload): Json<ChatRequest>,
 ) -> Result<Response, StatusCode> {
     // Default to streaming unless explicitly set to false
     let should_stream = payload.stream.unwrap_or(true);
@@ -172,7 +172,7 @@ async fn handle_agent_chat(
     }
     
     // Create SSE stream
-    let stream = create_agent_stream(service, payload).await;
+    let stream = create_chat_stream(service, payload).await;
     
     // Build response with CORS headers
     let mut headers = HeaderMap::new();
@@ -180,6 +180,7 @@ async fn handle_agent_chat(
     headers.insert("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS".parse().unwrap());
     headers.insert("Access-Control-Allow-Headers", "Content-Type, Authorization".parse().unwrap());
     headers.insert("Cache-Control", "no-cache".parse().unwrap());
+    headers.insert("x-vercel-ai-ui-message-stream", "v1".parse().unwrap());
     
     let sse = Sse::new(stream)
         .keep_alive(KeepAlive::new().interval(Duration::from_secs(30)));
@@ -187,19 +188,19 @@ async fn handle_agent_chat(
     Ok((headers, sse).into_response())
 }
 
-/// Create the SSE stream for agent responses
-async fn create_agent_stream(
-    service: Arc<AgentService>,
-    request: AgentChatRequest,
+/// Create the SSE stream for chat responses
+async fn create_chat_stream(
+    service: Arc<ChatService>,
+    request: ChatRequest,
 ) -> impl Stream<Item = Result<Event, Infallible>> {
     let (tx, rx) = mpsc::channel::<SseMessage>(100);
     
-    // Spawn task to handle agent execution
+    // Spawn task to handle chat execution
     tokio::spawn(async move {
-        if let Err(e) = execute_agent_stream(service, request, tx.clone()).await {
+        if let Err(e) = execute_chat_stream(service, request, tx.clone()).await {
             // Send error event
             let _ = tx.send(SseMessage::Error {
-                error: format!("Agent execution failed: {}", e),
+                error: format!("Chat execution failed: {}", e),
             }).await;
         }
     });
@@ -207,72 +208,106 @@ async fn create_agent_stream(
     // Convert receiver to SSE events
     ReceiverStream::new(rx).map(|msg| {
         Ok(match msg {
-            SseMessage::MessageStart { id, role } => {
+            SseMessage::MessageStart { id, role: _ } => {
                 Event::default()
-                    .event("message_start")
-                    .data(serde_json::to_string(&MessageStartEvent { id, role }).unwrap())
+                    .data(serde_json::to_string(&serde_json::json!({
+                        "type": "start",
+                        "messageId": id
+                    })).unwrap())
+            }
+            SseMessage::TextDelta { id, delta } => {
+                Event::default()
+                    .data(serde_json::to_string(&serde_json::json!({
+                        "type": "text-delta",
+                        "id": id,
+                        "delta": delta
+                    })).unwrap())
+            }
+            SseMessage::TextStart { id } => {
+                Event::default()
+                    .data(serde_json::to_string(&serde_json::json!({
+                        "type": "text-start",
+                        "id": id
+                    })).unwrap())
+            }
+            SseMessage::TextEnd { id } => {
+                Event::default()
+                    .data(serde_json::to_string(&serde_json::json!({
+                        "type": "text-end",
+                        "id": id
+                    })).unwrap())
             }
             SseMessage::ContentDelta { delta } => {
+                // Legacy support - convert to TextDelta with default ID
                 Event::default()
-                    .event("content_delta")
-                    .data(serde_json::to_string(&ContentDeltaEvent { delta }).unwrap())
+                    .data(serde_json::to_string(&serde_json::json!({
+                        "type": "text-delta",
+                        "id": "text-main",
+                        "delta": delta
+                    })).unwrap())
+            }
+            SseMessage::StreamEnd => {
+                Event::default()
+                    .data("[DONE]")
             }
             SseMessage::ToolCallStart { tool_call_id, tool_name } => {
                 Event::default()
-                    .event("tool_call_start")
-                    .data(serde_json::to_string(&ToolCallStartEvent {
-                        tool_call_id,
-                        tool_name,
-                    }).unwrap())
+                    .data(serde_json::to_string(&serde_json::json!({
+                        "type": "tool-input-start",
+                        "toolCallId": tool_call_id,
+                        "toolName": tool_name
+                    })).unwrap())
             }
             SseMessage::ToolCallDelta { tool_call_id, args_delta } => {
                 Event::default()
-                    .event("tool_call_delta")
-                    .data(serde_json::to_string(&ToolCallDeltaEvent {
-                        tool_call_id,
-                        args_delta,
-                    }).unwrap())
+                    .data(serde_json::to_string(&serde_json::json!({
+                        "type": "tool-input-delta",
+                        "toolCallId": tool_call_id,
+                        "inputTextDelta": args_delta
+                    })).unwrap())
             }
-            SseMessage::ToolCallResult { tool_call_id, tool_name, result } => {
+            SseMessage::ToolCallResult { tool_call_id, tool_name: _, result } => {
                 Event::default()
-                    .event("tool_call_result")
-                    .data(serde_json::to_string(&ToolCallResultEvent {
-                        tool_call_id,
-                        tool_name,
-                        result,
-                    }).unwrap())
+                    .data(serde_json::to_string(&serde_json::json!({
+                        "type": "tool-output-available",
+                        "toolCallId": tool_call_id,
+                        "output": result
+                    })).unwrap())
             }
             SseMessage::DataPart { data_type, data } => {
                 Event::default()
-                    .event("data_part")
-                    .data(serde_json::to_string(&DataPartEvent {
-                        data_type,
-                        data,
-                    }).unwrap())
+                    .data(serde_json::to_string(&serde_json::json!({
+                        "type": format!("data-{}", data_type),
+                        "data": data
+                    })).unwrap())
             }
-            SseMessage::MessageComplete { usage } => {
+            SseMessage::MessageComplete { usage: _ } => {
                 Event::default()
-                    .event("message_complete")
-                    .data(serde_json::to_string(&MessageCompleteEvent { usage }).unwrap())
+                    .data(serde_json::to_string(&serde_json::json!({
+                        "type": "finish"
+                    })).unwrap())
             }
             SseMessage::Error { error } => {
                 Event::default()
-                    .event("error")
-                    .data(serde_json::to_string(&ErrorEvent { error }).unwrap())
+                    .data(serde_json::to_string(&serde_json::json!({
+                        "type": "error",
+                        "errorText": error
+                    })).unwrap())
             }
             SseMessage::Ping => {
+                // V5 doesn't use ping events in the same way
                 Event::default()
-                    .event("ping")
-                    .data("{}")
+                    .event("")
+                    .data("")
             }
         })
     })
 }
 
-/// Execute agent and stream results
-async fn execute_agent_stream(
-    service: Arc<AgentService>,
-    request: AgentChatRequest,
+/// Execute chat and stream results
+async fn execute_chat_stream(
+    service: Arc<ChatService>,
+    request: ChatRequest,
     tx: mpsc::Sender<SseMessage>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Start message
@@ -301,7 +336,7 @@ async fn execute_agent_stream(
                     // Add system prompt for agent behavior
                     messages.insert(0, ChatMessage {
                         role: "system".to_string(),
-                        content: format!(
+                        content: Some(format!(
                             "You are an autonomous AI agent. Your objective is: {}\n\n\
                             You should:\n\
                             1. Break down the objective into clear tasks\n\
@@ -310,7 +345,8 @@ async fn execute_agent_stream(
                             4. Report progress and results\n\n\
                             Think step by step and use tools when needed.",
                             objective
-                        ),
+                        )),
+                        parts: None,
                     });
                     
                     // Send initial reasoning
@@ -325,8 +361,16 @@ async fn execute_agent_stream(
             }
         } else if agent_context.mode.as_deref() == Some("stop") {
             // Handle stop command
-            tx.send(SseMessage::ContentDelta {
+            let stop_text_id = format!("text-{}", uuid::Uuid::new_v4());
+            tx.send(SseMessage::TextStart {
+                id: stop_text_id.clone(),
+            }).await?;
+            tx.send(SseMessage::TextDelta {
+                id: stop_text_id.clone(),
                 delta: "Agent execution stopped.".to_string(),
+            }).await?;
+            tx.send(SseMessage::TextEnd {
+                id: stop_text_id,
             }).await?;
             tx.send(SseMessage::MessageComplete { usage: None }).await?;
             return Ok(());
@@ -335,9 +379,12 @@ async fn execute_agent_stream(
     
     // Convert messages to Ollama format
     let ollama_messages: Vec<OllamaMessage> = messages.into_iter()
-        .map(|msg| OllamaMessage {
-            role: msg.role,
-            content: msg.content,
+        .map(|msg| {
+            let content = msg.get_content();
+            OllamaMessage {
+                role: msg.role,
+                content,
+            }
         })
         .collect();
     
@@ -371,6 +418,8 @@ async fn execute_agent_stream(
     // Stream response chunks
     let mut stream = response.bytes_stream();
     let mut accumulated_content = String::new();
+    let text_block_id = format!("text-{}", uuid::Uuid::new_v4());
+    let mut text_started = false;
     
     while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
@@ -386,8 +435,17 @@ async fn execute_agent_stream(
                 Ok(chat_chunk) => {
                     // Send content delta
                     if !chat_chunk.message.content.is_empty() {
+                        // Send text-start if this is the first content
+                        if !text_started {
+                            tx.send(SseMessage::TextStart {
+                                id: text_block_id.clone(),
+                            }).await?;
+                            text_started = true;
+                        }
+                        
                         accumulated_content.push_str(&chat_chunk.message.content);
-                        tx.send(SseMessage::ContentDelta {
+                        tx.send(SseMessage::TextDelta {
+                            id: text_block_id.clone(),
                             delta: chat_chunk.message.content.clone(),
                         }).await?;
                     }
@@ -432,8 +490,14 @@ async fn execute_agent_stream(
                         }
                     }
                     
-                    // If done, send usage stats
+                    // If done, handle completion
                     if chat_chunk.done {
+                        // Send text-end if we sent any text
+                        if text_started {
+                            tx.send(SseMessage::TextEnd {
+                                id: text_block_id.clone(),
+                            }).await?;
+                        }
                         if let (Some(prompt_tokens), Some(completion_tokens)) = 
                             (chat_chunk.prompt_eval_count, chat_chunk.eval_count) {
                             tx.send(SseMessage::MessageComplete {
@@ -444,6 +508,8 @@ async fn execute_agent_stream(
                                 }),
                             }).await?;
                         }
+                        // Send [DONE] marker
+                        tx.send(SseMessage::StreamEnd).await?;
                     }
                 }
                 Err(e) => {
@@ -453,12 +519,20 @@ async fn execute_agent_stream(
         }
     }
     
-    // If no usage stats were sent (in case of early termination), send completion
-    if accumulated_content.is_empty() {
-        tx.send(SseMessage::MessageComplete {
-            usage: None,
+    // Send text-end if we sent any text
+    if text_started {
+        tx.send(SseMessage::TextEnd {
+            id: text_block_id.clone(),
         }).await?;
     }
+    
+    // Always send completion
+    tx.send(SseMessage::MessageComplete {
+        usage: None,
+    }).await?;
+    
+    // Send [DONE] marker
+    tx.send(SseMessage::StreamEnd).await?;
     
     Ok(())
 }
@@ -553,20 +627,21 @@ mod tests {
     use tower::ServiceExt;
 
     #[tokio::test]
-    async fn test_agent_chat_endpoint() {
+    async fn test_chat_endpoint() {
         // Mock database connection
         let db = sea_orm::DatabaseConnection::default();
         let app = create_router(db);
 
         let request = Request::builder()
             .method("POST")
-            .uri("/chat")
+            .uri("/")
             .header("content-type", "application/json")
             .body(Body::from(
-                serde_json::to_string(&AgentChatRequest {
+                serde_json::to_string(&ChatRequest {
                     messages: vec![ChatMessage {
                         role: "user".to_string(),
-                        content: "Hello, agent!".to_string(),
+                        content: Some("Hello, agent!".to_string()),
+                        parts: None,
                     }],
                     agent_context: None,
                     model: Some("llama3.2".to_string()),

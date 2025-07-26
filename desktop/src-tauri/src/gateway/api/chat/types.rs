@@ -1,11 +1,45 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// Message part for Vercel AI SDK format
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessagePart {
+    #[serde(rename = "type")]
+    pub part_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+}
+
 /// Chat message format
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub role: String,
-    pub content: String,
+    
+    // Support both content (simple format) and parts (Vercel AI SDK format)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parts: Option<Vec<MessagePart>>,
+}
+
+impl ChatMessage {
+    /// Get the text content from either format
+    pub fn get_content(&self) -> String {
+        if let Some(content) = &self.content {
+            content.clone()
+        } else if let Some(parts) = &self.parts {
+            parts
+                .iter()
+                .filter(|p| p.part_type == "text")
+                .filter_map(|p| p.text.as_ref())
+                .cloned()
+                .collect::<Vec<String>>()
+                .join("")
+        } else {
+            String::new()
+        }
+    }
 }
 
 /// Agent context for enhanced capabilities
@@ -31,6 +65,17 @@ pub enum SseMessage {
     ContentDelta {
         delta: String,
     },
+    TextDelta {
+        id: String,
+        delta: String,
+    },
+    TextStart {
+        id: String,
+    },
+    TextEnd {
+        id: String,
+    },
+    StreamEnd,
     ToolCallStart {
         tool_call_id: String,
         tool_name: String,

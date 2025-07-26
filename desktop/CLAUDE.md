@@ -183,12 +183,15 @@ The GitHub Actions workflow (`.github/workflows/linting-and-tests.yml`) includes
 
 The application uses SSE for real-time streaming communication between frontend and backend:
 
-- **Unified Endpoint**: `/api/agent/chat` handles both regular chat and agent modes
+- **Unified Endpoint**: `/api/chat` handles both regular chat and agent modes
 - **Frontend Integration**: Uses Vercel AI SDK v5's `useChat` hook with `DefaultChatTransport`
-- **Agent Support**: Agent context passed through request body to enable autonomous mode
+- **Protocol**: Full Vercel AI SDK v5 protocol with data-only SSE events
+- **Text Streaming**: Implements text-start/delta/end pattern with unique IDs
 - **Tool Execution**: MCP tools executed server-side with streaming status updates
-- **Message Format**: Follows Vercel AI SDK protocol with support for text, tool calls, and data parts
+- **Agent Support**: Agent context passed through request body to enable autonomous mode
+- **Message Format**: JSON payloads with type field, proper [DONE] termination
 - **State Synchronization**: Agent state updates (reasoning, progress) streamed as data parts
+- **Required Header**: `x-vercel-ai-ui-message-stream: v1` for v5 compatibility
 
 ---
 

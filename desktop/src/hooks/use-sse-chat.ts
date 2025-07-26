@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { ARCHESTRA_SERVER_API_URL } from '@/consts';
 import { useAgentStore } from '@/stores/agent-store';
-import { useChatStore } from '@/stores/chat-store';
 import { useOllamaStore } from '@/stores/ollama-store';
 
 interface UseSSEChatOptions {
@@ -21,18 +20,29 @@ export function useSSEChat(options?: UseSSEChatOptions) {
   const { selectedModel } = useOllamaStore();
   const { isAgentActive } = useAgentStore();
   const [customInput, setCustomInput] = useState('');
+  const [customError, setCustomError] = useState<Error | null>(null);
 
   // Configure useChat with our SSE endpoint
   const { messages, sendMessage, status, error, stop, regenerate, setMessages, addToolResult } = useChat({
     transport: new DefaultChatTransport({
-      api: `${ARCHESTRA_SERVER_API_URL}/agent/chat`,
+      api: `${ARCHESTRA_SERVER_API_URL}/chat`,
       headers: () => ({
         'Content-Type': 'application/json',
       }),
     }),
-    onError: options?.onError,
-    onFinish: options?.onFinish,
-    onToolCall: options?.onToolCall,
+    onError: (error) => {
+      console.error('[useSSEChat] Chat error:', error);
+      setCustomError(error);
+      options?.onError?.(error);
+    },
+    onFinish: ({ message }) => {
+      console.log('[useSSEChat] Chat finished:', { message });
+      options?.onFinish?.({ message });
+    },
+    onToolCall: async ({ toolCall }) => {
+      console.log('[useSSEChat] Tool call:', { toolCall });
+      await options?.onToolCall?.({ toolCall });
+    },
   });
 
   // Custom sendMessage that includes our metadata
@@ -44,23 +54,34 @@ export function useSSEChat(options?: UseSSEChatOptions) {
         agentContext?: any;
       }
     ) => {
-      // Build the message with proper formatting
-      await sendMessage(
-        { text },
-        {
-          body: {
-            model: selectedModel,
-            tools: options?.tools,
-            agent_context:
-              options?.agentContext ||
-              (isAgentActive
-                ? {
-                    mode: 'autonomous',
-                  }
-                : undefined),
-          },
-        }
-      );
+      try {
+        console.log('[useSSEChat] Sending message:', { text, options });
+        setCustomError(null);
+
+        // Build the message with proper formatting
+        await sendMessage(
+          { text },
+          {
+            body: {
+              model: selectedModel,
+              tools: options?.tools,
+              agent_context:
+                options?.agentContext ||
+                (isAgentActive
+                  ? {
+                      mode: 'autonomous',
+                    }
+                  : undefined),
+            },
+          }
+        );
+
+        console.log('[useSSEChat] Message sent successfully');
+      } catch (err) {
+        console.error('[useSSEChat] Error sending message:', err);
+        setCustomError(err as Error);
+        throw err;
+      }
     },
     [sendMessage, selectedModel, isAgentActive]
   );
@@ -74,37 +95,20 @@ export function useSSEChat(options?: UseSSEChatOptions) {
     async (e?: React.FormEvent) => {
       e?.preventDefault();
       if (customInput.trim()) {
-        await sendChatMessage(customInput);
-        setCustomInput('');
+        try {
+          await sendChatMessage(customInput);
+          setCustomInput('');
+        } catch (err) {
+          console.error('[useSSEChat] Submit error:', err);
+        }
       }
     },
     [customInput, sendChatMessage]
   );
 
-  // Sync messages to chat store when they change
+  // Process agent-specific data parts from messages
   useEffect(() => {
     if (messages.length > 0) {
-      // Convert messages to chat store format
-      const chatMessages = messages.map((msg) => ({
-        id: msg.id,
-        role: msg.role as 'user' | 'assistant' | 'system',
-        content: msg.parts
-          .filter((part) => part.type === 'text')
-          .map((part) => (part as any).text)
-          .join(''),
-        timestamp: new Date(),
-        // Extract reasoning from parts
-        thinkingContent: msg.parts
-          .filter((part) => part.type === 'reasoning')
-          .map((part) => (part as any).text)
-          .join('\n'),
-        isStreaming: status === 'streaming' && msg.id === messages[messages.length - 1].id,
-      }));
-
-      // Update chat store
-      useChatStore.setState({ chatHistory: chatMessages });
-
-      // Process agent-specific messages
       const lastMessage = messages[messages.length - 1];
       if (lastMessage?.parts) {
         lastMessage.parts.forEach((part: any) => {
@@ -140,7 +144,24 @@ export function useSSEChat(options?: UseSSEChatOptions) {
         });
       }
     }
-  }, [messages, status]);
+  }, [messages]);
+
+  // Log status changes
+  useEffect(() => {
+    console.log('[useSSEChat] Status changed:', status);
+  }, [status]);
+
+  // Log messages when they change
+  useEffect(() => {
+    console.log('[useSSEChat] Messages updated:', messages.length, messages);
+  }, [messages]);
+
+  // Log errors
+  useEffect(() => {
+    if (error || customError) {
+      console.error('[useSSEChat] Current error:', error || customError);
+    }
+  }, [error, customError]);
 
   return {
     // Message state
@@ -161,7 +182,7 @@ export function useSSEChat(options?: UseSSEChatOptions) {
     // Status
     status,
     isLoading: status === 'streaming',
-    error,
+    error: error || customError,
 
     // Helper to check if can send message
     canSend: status === 'ready' && customInput.trim().length > 0,
