@@ -295,7 +295,7 @@ mod tests {
         for i in 0..3 {
             let create_request = CreateChatRequest {
                 llm_provider: "ollama".to_string(),
-                llm_model: format!("model-{}", i),
+                llm_model: format!("model-{i}"),
             };
 
             router

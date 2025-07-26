@@ -241,7 +241,7 @@ mod tests {
         let all_chats = Model::load_all(&db).await.unwrap();
 
         // Find our chats in the results
-        let our_chat_ids = vec![chat1.id, chat2.id, chat3.id];
+        let our_chat_ids = [chat1.id, chat2.id, chat3.id];
         let our_chats: Vec<_> = all_chats
             .into_iter()
             .filter(|c| our_chat_ids.contains(&c.id))
