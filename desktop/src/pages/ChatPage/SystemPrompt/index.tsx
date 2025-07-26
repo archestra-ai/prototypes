@@ -12,7 +12,7 @@ export default function SystemPrompt(_props: SystemPromptProps) {
   }
 
   return (
-    <div className="flex-shrink-0 px-4 pb-2">
+    <div className="flex-shrink-0">
       <div className="space-y-2 p-3 bg-muted/30 rounded-md border border-muted">
         <Label htmlFor="system-prompt" className="text-sm font-medium text-muted-foreground">
           System Prompt

@@ -28,11 +28,6 @@ export function SiteHeader({ activeView, activeSubView }: SiteHeaderProps) {
     breadcrumbs = [NAVIGATION_ITEMS.find((item) => item.key === activeView)?.title || ''];
   }
 
-  let isAnimatedTitle = false;
-  if (activeView === NavigationViewKey.Chat && !getCurrentChatTitle()) {
-    isAnimatedTitle = true;
-  }
-
   return (
     <header className="bg-background sticky top-0 z-50 flex w-full items-center border-b">
       <div className="flex h-[var(--header-height)] w-full items-center gap-2 px-4 pl-[80px]" data-tauri-drag-region>
@@ -40,7 +35,7 @@ export function SiteHeader({ activeView, activeSubView }: SiteHeaderProps) {
           <SidebarIcon />
         </Button>
         <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumbs breadcrumbs={breadcrumbs} isAnimatedTitle={isAnimatedTitle} />
+        <Breadcrumbs breadcrumbs={breadcrumbs} isAnimatedTitle={activeView === NavigationViewKey.Chat} />
       </div>
       <div className="flex items-center gap-2 mr-4">
         <ThemeToggler />

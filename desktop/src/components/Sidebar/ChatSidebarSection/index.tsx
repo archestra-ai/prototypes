@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
 import { EditableTitle } from '@/components/EditableTitle';
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { DEFAULT_CHAT_TITLE } from '@/consts';
 import { useChatStore } from '@/stores/chat-store';
 
 interface ChatSidebarProps {}
@@ -34,22 +35,26 @@ export default function ChatSidebarSection(_props: ChatSidebarProps) {
       ) : (
         chats.map((chat) => {
           const { id, title } = chat;
+          const isCurrentChat = currentChatId === id;
 
           return (
             <SidebarMenuItem key={id} className="ml-6 group-data-[collapsible=icon]:hidden">
-              <SidebarMenuButton
-                onClick={() => selectChat(id)}
-                isActive={currentChatId === id}
-                size="sm"
-                className="cursor-pointer hover:bg-accent/50 text-sm justify-between group"
-              >
-                {currentChatId === id ? (
-                  <EditableTitle title={title} isAnimated={!title} onSave={(newTitle) => updateChat(id, newTitle)} />
-                ) : (
-                  <span className="truncate">{title || 'New Chat'}</span>
-                )}
-                {currentChatId === id && <DeleteChatConfirmation onDelete={deleteCurrentChat} />}
-              </SidebarMenuButton>
+              <div className="flex items-center group">
+                <SidebarMenuButton
+                  onClick={() => selectChat(id)}
+                  isActive={isCurrentChat}
+                  size="sm"
+                  className="cursor-pointer hover:bg-accent/50 text-sm flex-1"
+                >
+                  <EditableTitle
+                    className="truncate"
+                    title={title || DEFAULT_CHAT_TITLE}
+                    onSave={(newTitle) => updateChat(id, newTitle)}
+                    isAnimated
+                  />
+                </SidebarMenuButton>
+                <DeleteChatConfirmation onDelete={deleteCurrentChat} />
+              </div>
             </SidebarMenuItem>
           );
         })

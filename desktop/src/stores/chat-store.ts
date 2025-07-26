@@ -2,6 +2,7 @@ import { listen } from '@tauri-apps/api/event';
 import { Message as OllamaMessage, Tool as OllamaTool, ToolCall as OllamaToolCall } from 'ollama/browser';
 import { create } from 'zustand';
 
+import { DEFAULT_CHAT_TITLE } from '@/consts';
 import { createChat, deleteChat, getAllChats, updateChat } from '@/lib/api-client';
 import {
   checkModelSupportsTools,
@@ -112,7 +113,7 @@ const executeToolsAndCollectResults = async (
 
 const initializeCurrentChat = (): ChatWithInteractions => ({
   id: 0,
-  title: 'New Chat',
+  title: DEFAULT_CHAT_TITLE,
   created_at: new Date().toISOString(),
   session_id: '',
   llm_provider: '',
@@ -178,7 +179,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   getCurrentChatTitle: () => {
     const { currentChat } = get();
-    return currentChat.title || 'New Chat';
+    return currentChat.title || DEFAULT_CHAT_TITLE;
   },
 
   deleteCurrentChat: async () => {

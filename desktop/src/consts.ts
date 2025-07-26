@@ -34,3 +34,5 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     key: NavigationViewKey.Settings,
   },
 ];
+
+export const DEFAULT_CHAT_TITLE = 'New Chat';

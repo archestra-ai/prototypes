@@ -108,12 +108,12 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   }, [currentChat, scrollToBottom]);
 
   return (
-    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full">
-      <div className="space-y-4 p-4">
+    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full border rounded-lg">
+      <div className="p-4 space-y-4">
         {/* TODO: update this type... */}
-        {currentChat.interactions.map((interaction: any, index) => (
-          <div key={interaction.id || index} className={cn('p-3 rounded-lg', getInteractionClassName(interaction))}>
-            <div className="text-xs font-medium mb-1 opacity-70 capitalize">{interaction.role}</div>
+        {currentChat.interactions.map((interaction: any) => (
+          <div key={interaction.id} className={cn('p-3 rounded-lg', getInteractionClassName(interaction))}>
+            <div className="text-xs font-medium mb-1 opacity-70 capitalize">{interaction.content.role}</div>
             <Interaction interaction={interaction} />
           </div>
         ))}

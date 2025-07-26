@@ -18,11 +18,15 @@ export function useTypewriter(text: string, speed: number = 100) {
     let currentIndex = 0;
     const interval = setInterval(() => {
       if (currentIndex < text.length) {
-        setDisplayedText((prev) => prev + text[currentIndex]);
+        // Use the character from the current text, not from closure
+        setDisplayedText(text.substring(0, currentIndex + 1));
         currentIndex++;
-      } else {
-        clearInterval(interval);
-        setIsComplete(true);
+
+        // Check if we've reached the end
+        if (currentIndex >= text.length) {
+          clearInterval(interval);
+          setIsComplete(true);
+        }
       }
     }, speed);
 

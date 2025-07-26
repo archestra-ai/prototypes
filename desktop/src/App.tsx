@@ -15,31 +15,21 @@ export default function App() {
       case NavigationViewKey.Chat:
         return <ChatPage />;
       case NavigationViewKey.LLMProviders:
-        return (
-          <div className="p-4">
-            <LLMProvidersPage activeProvider={activeSubView} />
-          </div>
-        );
+        return <LLMProvidersPage activeProvider={activeSubView} />;
       case NavigationViewKey.MCP:
-        return (
-          <div className="p-4">
-            <ConnectorCatalogPage />
-          </div>
-        );
+        return <ConnectorCatalogPage />;
       case NavigationViewKey.Settings:
-        return (
-          <div className="p-4">
-            <SettingsPage />
-          </div>
-        );
+        return <SettingsPage />;
     }
   };
+
+  const overflowClassName = activeView === NavigationViewKey.Chat ? ' overflow-x-hidden' : ' overflow-y-auto';
 
   return (
     <div className="[--header-height:2.25rem] h-screen flex flex-col">
       <Sidebar>
-        <SidebarInset className="overflow-hidden">
-          <main className="flex-1 space-y-4 overflow-y-auto">{renderContent()}</main>
+        <SidebarInset className="overflow-hidden h-full">
+          <main className={`flex-1 space-y-4 p-4 h-full${overflowClassName}`}>{renderContent()}</main>
         </SidebarInset>
       </Sidebar>
     </div>

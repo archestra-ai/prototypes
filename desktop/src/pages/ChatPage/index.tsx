@@ -6,12 +6,12 @@ interface ChatPageProps {}
 
 export default function ChatPage(_props: ChatPageProps) {
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 min-h-0">
+    <div className="flex flex-col h-full gap-2">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <ChatHistory />
       </div>
       <SystemPrompt />
-      <div className="flex-shrink-0 p-4 bg-background">
+      <div className="flex-shrink-0">
         <ChatInput />
       </div>
     </div>

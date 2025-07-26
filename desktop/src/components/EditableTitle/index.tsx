@@ -6,28 +6,17 @@ import { Input } from '@/components/ui/input';
 import { TypewriterText } from '../TypewriterText';
 
 interface EditableTitleProps {
-  title?: string | null;
-  defaultTitle?: string;
-  isAnimated?: boolean;
-  onSave: (newTitle: string | null) => Promise<void>;
+  title: string;
+  isAnimated: boolean;
+  onSave: (newTitle: string) => Promise<void>;
   className?: string;
 }
 
-export function EditableTitle({
-  title,
-  defaultTitle = 'New Chat',
-  isAnimated = false,
-  onSave,
-  className = '',
-}: EditableTitleProps) {
+export function EditableTitle({ title, isAnimated, onSave, className = '' }: EditableTitleProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedTitle, setEditedTitle] = useState(title || defaultTitle);
+  const [editedTitle, setEditedTitle] = useState(title);
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setEditedTitle(title || defaultTitle);
-  }, [title, defaultTitle]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -37,17 +26,17 @@ export function EditableTitle({
   }, [isEditing]);
 
   const handleSave = async () => {
-    if (isSaving) return;
+    if (isSaving) {
+      return;
+    }
 
     setIsSaving(true);
     try {
-      const newTitle = editedTitle.trim() || null;
-      await onSave(newTitle);
+      await onSave(editedTitle.trim());
       setIsEditing(false);
     } catch (error) {
-      console.error('Failed to update title:', error);
       // Reset to original title on error
-      setEditedTitle(title || defaultTitle);
+      setEditedTitle(title);
       setIsEditing(false);
     } finally {
       setIsSaving(false);
@@ -55,7 +44,7 @@ export function EditableTitle({
   };
 
   const handleCancel = () => {
-    setEditedTitle(title || defaultTitle);
+    setEditedTitle(title);
     setIsEditing(false);
   };
 
@@ -81,16 +70,12 @@ export function EditableTitle({
     );
   }
 
-  const displayTitle = title || defaultTitle;
-
   return (
     <div
       className={`cursor-pointer hover:bg-accent/50 rounded px-1 -mx-1 flex items-center gap-1 ${className}`}
       onClick={() => setIsEditing(true)}
     >
-      <span className="truncate">
-        {isAnimated && title ? <TypewriterText text={displayTitle} speed={20} /> : displayTitle}
-      </span>
+      <span className="truncate">{isAnimated ? <TypewriterText text={title} speed={20} /> : title}</span>
       <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50" />
     </div>
   );

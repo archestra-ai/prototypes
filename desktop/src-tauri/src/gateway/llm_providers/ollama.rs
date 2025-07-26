@@ -277,8 +277,9 @@ impl Service {
                         // Accumulate content
                         accumulated_content.push_str(&chat_response.message.content);
 
-                        // Convert to JSON and send
-                        let json_response = serde_json::to_vec(&chat_response).unwrap_or_default();
+                        // Convert to JSON and send with newline for NDJSON format
+                        let mut json_response = serde_json::to_vec(&chat_response).unwrap_or_default();
+                        json_response.push(b'\n'); // Add newline for NDJSON
                         if tx
                             .send(Ok(axum::body::Bytes::from(json_response)))
                             .await
@@ -331,10 +332,10 @@ impl Service {
                         let error_json = serde_json::json!({
                             "error": e.to_string()
                         });
+                        let mut error_bytes = serde_json::to_vec(&error_json).unwrap_or_default();
+                        error_bytes.push(b'\n'); // Add newline for NDJSON
                         let _ = tx
-                            .send(Ok(axum::body::Bytes::from(
-                                serde_json::to_vec(&error_json).unwrap_or_default(),
-                            )))
+                            .send(Ok(axum::body::Bytes::from(error_bytes)))
                             .await;
                         break;
                     }

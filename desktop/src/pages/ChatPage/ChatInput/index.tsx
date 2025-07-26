@@ -93,72 +93,70 @@ export default function ChatInput(_props: ChatInputProps) {
 
   return (
     <TooltipProvider>
-      <div className="space-y-2">
-        <AIInput onSubmit={handleSubmit} className="bg-inherit">
-          <div className={cn('flex flex-wrap gap-2 p-3 pb-0')}>
-            {selectedTools.map((tool, index) => (
-              <ToolPill key={`${tool.serverName}-${tool.toolName}-${index}`} tool={tool} />
-            ))}
-          </div>
-          <AIInputTextarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="What would you like to know?"
-            disabled={!selectedModel}
-            minHeight={48}
-            maxHeight={164}
+      <AIInput onSubmit={handleSubmit} className="bg-inherit">
+        <div className={cn('flex flex-wrap gap-2 p-3 pb-0')}>
+          {selectedTools.map((tool, index) => (
+            <ToolPill key={`${tool.serverName}-${tool.toolName}-${index}`} tool={tool} />
+          ))}
+        </div>
+        <AIInputTextarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="What would you like to know?"
+          disabled={!selectedModel}
+          minHeight={48}
+          maxHeight={164}
+        />
+        <AIInputToolbar>
+          <AIInputTools>
+            <AIInputModelSelect
+              defaultValue={selectedModel}
+              value={selectedModel}
+              onValueChange={handleModelChange}
+              disabled={loadingInstalledModels || !!loadingInstalledModelsError}
+            >
+              <AIInputModelSelectTrigger>
+                <AIInputModelSelectValue
+                  placeholder={
+                    loadingInstalledModels
+                      ? 'Loading models...'
+                      : loadingInstalledModelsError
+                        ? 'Error loading models'
+                        : installedModels.length === 0
+                          ? 'No models found'
+                          : 'Select a model'
+                  }
+                />
+              </AIInputModelSelectTrigger>
+              <AIInputModelSelectContent>
+                {installedModels.map((model) => (
+                  <AIInputModelSelectItem key={model.name} value={model.name}>
+                    {model.name}
+                  </AIInputModelSelectItem>
+                ))}
+              </AIInputModelSelectContent>
+            </AIInputModelSelect>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AIInputButton onClick={toggleDeveloperMode} className={isDeveloperMode ? 'bg-primary/20' : ''}>
+                  <FileText size={16} />
+                </AIInputButton>
+              </TooltipTrigger>
+              <TooltipContent>
+                <span>Toggle system prompt</span>
+              </TooltipContent>
+            </Tooltip>
+          </AIInputTools>
+          <AIInputSubmit
+            status={status}
+            onClick={cancelStreaming}
+            // only disable if there's no message, and we're not streaming
+            // if we're streaming, we want to allow the user to cancel the streaming
+            disabled={!message.trim() && !isStreaming}
           />
-          <AIInputToolbar>
-            <AIInputTools>
-              <AIInputModelSelect
-                defaultValue={selectedModel}
-                value={selectedModel}
-                onValueChange={handleModelChange}
-                disabled={loadingInstalledModels || !!loadingInstalledModelsError}
-              >
-                <AIInputModelSelectTrigger>
-                  <AIInputModelSelectValue
-                    placeholder={
-                      loadingInstalledModels
-                        ? 'Loading models...'
-                        : loadingInstalledModelsError
-                          ? 'Error loading models'
-                          : installedModels.length === 0
-                            ? 'No models found'
-                            : 'Select a model'
-                    }
-                  />
-                </AIInputModelSelectTrigger>
-                <AIInputModelSelectContent>
-                  {installedModels.map((model) => (
-                    <AIInputModelSelectItem key={model.name} value={model.name}>
-                      {model.name}
-                    </AIInputModelSelectItem>
-                  ))}
-                </AIInputModelSelectContent>
-              </AIInputModelSelect>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AIInputButton onClick={toggleDeveloperMode} className={isDeveloperMode ? 'bg-primary/20' : ''}>
-                    <FileText size={16} />
-                  </AIInputButton>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <span>Toggle system prompt</span>
-                </TooltipContent>
-              </Tooltip>
-            </AIInputTools>
-            <AIInputSubmit
-              status={status}
-              onClick={cancelStreaming}
-              // only disable if there's no message, and we're not streaming
-              // if we're streaming, we want to allow the user to cancel the streaming
-              disabled={!message.trim() && !isStreaming}
-            />
-          </AIInputToolbar>
-        </AIInput>
-      </div>
+        </AIInputToolbar>
+      </AIInput>
     </TooltipProvider>
   );
 }
