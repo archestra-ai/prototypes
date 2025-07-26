@@ -1,8 +1,16 @@
-use tauri::AppHandle;
-use tauri_plugin_shell::process::CommandEvent;
-use tauri_plugin_shell::ShellExt;
+use once_cell::sync::OnceCell;
+use std::sync::Arc;
+use tauri::{AppHandle, Emitter};
+use tauri_plugin_shell::{process::CommandChild, ShellExt};
+use tokio::sync::Mutex;
 
-use crate::ollama::consts::OLLAMA_SERVER_PORT;
+pub const OLLAMA_SERVER_PORT: u16 = 54588;
+
+// Global app handle for emitting events
+static APP_HANDLE: OnceCell<AppHandle> = OnceCell::new();
+
+// Global Ollama process handle for shutdown
+static OLLAMA_PROCESS: OnceCell<Arc<Mutex<Option<CommandChild>>>> = OnceCell::new();
 
 pub struct Service {
     app_handle: AppHandle,
@@ -10,10 +18,15 @@ pub struct Service {
 
 impl Service {
     pub fn new(app_handle: AppHandle) -> Self {
+        // Store app handle globally for the proxy handler
+        let _ = APP_HANDLE.set(app_handle.clone());
+
         Self { app_handle }
     }
 
-    pub async fn start_server(&self) -> Result<(), String> {
+    pub async fn start_server_on_startup(&self) -> Result<(), String> {
+        use tauri_plugin_shell::process::CommandEvent;
+
         println!("Starting Ollama server as sidecar on port {OLLAMA_SERVER_PORT}...");
 
         let sidecar_result = self
@@ -29,8 +42,12 @@ impl Service {
             .spawn();
 
         match sidecar_result {
-            Ok((mut rx, _child)) => {
+            Ok((mut rx, child)) => {
                 println!("Ollama server started successfully on port {OLLAMA_SERVER_PORT}!");
+
+                // Store the process handle globally
+                let process_handle = Arc::new(Mutex::new(Some(child)));
+                let _ = OLLAMA_PROCESS.set(process_handle);
 
                 // Handle output in background
                 tauri::async_runtime::spawn(async move {
@@ -57,5 +74,38 @@ impl Service {
                 Err(error_msg)
             }
         }
+    }
+}
+
+// Helper function for the proxy handler to get the app handle
+pub fn get_app_handle() -> Option<&'static AppHandle> {
+    APP_HANDLE.get()
+}
+
+// Shutdown function to clean up Ollama process
+pub async fn shutdown() -> Result<(), String> {
+    println!("Shutting down Ollama server...");
+
+    if let Some(process_handle) = OLLAMA_PROCESS.get() {
+        let mut process_guard = process_handle.lock().await;
+        if let Some(child) = process_guard.take() {
+            match child.kill() {
+                Ok(()) => {
+                    println!("✅ Ollama server shut down successfully");
+                    Ok(())
+                }
+                Err(e) => {
+                    let error_msg = format!("⚠️ Failed to kill Ollama process: {e}");
+                    eprintln!("{error_msg}");
+                    Err(error_msg)
+                }
+            }
+        } else {
+            println!("Ollama process was already terminated");
+            Ok(())
+        }
+    } else {
+        println!("No Ollama process handle found");
+        Ok(())
     }
 }

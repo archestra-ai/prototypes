@@ -44,7 +44,7 @@ pub fn run() {
         println!("Single instance plugin set up successfully");
     }
 
-    builder
+    let app = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
@@ -129,6 +129,24 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|_app_handle, event| {
+        if let tauri::RunEvent::ExitRequested { api: _, .. } = event {
+            println!("Archestra is shutting down, cleaning up resources...");
+
+            // Block on async cleanup
+            tauri::async_runtime::block_on(async {
+                // Shutdown Ollama server
+                if let Err(e) = ollama::shutdown().await {
+                    eprintln!("Failed to shutdown Ollama: {e}");
+                }
+
+                // Note: MCP servers will be stopped automatically via kill_on_drop, no need to explicitly stop them here
+            });
+
+            println!("Cleanup completed");
+        }
+    });
 }

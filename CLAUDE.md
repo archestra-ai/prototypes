@@ -19,7 +19,7 @@ pnpm install
 # Run the full application in development mode
 pnpm tauri dev
 
-# Build the desktop application  
+# Build the desktop application
 pnpm tauri build
 
 # Run only the frontend (Vite dev server on port 1420)
@@ -83,6 +83,19 @@ cd desktop/src-tauri && cargo run --bin dump_openapi
 pnpm codegen
 
 # Both commands MUST be run after modifying API endpoints
+```
+
+### Database Inspection
+
+```bash
+# Launch sqlite-web to inspect the database in browser
+pnpm dbstudio
+
+# The script will:
+# - Automatically find the database location (~/Library/Application Support/com.archestra-ai.app/archestra.db on macOS)
+# - Install sqlite-web via uv if not available (falls back to pip)
+# - Open the database at http://localhost:8080
+# - Allow browsing tables, running queries, and viewing schema
 ```
 
 ### OAuth Proxy Service
@@ -170,6 +183,7 @@ The application uses SQLite with SeaORM for database management. Key tables incl
 #### Chat Management Tables
 
 - **chats**: Stores chat sessions with metadata
+
   - `id` (Primary Key): Auto-incrementing chat identifier
   - `title`: Chat title (auto-generated or user-defined)
   - `llm_provider`: LLM provider used (e.g., "ollama")
@@ -188,6 +202,7 @@ The relationship ensures that deleting a chat automatically removes all associat
 ### Key Patterns
 
 #### API Endpoint Pattern (Rust)
+
 ```rust
 #[utoipa::path(
     get,
@@ -206,6 +221,7 @@ pub async fn get_resources(
 ```
 
 #### Frontend API Calls
+
 ```typescript
 import { apiClient } from "@/lib/api-client";
 
@@ -217,6 +233,7 @@ if (response.data) {
 ```
 
 #### Zustand Store Pattern
+
 ```typescript
 interface StoreState {
   items: Item[];
@@ -249,7 +266,7 @@ GET /api/chat
 Response: Chat[]
 
 // Get specific chat with messages
-GET /api/chat/{id}  
+GET /api/chat/{id}
 Response: ChatWithMessages
 
 // Create new chat
@@ -263,12 +280,14 @@ Response: 204 No Content
 ```
 
 **Chat Persistence Workflow**:
+
 1. When a user sends their first message, the frontend automatically creates a new chat if none exists
 2. During conversation streaming through the Ollama proxy (`/llm/ollama/api/chat`), messages are automatically saved to the database
 3. User messages are saved before sending to the LLM
 4. Assistant responses are captured and saved after streaming completes
 
-**Chat Title Generation**: 
+**Chat Title Generation**:
+
 - Triggers automatically after the 4th message in a chat (2 user + 2 assistant messages)
 - Uses the same LLM model as the chat to generate a concise 5-6 word title
 - Runs asynchronously in the background without blocking the conversation
@@ -286,7 +305,7 @@ Response: 204 No Content
 
 ### Key Dependencies Added for Chat Persistence
 
-- **Frontend**: 
+- **Frontend**:
   - `@radix-ui/react-popover`: For popover UI component (required by shadcn/ui)
 - **Backend**:
   - `tokio`: Enhanced with async runtime features for spawning background tasks
@@ -296,15 +315,17 @@ Response: 204 No Content
 The GitHub Actions CI/CD pipeline consists of several workflows with concurrency controls to optimize resource usage:
 
 #### Main Testing Workflow (`.github/workflows/linting-and-tests.yml`)
+
 - PR title linting with conventional commits
-- Rust formatting and linting checks
+- **Automatic Rust formatting and fixes**: CI automatically applies `cargo fix` and `cargo fmt` changes and commits them back to the PR
 - Rust tests on Ubuntu, macOS (ARM64 & x86_64), and Windows
 - Frontend formatting and tests
 - Frontend build verification
-- OpenAPI schema freshness check (ensures schema and TypeScript client are up-to-date)
+- **Automatic OpenAPI schema updates**: CI automatically regenerates and commits OpenAPI schema and TypeScript client if they're outdated
 - Zizmor security analysis for GitHub Actions
 
 #### Pull Request Workflow (`.github/workflows/on-pull-requests.yml`)
+
 - Runs the main testing workflow on all PRs
 - **Automated Claude Code Reviews**: Uses Claude Opus 4 model to provide automated PR reviews with feedback on code quality, security, and best practices
 - **Automated CLAUDE.md Updates**: Uses Claude Sonnet 4 model to automatically:
@@ -315,8 +336,30 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - Concurrency control cancels in-progress runs when new commits are pushed
 - Consolidates functionality from the removed `claude-code-review.yml` workflow
 
+#### Release Please Workflow (`.github/workflows/release-please.yml`)
+
+- Manages automated releases using Google's release-please action
+- Creates and maintains release PRs with changelogs
+- **Triggers**: Runs on pushes to `main` branch
+- **Authentication**: Uses GitHub App authentication:
+  - Generates a GitHub App installation token using `actions/create-github-app-token@v2`
+  - Token is created from `ARCHESTRA_RELEASER_GITHUB_APP_ID` and `ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY` secrets
+  - Generated token is used for both fetching existing releases and creating new ones via tauri-action
+- **Version Management**: When a desktop release is created:
+  - Automatically extracts version from release-please tag (format: `app-vX.Y.Z`)
+  - Updates version in three locations:
+    - `desktop/package.json` (using jq)
+    - `desktop/src-tauri/Cargo.toml` (using sed)
+    - `desktop/src-tauri/tauri.conf.json` (using jq)
+- **Multi-platform desktop builds**: When a desktop release is created:
+  - Builds Tauri desktop applications for Linux (ubuntu-latest) and Windows (windows-latest)
+  - Uses matrix strategy with `fail-fast: false` to ensure all platforms build
+  - Creates draft GitHub releases with platform-specific binaries using the generated GitHub App token
+  - Tags releases with format `app-v__VERSION__`
+
 #### Interactive Claude Workflow (`.github/workflows/claude.yml`)
-- Triggers on `@claude` mentions in issues, PR comments, and reviews  
+
+- Triggers on `@claude` mentions in issues, PR comments, and reviews
 - Provides comprehensive development environment with Rust and frontend tooling
 - Supports extensive bash commands including testing, building, formatting, code generation, and package management
 - Uses Claude Opus 4 model for complex development tasks
@@ -332,35 +375,7 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - OpenAPI schema must be regenerated after API changes (CI will catch if forgotten)
 - Frontend API calls should use the generated client, not Tauri commands
 - Database migrations should be created for schema changes using SeaORM
-- **Chat Persistence**: All chat conversations are automatically saved to SQLite database
-  - The Ollama proxy (`/llm/ollama/api/chat`) transparently intercepts and saves messages:
-    - User messages are parsed from the request and saved before forwarding to Ollama
-    - Assistant responses are captured from the streaming chunks and saved after completion
-  - Messages are saved asynchronously using spawned tasks to avoid blocking the stream
-  - Chat creation is automatic when the first message is sent (using the most recent chat or creating new)
-  - The `create_or_get_chat` function manages chat lifecycle seamlessly
-- **Chat Title Generation**: 
-  - Triggers automatically after the 4th message in a chat (2 user + 2 assistant messages)
-  - Uses a background task (`generate_chat_title`) to avoid blocking the conversation flow
-  - Generates titles using the same LLM model as the chat for consistency
-  - Title generation prompt asks for a "brief 5-6 word title that captures the main topic"
-  - Uses a 30-second timeout for title generation to prevent hanging
-- **Event-Driven Updates**: 
-  - Backend emits Tauri events for real-time UI updates:
-    - `chat-title-updated` event with `{chatId, title}` payload
-  - Frontend chat store subscribes to these events in `initializeStore()`
-  - Events enable instant UI updates without polling
-- **Database Relationships**: 
-  - Messages have CASCADE delete foreign key constraint with chats
-  - Deleting a chat automatically removes all associated messages
-  - Ensures data consistency and prevents orphaned messages
-- **Message Streaming Architecture**:
-  - Ollama proxy uses `tokio::sync::mpsc` channels to collect streaming chunks
-  - Chunks are forwarded to the client while being accumulated for storage
-  - Assistant content is extracted from either streaming JSON lines or single response format
-  - The `extract_assistant_content` function handles both Ollama response formats
-- **Testing Patterns**:
-  - Use rstest fixtures from `test_fixtures` for Rust database tests
-  - The chat API includes comprehensive integration tests covering CRUD operations
-  - Message persistence tests verify ordering and cascade deletion
-  - Mock Ollama responses return BAD_GATEWAY in tests since server isn't running
+- Use rstest fixtures from `test_fixtures` for Rust database tests
+- Mock external dependencies appropriately in tests
+- CI automatically formats Rust code and regenerates OpenAPI schemas, committing changes back to PRs
+- CI uses GitHub Actions bot credentials for automated commits

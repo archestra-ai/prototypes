@@ -57,9 +57,11 @@ tower-http = { version = "0.6", features = ["cors"] }
 ollama-rs = { version = "0.3.2", features = ["stream"] }
 
 [dev-dependencies]
-tauri-mcp = "0.1"
 tempfile = "3.8"
-rstest = "0.25.0"
+rstest = "0.26.0"
 rstest_reuse = "0.7.0"
 sea-orm-cli = "1.1.14"
 tower = { version = "0.5", features = ["util"] }
+
+[target."cfg(target_os = \"macos\")".dev-dependencies]
+tauri-mcp = "0.1"

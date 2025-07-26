@@ -50,31 +50,75 @@ jobs:
 
   build-desktop-application-and-create-github-release:
     name: Build desktop application and create GitHub release
-    runs-on: ubuntu-latest
-    if: needs.release-please.outputs.desktop_release_created
+    runs-on: ${{ matrix.platform }}
+    # if: needs.release-please.outputs.desktop_release_created
     needs:
       - release-please
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            args: ""
+          - platform: windows-latest
+            args: ""
     steps:
       - name: Checkout project
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+          
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_ID }}
+          private-key: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY }}
 
-      # TODO: use this once we want to start building the application binaries for Mac/Windows/Linux
-      # - name: Setup Rust
-      #   uses: ./.github/actions/setup-rust
-      #   with:
-      #     platform: ${{ matrix.platform }}
+      - name: Update version from release-please tag
+        if: needs.release-please.outputs.desktop_release_created
+        env:
+          TAG_NAME: ${{ needs.release-please.outputs['desktop--tag_name'] }}
+        run: |
+          VERSION="${TAG_NAME#app-v}"
+          echo "Updating version to $VERSION from tag $TAG_NAME"
+          
+          # Update package.json
+          jq --arg version "$VERSION" '.version = $version' desktop/package.json > desktop/package.json.tmp && mv desktop/package.json.tmp desktop/package.json
+          
+          # Update Cargo.toml
+          sed -i.bak "s/^version = .*/version = \"$VERSION\"/" desktop/src-tauri/Cargo.toml && rm desktop/src-tauri/Cargo.toml.bak
+          
+          # Update tauri.conf.json
+          jq --arg version "$VERSION" '.version = $version' desktop/src-tauri/tauri.conf.json > desktop/src-tauri/tauri.conf.json.tmp && mv desktop/src-tauri/tauri.conf.json.tmp desktop/src-tauri/tauri.conf.json
 
-      # - uses: tauri-apps/tauri-action@564aea5a8075c7a54c167bb0cf5b3255314a7f9d # v0.5.22
-      #   with:
-      #     tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-      #     projectPath: desktop
-      #     releaseName: "App v__VERSION__"
-      #     releaseBody: "See the assets to download this version and install."
-      #     releaseDraft: true
-      #     prerelease: false
-      #     args: ${{ matrix.args }}
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: true
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          platform: ${{ matrix.platform }}
+
+      - uses: tauri-apps/tauri-action@564aea5a8075c7a54c167bb0cf5b3255314a7f9d # v0.5.22
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        with:
+          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          projectPath: desktop
+          releaseName: "App v__VERSION__"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
 
       - run: |
           echo "placeholder to build and publish desktop application"
