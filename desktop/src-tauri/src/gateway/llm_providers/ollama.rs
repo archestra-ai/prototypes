@@ -148,7 +148,11 @@ impl Service {
         }
     }
 
-    async fn generate_chat_title(&self, chat_session_id: String, chat_model: String) -> Result<(), String> {
+    async fn generate_chat_title(
+        &self,
+        chat_session_id: String,
+        chat_model: String,
+    ) -> Result<(), String> {
         let chat = Chat::load_by_session_id(chat_session_id.clone(), &self.db)
             .await
             .map_err(|_| "Failed to load chat".to_string())?
@@ -313,8 +317,12 @@ impl Service {
                                         db: db.clone(),
                                         ollama_client: ollama_client.clone(),
                                     };
-                                    let _ =
-                                        service.generate_chat_title(chat_session_id.clone(), model_name.clone()).await;
+                                    let _ = service
+                                        .generate_chat_title(
+                                            chat_session_id.clone(),
+                                            model_name.clone(),
+                                        )
+                                        .await;
                                 }
                             }
                         }

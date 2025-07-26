@@ -235,15 +235,9 @@ mod tests {
         );
 
         // Verify each chat has the expected content
-        assert!(our_chats
-            .iter()
-            .any(|c| c.id == chat1.id));
-        assert!(our_chats
-            .iter()
-            .any(|c| c.id == chat2.id));
-        assert!(our_chats
-            .iter()
-            .any(|c| c.id == chat3.id));
+        assert!(our_chats.iter().any(|c| c.id == chat1.id));
+        assert!(our_chats.iter().any(|c| c.id == chat2.id));
+        assert!(our_chats.iter().any(|c| c.id == chat3.id));
     }
 
     #[rstest]
