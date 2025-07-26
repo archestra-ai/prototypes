@@ -1,16 +1,12 @@
 import { Input } from '@/components/ui/input';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
-import { useThemeStore } from '@/stores/theme-store';
 
 interface ToolSearchProps {}
 
 export default function ToolSearch(_props: ToolSearchProps) {
-  useThemeStore();
-  const { availableTools, toolSearchQuery, setToolSearchQuery } = useMCPServersStore();
+  const { allTools, toolSearchQuery, setToolSearchQuery } = useMCPServersStore();
 
-  const hasTools = Object.keys(availableTools).length > 0;
-
-  if (!hasTools) {
+  if (Object.keys(allTools).length === 0) {
     return null;
   }
 

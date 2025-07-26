@@ -5,12 +5,9 @@ import ConnectorCatalogPage from './pages/ConnectorCatalogPage';
 import LLMProvidersPage from './pages/LLMProvidersPage';
 import SettingsPage from './pages/SettingsPage';
 import { useNavigationStore } from './stores/navigation-store';
-import { useThemeStore } from './stores/theme-store';
 import { NavigationViewKey } from './types';
 
 export default function App() {
-  useThemeStore();
-
   const { activeView, activeSubView } = useNavigationStore();
 
   const renderContent = () => {

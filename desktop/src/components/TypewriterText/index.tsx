@@ -1,4 +1,4 @@
-import { useTypewriter } from '../hooks/use-typewriter';
+import { useTypewriter } from '../../hooks/use-typewriter';
 
 interface TypewriterTextProps {
   text: string;

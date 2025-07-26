@@ -2,7 +2,11 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { Tool as BaseTool } from '@modelcontextprotocol/sdk/types.js';
 import { LucideIcon } from 'lucide-react';
 
-import type { ChatInteraction as BaseChatInteraction, Chat, McpServerDefinition } from '@/lib/api-client';
+import type {
+  ChatInteraction as BaseChatInteraction,
+  ChatWithInteractions as BaseChatWithInteractions,
+  McpServerDefinition,
+} from '@/lib/api-client';
 
 export interface ToolWithMCPServerName extends BaseTool {
   serverName: string;
@@ -43,8 +47,7 @@ export interface ChatInteraction extends BaseChatInteraction {
   isThinkingStreaming: boolean;
 }
 
-export interface ChatWithInteractions {
-  chat: Chat;
+export interface ChatWithInteractions extends BaseChatWithInteractions {
   interactions: ChatInteraction[];
 }
 

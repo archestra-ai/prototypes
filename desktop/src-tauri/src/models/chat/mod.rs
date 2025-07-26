@@ -351,7 +351,7 @@ mod tests {
         };
 
         let json = serde_json::to_string_pretty(&chat_with_interactions).unwrap();
-        println!("Serialized ChatWithInteractions:\n{}", json);
+        println!("Serialized ChatWithInteractions:\n{json}");
 
         // Verify the JSON has flattened structure
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();

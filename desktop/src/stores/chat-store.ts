@@ -153,13 +153,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   selectChat: (chatId: number) => {
     set({
-      currentChat: get().chats.find((chat) => chat.chat.id === chatId) || null,
+      currentChat: get().chats.find((chat) => chat.id === chatId) || null,
     });
   },
 
   getCurrentChatTitle: () => {
     const { currentChat } = get();
-    return currentChat?.chat.title || 'New Chat';
+    return currentChat?.title || 'New Chat';
   },
 
   deleteCurrentChat: async () => {
@@ -169,9 +169,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
 
     try {
-      await deleteChat({ path: { id: currentChat.chat.id.toString() } });
+      await deleteChat({ path: { id: currentChat.id.toString() } });
       set((state) => {
-        const newChats = state.chats.filter((chat) => chat.chat.id !== currentChat.chat.id);
+        const newChats = state.chats.filter((chat) => chat.id !== currentChat.id);
         const newCurrentChat = newChats.length > 0 ? newChats[0] : null;
         return {
           chats: newChats,
@@ -193,8 +193,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (data) {
         // Update the chat in the local state
         set(({ currentChat, chats }) => ({
-          currentChat: currentChat?.chat?.id === chatId ? { ...currentChat, title } : currentChat,
-          chats: chats.map((chat) => (chat.chat.id === chatId ? { ...chat, title } : chat)),
+          currentChat: currentChat?.id === chatId ? { ...currentChat, title } : currentChat,
+          chats: chats.map((chat) => (chat.id === chatId ? { ...chat, title } : chat)),
         }));
       }
     } catch (error) {
@@ -287,7 +287,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       return;
     }
 
-    const currentChatSessionId = currentChat.chat.session_id;
+    const currentChatSessionId = currentChat.session_id;
 
     if (!message.trim()) {
       return;
@@ -534,13 +534,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
      */
     listen<ChatTitleUpdatedEvent>('chat-title-updated', ({ payload: { chat_id, title } }) => {
       set(({ chats, currentChat }) => {
-        const updatedChatIsCurrentChat = currentChat?.chat?.id === chat_id;
-        const newCurrentChat = updatedChatIsCurrentChat
-          ? { ...currentChat, chat: { ...currentChat.chat, title } }
-          : currentChat;
+        const updatedChatIsCurrentChat = currentChat?.id === chat_id;
+        const newCurrentChat = updatedChatIsCurrentChat ? { ...currentChat, title } : currentChat;
 
         return {
-          chats: chats.map((chat) => (chat.chat.id === chat_id ? { ...chat, chat: { ...chat.chat, title } } : chat)),
+          chats: chats.map((chat) => (chat.id === chat_id ? { ...chat, title } : chat)),
           currentChat: newCurrentChat,
         };
       });

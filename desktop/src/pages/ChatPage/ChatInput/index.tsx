@@ -27,7 +27,7 @@ import { useOllamaStore } from '@/stores/ollama-store';
 interface ChatInputProps {}
 
 export default function ChatInput(_props: ChatInputProps) {
-  const { sendChatMessage, clearChatHistory, cancelStreaming } = useChatStore();
+  const { sendChatMessage, cancelStreaming } = useChatStore();
   const { selectedTools } = useMCPServersStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const isStreaming = useIsStreaming();
@@ -97,7 +97,6 @@ export default function ChatInput(_props: ChatInputProps) {
 
   const handleModelChange = (modelName: string) => {
     setSelectedModel(modelName);
-    clearChatHistory();
   };
 
   return (

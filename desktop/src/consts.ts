@@ -1,6 +1,6 @@
 import { Bot, Download, MessageCircle, Settings } from 'lucide-react';
 
-import { NavigationItem } from './types';
+import { NavigationItem, NavigationViewKey } from './types';
 
 const ARCHESTRA_SERVER_BASE_URL = 'http://localhost:54587';
 
@@ -16,21 +16,21 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   {
     title: 'Chat',
     icon: MessageCircle,
-    key: 'chat',
+    key: NavigationViewKey.Chat,
   },
   {
     title: 'LLM Providers',
     icon: Download,
-    key: 'llm-providers',
+    key: NavigationViewKey.LLMProviders,
   },
   {
     title: 'Connectors',
     icon: Bot,
-    key: 'mcp',
+    key: NavigationViewKey.MCP,
   },
   {
     title: 'Settings',
     icon: Settings,
-    key: 'settings',
+    key: NavigationViewKey.Settings,
   },
 ];

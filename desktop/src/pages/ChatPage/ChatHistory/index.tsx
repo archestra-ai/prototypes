@@ -1,22 +1,49 @@
-import { Wrench } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
-import { AIResponse } from '@/components/kibo/ai-response';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils/tailwind';
 import { useChatStore } from '@/stores/chat-store';
 
-import ToolCallIndicator from '../ToolCallIndicator';
-import ToolExecutionResult from '../ToolExecutionResult';
+import { AssistantInteraction, OtherInteraction, ToolInteraction, UserInteraction } from './Interactions';
 
 const CHAT_SCROLL_AREA_ID = 'chat-scroll-area';
 const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-area-viewport]`;
 
 interface ChatHistoryProps {}
 
+// TODO: update this type...
+const Interaction = ({ interaction }: { interaction: any }) => {
+  switch (interaction.role) {
+    case 'user':
+      return <UserInteraction interaction={interaction} />;
+    case 'assistant':
+      return <AssistantInteraction interaction={interaction} />;
+    case 'tool':
+      return <ToolInteraction interaction={interaction} />;
+    default:
+      return <OtherInteraction interaction={interaction} />;
+  }
+};
+
+const getInteractionClassName = (interaction: any) => {
+  switch (interaction.role) {
+    case 'user':
+      return 'bg-primary/10 border border-primary/20 ml-8';
+    case 'assistant':
+      return 'bg-secondary/50 border border-secondary mr-8';
+    case 'error':
+      return 'bg-destructive/10 border border-destructive/20 text-destructive';
+    case 'system':
+      return 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-600';
+    case 'tool':
+      return 'bg-blue-500/10 border border-blue-500/20 text-blue-600';
+    default:
+      return 'bg-muted border';
+  }
+};
+
 export default function ChatHistory(_props: ChatHistoryProps) {
-  const { chatHistory } = useChatStore();
+  const { currentChat } = useChatStore();
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const scrollAreaRef = useRef<HTMLElement | null>(null);
   const isScrollingRef = useRef(false);
@@ -73,91 +100,20 @@ export default function ChatHistory(_props: ChatHistoryProps) {
     }
   }, [handleScroll]);
 
-  // Trigger scroll when chat history changes (only if shouldAutoScroll is true)
+  // Trigger scroll when chat changes (only if shouldAutoScroll is true)
   useEffect(() => {
     const timeoutId = setTimeout(scrollToBottom, 50);
     return () => clearTimeout(timeoutId);
-  }, [chatHistory, scrollToBottom]);
+  }, [currentChat, scrollToBottom]);
 
   return (
     <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full">
       <div className="space-y-4 p-4">
-        {chatHistory.map((msg, index) => (
-          <div
-            key={msg.id || index}
-            className={cn(
-              'p-3 rounded-lg',
-              msg.role === 'user'
-                ? 'bg-primary/10 border border-primary/20 ml-8'
-                : msg.role === 'assistant'
-                  ? 'bg-secondary/50 border border-secondary mr-8'
-                  : msg.role === 'error'
-                    ? 'bg-destructive/10 border border-destructive/20 text-destructive'
-                    : msg.role === 'system'
-                      ? 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-600'
-                      : msg.role === 'tool'
-                        ? 'bg-blue-500/10 border border-blue-500/20 text-blue-600'
-                        : 'bg-muted border'
-            )}
-          >
-            <div className="text-xs font-medium mb-1 opacity-70 capitalize">{msg.role}</div>
-            {msg.role === 'user' ? (
-              <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
-            ) : msg.role === 'assistant' ? (
-              <div className="relative">
-                {(msg.isToolExecuting || msg.toolCalls) && (
-                  <ToolCallIndicator toolCalls={msg.toolCalls || []} isExecuting={!!msg.isToolExecuting} />
-                )}
-
-                {msg.toolCalls && msg.toolCalls.length > 0 && (
-                  <div className="space-y-2 mb-4">
-                    {/* TODO: update this type... */}
-                    {msg.toolCalls.map((toolCall: any) => (
-                      <ToolExecutionResult
-                        key={toolCall.id}
-                        serverName={toolCall.serverName}
-                        toolName={toolCall.toolName}
-                        arguments={toolCall.arguments}
-                        result={toolCall.result || ''}
-                        executionTime={toolCall.executionTime}
-                        status={toolCall.error ? 'error' : 'success'}
-                        error={toolCall.error}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {msg.thinkingContent && (
-                  <AIReasoning isStreaming={msg.isThinkingStreaming} className="mb-4">
-                    <AIReasoningTrigger />
-                    <AIReasoningContent>{msg.thinkingContent}</AIReasoningContent>
-                  </AIReasoning>
-                )}
-
-                <AIResponse>{msg.content}</AIResponse>
-
-                {(msg.isStreaming || msg.isToolExecuting) && (
-                  <div className="flex items-center space-x-2 mt-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                    <p className="text-muted-foreground text-sm">
-                      {msg.isToolExecuting ? 'Executing tools...' : 'Loading...'}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ) : msg.role === 'tool' ? (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <Wrench className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Tool Result</span>
-                </div>
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <div className="text-sm whitespace-pre-wrap font-mono">{msg.content}</div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
-            )}
+        {/* TODO: update this type... */}
+        {currentChat?.interactions.map((interaction: any, index) => (
+          <div key={interaction.id || index} className={cn('p-3 rounded-lg', getInteractionClassName(interaction))}>
+            <div className="text-xs font-medium mb-1 opacity-70 capitalize">{interaction.role}</div>
+            <Interaction interaction={interaction} />
           </div>
         ))}
       </div>

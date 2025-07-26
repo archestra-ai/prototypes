@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 
 import { Input } from '@/components/ui/input';
 
-import { TypewriterText } from './TypewriterText';
+import { TypewriterText } from '../TypewriterText';
 
 interface EditableTitleProps {
   title?: string | null;

@@ -14,7 +14,6 @@ import {
 import { formatToolName } from '@/lib/utils/tools';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useNavigationStore } from '@/stores/navigation-store';
-import { useThemeStore } from '@/stores/theme-store';
 import { NavigationViewKey } from '@/types';
 
 import ToolSearch from '../ToolSearch';
@@ -22,14 +21,13 @@ import ToolSearch from '../ToolSearch';
 interface MCPServerWithToolsProps {}
 
 export default function MCPServerWithTools(_props: MCPServerWithToolsProps) {
-  useThemeStore();
-  const { loadingInstalledMCPServers, availableTools, addSelectedTool, getFilteredTools, toolSearchQuery } =
+  const { loadingInstalledMCPServers, allTools, addSelectedTool, getFilteredTools, toolSearchQuery } =
     useMCPServersStore();
   const { setActiveView } = useNavigationStore();
 
   const filteredTools = getFilteredTools();
 
-  const hasTools = Object.keys(availableTools).length > 0;
+  const hasTools = Object.keys(allTools).length > 0;
   const hasNoTools = !hasTools;
   const hasNoFilteredTools = Object.keys(filteredTools).length === 0;
   const toolSearchQueryIsEmpty = !toolSearchQuery.trim();
@@ -62,7 +60,7 @@ export default function MCPServerWithTools(_props: MCPServerWithToolsProps) {
             </SidebarMenuItem>
           ) : (
             <>
-              {Object.entries(filteredTools).map(([serverName, tools]) => (
+              {Object.entries(filteredTools).map(([serverName, _tools]) => (
                 <React.Fragment key={serverName}>
                   <SidebarMenuItem>
                     <div className="flex items-center gap-2 px-2 py-1.5 bg-muted/50 rounded-md">
@@ -75,7 +73,7 @@ export default function MCPServerWithTools(_props: MCPServerWithToolsProps) {
                     </div>
                   </SidebarMenuItem>
 
-                  {tools.map((tool, idx) => {
+                  {allTools.map((tool, idx) => {
                     const { serverName, name } = tool;
                     return (
                       <SidebarMenuItem key={`${serverName}-${idx}`}>

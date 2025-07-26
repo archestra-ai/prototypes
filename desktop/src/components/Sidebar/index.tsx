@@ -23,7 +23,6 @@ import { formatToolName } from '@/lib/utils/tools';
 import { useChatStore } from '@/stores/chat-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useNavigationStore } from '@/stores/navigation-store';
-import { useThemeStore } from '@/stores/theme-store';
 import { NavigationSubViewKey, NavigationViewKey } from '@/types';
 
 import ToolSearch from './ToolSearch';
@@ -31,7 +30,6 @@ import ToolSearch from './ToolSearch';
 interface SidebarProps extends React.PropsWithChildren {}
 
 export default function Sidebar({ children }: SidebarProps) {
-  useThemeStore();
   const {
     loadingInstalledMCPServers,
     getToolsGroupedByServer,
@@ -43,7 +41,7 @@ export default function Sidebar({ children }: SidebarProps) {
     useChatStore();
   const { activeView, activeSubView, setActiveView, setActiveSubView } = useNavigationStore();
 
-  const currentChatId = currentChat?.chat?.id;
+  const currentChatId = currentChat?.id;
 
   const allTools = getToolsGroupedByServer();
   const filteredTools = getFilteredToolsGroupedByServer();
@@ -125,9 +123,7 @@ export default function Sidebar({ children }: SidebarProps) {
                             </SidebarMenuItem>
                           ) : (
                             chats.map((chat) => {
-                              const {
-                                chat: { id, title },
-                              } = chat;
+                              const { id, title } = chat;
 
                               return (
                                 <SidebarMenuItem key={id} className="ml-6 group-data-[collapsible=icon]:hidden">
