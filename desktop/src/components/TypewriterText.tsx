@@ -7,9 +7,7 @@ interface TypewriterTextProps {
 }
 
 export function TypewriterText({ text, speed = 30, className }: TypewriterTextProps) {
-  const safeText = text || '';
-  const { displayedText, isComplete } = useTypewriter(safeText, speed);
-
+  const { displayedText, isComplete } = useTypewriter(text, speed);
   return (
     <span className={className}>
       {displayedText}

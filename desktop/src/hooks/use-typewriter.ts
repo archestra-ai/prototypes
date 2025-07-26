@@ -5,7 +5,7 @@ export function useTypewriter(text: string, speed: number = 100) {
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
-    if (!text || text === 'undefined' || text === 'null') {
+    if (!text) {
       setDisplayedText('');
       setIsComplete(false);
       return;

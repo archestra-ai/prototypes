@@ -1,14 +1,14 @@
 import { AbortableAsyncIterator } from 'ollama';
-import { ChatResponse, ModelResponse, Ollama, Message as OllamaMessage, Tool as OllamaTool } from 'ollama/browser';
+import { ChatResponse, ModelResponse, Message as OllamaMessage, Tool as OllamaTool } from 'ollama/browser';
 import { create } from 'zustand';
 
-import { ARCHESTRA_SERVER_OLLAMA_PROXY_URL } from '@/consts';
 import { OllamaLocalStorage } from '@/lib/local-storage';
+import { ArchestraOllamaClient } from '@/lib/ollama-client';
 
 import type { MCPServerTools } from '../mcp-servers-store';
 import { AVAILABLE_MODELS } from './available_models';
 
-const ollamaClient = new Ollama({ host: ARCHESTRA_SERVER_OLLAMA_PROXY_URL });
+const ollamaClient = new ArchestraOllamaClient();
 
 interface OllamaState {
   installedModels: ModelResponse[];
@@ -23,7 +23,11 @@ interface OllamaActions {
   downloadModel: (fullModelName: string) => Promise<void>;
   fetchInstalledModels: () => Promise<void>;
   setSelectedModel: (model: string) => void;
-  chat: (messages: OllamaMessage[], tools?: OllamaTool[]) => Promise<AbortableAsyncIterator<ChatResponse>>;
+  chat: (
+    sessionId: string,
+    messages: OllamaMessage[],
+    tools?: OllamaTool[]
+  ) => Promise<AbortableAsyncIterator<ChatResponse>>;
 }
 
 type OllamaStore = OllamaState & OllamaActions;
@@ -58,22 +62,48 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
 
   // Actions
   fetchInstalledModels: async () => {
-    const { selectedModel } = get();
+    const MAX_RETRIES = 30;
+    const RETRY_DELAY_MILLISECONDS = 1000;
+    let retries = 0;
 
-    try {
-      set({ loadingInstalledModels: true, loadingInstalledModelsError: null });
-      const { models } = await ollamaClient.list();
-      set({ installedModels: models });
+    const attemptConnection = async (): Promise<boolean> => {
+      try {
+        const { selectedModel } = get();
+        const { models } = await ollamaClient.list();
+        set({ installedModels: models });
 
-      const firstInstalledModel = models[0];
-      if (!selectedModel && firstInstalledModel && firstInstalledModel.model) {
-        get().setSelectedModel(firstInstalledModel.model);
+        const firstInstalledModel = models[0];
+        if (!selectedModel && firstInstalledModel && firstInstalledModel.model) {
+          get().setSelectedModel(firstInstalledModel.model);
+        }
+
+        return true;
+      } catch (error) {
+        return false;
       }
-    } catch (error) {
-      set({ loadingInstalledModelsError: error as Error });
-    } finally {
-      set({ loadingInstalledModels: false });
+    };
+
+    set({ loadingInstalledModels: true, loadingInstalledModelsError: null });
+
+    // Keep trying to connect until successful or max retries reached
+    while (retries < MAX_RETRIES) {
+      const connected = await attemptConnection();
+      if (connected) {
+        set({ loadingInstalledModels: false });
+        return;
+      }
+
+      retries++;
+      if (retries < MAX_RETRIES) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MILLISECONDS));
+      }
     }
+
+    // If we've exhausted all retries, set error state
+    set({
+      loadingInstalledModels: false,
+      loadingInstalledModelsError: new Error('Failed to connect to Ollama after maximum retries'),
+    });
   },
 
   downloadModel: async (fullModelName: string) => {
@@ -125,8 +155,9 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
     set({ selectedModel: model });
   },
 
-  chat: (messages: OllamaMessage[], tools?: OllamaTool[]) => {
+  chat: (sessionId: string, messages: OllamaMessage[], tools?: OllamaTool[]) => {
     return ollamaClient.chat({
+      session_id: sessionId,
       model: get().selectedModel,
       messages,
       tools,

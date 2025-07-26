@@ -5,8 +5,8 @@ export type Chat = {
   id: number;
   llm_model: string;
   llm_provider: string;
-  title: string;
-  updated_at: string;
+  session_id: string;
+  title?: string | null;
 };
 
 export type ChatDefinition = {
@@ -14,9 +14,21 @@ export type ChatDefinition = {
   llm_provider: string;
 };
 
-export type ChatWithMessages = {
+export type ChatInteraction = {
+  chat_id: number;
+  content: Value;
+  created_at: string;
+  id: number;
+};
+
+export type ChatInteractionDefinition = {
+  chat_id: number;
+  content: Value;
+};
+
+export type ChatWithInteractions = {
   chat: Chat;
-  messages: Array<Message>;
+  interactions: Array<ChatInteraction>;
 };
 
 export type ConnectExternalMcpClientRequest = {
@@ -150,20 +162,6 @@ export type McpServerDefinition = {
   server_config: McpServerConfig;
 };
 
-export type Message = {
-  chat_id: number;
-  content: string;
-  created_at: string;
-  id: number;
-  role: string;
-};
-
-export type MessageDefinition = {
-  chat_id: number;
-  content: string;
-  role: string;
-};
-
 export type PaginatedMcpRequestLogResponseMcpRequestLog = {
   data: Array<{
     client_info?: string | null;
@@ -190,6 +188,12 @@ export type PaginatedMcpRequestLogResponseMcpRequestLog = {
 export type StartMcpServerOAuthRequest = {
   mcp_connector_id: string;
 };
+
+export type UpdateChatRequest = {
+  title?: string | null;
+};
+
+export type Value = unknown;
 
 export type GetAllChatsData = {
   body?: never;
@@ -243,7 +247,7 @@ export type DeleteChatData = {
     /**
      * Chat ID
      */
-    id: number;
+    id: string;
   };
   query?: never;
   url: '/api/chat/{id}';
@@ -271,7 +275,7 @@ export type GetChatByIdData = {
     /**
      * Chat ID
      */
-    id: number;
+    id: string;
   };
   query?: never;
   url: '/api/chat/{id}';
@@ -292,10 +296,42 @@ export type GetChatByIdResponses = {
   /**
    * Chat with messages found
    */
-  200: ChatWithMessages;
+  200: ChatWithInteractions;
 };
 
 export type GetChatByIdResponse = GetChatByIdResponses[keyof GetChatByIdResponses];
+
+export type UpdateChatData = {
+  body: UpdateChatRequest;
+  path: {
+    /**
+     * Chat ID
+     */
+    id: string;
+  };
+  query?: never;
+  url: '/api/chat/{id}';
+};
+
+export type UpdateChatErrors = {
+  /**
+   * Chat not found
+   */
+  404: unknown;
+  /**
+   * Internal server error
+   */
+  500: unknown;
+};
+
+export type UpdateChatResponses = {
+  /**
+   * Chat updated successfully
+   */
+  200: Chat;
+};
+
+export type UpdateChatResponse = UpdateChatResponses[keyof UpdateChatResponses];
 
 export type GetConnectedExternalMcpClientsData = {
   body?: never;

@@ -153,6 +153,7 @@ dependencies = [
  "futures-util",
  "http-body-util",
  "lazy_static",
+ "ollama-rs",
  "once_cell",
  "reqwest 0.12.22",
  "rmcp",
@@ -174,8 +175,10 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tempfile",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "tower",
+ "tower-http",
  "url 2.5.4",
  "utoipa",
  "utoipa-swagger-ui",
@@ -4036,6 +4039,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ollama-rs"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "659dd1460a1079db751a236b301e78e63486758fee7e2db1ddcd2372c264be36"
+dependencies = [
+ "async-stream",
+ "log",
+ "reqwest 0.12.22",
+ "schemars 1.0.4",
+ "serde",
+ "serde_json",
+ "static_assertions",
+ "thiserror 2.0.12",
+ "tokio",
+ "tokio-stream",
+ "url 2.5.4",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5935,6 +5957,7 @@ version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30b9eff21ebe718216c6ec64e1d9ac57087aad11efc64e32002bce4a0d4c03d3"
 dependencies = [
+ "indexmap 2.10.0",
  "itoa",
  "memchr",
  "ryu",

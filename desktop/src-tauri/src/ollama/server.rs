@@ -1,11 +1,8 @@
-use once_cell::sync::OnceCell;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
+use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 
-pub const OLLAMA_SERVER_PORT: u16 = 54588;
-
-// Global app handle for emitting events
-static APP_HANDLE: OnceCell<AppHandle> = OnceCell::new();
+use crate::ollama::consts::OLLAMA_SERVER_PORT;
 
 pub struct Service {
     app_handle: AppHandle,
@@ -13,15 +10,10 @@ pub struct Service {
 
 impl Service {
     pub fn new(app_handle: AppHandle) -> Self {
-        // Store app handle globally for the proxy handler
-        let _ = APP_HANDLE.set(app_handle.clone());
-
         Self { app_handle }
     }
 
-    pub async fn start_server_on_startup(&self) -> Result<(), String> {
-        use tauri_plugin_shell::process::CommandEvent;
-
+    pub async fn start_server(&self) -> Result<(), String> {
         println!("Starting Ollama server as sidecar on port {OLLAMA_SERVER_PORT}...");
 
         let sidecar_result = self
@@ -65,23 +57,5 @@ impl Service {
                 Err(error_msg)
             }
         }
-    }
-}
-
-// Helper function for the proxy handler to get the app handle
-pub fn get_app_handle() -> Option<&'static AppHandle> {
-    APP_HANDLE.get()
-}
-
-// Helper function to emit chat title updates
-pub fn emit_chat_title_updated(chat_id: i32, title: String) {
-    if let Some(handle) = get_app_handle() {
-        let _ = handle.emit(
-            "chat-title-updated",
-            serde_json::json!({
-                "chatId": chat_id,
-                "title": title
-            }),
-        );
     }
 }

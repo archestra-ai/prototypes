@@ -12,11 +12,18 @@ impl MigrationTrait for Migration {
                     .table(Chats::Table)
                     .if_not_exists()
                     .col(pk_auto(Chats::Id))
-                    .col(string(Chats::Title))
+                    .col(
+                        string(Chats::SessionId)
+                            .unique_key()
+                            .default(Expr::cust("(lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))))"))
+                    )
+                    .col(string_null(Chats::Title))
                     .col(string(Chats::LlmProvider))
                     .col(string(Chats::LlmModel))
-                    .col(timestamp_with_time_zone(Chats::CreatedAt))
-                    .col(timestamp_with_time_zone(Chats::UpdatedAt))
+                    .col(
+                        timestamp_with_time_zone(Chats::CreatedAt)
+                            .default(Expr::current_timestamp())
+                    )
                     .to_owned(),
             )
             .await
@@ -33,9 +40,9 @@ impl MigrationTrait for Migration {
 enum Chats {
     Table,
     Id,
+    SessionId,
     Title,
     LlmProvider,
     LlmModel,
     CreatedAt,
-    UpdatedAt,
 }

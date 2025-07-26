@@ -53,6 +53,9 @@ import type {
   UninstallMcpServerData,
   UninstallMcpServerErrors,
   UninstallMcpServerResponses,
+  UpdateChatData,
+  UpdateChatErrors,
+  UpdateChatResponses,
 } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = ClientOptions<
@@ -101,6 +104,17 @@ export const getChatById = <ThrowOnError extends boolean = false>(options: Optio
   return (options.client ?? _heyApiClient).get<GetChatByIdResponses, GetChatByIdErrors, ThrowOnError>({
     url: '/api/chat/{id}',
     ...options,
+  });
+};
+
+export const updateChat = <ThrowOnError extends boolean = false>(options: Options<UpdateChatData, ThrowOnError>) => {
+  return (options.client ?? _heyApiClient).patch<UpdateChatResponses, UpdateChatErrors, ThrowOnError>({
+    url: '/api/chat/{id}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   });
 };
 

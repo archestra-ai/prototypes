@@ -76,8 +76,7 @@
             "description": "Chat ID",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -87,7 +86,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChatWithMessages"
+                  "$ref": "#/components/schemas/ChatWithInteractions"
                 }
               }
             }
@@ -110,14 +109,56 @@
             "description": "Chat ID",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
         "responses": {
           "204": {
             "description": "Chat deleted successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "patch": {
+        "tags": ["chat"],
+        "operationId": "update_chat",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Chat ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Chat updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Chat"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat not found"
           },
           "500": {
             "description": "Internal server error"
@@ -628,7 +669,7 @@
     "schemas": {
       "Chat": {
         "type": "object",
-        "required": ["id", "title", "llm_provider", "llm_model", "created_at", "updated_at"],
+        "required": ["id", "session_id", "llm_provider", "llm_model", "created_at"],
         "properties": {
           "created_at": {
             "type": "string",
@@ -644,12 +685,11 @@
           "llm_provider": {
             "type": "string"
           },
-          "title": {
+          "session_id": {
             "type": "string"
           },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time"
+          "title": {
+            "type": ["string", "null"]
           }
         }
       },
@@ -665,17 +705,51 @@
           }
         }
       },
-      "ChatWithMessages": {
+      "ChatInteraction": {
         "type": "object",
-        "required": ["chat", "messages"],
+        "required": ["id", "chat_id", "created_at", "content"],
+        "properties": {
+          "chat_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "content": {
+            "$ref": "#/components/schemas/Value"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ChatInteractionDefinition": {
+        "type": "object",
+        "required": ["chat_id", "content"],
+        "properties": {
+          "chat_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "content": {
+            "$ref": "#/components/schemas/Value"
+          }
+        }
+      },
+      "ChatWithInteractions": {
+        "type": "object",
+        "required": ["chat", "interactions"],
         "properties": {
           "chat": {
             "$ref": "#/components/schemas/Chat"
           },
-          "messages": {
+          "interactions": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Message"
+              "$ref": "#/components/schemas/ChatInteraction"
             }
           }
         }
@@ -1077,46 +1151,6 @@
           }
         }
       },
-      "Message": {
-        "type": "object",
-        "required": ["id", "chat_id", "role", "content", "created_at"],
-        "properties": {
-          "chat_id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "content": {
-            "type": "string"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "role": {
-            "type": "string"
-          }
-        }
-      },
-      "MessageDefinition": {
-        "type": "object",
-        "required": ["chat_id", "role", "content"],
-        "properties": {
-          "chat_id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "content": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string"
-          }
-        }
-      },
       "PaginatedMCPRequestLogResponse_MCPRequestLog": {
         "type": "object",
         "required": ["data", "total", "page", "page_size"],
@@ -1204,7 +1238,16 @@
             "type": "string"
           }
         }
-      }
+      },
+      "UpdateChatRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "Value": {}
     }
   },
   "tags": [

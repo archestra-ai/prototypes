@@ -4,8 +4,8 @@ import { create } from 'zustand';
 
 import type { ToolContext } from '../components/kibo/ai-input';
 import type { Chat } from '../lib/api';
-import { createChat, deleteChat, getAllChats, getChatById } from '../lib/api';
-import { ChatMessage, ToolCallInfo } from '../types';
+import { createChat, deleteChat, getAllChats, updateChat } from '../lib/api';
+import { ToolCallInfo } from '../types';
 import { useDeveloperModeStore } from './developer-mode-store';
 import { useMCPServersStore } from './mcp-servers-store';
 import { useOllamaStore } from './ollama-store';
@@ -19,8 +19,9 @@ interface ParsedContent {
 
 interface ChatState {
   chats: Chat[];
-  currentChatId: number | null;
-  chatHistory: ChatMessage[];
+  currentChat: Chat | null;
+  // TODO: update this type...
+  chatHistory: any[];
   streamingMessageId: string | null;
   abortController: AbortController | null;
   isLoadingChats: boolean;
@@ -30,8 +31,9 @@ interface ChatState {
 interface ChatActions {
   loadChats: () => Promise<void>;
   createNewChat: () => Promise<void>;
-  selectChat: (chatId: number) => Promise<void>;
+  selectChat: (chatId: number) => void;
   deleteCurrentChat: () => Promise<void>;
+  updateChat: (chatId: number, title: string | null) => Promise<void>;
   sendChatMessage: (message: string, selectedTools?: ToolContext[]) => Promise<void>;
   clearChatHistory: () => void;
   cancelStreaming: () => void;
@@ -59,7 +61,8 @@ export function addCancellationText(content: string): string {
   return content.includes('[Cancelled]') ? content : content + ' [Cancelled]';
 }
 
-export function markMessageAsCancelled(message: ChatMessage): ChatMessage {
+// TODO: update this type...
+export function markMessageAsCancelled(message: any): any {
   return {
     ...message,
     isStreaming: false,
@@ -168,7 +171,7 @@ const executeToolsAndCollectResults = async (
 export const useChatStore = create<ChatStore>((set, get) => ({
   // State
   chats: [],
-  currentChatId: null,
+  currentChat: null,
   chatHistory: [],
   streamingMessageId: null,
   abortController: null,
@@ -180,7 +183,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ isLoadingChats: true });
     try {
       const { data } = await getAllChats();
-      set({ chats: data || [], isLoadingChats: false });
+      set({
+        chats: data || [],
+        currentChat: data?.[0] || null,
+        isLoadingChats: false,
+      });
     } catch (error) {
       console.error('Failed to load chats:', error);
       set({ isLoadingChats: false });
@@ -199,7 +206,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (data) {
         set((state) => ({
           chats: [data, ...state.chats],
-          currentChatId: data.id,
+          currentChat: data,
           chatHistory: [],
         }));
       }
@@ -208,46 +215,51 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  selectChat: async (chatId: number) => {
-    set({ isLoadingMessages: true, currentChatId: chatId });
-    try {
-      const { data } = await getChatById({ path: { id: chatId } });
-      if (data) {
-        const messages: ChatMessage[] = data.messages.map((msg) => ({
-          id: msg.id.toString(),
-          role: msg.role as 'user' | 'assistant' | 'system',
-          content: msg.content,
-          timestamp: new Date(msg.created_at),
-        }));
-        set({ chatHistory: messages, isLoadingMessages: false });
-      }
-    } catch (error) {
-      console.error('Failed to load chat messages:', error);
-      set({ isLoadingMessages: false });
-    }
+  selectChat: (chatId: number) => {
+    set({
+      currentChat: get().chats.find((chat) => chat.id === chatId) || null,
+    });
   },
 
   deleteCurrentChat: async () => {
-    const { currentChatId } = get();
-    if (!currentChatId) return;
+    const { currentChat } = get();
+    if (!currentChat) {
+      return;
+    }
 
     try {
-      await deleteChat({ path: { id: currentChatId } });
+      await deleteChat({ path: { id: currentChat.id.toString() } });
       set((state) => {
-        const newChats = state.chats.filter((chat) => chat.id !== currentChatId);
-        const newCurrentChatId = newChats.length > 0 ? newChats[0].id : null;
+        const newChats = state.chats.filter((chat) => chat.id !== currentChat.id);
+        const newCurrentChat = newChats.length > 0 ? newChats[0] : null;
         return {
           chats: newChats,
-          currentChatId: newCurrentChatId,
+          currentChat: newCurrentChat,
           chatHistory: [],
         };
       });
-
-      if (get().currentChatId) {
-        await get().selectChat(get().currentChatId!);
-      }
     } catch (error) {
       console.error('Failed to delete chat:', error);
+    }
+  },
+
+  updateChat: async (chatId: number, title: string | null) => {
+    try {
+      const { data } = await updateChat({
+        path: { id: chatId.toString() },
+        body: { title },
+      });
+
+      if (data) {
+        // Update the chat in the local state
+        set((state) => ({
+          currentChat: state.currentChat?.id === chatId ? { ...state.currentChat, title } : state.currentChat,
+          chats: state.chats.map((chat) => (chat.id === chatId ? { ...chat, title } : chat)),
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to update chat:', error);
+      throw error; // Re-throw to let the UI handle the error
     }
   },
 
@@ -310,22 +322,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   sendChatMessage: async (message: string, selectedTools?: ToolContext[]) => {
     const { chat, selectedModel } = useOllamaStore.getState();
-    const { currentChatId } = get();
+    const { currentChat } = get();
+
+    if (!currentChat) {
+      return;
+    }
+
+    const currentChatSessionId = currentChat.session_id;
 
     const allTools = useMCPServersStore.getState().allAvailableTools();
     const { isDeveloperMode, systemPrompt } = useDeveloperModeStore.getState();
 
     if (!message.trim()) {
       return;
-    }
-
-    // Create a new chat if none exists
-    if (!currentChatId) {
-      await get().createNewChat();
-      if (!get().currentChatId) {
-        console.error('Failed to create chat');
-        return;
-      }
     }
 
     const modelSupportsTools = checkModelSupportsTools(selectedModel);
@@ -392,7 +401,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       const ollamaFormattedTools =
         hasTools && modelSupportsTools ? convertSelectedOrAllToolsToOllamaTools(selectedTools, allTools) : [];
-      const response = await chat(ollamaMessages, ollamaFormattedTools);
+      const response = await chat(currentChatSessionId, ollamaMessages, ollamaFormattedTools);
 
       let accumulatedContent = '';
       let finalMessage: OllamaMessage | null = null;
@@ -449,7 +458,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
         // Get final response from model after tool execution
         if (toolResults.some((tr) => tr.status === 'completed')) {
-          const finalResponse = await chat(ollamaMessages);
+          const finalResponse = await chat(currentChatSessionId, ollamaMessages, ollamaFormattedTools);
 
           let finalContent = '';
           for await (const part of finalResponse) {
@@ -524,10 +533,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     get().loadChats();
 
     // Listen for chat title updates from the backend
-    listen<{ chatId: number; title: string }>('chat-title-updated', (event) => {
+    listen<{ chatSessionId: string; title: string }>('chat-title-updated', (event) => {
       set((state) => ({
         chats: state.chats.map((chat) =>
-          chat.id === event.payload.chatId
+          chat.session_id === event.payload.chatSessionId
             ? { ...chat, title: event.payload.title, updated_at: new Date().toISOString() }
             : chat
         ),

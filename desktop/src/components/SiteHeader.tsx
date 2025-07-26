@@ -18,7 +18,7 @@ import { ModeToggle } from './mode-toggle';
 
 interface SiteHeaderProps {
   title?: string;
-  breadcrumbs?: string[];
+  breadcrumbs: string[];
   isAnimatedTitle?: boolean;
 }
 
@@ -58,11 +58,11 @@ export function SiteHeader(props: SiteHeaderProps) {
             <BreadcrumbItem>
               <BreadcrumbLink>Archestra</BreadcrumbLink>
             </BreadcrumbItem>
-            {props.breadcrumbs?.map((breadcrumb, index) => (
+            {props.breadcrumbs.map((breadcrumb, index) => (
               <React.Fragment key={`sep-${index}`}>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  {index === (props.breadcrumbs?.length ?? 0) - 1 ? (
+                  {index === props.breadcrumbs.length - 1 ? (
                     <BreadcrumbPage>
                       {props.isAnimatedTitle && index === 1 ? <TypewriterText text={breadcrumb} /> : breadcrumb}
                     </BreadcrumbPage>
@@ -71,14 +71,7 @@ export function SiteHeader(props: SiteHeaderProps) {
                   )}
                 </BreadcrumbItem>
               </React.Fragment>
-            )) || (
-              <>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>{props.title}</BreadcrumbPage>
-                </BreadcrumbItem>
-              </>
-            )}
+            ))}
           </BreadcrumbList>
         </Breadcrumb>
       </div>

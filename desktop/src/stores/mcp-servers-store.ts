@@ -1,7 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { CallToolRequest, ClientCapabilities, Tool } from '@modelcontextprotocol/sdk/types.js';
-import { fetch } from '@tauri-apps/plugin-http';
 import { create } from 'zustand';
 
 import { ARCHESTRA_SERVER_MCP_PROXY_URL, ARCHESTRA_SERVER_MCP_URL } from '@/consts';
@@ -49,9 +48,7 @@ const configureMCPClient = async (
     }
   );
 
-  const transport = new StreamableHTTPClientTransport(new URL(clientUrl), {
-    fetch: fetch,
-  });
+  const transport = new StreamableHTTPClientTransport(new URL(clientUrl));
 
   await client.connect(transport);
 
@@ -137,7 +134,6 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
       const result = await client.callTool(toolCallRequest);
       return result;
     } catch (error) {
-      console.error(`Failed to execute tool ${toolCallRequest.name} on ${serverName}:`, error);
       throw error;
     }
   },
@@ -176,39 +172,60 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
   },
 
   connectToArchestraMCPServer: async () => {
-    try {
-      const client = await configureMCPClient('Archestra-client', ARCHESTRA_SERVER_MCP_URL, { tools: {} });
+    const MAX_RETRIES = 30;
+    const RETRY_DELAY_MILLISECONDS = 1000;
+    let retries = 0;
 
-      if (client) {
-        const { tools } = await client.listTools();
+    const attemptConnection = async (): Promise<boolean> => {
+      try {
+        const client = await configureMCPClient('Archestra-client', ARCHESTRA_SERVER_MCP_URL, { tools: {} });
 
-        set((state) => ({
-          archestraMCPServer: {
-            ...state.archestraMCPServer,
-            client,
-            tools,
-            status: 'connected',
-            error: undefined,
-          },
-        }));
+        if (client) {
+          const { tools } = await client.listTools();
+
+          set((state) => ({
+            archestraMCPServer: {
+              ...state.archestraMCPServer,
+              client,
+              tools,
+              status: 'connected',
+              error: undefined,
+            },
+          }));
+
+          return true;
+        }
+        return false;
+      } catch (error) {
+        return false;
       }
-    } catch (error) {
-      console.error('Failed to connect to Archestra MCP server:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    };
 
-      set((state) => ({
-        archestraMCPServer: {
-          ...state.archestraMCPServer,
-          status: 'error',
-          error: errorMessage,
-        },
-      }));
+    // Keep trying to connect until successful or max retries reached
+    while (retries < MAX_RETRIES) {
+      const connected = await attemptConnection();
+      if (connected) {
+        return;
+      }
+
+      retries++;
+      if (retries < MAX_RETRIES) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MILLISECONDS));
+      }
     }
+
+    // If we've exhausted all retries, set error state
+    set((state) => ({
+      archestraMCPServer: {
+        ...state.archestraMCPServer,
+        status: 'error',
+        error: 'Failed to connect after maximum retries',
+      },
+    }));
   },
 
   connectToMCPServer: async (serverName: string, url: string) => {
     if (!url) {
-      console.error(`No URL provided for MCP server ${serverName}`);
       set((state) => ({
         installedMCPServers: state.installedMCPServers.map((server) =>
           server.name === serverName

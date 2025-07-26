@@ -111,7 +111,8 @@ export default function ChatHistory(_props: ChatHistoryProps) {
 
                 {msg.toolCalls && msg.toolCalls.length > 0 && (
                   <div className="space-y-2 mb-4">
-                    {msg.toolCalls.map((toolCall) => (
+                    {/* TODO: update this type... */}
+                    {msg.toolCalls.map((toolCall: any) => (
                       <ToolExecutionResult
                         key={toolCall.id}
                         serverName={toolCall.serverName}

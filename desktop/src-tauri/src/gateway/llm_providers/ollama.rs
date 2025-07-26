@@ -1,49 +1,432 @@
 use crate::models::chat::Model as Chat;
-use crate::models::message::{MessageDefinition, Model as Message};
-use crate::ollama::{emit_chat_title_updated, OLLAMA_SERVER_PORT};
+use crate::models::chat_interactions::Model as ChatInteraction;
+use crate::ollama::client::OllamaClient;
 use axum::{
-    body::Body,
+    body::{Body, Bytes},
     extract::State,
     http::{Request, Response, StatusCode},
     response::IntoResponse,
     Router,
 };
 use futures_util::StreamExt;
-use reqwest::Client;
+use ollama_rs::generation::{
+    chat::{request::ChatMessageRequest, ChatMessage, MessageRole},
+    images::Image,
+    tools::{ToolCall, ToolCallFunction},
+};
 use sea_orm::DatabaseConnection;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde_json::Value;
 use std::sync::Arc;
-use std::time::Duration;
+use tauri::{AppHandle, Emitter};
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::ReceiverStream;
 
-// Constants for resource management
-// Also, make the request timeout very high as it can take some time for the LLM to respond
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(180);
+// Constants
+const MIN_INTERACTIONS_FOR_TITLE_GENERATION: u64 = 4;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct OllamaMessage {
-    role: String,
-    content: String,
+// Minimal wrapper that adds session_id to ollama requests
+#[derive(Deserialize)]
+struct ArchestraProxiedOllamaChatRequest {
+    session_id: String,
+    #[serde(flatten)]
+    ollama_fields: Value, // Capture all other fields
 }
 
-#[derive(Debug, Deserialize)]
-struct OllamaChatRequest {
-    model: String,
-    messages: Vec<OllamaMessage>,
-}
-
+#[derive(Clone)]
 struct Service {
+    app_handle: AppHandle,
     db: Arc<DatabaseConnection>,
-    http_client: Client,
+    ollama_client: OllamaClient,
 }
 
 impl Service {
-    pub fn new(db: DatabaseConnection) -> Self {
+    pub fn new(app_handle: AppHandle, db: DatabaseConnection) -> Self {
         Self {
+            app_handle,
             db: Arc::new(db),
-            http_client: Client::builder()
-                .timeout(REQUEST_TIMEOUT)
-                .build()
-                .unwrap_or_default(),
+            ollama_client: OllamaClient::new(),
+        }
+    }
+
+    async fn generate_chat_title(&self, chat_session_id: String) -> Result<(), String> {
+        let chat = Chat::load_by_session_id(chat_session_id.clone(), &self.db)
+            .await
+            .map_err(|_| "Failed to load chat".to_string())?
+            .ok_or_else(|| "Chat not found".to_string())?;
+
+        let chat_model = chat.llm_model.clone();
+
+        // Load chat with interactions
+        let chat_with_interactions = match chat.load_with_interactions(&self.db).await {
+            Ok(Some(cwi)) => cwi,
+            _ => return Err("Failed to load chat with interactions".to_string()),
+        };
+
+        // Build context from chat interactions
+        let mut full_chat_context = String::new();
+        for interaction in &chat_with_interactions.interactions {
+            full_chat_context.push_str(&interaction.content.to_string());
+            full_chat_context.push_str("\n\n");
+        }
+
+        let chat = chat_with_interactions.chat;
+        match self
+            .ollama_client
+            .generate_title(&chat_model, full_chat_context)
+            .await
+        {
+            Ok(title) => {
+                println!("Generated title: {title}");
+                // Update chat title
+                if chat
+                    .update_title(Some(title.clone()), &self.db)
+                    .await
+                    .is_ok()
+                {
+                    // Emit event to frontend that the title has been updated
+                    let _ = self.app_handle.emit(
+                        "chat-title-updated",
+                        serde_json::json!({
+                            "chatSessionId": chat_session_id,
+                            "title": title
+                        }),
+                    );
+                    Ok(())
+                } else {
+                    Err("Failed to update chat title in database".to_string())
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to generate chat title: {e}");
+                Err(e)
+            }
+        }
+    }
+
+    fn convert_archestra_proxied_chat_request_to_ollama_chat_message(
+        &self,
+        request_body_bytes: Bytes,
+    ) -> Result<(ChatMessageRequest, String), String> {
+        // Parse our wrapper to extract session_id
+        let archestra_request: ArchestraProxiedOllamaChatRequest =
+            match serde_json::from_slice(&request_body_bytes) {
+                Ok(data) => data,
+                Err(e) => return Err(format!("Failed to parse chat request: {e}")),
+            };
+
+        // Extract fields from the flattened JSON to build ChatMessageRequest
+        let model_name = archestra_request.ollama_fields["model"]
+            .as_str()
+            .ok_or_else(|| "Missing model in request".to_string())?
+            .to_string();
+
+        // Parse messages
+        let messages_json = archestra_request.ollama_fields["messages"]
+            .as_array()
+            .ok_or_else(|| "Missing or invalid messages array".to_string())?;
+
+        let mut messages = Vec::new();
+        for msg_json in messages_json {
+            let role_str = msg_json["role"]
+                .as_str()
+                .ok_or_else(|| "Missing role in message".to_string())?;
+
+            let role = match role_str {
+                "user" => MessageRole::User,
+                "assistant" => MessageRole::Assistant,
+                "system" => MessageRole::System,
+                _ => return Err(format!("Invalid role: {}", role_str)),
+            };
+
+            let content = msg_json["content"]
+                .as_str()
+                .ok_or_else(|| "Missing content in message".to_string())?
+                .to_string();
+
+            // Parse optional fields
+            let tool_calls = if let Some(tool_calls_json) = msg_json["tool_calls"].as_array() {
+                tool_calls_json
+                    .iter()
+                    .filter_map(|tc| {
+                        // Parse tool call JSON structure
+                        if let Some(function) = tc["function"].as_object() {
+                            let name = function["name"].as_str();
+                            let args = function.get("arguments");
+                            if let (Some(name), Some(args)) = (name, args) {
+                                Some(ToolCall {
+                                    function: ToolCallFunction {
+                                        name: name.to_string(),
+                                        arguments: args.clone(),
+                                    },
+                                })
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            } else {
+                vec![]
+            };
+
+            let images = if let Some(images_json) = msg_json["images"].as_array() {
+                Some(
+                    images_json
+                        .iter()
+                        .filter_map(|img| img.as_str().map(|s| Image::from_base64(s)))
+                        .collect(),
+                )
+            } else {
+                None
+            };
+
+            let thinking = msg_json["thinking"].as_str().map(|s| s.to_string());
+
+            // Construct the message with all fields
+            let message = ChatMessage {
+                role,
+                content,
+                tool_calls,
+                images,
+                thinking,
+            };
+
+            messages.push(message);
+        }
+
+        // Create the ollama-rs ChatMessageRequest using its constructor
+        let ollama_request = ChatMessageRequest::new(model_name.clone(), messages);
+
+        // Apply optional fields using builder pattern
+        // Note: We'll apply these fields if ollama-rs adds Deserialize implementations in the future
+        // For now, the ChatMessageRequest will use its default values for these fields
+
+        Ok((ollama_request, archestra_request.session_id))
+    }
+
+    async fn proxy_chat_request(&self, req: Request<Body>) -> Result<Response<Body>, String> {
+        // Parse the request body
+        let body_bytes = match axum::body::to_bytes(req.into_body(), usize::MAX).await {
+            Ok(bytes) => bytes,
+            Err(_) => return Err("Failed to read request body".to_string()),
+        };
+
+        let (ollama_request, session_id) =
+            match self.convert_archestra_proxied_chat_request_to_ollama_chat_message(body_bytes) {
+                Ok(data) => data,
+                Err(e) => {
+                    return Err(format!(
+                    "Failed to convert archestra proxied chat request to ollama chat message: {e}"
+                ))
+                }
+            };
+
+        // Load or create chat
+        let chat = match Chat::load_by_session_id(session_id.clone(), &self.db).await {
+            Ok(Some(c)) => c,
+            Ok(None) => {
+                // Create new chat if it doesn't exist
+                match Chat::save(
+                    crate::models::chat::ChatDefinition {
+                        llm_provider: "ollama".to_string(),
+                        llm_model: ollama_request.model_name.clone(),
+                    },
+                    &self.db,
+                )
+                .await
+                {
+                    Ok(c) => c,
+                    Err(e) => return Err(format!("Failed to create chat: {e}")),
+                }
+            }
+            Err(e) => return Err(format!("Failed to load chat: {e}")),
+        };
+
+        let chat_session_id = chat.session_id.clone();
+
+        // Persist the chat interaction
+        if let Some(last_msg) = ollama_request.messages.last() {
+            let content_json = serde_json::json!(&last_msg.content);
+
+            if let Err(e) =
+                ChatInteraction::save(chat_session_id.clone(), content_json.to_string(), &self.db)
+                    .await
+            {
+                eprintln!("Failed to save user message: {e}");
+            }
+        }
+
+        // Get the streaming response from ollama
+        let stream = match self.ollama_client.chat_stream(ollama_request).await {
+            Ok(stream) => stream,
+            Err(e) => return Err(format!("Failed to start chat stream: {e}")),
+        };
+
+        let mut stream = Box::pin(stream);
+
+        // Create a channel for streaming
+        let (tx, rx) = mpsc::channel::<Result<axum::body::Bytes, std::io::Error>>(100);
+
+        let db = self.db.clone();
+        let app_handle = self.app_handle.clone();
+        let ollama_client = self.ollama_client.clone();
+
+        // Spawn a task to handle the stream
+        tokio::spawn(async move {
+            let mut accumulated_content = String::new();
+
+            while let Some(response) = stream.next().await {
+                match response {
+                    Ok(chat_response) => {
+                        // Accumulate content
+                        accumulated_content.push_str(&chat_response.message.content);
+
+                        // Convert to JSON and send
+                        let json_response = serde_json::to_vec(&chat_response).unwrap_or_default();
+                        if tx
+                            .send(Ok(axum::body::Bytes::from(json_response)))
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+
+                        // If this is the final message, save it
+                        if chat_response.done {
+                            if !accumulated_content.is_empty() {
+                                let content_json = serde_json::json!({
+                                    "role": "assistant",
+                                    "content": accumulated_content
+                                });
+
+                                if let Err(e) = ChatInteraction::save(
+                                    chat_session_id.clone(),
+                                    content_json.to_string(),
+                                    &db,
+                                )
+                                .await
+                                {
+                                    eprintln!("Failed to save assistant message: {e}");
+                                }
+
+                                // Check if we need to generate a title
+                                if let Ok(count) = ChatInteraction::count_chat_interactions(
+                                    chat_session_id.clone(),
+                                    &db,
+                                )
+                                .await
+                                {
+                                    if count == MIN_INTERACTIONS_FOR_TITLE_GENERATION {
+                                        let service = Service {
+                                            app_handle: app_handle.clone(),
+                                            db: db.clone(),
+                                            ollama_client: ollama_client.clone(),
+                                        };
+                                        let _ = service
+                                            .generate_chat_title(chat_session_id.clone())
+                                            .await;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        let error_json = serde_json::json!({
+                            "error": e.to_string()
+                        });
+                        let _ = tx
+                            .send(Ok(axum::body::Bytes::from(
+                                serde_json::to_vec(&error_json).unwrap_or_default(),
+                            )))
+                            .await;
+                        break;
+                    }
+                }
+            }
+        });
+
+        // Convert the receiver into a stream
+        let body_stream = ReceiverStream::new(rx);
+        let body = Body::from_stream(body_stream);
+
+        Ok(Response::builder()
+            .status(StatusCode::OK)
+            .header("content-type", "application/x-ndjson")
+            .body(body)
+            .unwrap())
+    }
+
+    async fn proxy_other_request(
+        &self,
+        method: axum::http::Method,
+        path: &str,
+        req: Request<Body>,
+    ) -> Result<Response<Body>, String> {
+        // Create HTTP client for proxying
+        let client = reqwest::Client::new();
+
+        // Build the target URL for Ollama
+        let target_url = format!("{}{}", self.ollama_client.client.url(), path);
+
+        // Convert axum request to reqwest
+        let mut reqwest_builder = client.request(
+            match method {
+                axum::http::Method::GET => reqwest::Method::GET,
+                axum::http::Method::POST => reqwest::Method::POST,
+                axum::http::Method::PUT => reqwest::Method::PUT,
+                axum::http::Method::DELETE => reqwest::Method::DELETE,
+                axum::http::Method::PATCH => reqwest::Method::PATCH,
+                _ => return Err("Unsupported HTTP method".to_string()),
+            },
+            &target_url,
+        );
+
+        // Copy headers
+        for (name, value) in req.headers() {
+            if let Ok(value_str) = value.to_str() {
+                reqwest_builder = reqwest_builder.header(name.as_str(), value_str);
+            }
+        }
+
+        // Copy body
+        let body_bytes = match axum::body::to_bytes(req.into_body(), usize::MAX).await {
+            Ok(bytes) => bytes,
+            Err(_) => return Err("Failed to read request body".to_string()),
+        };
+
+        if !body_bytes.is_empty() {
+            reqwest_builder = reqwest_builder.body(body_bytes.to_vec());
+        }
+
+        // Send request to Ollama
+        match reqwest_builder.send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                let headers = resp.headers().clone();
+
+                // Stream the response back
+                let stream = resp.bytes_stream();
+                let body_stream = stream.map(|result| {
+                    result
+                        .map(|bytes| axum::body::Bytes::from(bytes.to_vec()))
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                });
+
+                let mut response = Response::builder().status(status.as_u16());
+
+                // Copy response headers
+                for (name, value) in headers {
+                    if let Some(name) = name {
+                        response = response.header(name.as_str(), value.as_bytes());
+                    }
+                }
+
+                Ok(response.body(Body::from_stream(body_stream)).unwrap())
+            }
+            Err(e) => Err(format!("Failed to proxy request: {e}")),
         }
     }
 }
@@ -52,530 +435,22 @@ async fn proxy_handler(
     State(service): State<Arc<Service>>,
     req: Request<Body>,
 ) -> impl IntoResponse {
-    let is_chat_endpoint = req.uri().path() == "/api/chat";
-    let is_post = req.method() == "POST";
-
-    let path_and_query = req
-        .uri()
-        .path_and_query()
-        .map(|pq| pq.as_str())
-        .unwrap_or("");
-    let target_url = format!("http://127.0.0.1:{OLLAMA_SERVER_PORT}{path_and_query}");
-
+    let path = req.uri().path().to_string();
     let method = req.method().clone();
-    let headers = req.headers().clone();
-    let body_bytes = match axum::body::to_bytes(req.into_body(), usize::MAX).await {
-        Ok(bytes) => bytes,
-        Err(_) => return (StatusCode::BAD_REQUEST, "Failed to read request body").into_response(),
+
+    let result = match path.as_str() {
+        "/api/chat" => service.proxy_chat_request(req).await,
+        _ => service.proxy_other_request(method, &path, req).await,
     };
 
-    // Parse chat request if it's the chat endpoint
-    let chat_request = if is_chat_endpoint && is_post && !body_bytes.is_empty() {
-        match serde_json::from_slice::<OllamaChatRequest>(&body_bytes) {
-            Ok(chat_req) => {
-                // Create or get existing chat and save user message
-                let last_user_message = chat_req
-                    .messages
-                    .last()
-                    .filter(|msg| msg.role == "user")
-                    .cloned();
-
-                if let Some(msg) = last_user_message {
-                    let db = service.db.clone();
-                    let model = chat_req.model.clone();
-
-                    // Spawn a task to handle database operations
-                    tokio::spawn(async move {
-                        if let Ok(chat_id) = create_or_get_chat(&db, &model).await {
-                            let _ = save_message(&db, chat_id, &msg).await;
-                        }
-                    });
-                }
-
-                Some(chat_req)
-            }
-            Err(e) => {
-                eprintln!("Failed to parse chat request: {e}");
-                None
-            }
-        }
-    } else {
-        None
-    };
-
-    let mut request = service.http_client.request(method, &target_url);
-
-    for (name, value) in headers.iter() {
-        request = request.header(name, value);
-    }
-
-    if !body_bytes.is_empty() {
-        request = request.body(body_bytes);
-    }
-
-    match request.send().await {
-        Ok(resp) => {
-            let status = resp.status();
-            let mut response_builder = Response::builder().status(status);
-
-            // Copy headers from the upstream response
-            for (name, value) in resp.headers().iter() {
-                response_builder = response_builder.header(name, value);
-            }
-
-            // Handle chat endpoint specially to capture assistant response
-            if is_chat_endpoint && is_post && chat_request.is_some() {
-                let service_clone = service.clone();
-                let chat_request = chat_request.unwrap();
-
-                // Create a channel to collect chunks
-                use tokio::sync::mpsc;
-                let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
-
-                // Stream the response while capturing chunks
-                let body_stream = resp.bytes_stream();
-                let db = service_clone.db.clone();
-                let model = chat_request.model.clone();
-
-                // Spawn a task to collect chunks and save the message
-                tokio::spawn(async move {
-                    let mut accumulated_chunks = Vec::new();
-                    while let Some(chunk) = rx.recv().await {
-                        accumulated_chunks.extend_from_slice(&chunk);
-                    }
-
-                    // Save message after stream completes
-                    if !accumulated_chunks.is_empty() {
-                        if let Ok(chat_id) = create_or_get_chat(&db, &model).await {
-                            let content = extract_assistant_content(&accumulated_chunks);
-                            if !content.is_empty() {
-                                let assistant_msg = OllamaMessage {
-                                    role: "assistant".to_string(),
-                                    content,
-                                };
-                                let _ = save_message(&db, chat_id, &assistant_msg).await;
-
-                                // Check if we need to generate title
-                                if let Ok(count) = Chat::count_messages(chat_id, &db).await {
-                                    if count == 4 {
-                                        generate_chat_title(db.clone(), chat_id).await;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-
-                let mapped_stream = body_stream.map(move |result| {
-                    match result {
-                        Ok(bytes) => {
-                            // Send a copy of the chunk to the collector
-                            let _ = tx.send(bytes.to_vec());
-                            Ok(axum::body::Bytes::from(bytes.to_vec()))
-                        }
-                        Err(e) => Err(std::io::Error::other(e)),
-                    }
-                });
-
-                let body = Body::from_stream(mapped_stream);
-                response_builder.body(body).unwrap_or_else(|_| {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "Failed to build response",
-                    )
-                        .into_response()
-                })
-            } else {
-                // Non-chat endpoints: stream as-is
-                let body_stream = resp.bytes_stream();
-                let mapped_stream = body_stream.map(|result| {
-                    result
-                        .map(|bytes| axum::body::Bytes::from(bytes.to_vec()))
-                        .map_err(std::io::Error::other)
-                });
-                let body = Body::from_stream(mapped_stream);
-
-                response_builder.body(body).unwrap_or_else(|_| {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "Failed to build response",
-                    )
-                        .into_response()
-                })
-            }
-        }
-        Err(e) => (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response(),
+    match result {
+        Ok(response) => response,
+        Err(e) => (StatusCode::BAD_GATEWAY, e).into_response(),
     }
 }
 
-fn extract_assistant_content(response_data: &[u8]) -> String {
-    if let Ok(text) = std::str::from_utf8(response_data) {
-        let mut content = String::new();
-
-        // Try parsing as streaming response (multiple JSON lines)
-        for line in text.lines() {
-            if line.trim().is_empty() {
-                continue;
-            }
-
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
-                if let Some(message) = json.get("message") {
-                    if let Some(msg_content) = message.get("content").and_then(|c| c.as_str()) {
-                        content.push_str(msg_content);
-                    }
-                }
-            }
-        }
-
-        // If no content found, try parsing as single response
-        if content.is_empty() {
-            if let Ok(json) = serde_json::from_slice::<serde_json::Value>(response_data) {
-                if let Some(message) = json.get("message") {
-                    if let Some(msg_content) = message.get("content").and_then(|c| c.as_str()) {
-                        content = msg_content.to_string();
-                    }
-                }
-            }
-        }
-
-        content
-    } else {
-        String::new()
-    }
-}
-
-async fn create_or_get_chat(db: &DatabaseConnection, model: &str) -> Result<i32, String> {
-    // For now, we'll use the most recent chat or create a new one
-    // In the future, this could be improved to track chat context better
-    let chats = Chat::load_all(db)
-        .await
-        .map_err(|e| format!("Failed to load chats: {e}"))?;
-
-    if let Some(chat) = chats.first() {
-        Ok(chat.id)
-    } else {
-        // Create new chat
-        let chat_def = crate::models::chat::ChatDefinition {
-            llm_provider: "ollama".to_string(),
-            llm_model: model.to_string(),
-        };
-
-        Chat::save(chat_def, db)
-            .await
-            .map(|chat| chat.id)
-            .map_err(|e| format!("Failed to create chat: {e}"))
-    }
-}
-
-async fn save_message(
-    db: &DatabaseConnection,
-    chat_id: i32,
-    message: &OllamaMessage,
-) -> Result<(), String> {
-    let msg_def = MessageDefinition {
-        chat_id,
-        role: message.role.clone(),
-        content: message.content.clone(),
-    };
-
-    Message::save(msg_def, db)
-        .await
-        .map(|_| ())
-        .map_err(|e| format!("Failed to save message: {e}"))
-}
-
-async fn generate_chat_title(db: Arc<DatabaseConnection>, chat_id: i32) {
-    // Load chat with messages
-    let chat_with_messages = match Chat::load_with_messages(chat_id, &db).await {
-        Ok(Some(cwm)) => cwm,
-        _ => return,
-    };
-
-    // Build context from messages
-    let mut context = String::new();
-    for msg in &chat_with_messages.messages {
-        context.push_str(&format!("{}: {}\n", msg.role, msg.content));
-    }
-
-    // Request title generation from Ollama
-    let prompt = format!(
-        "Based on this conversation, generate a brief 5-6 word title that captures the main topic. Return only the title, no quotes or extra text:\n\n{context}"
-    );
-
-    let request_body = serde_json::json!({
-        "model": chat_with_messages.chat.llm_model,
-        "prompt": prompt,
-        "stream": false,
-        "options": {
-            "temperature": 0.7,
-            "num_predict": 20
-        }
-    });
-
-    let target_url = format!("http://127.0.0.1:{OLLAMA_SERVER_PORT}/api/generate");
-
-    let client = Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()
-        .unwrap_or_default();
-
-    match client.post(&target_url).json(&request_body).send().await {
-        Ok(resp) => {
-            if let Ok(json) = resp.json::<serde_json::Value>().await {
-                if let Some(title) = json.get("response").and_then(|r| r.as_str()) {
-                    let title = title.trim().to_string();
-
-                    // Update chat title
-                    if Chat::update_title(chat_id, title.clone(), &db)
-                        .await
-                        .is_ok()
-                    {
-                        // Emit event to frontend
-                        emit_chat_title_updated(chat_id, title);
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            eprintln!("Failed to generate chat title: {e}");
-        }
-    }
-}
-
-pub fn create_router(db: DatabaseConnection) -> Router {
+pub fn create_router(app_handle: AppHandle, db: DatabaseConnection) -> Router {
     Router::new()
         .fallback(proxy_handler)
-        .with_state(Arc::new(Service::new(db)))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::test_fixtures::database;
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
-    use rstest::*;
-    use tower::ServiceExt;
-
-    fn app(db: DatabaseConnection) -> Router {
-        create_router(db)
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_service_creation(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let service = Service::new(db);
-
-        // Just ensure the service is created successfully
-        // (We can't easily test the timeout configuration)
-        assert!(Arc::strong_count(&service.db) > 0);
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_proxy_get_request(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let app = app(db);
-
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri("/api/tags")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        // This will fail with BAD_GATEWAY since Ollama isn't running
-        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
-
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        let body_str = String::from_utf8(body.to_vec()).unwrap();
-        assert!(body_str.contains("Proxy error"));
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_proxy_with_body(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let app = app(db);
-
-        let request_body = serde_json::json!({
-            "model": "llama2",
-            "prompt": "Hello, world!"
-        });
-
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/api/generate")
-                    .header("Content-Type", "application/json")
-                    .body(Body::from(serde_json::to_string(&request_body).unwrap()))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        // This will fail with BAD_GATEWAY since Ollama isn't running
-        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
-
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        let body_str = String::from_utf8(body.to_vec()).unwrap();
-        assert!(body_str.contains("Proxy error"));
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_proxy_with_headers(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let app = app(db);
-
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri("/api/version")
-                    .header("Authorization", "Bearer test-token")
-                    .header("X-Custom-Header", "test-value")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        // This will fail with BAD_GATEWAY since Ollama isn't running
-        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_proxy_path_and_query(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let app = app(db);
-
-        // Test with query parameters
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri("/api/pull?name=llama2&insecure=false")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_proxy_empty_path(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let app = app(db);
-
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri("/")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_concurrent_proxy_requests(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let service = Arc::new(Service::new(db));
-
-        let mut handles = vec![];
-
-        for i in 0..5 {
-            let service_clone = service.clone();
-            let handle = tokio::spawn(async move {
-                let req = Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/test/{i}"))
-                    .body(Body::empty())
-                    .unwrap();
-
-                let response = proxy_handler(State(service_clone), req)
-                    .await
-                    .into_response();
-
-                response.status()
-            });
-            handles.push(handle);
-        }
-
-        for handle in handles {
-            let status = handle.await.unwrap();
-            assert_eq!(status, StatusCode::BAD_GATEWAY);
-        }
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_proxy_large_body(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let app = app(db);
-
-        // Create a large body (1MB)
-        let large_body = "x".repeat(1024 * 1024);
-
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/api/generate")
-                    .header("Content-Type", "text/plain")
-                    .body(Body::from(large_body))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_proxy_various_methods(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let app = app(db);
-
-        let methods = ["GET", "POST", "PUT", "DELETE", "PATCH"];
-
-        for method_str in &methods {
-            let response = app
-                .clone()
-                .oneshot(
-                    Request::builder()
-                        .method(*method_str)
-                        .uri("/api/test")
-                        .body(Body::empty())
-                        .unwrap(),
-                )
-                .await
-                .unwrap();
-
-            assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
-        }
-    }
+        .with_state(Arc::new(Service::new(app_handle, db)))
 }

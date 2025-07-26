@@ -3,9 +3,9 @@ import * as React from 'react';
 import { useState } from 'react';
 
 import { DeleteChatConfirmation } from './components/DeleteChatConfirmation';
+import { EditableTitle } from './components/EditableTitle';
 import { SiteHeader } from './components/SiteHeader';
 import { ToolHoverCard } from './components/ToolHoverCard';
-import { TypewriterText } from './components/TypewriterText';
 import { ToolContext } from './components/kibo/ai-input';
 import { Input } from './components/ui/input';
 import {
@@ -35,7 +35,10 @@ function App() {
   useThemeStore();
   const { loadingInstalledMCPServers } = useMCPServersStore();
   const allTools = useMCPServersStore.getState().allAvailableTools();
-  const { chats, currentChatId, isLoadingChats, selectChat, createNewChat, deleteCurrentChat } = useChatStore();
+  const { chats, currentChat, isLoadingChats, selectChat, createNewChat, deleteCurrentChat, updateChat } =
+    useChatStore();
+  const currentChatId = currentChat?.id;
+  const currentChatTitle = currentChat?.title;
 
   const [activeView, setActiveView] = useState<'chat' | 'mcp' | 'llm-providers' | 'settings'>('chat');
   const [activeSubView, setActiveSubView] = useState<'ollama'>('ollama');
@@ -161,22 +164,17 @@ function App() {
           title={navigationItems.find((item) => item.key === activeView)?.title}
           breadcrumbs={
             activeView === 'chat' && currentChatId && chats.length > 0
-              ? (() => {
-                  const currentChat = chats.find((chat) => chat.id === currentChatId);
-                  /**
-                   * title may be empty as this gets asynchronously updated on the backend.
-                   * This is done after several messages have been sent in the chat, via an LLM prompt.
-                   */
-                  return ['Chat', currentChat?.title || 'New Chat'];
-                })()
+              ? ['Chat', !currentChatTitle ? 'New Chat' : currentChatTitle]
               : activeView === 'llm-providers' && activeSubView
                 ? [
                     navigationItems.find((item) => item.key === activeView)?.title || '',
                     activeSubView.charAt(0).toUpperCase() + activeSubView.slice(1),
-                  ]
-                : [navigationItems.find((item) => item.key === activeView)?.title || '']
+                  ].filter(Boolean)
+                : navigationItems.find((item) => item.key === activeView)?.title
+                  ? [navigationItems.find((item) => item.key === activeView)?.title as string]
+                  : []
           }
-          isAnimatedTitle={activeView === 'chat' && currentChatId !== null}
+          isAnimatedTitle={activeView === 'chat' && currentChat && !currentChat?.title ? true : undefined}
         />
         <div className="flex flex-1 overflow-hidden">
           <Sidebar
@@ -200,6 +198,7 @@ function App() {
                             }}
                             isActive={activeView === item.key}
                             tooltip={item.title}
+                            className="cursor-pointer hover:bg-accent/50"
                           >
                             <item.icon className="h-4 w-4" />
                             <span>{item.title}</span>
@@ -208,7 +207,11 @@ function App() {
                         {item.key === 'chat' && activeView === 'chat' && (
                           <>
                             <SidebarMenuItem className="ml-6 group-data-[collapsible=icon]:hidden">
-                              <SidebarMenuButton onClick={createNewChat} size="sm" className="text-sm">
+                              <SidebarMenuButton
+                                onClick={createNewChat}
+                                size="sm"
+                                className="cursor-pointer hover:bg-accent/50 text-sm"
+                              >
                                 <Plus className="h-3 w-3" />
                                 <span>New Chat</span>
                               </SidebarMenuButton>
@@ -225,24 +228,24 @@ function App() {
                                 <div className="px-2 py-1.5 text-xs text-muted-foreground">No chats yet</div>
                               </SidebarMenuItem>
                             ) : (
-                              chats.map((chat) => (
-                                <SidebarMenuItem key={chat.id} className="ml-6 group-data-[collapsible=icon]:hidden">
+                              chats.map(({ id, title }) => (
+                                <SidebarMenuItem key={id} className="ml-6 group-data-[collapsible=icon]:hidden">
                                   <SidebarMenuButton
-                                    onClick={() => selectChat(chat.id)}
-                                    isActive={currentChatId === chat.id}
+                                    onClick={() => selectChat(id)}
+                                    isActive={currentChatId === id}
                                     size="sm"
-                                    className="text-sm justify-between group"
+                                    className="cursor-pointer hover:bg-accent/50 text-sm justify-between group"
                                   >
-                                    <span className="truncate flex-1">
-                                      {currentChatId === chat.id ? (
-                                        <TypewriterText text={chat.title} speed={20} />
-                                      ) : (
-                                        chat.title
-                                      )}
-                                    </span>
-                                    {currentChatId === chat.id && (
-                                      <DeleteChatConfirmation onDelete={deleteCurrentChat} />
+                                    {currentChatId === id ? (
+                                      <EditableTitle
+                                        title={title}
+                                        isAnimated={!title}
+                                        onSave={(newTitle) => updateChat(id, newTitle)}
+                                      />
+                                    ) : (
+                                      <span className="truncate">{title || 'New Chat'}</span>
                                     )}
+                                    {currentChatId === id && <DeleteChatConfirmation onDelete={deleteCurrentChat} />}
                                   </SidebarMenuButton>
                                 </SidebarMenuItem>
                               ))
@@ -255,7 +258,7 @@ function App() {
                               onClick={() => setActiveSubView('ollama')}
                               isActive={activeSubView === 'ollama'}
                               size="sm"
-                              className="text-sm"
+                              className="cursor-pointer hover:bg-accent/50 text-sm"
                             >
                               <span>Ollama</span>
                             </SidebarMenuButton>

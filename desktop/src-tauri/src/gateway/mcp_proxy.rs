@@ -191,7 +191,6 @@ impl Service {
         match forward_raw_request(&server_name, request_body.clone()).await {
             Ok(raw_response) => {
                 println!("✅ Successfully received response from server '{server_name}'");
-                println!("📤 Response: {raw_response}");
 
                 let duration_ms = start_time.elapsed().as_millis() as i32;
 

@@ -23,15 +23,3 @@ export interface ToolCallInfo {
   startTime: Date;
   endTime?: Date;
 }
-
-export interface ChatMessage {
-  id: string;
-  role: string;
-  content: string;
-  thinkingContent?: string;
-  timestamp: Date;
-  isStreaming?: boolean;
-  isThinkingStreaming?: boolean;
-  toolCalls?: ToolCallInfo[];
-  isToolExecuting?: boolean;
-}
