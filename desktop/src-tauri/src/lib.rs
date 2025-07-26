@@ -70,7 +70,7 @@ pub fn run() {
             // Start Ollama server automatically on app startup
             let ollama_service = ollama::server::Service::new(app.handle().clone());
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = ollama_service.start_server().await {
+                if let Err(e) = ollama_service.start_server_on_startup().await {
                     eprintln!("Failed to start Ollama server: {e}");
                 }
             });
