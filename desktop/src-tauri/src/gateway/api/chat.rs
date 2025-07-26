@@ -37,7 +37,9 @@ impl Service {
         &self,
         id: String,
     ) -> Result<Option<ChatWithInteractions>, sea_orm::DbErr> {
-        let id = id.parse::<i32>().map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
+        let id = id
+            .parse::<i32>()
+            .map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
         match Chat::load_by_id(id, &self.db).await? {
             Some(chat) => chat.load_with_interactions(&self.db).await,
             None => Ok(None),
@@ -53,7 +55,9 @@ impl Service {
     }
 
     pub async fn delete_chat(&self, id: String) -> Result<(), sea_orm::DbErr> {
-        let id = id.parse::<i32>().map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
+        let id = id
+            .parse::<i32>()
+            .map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
         Chat::delete(id, &self.db).await
     }
 
@@ -62,7 +66,9 @@ impl Service {
         id: String,
         request: UpdateChatRequest,
     ) -> Result<Chat, sea_orm::DbErr> {
-        let id = id.parse::<i32>().map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
+        let id = id
+            .parse::<i32>()
+            .map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
         let chat = Chat::load_by_id(id, &self.db)
             .await?
             .ok_or_else(|| sea_orm::DbErr::RecordNotFound("Chat not found".to_string()))?;
@@ -385,7 +391,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
-        
+
         // Deleting again should still return NO_CONTENT (idempotent)
         let response = router
             .clone()

@@ -53,9 +53,7 @@ impl Model {
         let chat = ChatModel::load_by_session_id(chat_session_id.clone(), db)
             .await?
             .ok_or_else(|| {
-                DbErr::RecordNotFound(format!(
-                    "Chat not found with session_id: {chat_session_id}"
-                ))
+                DbErr::RecordNotFound(format!("Chat not found with session_id: {chat_session_id}"))
             })?;
 
         let new_chat_interaction = ActiveModel {

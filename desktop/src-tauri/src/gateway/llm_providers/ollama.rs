@@ -292,42 +292,40 @@ impl Service {
                         }
 
                         // If this is the final message, save it
-                        if chat_response.done
-                            && !accumulated_content.is_empty() {
-                                let content_json = serde_json::json!({
-                                    "role": "assistant",
-                                    "content": accumulated_content
-                                });
+                        if chat_response.done && !accumulated_content.is_empty() {
+                            let content_json = serde_json::json!({
+                                "role": "assistant",
+                                "content": accumulated_content
+                            });
 
-                                if let Err(e) = ChatInteraction::save(
-                                    chat_session_id.clone(),
-                                    content_json.to_string(),
-                                    &db,
-                                )
-                                .await
-                                {
-                                    eprintln!("Failed to save assistant message: {e}");
-                                }
+                            if let Err(e) = ChatInteraction::save(
+                                chat_session_id.clone(),
+                                content_json.to_string(),
+                                &db,
+                            )
+                            .await
+                            {
+                                eprintln!("Failed to save assistant message: {e}");
+                            }
 
-                                // Check if we need to generate a title
-                                if let Ok(count) = ChatInteraction::count_chat_interactions(
-                                    chat_session_id.clone(),
-                                    &db,
-                                )
-                                .await
-                                {
-                                    if count == MIN_INTERACTIONS_FOR_TITLE_GENERATION {
-                                        let service = Service {
-                                            app_handle: app_handle.clone(),
-                                            db: db.clone(),
-                                            ollama_client: ollama_client.clone(),
-                                        };
-                                        let _ = service
-                                            .generate_chat_title(chat_session_id.clone())
-                                            .await;
-                                    }
+                            // Check if we need to generate a title
+                            if let Ok(count) = ChatInteraction::count_chat_interactions(
+                                chat_session_id.clone(),
+                                &db,
+                            )
+                            .await
+                            {
+                                if count == MIN_INTERACTIONS_FOR_TITLE_GENERATION {
+                                    let service = Service {
+                                        app_handle: app_handle.clone(),
+                                        db: db.clone(),
+                                        ollama_client: ollama_client.clone(),
+                                    };
+                                    let _ =
+                                        service.generate_chat_title(chat_session_id.clone()).await;
                                 }
                             }
+                        }
                     }
                     Err(e) => {
                         let error_json = serde_json::json!({
@@ -462,7 +460,9 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_convert_archestra_request_to_ollama_valid(#[future] database: DatabaseConnection) {
+    async fn test_convert_archestra_request_to_ollama_valid(
+        #[future] database: DatabaseConnection,
+    ) {
         let _db = database.await;
 
         let request_json = json!({
@@ -494,7 +494,9 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_convert_archestra_request_with_tool_calls(#[future] database: DatabaseConnection) {
+    async fn test_convert_archestra_request_with_tool_calls(
+        #[future] database: DatabaseConnection,
+    ) {
         let _db = database.await;
 
         let request_json = json!({
@@ -522,7 +524,10 @@ mod tests {
         assert!(result.is_ok());
         let (ollama_request, _) = result.unwrap();
         assert_eq!(ollama_request.messages[0].tool_calls.len(), 1);
-        assert_eq!(ollama_request.messages[0].tool_calls[0].function.name, "calculate");
+        assert_eq!(
+            ollama_request.messages[0].tool_calls[0].function.name,
+            "calculate"
+        );
     }
 
     #[rstest]
@@ -549,7 +554,9 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_convert_archestra_request_missing_messages(#[future] database: DatabaseConnection) {
+    async fn test_convert_archestra_request_missing_messages(
+        #[future] database: DatabaseConnection,
+    ) {
         let _db = database.await;
 
         let request_json = json!({
@@ -606,7 +613,7 @@ mod tests {
 
         let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
         let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
-        
+
         assert!(result.is_ok());
         let (_, session_id) = result.unwrap();
 
@@ -661,7 +668,7 @@ mod tests {
 
         assert!(result.is_ok());
         let (ollama_request, _) = result.unwrap();
-        
+
         assert_eq!(ollama_request.messages[0].role, MessageRole::System);
         assert_eq!(ollama_request.messages[1].role, MessageRole::User);
         assert_eq!(ollama_request.messages[2].role, MessageRole::Assistant);

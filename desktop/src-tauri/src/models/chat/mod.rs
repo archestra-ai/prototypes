@@ -188,20 +188,17 @@ mod tests {
 
         let chat_with_interactions = chat.load_with_interactions(&db).await.unwrap().unwrap();
 
-        assert_eq!(chat_with_interactions.chat.id, chat_with_interactions.chat.id);
+        assert_eq!(
+            chat_with_interactions.chat.id,
+            chat_with_interactions.chat.id
+        );
         assert_eq!(chat_with_interactions.interactions.len(), 2);
 
         let interaction1 = &chat_with_interactions.interactions[0];
         let interaction2 = &chat_with_interactions.interactions[1];
 
-        assert_eq!(
-            interaction1.content.as_str().unwrap(),
-            content1
-        );
-        assert_eq!(
-            interaction2.content.as_str().unwrap(),
-            content2
-        );
+        assert_eq!(interaction1.content.as_str().unwrap(), content1);
+        assert_eq!(interaction2.content.as_str().unwrap(), content2);
     }
 
     #[rstest]
@@ -242,21 +239,32 @@ mod tests {
 
         // Load all chats - should be ordered by created_at DESC
         let all_chats = Model::load_all(&db).await.unwrap();
-        
+
         // Find our chats in the results
         let our_chat_ids = vec![chat1.id, chat2.id, chat3.id];
         let our_chats: Vec<_> = all_chats
             .into_iter()
             .filter(|c| our_chat_ids.contains(&c.id))
             .collect();
-        
+
         // We should find all 3 of our chats
-        assert_eq!(our_chats.len(), 3, "Expected to find 3 chats, found: {}", our_chats.len());
-        
+        assert_eq!(
+            our_chats.len(),
+            3,
+            "Expected to find 3 chats, found: {}",
+            our_chats.len()
+        );
+
         // Verify each chat has the expected content
-        assert!(our_chats.iter().any(|c| c.id == chat1.id && c.llm_model == "llama3.2"));
-        assert!(our_chats.iter().any(|c| c.id == chat2.id && c.llm_model == "llama3.1"));
-        assert!(our_chats.iter().any(|c| c.id == chat3.id && c.llm_model == "claude-3"));
+        assert!(our_chats
+            .iter()
+            .any(|c| c.id == chat1.id && c.llm_model == "llama3.2"));
+        assert!(our_chats
+            .iter()
+            .any(|c| c.id == chat2.id && c.llm_model == "llama3.1"));
+        assert!(our_chats
+            .iter()
+            .any(|c| c.id == chat3.id && c.llm_model == "claude-3"));
     }
 
     #[rstest]

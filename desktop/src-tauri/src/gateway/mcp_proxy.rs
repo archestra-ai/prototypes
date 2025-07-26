@@ -300,15 +300,15 @@ pub fn create_router(db: DatabaseConnection) -> Router {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::mcp_request_log::{Column, Entity};
     use crate::test_fixtures::database;
     use axum::{
         body::Body,
         http::{Request, StatusCode},
     };
     use rstest::*;
-    use tower::ServiceExt;
-    use crate::models::mcp_request_log::{Column, Entity};
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    use tower::ServiceExt;
 
     fn app(db: DatabaseConnection) -> Router {
         create_router(db)
