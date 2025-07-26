@@ -1,7 +1,7 @@
 'use client';
 
 import { FileText } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 
 import {
   AIInput,
@@ -21,7 +21,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSSEChat } from '@/hooks/use-sse-chat';
 import { useAgentStore } from '@/stores/agent-store';
-import { useChatStore, useIsStreaming } from '@/stores/chat-store';
+import { useChatStore } from '@/stores/chat-store';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 import { useOllamaStore } from '@/stores/ollama-store';
 

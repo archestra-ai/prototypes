@@ -7,12 +7,12 @@ import {
   MemoizedPlanSteps,
   MemoizedReasoningDisplay,
   MemoizedTaskProgressDisplay,
-  MemoizedToolCallDisplay,
   useThrottledValue,
 } from '@/components/agent/performance-optimizations';
 import { AIResponse } from '@/components/kibo/ai-response';
+import { ToolParts } from '@/components/kibo/tool-part';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useMessageParts, useSSEChat } from '@/hooks/use-sse-chat';
+import { useSSEChat } from '@/hooks/use-sse-chat';
 import { useAgentStore } from '@/stores/agent-store';
 import { ReasoningDataPart, TaskProgressDataPart } from '@/types/agent';
 
@@ -27,8 +27,8 @@ export default function ChatHistory(_props: ChatHistoryProps) {
     onError: (error) => {
       console.error('[ChatHistory] SSE error:', error);
     },
-    onFinish: (message, { usage }) => {
-      console.log('[ChatHistory] Message finished:', { message, usage });
+    onFinish: ({ message }) => {
+      console.log('[ChatHistory] Message finished:', { message });
     },
   });
 
@@ -136,15 +136,15 @@ export default function ChatHistory(_props: ChatHistoryProps) {
               data: {
                 type: 'reasoning',
                 entry: {
-                  id: crypto.randomUUID(),
-                  type: 'analysis',
+                  id: crypto.randomUUID() as `${string}-${string}-${string}-${string}-${string}`,
+                  type: 'planning' as const,
                   content: part.text || '',
                   alternatives: [],
                   timestamp: new Date(),
                   confidence: 0.8,
                 },
               },
-            } as ReasoningDataPart);
+            });
           } else if (part.type === 'tool-call') {
             toolCalls.push({
               id: part.toolCallId,
@@ -179,29 +179,9 @@ export default function ChatHistory(_props: ChatHistoryProps) {
         toolCalls = [...toolCalls, ...msg.toolInvocations];
       }
 
-      // Render tool calls indicator
-      if (toolCalls.length > 0) {
-        const toolCallInfos = toolCalls.map((tc: any) => ({
-          id: tc.toolCallId || tc.id || crypto.randomUUID(),
-          serverName: tc.toolName?.split('_')[0] || 'unknown',
-          toolName: tc.toolName?.split('_').slice(1).join('_') || tc.toolName || 'unknown',
-          arguments: tc.args || {},
-          status: (tc.state === 'result' ? 'completed' : tc.state === 'call' ? 'executing' : 'pending') as
-            | 'pending'
-            | 'executing'
-            | 'completed'
-            | 'error',
-          result: tc.result,
-          startTime: new Date(),
-        }));
-
-        parts.push(
-          <MemoizedToolCallDisplay
-            key="tool-calls"
-            toolCallInfos={toolCallInfos}
-            isExecuting={toolCalls.some((tc) => tc.state === 'call')}
-          />
-        );
+      // Render tool calls using the new ToolParts component
+      if (msg.parts && msg.parts.some((p: any) => p.type === 'tool-call' || p.type === 'tool-result')) {
+        parts.push(<ToolParts key="tool-parts" parts={msg.parts} />);
       }
 
       // Render reasoning if available
@@ -210,8 +190,8 @@ export default function ChatHistory(_props: ChatHistoryProps) {
           <MemoizedReasoningDisplay
             key="reasoning"
             reasoningParts={reasoningParts}
-            isThinking={isCurrentFormat && msg.isThinkingStreaming}
-            thinkingContent={isCurrentFormat ? msg.thinkingContent : undefined}
+            isThinking={false}
+            thinkingContent={undefined}
           />
         );
       }
@@ -227,10 +207,7 @@ export default function ChatHistory(_props: ChatHistoryProps) {
       }
 
       // Show loading indicator if still streaming
-      if (
-        (isLoading && messageIndex === messages.length - 1) ||
-        (isCurrentFormat && (msg.isStreaming || msg.isToolExecuting))
-      ) {
+      if ((isLoading && messageIndex === messages.length - 1) || false) {
         parts.push(
           <div key="loading" className="flex items-center space-x-2 mt-2">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>

@@ -57,11 +57,14 @@ struct OllamaMessage {
 /// Ollama streaming response chunk
 #[derive(Debug, Deserialize)]
 struct OllamaChatChunk {
+    #[allow(dead_code)]
     model: String,
+    #[allow(dead_code)]
     created_at: String,
     message: OllamaMessageChunk,
     done: bool,
     #[serde(default)]
+    #[allow(dead_code)]
     total_duration: Option<u64>,
     #[serde(default)]
     prompt_eval_count: Option<u32>,
@@ -71,6 +74,7 @@ struct OllamaChatChunk {
 
 #[derive(Debug, Deserialize)]
 struct OllamaMessageChunk {
+    #[allow(dead_code)]
     role: String,
     content: String,
     #[serde(default)]
@@ -81,6 +85,7 @@ struct OllamaMessageChunk {
 struct OllamaToolCall {
     id: Option<String>,
     #[serde(rename = "type")]
+    #[allow(dead_code)]
     tool_type: Option<String>,
     function: OllamaFunction,
 }

@@ -131,7 +131,6 @@ export class ArchestraAgentV5 {
         ],
         tools: this.supportsTools ? this.tools : undefined,
         experimental_telemetry: { isEnabled: true },
-        maxSteps: this.config.maxSteps || 10, // Allow multiple steps for tool execution
         onStepFinish: async (step) => {
           console.log('📍 [ArchestraAgentV5] Step finished:', {
             text: step.text?.substring(0, 100),
