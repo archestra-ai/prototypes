@@ -5,7 +5,7 @@ interface ToolInteractionProps {
   interaction: any;
 }
 
-export default function ToolInteraction({ interaction }: ToolInteractionProps) {
+export default function ToolInteraction({ interaction: { content } }: ToolInteractionProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 mb-2">
@@ -13,7 +13,7 @@ export default function ToolInteraction({ interaction }: ToolInteractionProps) {
         <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Tool Result</span>
       </div>
       <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <div className="text-sm whitespace-pre-wrap font-mono">{interaction.content}</div>
+        <div className="text-sm whitespace-pre-wrap font-mono">{content}</div>
       </div>
     </div>
   );

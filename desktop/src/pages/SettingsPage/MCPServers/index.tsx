@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
-import type { ConnectedMCPServer } from '@/types';
+import { ConnectedMCPServer, MCPServerStatus } from '@/types';
 
 interface MCPServersProps {}
 
@@ -14,30 +14,30 @@ export default function MCPServers(_props: MCPServersProps) {
 
   const getStatusIcon = (status: ConnectedMCPServer['status']) => {
     switch (status) {
-      case 'connecting':
+      case MCPServerStatus.Connecting:
         return <Loader2 className="h-4 w-4 animate-spin text-yellow-500" />;
-      case 'connected':
+      case MCPServerStatus.Connected:
         return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'error':
+      case MCPServerStatus.Error:
         return <AlertCircle className="h-4 w-4 text-red-500" />;
     }
   };
 
   const getStatusBadge = (status: ConnectedMCPServer['status']) => {
     switch (status) {
-      case 'connecting':
+      case MCPServerStatus.Connecting:
         return (
           <Badge variant="outline" className="text-yellow-600 border-yellow-500">
             Connecting
           </Badge>
         );
-      case 'connected':
+      case MCPServerStatus.Connected:
         return (
           <Badge variant="outline" className="text-green-600 border-green-500">
             Connected
           </Badge>
         );
-      case 'error':
+      case MCPServerStatus.Error:
         return (
           <Badge variant="outline" className="text-red-600 border-red-500">
             Error
@@ -108,7 +108,7 @@ export default function MCPServers(_props: MCPServersProps) {
                             {server.url}
                           </div>
 
-                          {server.status === 'error' && server.error && (
+                          {server.status === MCPServerStatus.Error && server.error && (
                             <div className="text-xs text-red-600 bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded border border-red-200 dark:border-red-800">
                               Error: {server.error}
                             </div>
@@ -142,7 +142,7 @@ export default function MCPServers(_props: MCPServersProps) {
                             </div>
                           )}
 
-                          {server.status === 'connected' && server.tools.length === 0 && (
+                          {server.status === MCPServerStatus.Connected && server.tools.length === 0 && (
                             <div className="text-sm text-muted-foreground italic">
                               No tools available from this server
                             </div>
@@ -163,7 +163,9 @@ export default function MCPServers(_props: MCPServersProps) {
                     {installedMCPServers.length !== 1 ? 's' : ''}, {totalNumberOfMCPTools} tool
                     {totalNumberOfMCPTools !== 1 ? 's' : ''}
                   </span>
-                  <span>{installedMCPServers.filter((s) => s.status === 'connected').length} connected</span>
+                  <span>
+                    {installedMCPServers.filter((s) => s.status === MCPServerStatus.Connected).length} connected
+                  </span>
                 </div>
               </div>
             )}

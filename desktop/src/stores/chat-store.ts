@@ -2,7 +2,7 @@ import { listen } from '@tauri-apps/api/event';
 import { Message as OllamaMessage, Tool as OllamaTool, ToolCall as OllamaToolCall } from 'ollama/browser';
 import { create } from 'zustand';
 
-import { createChat, deleteChat, getAllChats, updateChat } from '@/lib/api';
+import { createChat, deleteChat, getAllChats, updateChat } from '@/lib/api-client';
 import {
   checkModelSupportsTools,
   initializeChat,
@@ -10,22 +10,33 @@ import {
   parseThinkingContent,
 } from '@/lib/utils/chat';
 import { convertMCPServerToolsToOllamaTools, convertOllamaToolNameToServerAndToolName } from '@/lib/utils/ollama';
-import type { ChatTitleUpdatedEvent, ChatWithInteractions, ToolCallInfo, ToolWithMCPServerName } from '@/types';
+import {
+  ChatInteractionRole,
+  ChatInteractionStatus,
+  type ChatTitleUpdatedEvent,
+  type ChatWithInteractions,
+  type ToolCallInfo,
+  ToolCallStatus,
+  type ToolWithMCPServerName,
+} from '@/types';
 
 import { useDeveloperModeStore } from './developer-mode-store';
 import { useMCPServersStore } from './mcp-servers-store';
 import { useOllamaStore } from './ollama-store';
 
 interface ChatState {
+  status: ChatInteractionStatus;
   chats: ChatWithInteractions[];
-  currentChat: ChatWithInteractions | null;
-  streamingMessageId: string | null;
+  currentChat: ChatWithInteractions;
+  streamingMessageId: number | null;
   abortController: AbortController | null;
   isLoadingChats: boolean;
   isLoadingMessages: boolean;
 }
 
 interface ChatActions {
+  getStatus: () => ChatInteractionStatus;
+  setStatus: (status: ChatInteractionStatus) => void;
   loadChats: () => Promise<void>;
   createNewChat: () => Promise<void>;
   selectChat: (chatId: number) => void;
@@ -34,7 +45,7 @@ interface ChatActions {
   updateChat: (chatId: number, title: string | null) => Promise<void>;
   sendChatMessage: (message: string, selectedTools?: ToolWithMCPServerName[]) => Promise<void>;
   cancelStreaming: () => void;
-  updateStreamingMessage: (messageId: string, content: string) => void;
+  updateStreamingMessage: (messageId: number, content: string) => void;
   _listenForChatTitleUpdates: () => void;
   initializeStore: () => void;
 }
@@ -67,7 +78,7 @@ const executeToolsAndCollectResults = async (
         toolName,
         arguments: args,
         result: toolResultContent,
-        status: 'completed',
+        status: ToolCallStatus.Completed,
         executionTime: 0,
         startTime: new Date(),
         endTime: new Date(),
@@ -76,7 +87,7 @@ const executeToolsAndCollectResults = async (
       // Add tool result to conversation
       if (finalMessage) {
         ollamaMessages.push(finalMessage, {
-          role: 'tool',
+          role: ChatInteractionRole.Tool,
           content: toolResultContent,
         });
       }
@@ -88,7 +99,7 @@ const executeToolsAndCollectResults = async (
         arguments: toolCall.function.arguments,
         result: '',
         error: error instanceof Error ? error.message : String(error),
-        status: 'error',
+        status: ToolCallStatus.Error,
         executionTime: 0,
         startTime: new Date(),
         endTime: new Date(),
@@ -99,10 +110,21 @@ const executeToolsAndCollectResults = async (
   return toolResults;
 };
 
+const initializeCurrentChat = (): ChatWithInteractions => ({
+  id: 0,
+  title: 'New Chat',
+  created_at: new Date().toISOString(),
+  session_id: '',
+  llm_model: '',
+  llm_provider: '',
+  interactions: [],
+});
+
 export const useChatStore = create<ChatStore>((set, get) => ({
   // State
+  status: ChatInteractionStatus.Ready,
   chats: [],
-  currentChat: null,
+  currentChat: initializeCurrentChat(),
   streamingMessageId: null,
   abortController: null,
   isLoadingChats: false,
@@ -119,7 +141,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
         set({
           chats: initializedChats,
-          currentChat: initializedChats[0],
+          currentChat: initializedChats.length > 0 ? initializedChats[0] : initializeCurrentChat(),
           isLoadingChats: false,
         });
       }
@@ -153,13 +175,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   selectChat: (chatId: number) => {
     set({
-      currentChat: get().chats.find((chat) => chat.id === chatId) || null,
+      currentChat: get().chats.find((chat) => chat.id === chatId),
     });
   },
 
   getCurrentChatTitle: () => {
     const { currentChat } = get();
-    return currentChat?.title || 'New Chat';
+    return currentChat.title || 'New Chat';
   },
 
   deleteCurrentChat: async () => {
@@ -170,12 +192,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       await deleteChat({ path: { id: currentChat.id.toString() } });
-      set((state) => {
-        const newChats = state.chats.filter((chat) => chat.id !== currentChat.id);
-        const newCurrentChat = newChats.length > 0 ? newChats[0] : null;
+      set(({ chats }) => {
+        const newChats = chats.filter((chat) => chat.id !== currentChat.id);
         return {
           chats: newChats,
-          currentChat: newCurrentChat,
+          currentChat: newChats.length > 0 ? newChats[0] : initializeCurrentChat(),
         };
       });
     } catch (error) {
@@ -193,7 +214,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (data) {
         // Update the chat in the local state
         set(({ currentChat, chats }) => ({
-          currentChat: currentChat?.id === chatId ? { ...currentChat, title } : currentChat,
+          currentChat: currentChat.id === chatId ? { ...currentChat, title } : currentChat,
           chats: chats.map((chat) => (chat.id === chatId ? { ...chat, title } : chat)),
         }));
       }
@@ -223,7 +244,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({
         currentChat: {
           ...currentChat,
-          interactions: currentChat?.interactions?.map((interaction) =>
+          interactions: currentChat.interactions?.map((interaction) =>
             interaction.id === streamingMessageId || interaction.isStreaming || interaction.isToolExecuting
               ? {
                   ...interaction,
@@ -243,7 +264,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({
         currentChat: {
           ...currentChat,
-          interactions: currentChat?.interactions?.map((interaction) =>
+          interactions: currentChat.interactions?.map((interaction) =>
             interaction.id === streamingMessageId || interaction.isStreaming || interaction.isToolExecuting
               ? markChatInteractionAsCancelled(interaction)
               : interaction
@@ -253,7 +274,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  updateStreamingMessage: (messageId: string, content: string) => {
+  updateStreamingMessage: (messageId: number, content: string) => {
     const { currentChat } = get();
     if (!currentChat) {
       return;
@@ -263,7 +284,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({
       currentChat: {
         ...currentChat,
-        interactions: currentChat?.interactions?.map((interaction) =>
+        interactions: currentChat.interactions.map((interaction) =>
           interaction.id === messageId && interaction.isStreaming
             ? {
                 ...interaction,
@@ -278,10 +299,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   sendChatMessage: async (message: string) => {
-    const { allTools, selectedTools } = useMCPServersStore.getState();
+    const { getAllAvailableTools, selectedTools } = useMCPServersStore.getState();
     const { chat, selectedModel } = useOllamaStore.getState();
     const { isDeveloperMode, systemPrompt } = useDeveloperModeStore.getState();
     const { currentChat } = get();
+    const allAvailableTools = getAllAvailableTools();
+
+    console.log('hi!');
 
     if (!currentChat) {
       return;
@@ -294,8 +318,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
 
     const modelSupportsTools = checkModelSupportsTools(selectedModel);
-    const hasTools = Object.keys(allTools).length > 0;
-    const aiMsgId = (Date.now() + 1).toString();
+    const hasTools = Object.keys(allAvailableTools).length > 0;
+
+    const now = Date.now();
+    const userMsgId = now;
+    const aiMsgId = now + 1;
     const abortController = new AbortController();
 
     set({
@@ -306,17 +333,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         interactions: [
           ...currentChat.interactions,
           {
-            id: Date.now().toString(),
-            role: 'user',
+            id: userMsgId,
+            role: ChatInteractionRole.User,
             content: message,
-            timestamp: new Date(),
+            timestamp: now,
           } as any, // TODO:
           {
             id: aiMsgId,
-            role: 'assistant',
+            role: ChatInteractionRole.Assistant,
             content: '',
             thinkingContent: '',
-            timestamp: new Date(),
+            timestamp: now,
             isStreaming: true,
             isThinkingStreaming: false,
           } as any, // TODO:
@@ -333,10 +360,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             interactions: [
               ...currentChat.interactions,
               {
-                id: (Date.now() + Math.random()).toString(),
-                role: 'system',
+                id: now + Math.random(),
+                role: ChatInteractionRole.System,
                 content: `⚠️ MCP tools are available but ${selectedModel} doesn't support tool calling. Consider using functionary-small-v3.2 or another tool-enabled model.`,
-                timestamp: new Date(),
+                timestamp: now,
               } as any, // TODO:
             ],
           },
@@ -346,30 +373,31 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       // Prepare chat history for Ollama SDK
       // TODO: typing
       const chatHistory = currentChat.interactions.filter(
-        (interaction: any) => interaction.role === 'user' || interaction.role === 'assistant'
+        (interaction: any) =>
+          interaction.role === ChatInteractionRole.User || interaction.role === ChatInteractionRole.Assistant
       );
       const ollamaMessages: OllamaMessage[] = [];
 
       // Add system prompt if developer mode is enabled and system prompt exists
       if (isDeveloperMode && systemPrompt.trim()) {
-        ollamaMessages.push({ role: 'system', content: systemPrompt.trim() });
+        ollamaMessages.push({ role: ChatInteractionRole.System, content: systemPrompt.trim() });
       }
 
       // Add chat history
       ollamaMessages.push(
         // TODO: typing
         ...chatHistory.map((interaction: any) => ({
-          role: interaction.role as 'user' | 'assistant',
+          role: interaction.role,
           content: interaction.content,
         })),
-        { role: 'user', content: message }
+        { role: ChatInteractionRole.User, content: message }
       );
 
       let ollamaFormattedTools: OllamaTool[] = [];
       if (hasTools && modelSupportsTools) {
         // If no tools are selected, return all tools (current behavior)
         if (selectedTools.length === 0) {
-          ollamaFormattedTools = convertMCPServerToolsToOllamaTools(allTools);
+          ollamaFormattedTools = convertMCPServerToolsToOllamaTools(allAvailableTools);
         } else {
           ollamaFormattedTools = convertMCPServerToolsToOllamaTools(selectedTools);
         }
@@ -409,7 +437,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           currentChat: {
             ...currentChat,
             // TODO: typing
-            interactions: currentChat?.interactions?.map((interaction: any) =>
+            interactions: currentChat.interactions.map((interaction: any) =>
               interaction.id === aiMsgId
                 ? {
                     ...interaction,
@@ -426,7 +454,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           currentChat: {
             ...currentChat,
             // TODO: typing
-            interactions: currentChat?.interactions?.map((interaction: any) =>
+            interactions: currentChat.interactions.map((interaction: any) =>
               interaction.id === aiMsgId
                 ? {
                     ...interaction,
@@ -439,7 +467,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         });
 
         // Get final response from model after tool execution
-        if (toolResults.some((tr) => tr.status === 'completed')) {
+        if (toolResults.some((tr) => tr.status === ToolCallStatus.Completed)) {
           const finalResponse = await chat(currentChatSessionId, ollamaMessages, ollamaFormattedTools);
 
           let finalContent = '';
@@ -458,7 +486,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 currentChat: {
                   ...currentChat,
                   // TODO: typing
-                  interactions: currentChat?.interactions?.map((interaction: any) =>
+                  interactions: currentChat.interactions.map((interaction: any) =>
                     interaction.id === aiMsgId
                       ? {
                           ...interaction,
@@ -480,7 +508,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           currentChat: {
             ...currentChat,
             // TODO: typing
-            interactions: currentChat?.interactions?.map((interaction: any) =>
+            interactions: currentChat.interactions.map((interaction: any) =>
               interaction.id === aiMsgId
                 ? {
                     ...interaction,
@@ -501,7 +529,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           currentChat: {
             ...currentChat,
             // TODO: typing
-            interactions: currentChat?.interactions?.map((interaction: any) =>
+            interactions: currentChat.interactions.map((interaction: any) =>
               interaction.id === aiMsgId ? markChatInteractionAsCancelled(interaction) : interaction
             ),
           },
@@ -511,7 +539,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           currentChat: {
             ...currentChat,
             // TODO: typing
-            interactions: currentChat?.interactions?.map((interaction: any) =>
+            interactions: currentChat.interactions.map((interaction: any) =>
               interaction.id === aiMsgId
                 ? {
                     ...interaction,
@@ -534,7 +562,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
      */
     listen<ChatTitleUpdatedEvent>('chat-title-updated', ({ payload: { chat_id, title } }) => {
       set(({ chats, currentChat }) => {
-        const updatedChatIsCurrentChat = currentChat?.id === chat_id;
+        const updatedChatIsCurrentChat = currentChat.id === chat_id;
         const newCurrentChat = updatedChatIsCurrentChat ? { ...currentChat, title } : currentChat;
 
         return {
@@ -552,10 +580,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     get().loadChats();
     get()._listenForChatTitleUpdates();
   },
+
+  getStatus: () => {
+    const { streamingMessageId } = get();
+    if (streamingMessageId) {
+      return ChatInteractionStatus.Streaming;
+    }
+    return ChatInteractionStatus.Ready;
+  },
+
+  setStatus: (status: ChatInteractionStatus) => {
+    set({ status });
+  },
 }));
 
 // Initialize the chat store on mount
 useChatStore.getState().initializeStore();
-
-// Computed selectors
-export const useIsStreaming = () => useChatStore((state) => state.streamingMessageId !== null);

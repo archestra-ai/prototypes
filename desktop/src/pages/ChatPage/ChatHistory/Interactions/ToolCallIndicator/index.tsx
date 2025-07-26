@@ -2,7 +2,7 @@ import { AlertCircle, CheckCircle, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
-import { ToolCallInfo } from '@/types';
+import { ToolCallInfo, ToolCallStatus } from '@/types';
 
 interface ToolCallIndicatorProps {
   toolCalls: ToolCallInfo[];
@@ -24,9 +24,11 @@ export default function ToolCallIndicator({ toolCalls, isExecuting }: ToolCallIn
 
   if (toolCalls.length === 0) return null;
 
-  const pendingCalls = toolCalls.filter((call) => call.status === 'pending' || call.status === 'executing');
-  const completedCalls = toolCalls.filter((call) => call.status === 'completed');
-  const errorCalls = toolCalls.filter((call) => call.status === 'error');
+  const pendingCalls = toolCalls.filter(
+    (call) => call.status === ToolCallStatus.Pending || call.status === ToolCallStatus.Executing
+  );
+  const completedCalls = toolCalls.filter((call) => call.status === ToolCallStatus.Completed);
+  const errorCalls = toolCalls.filter((call) => call.status === ToolCallStatus.Error);
 
   return (
     <div className="space-y-2 mb-4">

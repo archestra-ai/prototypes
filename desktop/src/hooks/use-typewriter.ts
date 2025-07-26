@@ -4,8 +4,6 @@ export function useTypewriter(text: string, speed: number = 100) {
   const [displayedText, setDisplayedText] = useState('');
   const [isComplete, setIsComplete] = useState(false);
 
-  console.log('displayedText', displayedText, isComplete);
-
   useEffect(() => {
     if (!text) {
       setDisplayedText('');

@@ -5,21 +5,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
+import { MCPServerStatus } from '@/types';
 
 export default function ArchestraMCPServer() {
   const { archestraMCPServer } = useMCPServersStore();
 
   const getStatusBadge = () => {
     switch (archestraMCPServer.status) {
-      case 'connected':
+      case MCPServerStatus.Connected:
         return (
           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
             Running
           </Badge>
         );
-      case 'error':
+      case MCPServerStatus.Error:
         return <Badge variant="destructive">Error</Badge>;
-      case 'connecting':
+      case MCPServerStatus.Connecting:
         return <Badge variant="outline">Loading...</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
@@ -59,7 +60,7 @@ export default function ArchestraMCPServer() {
               <Zap className="h-4 w-4" />
               Available Tools
             </h4>
-            {archestraMCPServer.status === 'connecting' ? (
+            {archestraMCPServer.status === MCPServerStatus.Connecting ? (
               <div className="space-y-1 text-sm">
                 <div>Loading tools...</div>
               </div>

@@ -238,7 +238,7 @@ impl Service {
 
         // Persist the chat interaction
         if let Some(last_msg) = ollama_request.messages.last() {
-            let content_json = serde_json::json!(&last_msg.content);
+            let content_json = serde_json::json!(&last_msg);
 
             if let Err(e) =
                 ChatInteraction::save(chat_session_id.clone(), content_json.to_string(), &self.db)

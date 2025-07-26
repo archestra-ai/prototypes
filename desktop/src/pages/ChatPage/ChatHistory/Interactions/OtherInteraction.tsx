@@ -3,6 +3,6 @@ interface OtherInteractionProps {
   interaction: any;
 }
 
-export default function OtherInteraction({ interaction }: OtherInteractionProps) {
-  return <div className="text-sm whitespace-pre-wrap">{interaction.content}</div>;
+export default function OtherInteraction({ interaction: { content } }: OtherInteractionProps) {
+  return <div className="text-sm whitespace-pre-wrap">{content}</div>;
 }

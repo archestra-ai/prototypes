@@ -15,12 +15,25 @@ export interface ToolWithMCPServerName extends BaseTool {
 
 export type MCPServerToolsMap = Record<string, ToolWithMCPServerName[]>;
 
+export enum MCPServerStatus {
+  Connecting = 'connecting',
+  Connected = 'connected',
+  Error = 'error',
+}
+
 export interface ConnectedMCPServer extends McpServerDefinition {
   url: string;
   client: Client | null;
   tools: ToolWithMCPServerName[];
-  status: 'connecting' | 'connected' | 'error';
+  status: MCPServerStatus;
   error?: string;
+}
+
+export enum ToolCallStatus {
+  Pending = 'pending',
+  Executing = 'executing',
+  Completed = 'completed',
+  Error = 'error',
 }
 
 export interface ToolCallInfo {
@@ -30,10 +43,25 @@ export interface ToolCallInfo {
   arguments: Record<string, any>;
   result?: string;
   error?: string;
-  status: 'pending' | 'executing' | 'completed' | 'error';
+  status: ToolCallStatus;
   executionTime?: number;
   startTime: Date;
   endTime?: Date;
+}
+
+export enum ChatInteractionStatus {
+  Submitted = 'submitted',
+  Streaming = 'streaming',
+  Ready = 'ready',
+  Error = 'error',
+}
+
+export enum ChatInteractionRole {
+  User = 'user',
+  Assistant = 'assistant',
+  Tool = 'tool',
+  System = 'system',
+  Error = 'error',
 }
 
 export interface ChatInteraction extends BaseChatInteraction {

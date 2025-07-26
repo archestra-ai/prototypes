@@ -36,7 +36,8 @@ impl OllamaClient {
         println!("Prompt: {prompt}");
 
         // For now, just use the basic GenerationRequest without options
-        let request = GenerationRequest::new(model.to_string(), prompt);
+        let mut request = GenerationRequest::new(model.to_string(), prompt);
+        request = request.system("You are a title generator. Based on the provided conversation, generate a brief 5-6 word title that captures the main topic. Return ONLY the title with no additional text, quotes, thinking blocks, or explanations").think(false);
 
         match self.client.generate(request).await {
             Ok(response) => {

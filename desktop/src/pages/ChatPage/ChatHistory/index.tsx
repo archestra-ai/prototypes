@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils/tailwind';
 import { useChatStore } from '@/stores/chat-store';
+import { ChatInteractionRole } from '@/types';
 
 import { AssistantInteraction, OtherInteraction, ToolInteraction, UserInteraction } from './Interactions';
 
@@ -13,12 +14,12 @@ interface ChatHistoryProps {}
 
 // TODO: update this type...
 const Interaction = ({ interaction }: { interaction: any }) => {
-  switch (interaction.role) {
-    case 'user':
+  switch (interaction.content.role) {
+    case ChatInteractionRole.User:
       return <UserInteraction interaction={interaction} />;
-    case 'assistant':
+    case ChatInteractionRole.Assistant:
       return <AssistantInteraction interaction={interaction} />;
-    case 'tool':
+    case ChatInteractionRole.Tool:
       return <ToolInteraction interaction={interaction} />;
     default:
       return <OtherInteraction interaction={interaction} />;
@@ -26,16 +27,16 @@ const Interaction = ({ interaction }: { interaction: any }) => {
 };
 
 const getInteractionClassName = (interaction: any) => {
-  switch (interaction.role) {
-    case 'user':
+  switch (interaction.content.role) {
+    case ChatInteractionRole.User:
       return 'bg-primary/10 border border-primary/20 ml-8';
-    case 'assistant':
+    case ChatInteractionRole.Assistant:
       return 'bg-secondary/50 border border-secondary mr-8';
-    case 'error':
+    case ChatInteractionRole.Error:
       return 'bg-destructive/10 border border-destructive/20 text-destructive';
-    case 'system':
+    case ChatInteractionRole.System:
       return 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-600';
-    case 'tool':
+    case ChatInteractionRole.Tool:
       return 'bg-blue-500/10 border border-blue-500/20 text-blue-600';
     default:
       return 'bg-muted border';
@@ -110,7 +111,7 @@ export default function ChatHistory(_props: ChatHistoryProps) {
     <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full">
       <div className="space-y-4 p-4">
         {/* TODO: update this type... */}
-        {currentChat?.interactions.map((interaction: any, index) => (
+        {currentChat.interactions.map((interaction: any, index) => (
           <div key={interaction.id || index} className={cn('p-3 rounded-lg', getInteractionClassName(interaction))}>
             <div className="text-xs font-medium mb-1 opacity-70 capitalize">{interaction.role}</div>
             <Interaction interaction={interaction} />

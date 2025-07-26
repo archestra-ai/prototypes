@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils/tailwind';
+import { ChatInteractionStatus } from '@/types';
 
 type UseAutoResizeTextareaProps = {
   minHeight: number;
@@ -135,7 +136,7 @@ export const AIInputButton = React.forwardRef<HTMLButtonElement, AIInputButtonPr
 AIInputButton.displayName = 'AIInputButton';
 
 export type AIInputSubmitProps = ComponentProps<typeof Button> & {
-  status?: 'submitted' | 'streaming' | 'ready' | 'error';
+  status?: ChatInteractionStatus;
 };
 export const AIInputSubmit = ({
   className,
@@ -146,13 +147,14 @@ export const AIInputSubmit = ({
   ...props
 }: AIInputSubmitProps) => {
   let Icon = <SendIcon />;
-  if (status === 'submitted') {
+  if (status === ChatInteractionStatus.Submitted) {
     Icon = <Loader2Icon className="animate-spin" />;
-  } else if (status === 'streaming') {
+  } else if (status === ChatInteractionStatus.Streaming) {
     Icon = <SquareIcon />;
-  } else if (status === 'error') {
+  } else if (status === ChatInteractionStatus.Error) {
     Icon = <XIcon />;
   }
+
   return (
     <Button
       className={cn('gap-1.5 rounded-lg rounded-br-xl', className)}

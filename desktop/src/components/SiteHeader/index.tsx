@@ -20,9 +20,9 @@ export function SiteHeader({ activeView, activeSubView }: SiteHeaderProps) {
   const { getCurrentChatTitle } = useChatStore();
 
   let breadcrumbs: string[] = [];
-  if (activeView === 'chat') {
+  if (activeView === NavigationViewKey.Chat) {
     breadcrumbs = ['Chat', getCurrentChatTitle()];
-  } else if (activeView === 'llm-providers') {
+  } else if (activeView === NavigationViewKey.LLMProviders) {
     breadcrumbs = ['LLM Providers', activeSubView.charAt(0).toUpperCase() + activeSubView.slice(1)];
   } else {
     breadcrumbs = [NAVIGATION_ITEMS.find((item) => item.key === activeView)?.title || ''];

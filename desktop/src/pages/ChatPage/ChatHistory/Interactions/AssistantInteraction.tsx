@@ -1,5 +1,6 @@
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
 import { AIResponse } from '@/components/kibo/ai-response';
+import { ToolCallStatus } from '@/types';
 
 import ToolCallIndicator from './ToolCallIndicator';
 import ToolExecutionResult from './ToolExecutionResult';
@@ -9,16 +10,25 @@ interface AssistantInteractionProps {
   interaction: any;
 }
 
-export default function AssistantInteraction({ interaction }: AssistantInteractionProps) {
+export default function AssistantInteraction({ interaction: { content } }: AssistantInteractionProps) {
+  const {
+    content: assistantContent,
+    toolCalls,
+    isToolExecuting,
+    isThinkingStreaming,
+    isStreaming,
+    thinkingContent,
+  } = content;
+
   return (
     <div className="relative">
-      {(interaction.isToolExecuting || interaction.toolCalls) && (
-        <ToolCallIndicator toolCalls={interaction.toolCalls || []} isExecuting={!!interaction.isToolExecuting} />
+      {(isToolExecuting || toolCalls) && (
+        <ToolCallIndicator toolCalls={toolCalls || []} isExecuting={!!isToolExecuting} />
       )}
 
-      {interaction.toolCalls && interaction.toolCalls.length > 0 && (
+      {toolCalls && toolCalls.length > 0 && (
         <div className="space-y-2 mb-4">
-          {interaction.toolCalls.map((toolCall: any) => (
+          {toolCalls.map((toolCall: any) => (
             <ToolExecutionResult
               key={toolCall.id}
               serverName={toolCall.serverName}
@@ -26,28 +36,26 @@ export default function AssistantInteraction({ interaction }: AssistantInteracti
               arguments={toolCall.arguments}
               result={toolCall.result || ''}
               executionTime={toolCall.executionTime}
-              status={toolCall.error ? 'error' : 'success'}
+              status={toolCall.error ? ToolCallStatus.Error : ToolCallStatus.Completed}
               error={toolCall.error}
             />
           ))}
         </div>
       )}
 
-      {interaction.thinkingContent && (
-        <AIReasoning isStreaming={interaction.isThinkingStreaming} className="mb-4">
+      {thinkingContent && (
+        <AIReasoning isStreaming={isThinkingStreaming} className="mb-4">
           <AIReasoningTrigger />
-          <AIReasoningContent>{interaction.thinkingContent}</AIReasoningContent>
+          <AIReasoningContent>{thinkingContent}</AIReasoningContent>
         </AIReasoning>
       )}
 
-      <AIResponse>{interaction.content}</AIResponse>
+      <AIResponse>{assistantContent}</AIResponse>
 
-      {(interaction.isStreaming || interaction.isToolExecuting) && (
+      {(isStreaming || isToolExecuting) && (
         <div className="flex items-center space-x-2 mt-2">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground text-sm">
-            {interaction.isToolExecuting ? 'Executing tools...' : 'Loading...'}
-          </p>
+          <p className="text-muted-foreground text-sm">{isToolExecuting ? 'Executing tools...' : 'Loading...'}</p>
         </div>
       )}
     </div>

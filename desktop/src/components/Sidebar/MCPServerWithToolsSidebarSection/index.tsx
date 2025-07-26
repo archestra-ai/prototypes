@@ -3,6 +3,7 @@ import * as React from 'react';
 
 import { ToolHoverCard } from '@/components/ToolHoverCard';
 import { ToolServerIcon } from '@/components/ToolServerIcon';
+import { Input } from '@/components/ui/input';
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -16,27 +17,41 @@ import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useNavigationStore } from '@/stores/navigation-store';
 import { NavigationViewKey } from '@/types';
 
-import ToolSearch from '../ToolSearch';
+interface MCPServerWithToolsSidebarSectionProps {}
 
-interface MCPServerWithToolsProps {}
-
-export default function MCPServerWithTools(_props: MCPServerWithToolsProps) {
-  const { loadingInstalledMCPServers, allTools, addSelectedTool, getFilteredTools, toolSearchQuery } =
-    useMCPServersStore();
+export default function MCPServerWithToolsSidebarSection(_props: MCPServerWithToolsSidebarSectionProps) {
+  const {
+    loadingInstalledMCPServers,
+    addSelectedTool,
+    getAllAvailableToolsGroupedByServer,
+    getFilteredToolsGroupedByServer,
+    toolSearchQuery,
+    setToolSearchQuery,
+  } = useMCPServersStore();
   const { setActiveView } = useNavigationStore();
 
-  const filteredTools = getFilteredTools();
+  const allAvailableToolsGroupedByServer = getAllAvailableToolsGroupedByServer();
+  const filteredToolsGroupedByServer = getFilteredToolsGroupedByServer();
 
-  const hasTools = Object.keys(allTools).length > 0;
-  const hasNoTools = !hasTools;
-  const hasNoFilteredTools = Object.keys(filteredTools).length === 0;
+  const hasAllAvailableTools = Object.keys(allAvailableToolsGroupedByServer).length > 0;
+  const hasNoTools = !hasAllAvailableTools;
+  const hasNoFilteredTools = Object.keys(filteredToolsGroupedByServer).length === 0;
   const toolSearchQueryIsEmpty = !toolSearchQuery.trim();
+
+  const tools = toolSearchQueryIsEmpty ? allAvailableToolsGroupedByServer : filteredToolsGroupedByServer;
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>Tools</SidebarGroupLabel>
       <SidebarGroupContent>
-        <ToolSearch />
+        <div className="px-4 pb-2">
+          <Input
+            placeholder="Search tools..."
+            value={toolSearchQuery}
+            onChange={(e) => setToolSearchQuery(e.target.value)}
+            className="h-7 text-xs"
+          />
+        </div>
         <SidebarMenu>
           {loadingInstalledMCPServers ? (
             <SidebarMenuItem>
@@ -60,7 +75,7 @@ export default function MCPServerWithTools(_props: MCPServerWithToolsProps) {
             </SidebarMenuItem>
           ) : (
             <>
-              {Object.entries(filteredTools).map(([serverName, _tools]) => (
+              {Object.entries(tools).map(([serverName, tools]) => (
                 <React.Fragment key={serverName}>
                   <SidebarMenuItem>
                     <div className="flex items-center gap-2 px-2 py-1.5 bg-muted/50 rounded-md">
@@ -73,7 +88,7 @@ export default function MCPServerWithTools(_props: MCPServerWithToolsProps) {
                     </div>
                   </SidebarMenuItem>
 
-                  {allTools.map((tool, idx) => {
+                  {tools.map((tool, idx) => {
                     const { serverName, name } = tool;
                     return (
                       <SidebarMenuItem key={`${serverName}-${idx}`}>

@@ -170,7 +170,6 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
       });
 
       if ('data' in response && response.data !== undefined) {
-        console.log(`Cleared ${response.data} log entries`);
         // Refresh the data after clearing
         await get().refresh();
       } else if ('error' in response) {

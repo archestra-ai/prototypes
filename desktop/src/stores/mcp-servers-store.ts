@@ -7,7 +7,7 @@ import { ARCHESTRA_SERVER_MCP_PROXY_URL, ARCHESTRA_SERVER_MCP_URL } from '@/cons
 import { type McpServer, type McpServerDefinition, getInstalledMcpServers } from '@/lib/api-client';
 import { getToolsGroupedByServer } from '@/lib/utils/mcp-server';
 import { formatToolName } from '@/lib/utils/tools';
-import type { ConnectedMCPServer, MCPServerToolsMap, ToolWithMCPServerName } from '@/types';
+import { ConnectedMCPServer, MCPServerStatus, MCPServerToolsMap, ToolWithMCPServerName } from '@/types';
 
 const ARCHESTRA_MCP_SERVER_NAME = 'archestra';
 
@@ -16,7 +16,6 @@ interface MCPServersState {
   installedMCPServers: ConnectedMCPServer[];
   loadingInstalledMCPServers: boolean;
   errorLoadingInstalledMCPServers: string | null;
-  allTools: ToolWithMCPServerName[];
   selectedTools: ToolWithMCPServerName[];
   toolSearchQuery: string;
 }
@@ -28,8 +27,9 @@ interface MCPServersActions {
   loadInstalledMCPServers: () => Promise<void>;
   connectToArchestraMCPServer: () => Promise<void>;
   connectToMCPServer: (serverName: string, url: string) => Promise<Client | null>;
+  getAllAvailableTools: () => ToolWithMCPServerName[];
   getFilteredTools: () => ToolWithMCPServerName[];
-  getToolsGroupedByServer: () => MCPServerToolsMap;
+  getAllAvailableToolsGroupedByServer: () => MCPServerToolsMap;
   getFilteredToolsGroupedByServer: () => MCPServerToolsMap;
   addSelectedTool: (tool: ToolWithMCPServerName) => void;
   removeSelectedTool: (tool: ToolWithMCPServerName) => void;
@@ -94,13 +94,12 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
     url: ARCHESTRA_SERVER_MCP_URL,
     client: null,
     tools: [],
-    status: 'connecting',
+    status: MCPServerStatus.Connecting,
     error: undefined,
   },
   installedMCPServers: [],
   loadingInstalledMCPServers: false,
   errorLoadingInstalledMCPServers: null,
-  allTools: [],
   selectedTools: [],
   toolSearchQuery: '',
 
@@ -113,7 +112,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
           ...mcpServer,
           tools: [],
           url: constructProxiedMCPServerUrl(mcpServer.name),
-          status: 'connecting',
+          status: MCPServerStatus.Connecting,
           error: undefined,
           client: null,
         },
@@ -214,7 +213,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
               ...state.archestraMCPServer,
               client,
               tools,
-              status: 'connected',
+              status: MCPServerStatus.Connected,
               error: undefined,
             },
           }));
@@ -244,7 +243,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
     set((state) => ({
       archestraMCPServer: {
         ...state.archestraMCPServer,
-        status: 'error',
+        status: MCPServerStatus.Error,
         error: 'Failed to connect after maximum retries',
       },
     }));
@@ -258,7 +257,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
             ? {
                 ...server,
                 client: null,
-                status: 'error',
+                status: MCPServerStatus.Error,
                 error: 'No URL configured',
               }
             : server
@@ -286,7 +285,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
                 ...server,
                 client,
                 tools,
-                status: 'connected',
+                status: MCPServerStatus.Connected,
               }
             : server
         ),
@@ -309,7 +308,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
             ? {
                 ...server,
                 client: null,
-                status: 'error',
+                status: MCPServerStatus.Error,
                 error: errorMessage,
               }
             : server
@@ -323,15 +322,21 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
     set({ toolSearchQuery: query });
   },
 
+  getAllAvailableTools: () => {
+    const { installedMCPServers } = get();
+    return installedMCPServers.flatMap((server) => server.tools);
+  },
+
   getFilteredTools: () => {
-    const { toolSearchQuery, allTools } = get();
+    const { toolSearchQuery, getAllAvailableTools } = get();
+    const allAvailableTools = getAllAvailableTools();
 
     if (!toolSearchQuery.trim()) {
-      return allTools;
+      return allAvailableTools;
     }
 
     const query = toolSearchQuery.toLowerCase();
-    const filtered = allTools.filter(({ serverName, name, description }) => {
+    const filtered = allAvailableTools.filter(({ serverName, name, description }) => {
       const serverMatches = serverName.toLowerCase().includes(query);
       const toolNameMatches = name.toLowerCase().includes(query);
       const formattedNameMatches = formatToolName(name).toLowerCase().includes(query);
@@ -342,7 +347,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
     return filtered;
   },
 
-  getToolsGroupedByServer: () => getToolsGroupedByServer(get().allTools),
+  getAllAvailableToolsGroupedByServer: () => getToolsGroupedByServer(get().getAllAvailableTools()),
   getFilteredToolsGroupedByServer: () => getToolsGroupedByServer(get().getFilteredTools()),
 
   addSelectedTool: (tool: ToolWithMCPServerName) => {

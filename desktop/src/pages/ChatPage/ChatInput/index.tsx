@@ -1,7 +1,7 @@
 'use client';
 
 import { FileText } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 
 import ToolPill from '@/components/ToolPill';
 import {
@@ -19,33 +19,25 @@ import {
 } from '@/components/kibo/ai-input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils/tailwind';
-import { useChatStore, useIsStreaming } from '@/stores/chat-store';
+import { useChatStore } from '@/stores/chat-store';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
+import { ChatInteractionStatus } from '@/types';
 
 interface ChatInputProps {}
 
 export default function ChatInput(_props: ChatInputProps) {
-  const { sendChatMessage, cancelStreaming } = useChatStore();
+  const { sendChatMessage, cancelStreaming, getStatus, setStatus } = useChatStore();
   const { selectedTools } = useMCPServersStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
-  const isStreaming = useIsStreaming();
-
   const { installedModels, loadingInstalledModels, loadingInstalledModelsError, selectedModel, setSelectedModel } =
     useOllamaStore();
 
+  const status = getStatus();
+  const isStreaming = status === ChatInteractionStatus.Streaming;
   const [message, setMessage] = useState('');
-  const [status, setStatus] = useState<'submitted' | 'streaming' | 'ready' | 'error'>('ready');
   const hasSelectedTools = Object.keys(selectedTools).length > 0;
-
-  useEffect(() => {
-    if (isStreaming) {
-      setStatus('streaming');
-    } else {
-      setStatus('ready');
-    }
-  }, [isStreaming]);
 
   const handleSubmit = useCallback(
     async (e?: React.FormEvent<HTMLFormElement>) => {
@@ -53,7 +45,7 @@ export default function ChatInput(_props: ChatInputProps) {
         e.preventDefault();
       }
 
-      setStatus('submitted');
+      setStatus(ChatInteractionStatus.Submitted);
 
       try {
         let finalMessage = message.trim();
@@ -66,10 +58,10 @@ export default function ChatInput(_props: ChatInputProps) {
 
         setMessage('');
         await sendChatMessage(finalMessage);
-        setStatus('ready');
+        setStatus(ChatInteractionStatus.Ready);
       } catch (error) {
-        setStatus('error');
-        setTimeout(() => setStatus('ready'), 2000);
+        setStatus(ChatInteractionStatus.Error);
+        setTimeout(() => setStatus(ChatInteractionStatus.Ready), 2000);
       }
     },
     [hasSelectedTools, message, sendChatMessage, selectedTools]
@@ -162,7 +154,7 @@ export default function ChatInput(_props: ChatInputProps) {
               onClick={cancelStreaming}
               // only disable if there's no message, and we're not streaming
               // if we're streaming, we want to allow the user to cancel the streaming
-              disabled={!message.trim() && status !== 'streaming'}
+              disabled={!message.trim() && !isStreaming}
             />
           </AIInputToolbar>
         </AIInput>
