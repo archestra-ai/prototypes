@@ -1,8 +1,6 @@
 import { AlertCircle, Bot, Loader2, Pause, Play, Settings, Square, Wifi, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
-// import { useChat } from '@ai-sdk/react'; // Will be enabled when SSE endpoint is ready
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useSSEChat } from '@/hooks/use-sse-chat';
 import { cn } from '@/lib/utils';
 import { ToolCategory } from '@/services/agent/mcp-tool-wrapper-ai-sdk';
 import { useAgentStore } from '@/stores/agent-store';
@@ -22,29 +21,19 @@ interface AgentControlPanelProps {
 }
 
 export function AgentControlPanel({ className }: AgentControlPanelProps) {
-  // TODO: Enable useChat when SSE endpoint is ready
-  // const {
-  //   messages,
-  //   append,
-  //   stop: abortChat,
-  //   isLoading: isChatLoading,
-  //   error: chatError
-  // } = useChat({
-  //   api: '/api/agent/chat',
-  //   onError: (error) => {
-  //     console.error('[AgentControlPanel] Chat error:', error);
-  //   },
-  // });
+  // Use the SSE chat hook
+  const {
+    sendMessage,
+    stop: abortChat,
+    status,
+    error: chatError,
+  } = useSSEChat({
+    onError: (error) => {
+      console.error('[AgentControlPanel] Chat error:', error);
+    },
+  });
 
-  // Temporary mock for v5 integration preparation
-  const mockUseChat = {
-    messages: [],
-    append: async (message: any) => console.log('Will append:', message),
-    stop: () => console.log('Will abort chat'),
-    isLoading: false,
-    error: null as Error | null,
-  };
-  const { append, stop: abortChat, isLoading: isChatLoading, error: chatError } = mockUseChat;
+  const isChatLoading = status === 'streaming' || status === 'submitted';
 
   const {
     mode,
@@ -79,36 +68,32 @@ export function AgentControlPanel({ className }: AgentControlPanelProps) {
     }
   }, [isChatLoading, chatError]);
 
-  // Handle agent activation with v5 integration
+  // Handle agent activation with SSE
   const handleActivate = useCallback(async () => {
     if (!objective.trim()) return;
 
     try {
-      // When v5 is ready, use append to start conversation
-      if (append) {
-        await append({
-          role: 'user',
-          content: objective.trim(),
-          // Add agent metadata for v5
-          metadata: {
-            isAgentActivation: true,
-            agentMode: 'autonomous',
-            model: selectedModel,
-          },
-        });
-      }
-
-      // Still use store activation for now
+      // Activate agent state
       await activateAgent(objective.trim());
+
+      // Send the objective through SSE with agent context
+      await sendMessage(objective.trim(), {
+        agentContext: {
+          mode: 'autonomous',
+          objective: objective.trim(),
+          activate: true,
+        },
+      });
+
       setObjective(''); // Clear input after activation
     } catch (error) {
       console.error('Failed to activate agent:', error);
     }
-  }, [objective, activateAgent, append, selectedModel]);
+  }, [objective, activateAgent, sendMessage]);
 
-  // Enhanced stop handler with v5 abort
+  // Enhanced stop handler with SSE abort
   const handleStop = useCallback(() => {
-    // Abort v5 chat stream if active
+    // Abort SSE chat stream if active
     if (abortChat) {
       abortChat();
     }
@@ -157,18 +142,16 @@ export function AgentControlPanel({ className }: AgentControlPanelProps) {
             <CardTitle>Agent Control</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            {/* v5 Connection Status Indicator */}
-            {false && ( // Will enable when SSE is ready
-              <div className="flex items-center gap-1 text-xs">
-                {connectionStatus === 'connected' ? (
-                  <Wifi className="h-3 w-3 text-green-600" />
-                ) : connectionStatus === 'connecting' ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <WifiOff className="h-3 w-3 text-red-600" />
-                )}
-              </div>
-            )}
+            {/* SSE Connection Status Indicator */}
+            <div className="flex items-center gap-1 text-xs">
+              {connectionStatus === 'connected' ? (
+                <Wifi className="h-3 w-3 text-green-600" />
+              ) : connectionStatus === 'connecting' ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <WifiOff className="h-3 w-3 text-red-600" />
+              )}
+            </div>
             {isAgentActive && <span className={cn('text-sm font-medium', getStatusColor())}>{formatMode(mode)}</span>}
           </div>
         </div>
@@ -277,7 +260,7 @@ export function AgentControlPanel({ className }: AgentControlPanelProps) {
 
         <Separator />
 
-        {/* Error Display for v5 Chat */}
+        {/* Error Display for SSE Chat */}
         {chatError && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />

@@ -139,34 +139,17 @@ export function createMCPToolWrapperAISDK(
     customApprovalCheck?: (args: any) => Promise<boolean>;
   }
 ): MCPToolWrapperAISDK {
-  console.log('🎁 [createMCPToolWrapperAISDK] Creating wrapper for tool:', {
-    toolName: mcpTool.name,
-    serverName,
-    hasInputSchema: !!mcpTool.inputSchema,
-    autoApprove: options?.autoApprove,
-  });
-
   const category = categorizeeTool(mcpTool.name, mcpTool.description);
   const isSensitive = isToolSensitive(mcpTool.name);
 
   // Create a unique tool name that includes the server name to avoid conflicts
   const uniqueToolName = `${serverName}_${mcpTool.name}`;
 
-  console.log('🔨 [createMCPToolWrapperAISDK] Converting input schema to Zod');
   // Convert JSON schema to Zod schema
   const parametersSchema = mcpTool.inputSchema ? jsonSchemaToZod(mcpTool.inputSchema) : z.object({});
 
-  console.log('🏗️ [createMCPToolWrapperAISDK] Creating Vercel AI SDK tool');
-
   let wrappedTool: any;
   try {
-    console.log('📋 [createMCPToolWrapperAISDK] Tool config:', {
-      name: uniqueToolName,
-      category,
-      isSensitive,
-      needsApproval: isSensitive && !options?.autoApprove,
-    });
-
     wrappedTool = tool({
       description: `[${serverName}] ${mcpTool.description || `Execute ${mcpTool.name}`}`,
       inputSchema: parametersSchema as any,
@@ -180,12 +163,6 @@ export function createMCPToolWrapperAISDK(
           status: 'executing',
           startTime,
         };
-
-        console.log('🚀 [MCPToolWrapperAISDK] Executing tool:', {
-          name: mcpTool.name,
-          server: serverName,
-          args,
-        });
 
         try {
           // Check if approval is needed
@@ -207,11 +184,6 @@ export function createMCPToolWrapperAISDK(
           toolCallInfo.endTime = new Date();
           toolCallInfo.executionTime = toolCallInfo.endTime.getTime() - startTime.getTime();
 
-          console.log('✅ [MCPToolWrapperAISDK] Tool executed successfully:', {
-            name: mcpTool.name,
-            executionTime: toolCallInfo.executionTime,
-          });
-
           return result;
         } catch (error) {
           toolCallInfo.status = 'error';
@@ -219,15 +191,11 @@ export function createMCPToolWrapperAISDK(
           toolCallInfo.endTime = new Date();
           toolCallInfo.executionTime = toolCallInfo.endTime.getTime() - startTime.getTime();
 
-          console.error('❌ [MCPToolWrapperAISDK] Tool execution failed:', error);
           throw error;
         }
       },
     });
-
-    console.log('✅ [createMCPToolWrapperAISDK] Vercel AI SDK tool created successfully');
   } catch (error) {
-    console.error('❌ [createMCPToolWrapperAISDK] Error creating Vercel AI SDK tool:', error);
     throw error;
   }
 
@@ -259,18 +227,10 @@ export async function extractToolsFromServersAISDK(
 
   const wrappedTools: MCPToolWrapperAISDK[] = [];
 
-  console.log(
-    '📦 [extractToolsFromServersAISDK] Extracting tools from servers:',
-    serversToProcess.map((s) => s.name)
-  );
-
   for (const server of serversToProcess) {
     if (!server.tools || server.tools.length === 0) {
-      console.log(`⏭️ [extractToolsFromServersAISDK] Server ${server.name} has no tools`);
       continue;
     }
-
-    console.log(`🔧 [extractToolsFromServersAISDK] Processing ${server.tools.length} tools from ${server.name}`);
 
     for (const mcpTool of server.tools) {
       try {
@@ -281,13 +241,10 @@ export async function extractToolsFromServersAISDK(
             : undefined,
         });
         wrappedTools.push(wrapper);
-      } catch (error) {
-        console.error(`❌ Failed to wrap tool ${mcpTool.name} from ${server.name}:`, error);
-      }
+      } catch (error) {}
     }
   }
 
-  console.log(`✅ [extractToolsFromServersAISDK] Extracted ${wrappedTools.length} tools total`);
   return wrappedTools;
 }
 

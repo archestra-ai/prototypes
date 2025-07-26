@@ -65,14 +65,6 @@ export class ArchestraAgentV5 {
     const provider = ModelProviderFactory.create(modelName);
     this.aiModel = provider.createModel(modelName);
 
-    console.log('🚀 [ArchestraAgentV5] Creating v5 native agent:', {
-      id: this.id,
-      modelName,
-      providerType: provider.getProviderName(),
-      supportsTools: this.supportsTools,
-      toolCount: Array.isArray(config.mcpTools) ? config.mcpTools.length : Object.keys(config.mcpTools || {}).length,
-    });
-
     // Store tools directly if model supports tools
     this.tools = {};
     if (this.supportsTools && config.mcpTools) {
@@ -86,7 +78,6 @@ export class ArchestraAgentV5 {
         // Native AI SDK: mcpTools is already a Record<string, Tool>
         this.tools = config.mcpTools;
       }
-      console.log('🔧 [ArchestraAgentV5] Loaded AI SDK tools:', Object.keys(this.tools));
     }
   }
 
@@ -110,15 +101,6 @@ export class ArchestraAgentV5 {
 
       this.updateState({ mode: 'executing', currentTask: objective });
 
-      console.log('🎯 [ArchestraAgentV5] Starting v5 execution:', {
-        objective,
-        systemPrompt: systemPrompt.substring(0, 200) + '...',
-        memoryContext: memoryContext.substring(0, 100) + '...',
-        toolsEnabled: this.supportsTools,
-        toolCount: Object.keys(this.tools).length,
-        toolNames: Object.keys(this.tools),
-      });
-
       // Use v5 streamText with proper configuration
       const result = await streamText({
         model: this.aiModel,
@@ -132,13 +114,6 @@ export class ArchestraAgentV5 {
         tools: this.supportsTools ? this.tools : undefined,
         experimental_telemetry: { isEnabled: true },
         onStepFinish: async (step) => {
-          console.log('📍 [ArchestraAgentV5] Step finished:', {
-            text: step.text?.substring(0, 100),
-            toolCalls: step.toolCalls?.map((tc) => ({ id: tc.toolCallId, name: tc.toolName })),
-            toolResults: step.toolResults?.map((tr) => ({ id: tr.toolCallId, name: tr.toolName })),
-            finishReason: step.finishReason,
-          });
-
           // Update task progress
           await this.updateTaskProgress(step);
 
@@ -172,8 +147,6 @@ export class ArchestraAgentV5 {
         },
         abortSignal: this.abortController.signal,
       });
-
-      console.log('📦 [ArchestraAgentV5] Stream created, returning stream result');
 
       // Return the stream result directly - it's already in the correct format
       return result;
@@ -241,20 +214,12 @@ ${this.config.systemPrompt ? `\nContext:\n${this.config.systemPrompt}` : ''}`;
 
     // In a real implementation, reasoning would be streamed through the response
     // as a ReasoningDataPart: { type: 'data', data: { type: 'reasoning', entry } }
-
-    console.log('🧠 [ArchestraAgentV5] Reasoning added:', {
-      type: entry.type,
-      confidence: entry.confidence,
-      content: entry.content.substring(0, 100),
-    });
   }
 
   /**
    * Handle execution errors with proper recovery
    */
   private handleExecutionError(error: any) {
-    console.error('❌ [ArchestraAgentV5] Execution error:', error);
-
     let agentError: AgentError;
 
     if (error.name === 'AbortError') {

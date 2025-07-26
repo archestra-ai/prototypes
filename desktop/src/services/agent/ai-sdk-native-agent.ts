@@ -66,26 +66,11 @@ export class ArchestraAgentNative {
     const provider = ModelProviderFactory.create(modelName);
     this.aiModel = provider.createModel(modelName);
 
-    console.log('🎯 [ArchestraAgentNative] Creating native AI SDK agent:', {
-      modelName,
-      providerType: provider.getProviderName(),
-      supportsTools: this.supportsTools,
-      toolCount: Array.isArray(config.mcpTools) ? config.mcpTools.length : Object.keys(config.mcpTools || {}).length,
-    });
-
     // Store tools directly if model supports tools
     this.tools = {};
     if (this.supportsTools && config.mcpTools) {
       this.tools = config.mcpTools;
     }
-
-    // Log initialization details
-    console.log(`🤖 Agent initialized with:`, {
-      model: modelName,
-      provider: this.modelProvider,
-      supportsTools: this.supportsTools,
-      toolCount: Object.keys(this.tools).length,
-    });
   }
 
   async executeObjective(objective: string, context?: Partial<AgentContext>): Promise<any> {
@@ -141,13 +126,6 @@ export class ArchestraAgentNative {
       // Build the system prompt with context
       const systemPrompt = this.buildSystemPrompt(fullContext);
 
-      console.log('🚀 [ArchestraAgentNative] Using Vercel AI SDK streamText with:', {
-        objective,
-        maxSteps: this.config.maxSteps || 10,
-        hasTools: Object.keys(this.tools).length > 0,
-        toolNames: Object.keys(this.tools),
-      });
-
       // Use Vercel AI SDK's streamText for multi-step agent execution
       const streamResult = streamText({
         model: this.aiModel,
@@ -162,13 +140,6 @@ export class ArchestraAgentNative {
         stopWhen: stepCountIs(this.config.maxSteps || 10),
         abortSignal: this.abortController.signal,
         onStepFinish: ({ text, toolCalls, toolResults, finishReason }) => {
-          console.log('📍 [ArchestraAgentNative] Step finished:', {
-            hasText: !!text,
-            toolCallCount: toolCalls?.length || 0,
-            toolResultCount: toolResults?.length || 0,
-            finishReason,
-          });
-
           // Update progress
           if (this.state.plan) {
             this.updateProgress({
@@ -183,13 +154,6 @@ export class ArchestraAgentNative {
             }
           }
         },
-      });
-
-      console.log('📦 [ArchestraAgentNative] Stream created, returning for processing', {
-        streamResultKeys: Object.keys(streamResult),
-        hasFullStream: 'fullStream' in streamResult,
-        hasTextStream: 'textStream' in streamResult,
-        hasToDataStream: typeof (streamResult as any).toDataStream === 'function',
       });
 
       // Use the fullStream which includes all events (tool calls, text, etc.)
@@ -262,7 +226,7 @@ ${this.config.systemPrompt ? `\nSystem context:\n${this.config.systemPrompt}` : 
     this.updateState({ mode: 'executing' });
 
     // For now, we'll need to restart the execution
-    // TODO: Implement proper pause/resume with conversation history
+    // In a full implementation, this would restore conversation state
     if (this.state.currentTask) {
       return this.executeObjective(this.state.currentTask);
     }
@@ -481,8 +445,6 @@ ${this.config.systemPrompt ? `\nSystem context:\n${this.config.systemPrompt}` : 
   private async *wrapTextStream(textStream: AsyncIterable<any>): AsyncIterable<any> {
     try {
       for await (const chunk of textStream) {
-        console.log('🔍 [ArchestraAgentNative] Text stream chunk:', chunk);
-
         // Emit the chunk as a model event that our handler understands
         yield {
           type: 'model',
@@ -501,7 +463,6 @@ ${this.config.systemPrompt ? `\nSystem context:\n${this.config.systemPrompt}` : 
         },
       };
     } catch (error) {
-      console.error('❌ [ArchestraAgentNative] Error in text stream:', error);
       yield {
         type: 'model',
         event: {

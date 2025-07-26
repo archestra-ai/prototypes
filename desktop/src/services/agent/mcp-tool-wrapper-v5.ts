@@ -101,26 +101,12 @@ function generateOutputSchema(mcpTool: Tool): z.ZodSchema | undefined {
  * Create an enhanced v5 MCP tool wrapper with output schema and callbacks
  */
 export function createMCPToolV5(mcpTool: Tool, serverName: string, options?: ToolExecutionOptionsV5): any {
-  console.log('🚀 [createMCPToolV5] Creating v5 wrapper for tool:', {
-    toolName: mcpTool.name,
-    serverName,
-    hasInputSchema: !!mcpTool.inputSchema,
-    hasCallbacks: !!(options?.onInputStart || options?.onInputDelta),
-  });
-
   const category = categorizeeTool(mcpTool.name, mcpTool.description);
   const isSensitive = isToolSensitive(mcpTool.name);
 
   // Convert schemas
   const inputSchema = mcpTool.inputSchema ? jsonSchemaToZod(mcpTool.inputSchema) : z.object({});
   const outputSchema = generateOutputSchema(mcpTool);
-
-  console.log('📊 [createMCPToolV5] Schema analysis:', {
-    hasInputSchema: !!mcpTool.inputSchema,
-    hasOutputSchema: !!outputSchema,
-    category,
-    isSensitive,
-  });
 
   // Create the v5 tool with enhanced features
   const wrappedTool = tool({
@@ -131,32 +117,18 @@ export function createMCPToolV5(mcpTool: Tool, serverName: string, options?: Too
     // v5 callbacks for streaming tool execution
     onInputStart: options?.onInputStart
       ? async (callOptions) => {
-          console.log('🎬 [MCPToolV5] Input started:', {
-            toolName: mcpTool.name,
-            options: callOptions,
-          });
           await options.onInputStart?.(callOptions);
         }
       : undefined,
 
     onInputDelta: options?.onInputDelta
       ? async (callOptions) => {
-          console.log('📝 [MCPToolV5] Input delta:', {
-            toolName: mcpTool.name,
-            delta: callOptions.inputTextDelta,
-          });
           await options.onInputDelta?.(callOptions);
         }
       : undefined,
 
     execute: async (args: any) => {
       const startTime = Date.now();
-
-      console.log('🔧 [MCPToolV5] Executing tool:', {
-        name: mcpTool.name,
-        server: serverName,
-        args,
-      });
 
       // Notify tool start
       options?.onToolStart?.(mcpTool.name, args);
@@ -180,12 +152,6 @@ export function createMCPToolV5(mcpTool: Tool, serverName: string, options?: Too
 
         const duration = Date.now() - startTime;
 
-        console.log('✅ [MCPToolV5] Tool executed successfully:', {
-          name: mcpTool.name,
-          duration,
-          hasResult: !!result,
-        });
-
         // Notify completion
         options?.onToolComplete?.(mcpTool.name, result, duration);
 
@@ -193,8 +159,6 @@ export function createMCPToolV5(mcpTool: Tool, serverName: string, options?: Too
         return result;
       } catch (error) {
         const errorObj = error instanceof Error ? error : new Error('Unknown error');
-
-        console.error('❌ [MCPToolV5] Tool execution failed:', errorObj);
 
         // Notify error
         options?.onToolError?.(mcpTool.name, errorObj);
@@ -206,7 +170,6 @@ export function createMCPToolV5(mcpTool: Tool, serverName: string, options?: Too
 
   return wrappedTool;
 }
-
 
 /**
  * Create a tool selector for v5 with enhanced filtering
@@ -252,13 +215,9 @@ export function createAgentToolCallbacks(
       onReasoningUpdate?.(`Tool ${toolName} failed: ${error.message}`);
     },
 
-    onInputStart: (input) => {
-      console.log('Tool input started:', input);
-    },
+    onInputStart: (input) => {},
 
-    onInputDelta: (delta) => {
-      console.log('Tool input delta:', delta);
-    },
+    onInputDelta: (delta) => {},
   };
 }
 

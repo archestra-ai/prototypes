@@ -423,11 +423,12 @@ export function createUIApprovalHandler(
 export function createConsoleApprovalHandler(): HumanInLoopHandler {
   return new HumanInLoopHandler({
     requestApproval: async (request) => {
-      console.log('\n🔔 Tool Approval Required:');
-      console.log(`Tool: ${request.toolName} on ${request.serverName}`);
-      console.log(`Category: ${request.category} (Sensitive: ${request.isSensitive})`);
-      console.log(`Arguments:`, request.arguments);
-      console.log(`Risk Level: ${request.metadata?.riskLevel || 'unknown'}`);
+      // In a real implementation, this would display approval UI
+      // Tool approval request details:
+      // - Tool: request.toolName on request.serverName
+      // - Category: request.category (Sensitive: request.isSensitive)
+      // - Arguments: request.arguments
+      // - Risk Level: request.metadata?.riskLevel || 'unknown'
 
       // In a real implementation, this would wait for user input
       // For now, auto-approve non-sensitive tools

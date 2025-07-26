@@ -124,7 +124,6 @@ export class AgentStateBridge implements StateBridge {
    */
   cleanup(): void {
     // Cleanup any resources if needed
-    console.log('[AgentStateBridge] Cleanup called');
   }
 
   /**
