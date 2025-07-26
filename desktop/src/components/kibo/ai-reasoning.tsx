@@ -7,7 +7,7 @@ import { createContext, memo, useContext, useEffect, useState } from 'react';
 
 import { AIResponse } from '@/components/kibo/ai-response';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/tailwind';
 
 type AIReasoningContextValue = {
   isStreaming: boolean;

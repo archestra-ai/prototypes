@@ -20,9 +20,6 @@ import type {
   GetAllChatsData,
   GetAllChatsErrors,
   GetAllChatsResponses,
-  GetChatByIdData,
-  GetChatByIdErrors,
-  GetChatByIdResponses,
   GetConnectedExternalMcpClientsData,
   GetConnectedExternalMcpClientsErrors,
   GetConnectedExternalMcpClientsResponses,
@@ -95,13 +92,6 @@ export const createChat = <ThrowOnError extends boolean = false>(options: Option
 
 export const deleteChat = <ThrowOnError extends boolean = false>(options: Options<DeleteChatData, ThrowOnError>) => {
   return (options.client ?? _heyApiClient).delete<DeleteChatResponses, DeleteChatErrors, ThrowOnError>({
-    url: '/api/chat/{id}',
-    ...options,
-  });
-};
-
-export const getChatById = <ThrowOnError extends boolean = false>(options: Options<GetChatByIdData, ThrowOnError>) => {
-  return (options.client ?? _heyApiClient).get<GetChatByIdResponses, GetChatByIdErrors, ThrowOnError>({
     url: '/api/chat/{id}',
     ...options,
   });

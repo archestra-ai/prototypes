@@ -1,5 +1,5 @@
 use crate::models::chat_interactions::{
-    Column as ChatInteractionColumn, Entity as ChatInteractionEntity, Model as ChatInteractionModel,
+    Entity as ChatInteractionEntity, Model as ChatInteractionModel,
 };
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
@@ -43,56 +43,72 @@ pub struct ChatDefinition {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ChatWithInteractions {
+    #[serde(flatten)]
     pub chat: Model,
     pub interactions: Vec<ChatInteractionModel>,
 }
 
 impl Model {
-    pub async fn save(definition: ChatDefinition, db: &DatabaseConnection) -> Result<Model, DbErr> {
+    pub async fn save(
+        definition: ChatDefinition,
+        db: &DatabaseConnection,
+    ) -> Result<ChatWithInteractions, DbErr> {
         let new_chat = ActiveModel {
             llm_provider: Set(definition.llm_provider),
             llm_model: Set(definition.llm_model),
             ..Default::default()
         };
 
-        new_chat.insert(db).await
+        let chat = new_chat.insert(db).await?;
+
+        Ok(ChatWithInteractions {
+            chat,
+            interactions: vec![],
+        })
     }
 
-    pub async fn load_by_id(id: i32, db: &DatabaseConnection) -> Result<Option<Model>, DbErr> {
-        Entity::find_by_id(id).one(db).await
+    pub async fn load_by_id(
+        id: i32,
+        db: &DatabaseConnection,
+    ) -> Result<Option<ChatWithInteractions>, DbErr> {
+        let result = Entity::find_by_id(id)
+            .find_with_related(ChatInteractionEntity)
+            .all(db)
+            .await?;
+
+        match result.into_iter().next() {
+            Some((chat, interactions)) => Ok(Some(ChatWithInteractions { chat, interactions })),
+            None => Ok(None),
+        }
     }
 
     pub async fn load_by_session_id(
         session_id: String,
         db: &DatabaseConnection,
-    ) -> Result<Option<Model>, DbErr> {
-        Entity::find()
-            .filter(Column::SessionId.eq(session_id))
-            .one(db)
-            .await
-    }
-
-    pub async fn load_with_interactions(
-        self,
-        db: &DatabaseConnection,
     ) -> Result<Option<ChatWithInteractions>, DbErr> {
-        let interactions = self
-            .find_related(ChatInteractionEntity)
-            .order_by_asc(ChatInteractionColumn::CreatedAt)
+        let result = Entity::find()
+            .filter(Column::SessionId.eq(session_id))
+            .find_with_related(ChatInteractionEntity)
             .all(db)
             .await?;
 
-        Ok(Some(ChatWithInteractions {
-            chat: self,
-            interactions,
-        }))
+        match result.into_iter().next() {
+            Some((chat, interactions)) => Ok(Some(ChatWithInteractions { chat, interactions })),
+            None => Ok(None),
+        }
     }
 
-    pub async fn load_all(db: &DatabaseConnection) -> Result<Vec<Model>, DbErr> {
-        Entity::find()
+    pub async fn load_all(db: &DatabaseConnection) -> Result<Vec<ChatWithInteractions>, DbErr> {
+        let results = Entity::find()
             .order_by_desc(Column::CreatedAt)
+            .find_with_related(ChatInteractionEntity)
             .all(db)
-            .await
+            .await?;
+
+        Ok(results
+            .into_iter()
+            .map(|(chat, interactions)| ChatWithInteractions { chat, interactions })
+            .collect())
     }
 
     pub async fn update_title(
@@ -130,29 +146,27 @@ mod tests {
 
         // Create chat
         let chat = Model::save(definition, &db).await.unwrap();
-        assert!(chat.title.is_none());
-        assert_eq!(chat.llm_provider, "ollama");
-        assert_eq!(chat.llm_model, "llama3.2");
-        assert!(!chat.session_id.is_empty());
-
-        // Load by id
-        let loaded = Model::load_by_id(chat.id, &db).await.unwrap();
-        assert!(loaded.is_some());
-        assert_eq!(loaded.unwrap().id, chat.id);
+        assert!(chat.chat.title.is_none());
+        assert_eq!(chat.chat.llm_provider, "ollama");
+        assert_eq!(chat.chat.llm_model, "llama3.2");
+        assert!(!chat.chat.session_id.is_empty());
 
         // Load by session_id
-        let loaded_by_session = Model::load_by_session_id(chat.session_id.clone(), &db)
+        let loaded_by_session = Model::load_by_session_id(chat.chat.session_id.clone(), &db)
             .await
             .unwrap();
         assert!(loaded_by_session.is_some());
-        assert_eq!(loaded_by_session.unwrap().id, chat.id);
+        assert_eq!(loaded_by_session.unwrap().chat.id, chat.chat.id);
 
         // Load all chats
         let all_chats = Model::load_all(&db).await.unwrap();
         assert_eq!(all_chats.len(), 1);
 
+        // TODO: assert that the data is correct structure
+
         // Update title
         let updated = chat
+            .chat
             .update_title(Some("Updated Title".to_string()), &db)
             .await
             .unwrap();
@@ -162,43 +176,6 @@ mod tests {
         Model::delete(updated.id, &db).await.unwrap();
         let deleted = Model::load_by_id(updated.id, &db).await.unwrap();
         assert!(deleted.is_none());
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_load_with_interactions(#[future] database: DatabaseConnection) {
-        let db = database.await;
-
-        let chat_def = ChatDefinition {
-            llm_provider: "ollama".to_string(),
-            llm_model: "llama3.2".to_string(),
-        };
-        let chat = Model::save(chat_def, &db).await.unwrap();
-
-        // Add interactions using the session_id
-        let content1 = r#"{"role": "user", "content": "Hello"}"#;
-        let content2 = r#"{"role": "assistant", "content": "Hi there!"}"#;
-
-        ChatInteractionModel::save(chat.session_id.clone(), content1.to_string(), &db)
-            .await
-            .unwrap();
-        ChatInteractionModel::save(chat.session_id.clone(), content2.to_string(), &db)
-            .await
-            .unwrap();
-
-        let chat_with_interactions = chat.load_with_interactions(&db).await.unwrap().unwrap();
-
-        assert_eq!(
-            chat_with_interactions.chat.id,
-            chat_with_interactions.chat.id
-        );
-        assert_eq!(chat_with_interactions.interactions.len(), 2);
-
-        let interaction1 = &chat_with_interactions.interactions[0];
-        let interaction2 = &chat_with_interactions.interactions[1];
-
-        assert_eq!(interaction1.content.as_str().unwrap(), content1);
-        assert_eq!(interaction2.content.as_str().unwrap(), content2);
     }
 
     #[rstest]
@@ -241,10 +218,10 @@ mod tests {
         let all_chats = Model::load_all(&db).await.unwrap();
 
         // Find our chats in the results
-        let our_chat_ids = [chat1.id, chat2.id, chat3.id];
+        let our_chat_ids = [chat1.chat.id, chat2.chat.id, chat3.chat.id];
         let our_chats: Vec<_> = all_chats
             .into_iter()
-            .filter(|c| our_chat_ids.contains(&c.id))
+            .filter(|c| our_chat_ids.contains(&c.chat.id))
             .collect();
 
         // We should find all 3 of our chats
@@ -258,13 +235,13 @@ mod tests {
         // Verify each chat has the expected content
         assert!(our_chats
             .iter()
-            .any(|c| c.id == chat1.id && c.llm_model == "llama3.2"));
+            .any(|c| c.chat.id == chat1.chat.id && c.chat.llm_model == "llama3.2"));
         assert!(our_chats
             .iter()
-            .any(|c| c.id == chat2.id && c.llm_model == "llama3.1"));
+            .any(|c| c.chat.id == chat2.chat.id && c.chat.llm_model == "llama3.1"));
         assert!(our_chats
             .iter()
-            .any(|c| c.id == chat3.id && c.llm_model == "claude-3"));
+            .any(|c| c.chat.id == chat3.chat.id && c.chat.llm_model == "claude-3"));
     }
 
     #[rstest]
@@ -285,7 +262,7 @@ mod tests {
         // Add interactions
         for i in 0..3 {
             ChatInteractionModel::save(
-                chat.session_id.clone(),
+                chat.chat.session_id.clone(),
                 format!(r#"{{"role": "user", "content": "Message {i}"}}"#),
                 &db,
             )
@@ -294,16 +271,17 @@ mod tests {
         }
 
         // Verify interactions exist
-        let count = ChatInteractionModel::count_chat_interactions(chat.session_id.clone(), &db)
-            .await
-            .unwrap();
+        let count =
+            ChatInteractionModel::count_chat_interactions(chat.chat.session_id.clone(), &db)
+                .await
+                .unwrap();
         assert_eq!(count, 3);
 
         // Delete chat
-        Model::delete(chat.id, &db).await.unwrap();
+        Model::delete(chat.chat.id, &db).await.unwrap();
 
         // Verify chat is deleted
-        let deleted_chat = Model::load_by_id(chat.id, &db).await.unwrap();
+        let deleted_chat = Model::load_by_id(chat.chat.id, &db).await.unwrap();
         assert!(deleted_chat.is_none());
 
         // Note: We can't check if interactions are deleted without a direct query
@@ -336,7 +314,7 @@ mod tests {
         .unwrap();
 
         // Session IDs should be unique
-        assert_ne!(chat1.session_id, chat2.session_id);
+        assert_ne!(chat1.chat.session_id, chat2.chat.session_id);
     }
 
     #[rstest]
@@ -355,11 +333,12 @@ mod tests {
         .unwrap();
 
         // Update with None title
-        let updated = chat.clone().update_title(None, &db).await.unwrap();
+        let updated = chat.chat.clone().update_title(None, &db).await.unwrap();
         assert!(updated.title.is_none());
 
         // Update with empty string
         let updated = chat
+            .chat
             .clone()
             .update_title(Some("".to_string()), &db)
             .await
@@ -369,6 +348,7 @@ mod tests {
         // Update with very long title
         let long_title = "a".repeat(1000);
         let updated = chat
+            .chat
             .update_title(Some(long_title.clone()), &db)
             .await
             .unwrap();

@@ -26,8 +26,7 @@ export type ChatInteractionDefinition = {
   content: Value;
 };
 
-export type ChatWithInteractions = {
-  chat: Chat;
+export type ChatWithInteractions = Chat & {
   interactions: Array<ChatInteraction>;
 };
 
@@ -213,7 +212,7 @@ export type GetAllChatsResponses = {
   /**
    * List all chats
    */
-  200: Array<Chat>;
+  200: Array<ChatWithInteractions>;
 };
 
 export type GetAllChatsResponse = GetAllChatsResponses[keyof GetAllChatsResponses];
@@ -236,7 +235,7 @@ export type CreateChatResponses = {
   /**
    * Chat created successfully
    */
-  201: Chat;
+  201: ChatWithInteractions;
 };
 
 export type CreateChatResponse = CreateChatResponses[keyof CreateChatResponses];
@@ -269,38 +268,6 @@ export type DeleteChatResponses = {
 
 export type DeleteChatResponse = DeleteChatResponses[keyof DeleteChatResponses];
 
-export type GetChatByIdData = {
-  body?: never;
-  path: {
-    /**
-     * Chat ID
-     */
-    id: string;
-  };
-  query?: never;
-  url: '/api/chat/{id}';
-};
-
-export type GetChatByIdErrors = {
-  /**
-   * Chat not found
-   */
-  404: unknown;
-  /**
-   * Internal server error
-   */
-  500: unknown;
-};
-
-export type GetChatByIdResponses = {
-  /**
-   * Chat with messages found
-   */
-  200: ChatWithInteractions;
-};
-
-export type GetChatByIdResponse = GetChatByIdResponses[keyof GetChatByIdResponses];
-
 export type UpdateChatData = {
   body: UpdateChatRequest;
   path: {
@@ -328,7 +295,7 @@ export type UpdateChatResponses = {
   /**
    * Chat updated successfully
    */
-  200: Chat;
+  200: ChatWithInteractions;
 };
 
 export type UpdateChatResponse = UpdateChatResponses[keyof UpdateChatResponses];

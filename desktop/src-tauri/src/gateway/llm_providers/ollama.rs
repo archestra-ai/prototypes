@@ -154,13 +154,10 @@ impl Service {
             .map_err(|_| "Failed to load chat".to_string())?
             .ok_or_else(|| "Chat not found".to_string())?;
 
-        let chat_model = chat.llm_model.clone();
+        let chat_model = chat.chat.llm_model.clone();
 
         // Load chat with interactions
-        let chat_with_interactions = match chat.load_with_interactions(&self.db).await {
-            Ok(Some(cwi)) => cwi,
-            _ => return Err("Failed to load chat with interactions".to_string()),
-        };
+        let chat_with_interactions = chat;
 
         // Build context from chat interactions
         let mut full_chat_context = String::new();
@@ -222,8 +219,8 @@ impl Service {
             };
 
         // Load or create chat
-        let chat = match Chat::load_by_session_id(session_id.clone(), &self.db).await {
-            Ok(Some(c)) => c,
+        let chat_session_id = match Chat::load_by_session_id(session_id.clone(), &self.db).await {
+            Ok(Some(c)) => c.chat.session_id.clone(),
             Ok(None) => {
                 // Create new chat if it doesn't exist
                 match Chat::save(
@@ -235,14 +232,12 @@ impl Service {
                 )
                 .await
                 {
-                    Ok(c) => c,
+                    Ok(c) => c.chat.session_id.clone(),
                     Err(e) => return Err(format!("Failed to create chat: {e}")),
                 }
             }
             Err(e) => return Err(format!("Failed to load chat: {e}")),
         };
-
-        let chat_session_id = chat.session_id.clone();
 
         // Persist the chat interaction
         if let Some(last_msg) = ollama_request.messages.last() {
@@ -629,7 +624,7 @@ mod tests {
         .unwrap();
 
         // Update session_id to match our test
-        let mut active_chat: ChatActiveModel = chat.into();
+        let mut active_chat: ChatActiveModel = chat.chat.into();
         active_chat.session_id = Set(session_id.clone());
         let chat = active_chat.update(&db).await.unwrap();
 

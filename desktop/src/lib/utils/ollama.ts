@@ -1,7 +1,6 @@
 import { Tool as OllamaTool } from 'ollama/browser';
 
-import type { ToolContext } from '../../components/kibo/ai-input';
-import type { MCPServerTools } from '../mcp-servers-store';
+import { MCPServerToolsMap, ToolWithMCPServerName } from '@/types';
 
 export const convertServerAndToolNameToOllamaToolName = (serverName: string, toolName: string): string =>
   `${serverName}_${toolName}`;
@@ -17,22 +16,20 @@ export const convertOllamaToolNameToServerAndToolName = (ollamaToolName: string)
   ];
 };
 
-export const convertMCPServerToolsToOllamaTools = (mcpServerTools: MCPServerTools): OllamaTool[] => {
-  return Object.entries(mcpServerTools).flatMap(([serverName, tools]) =>
-    tools.map((tool) => ({
-      type: 'function',
-      function: {
-        name: convertServerAndToolNameToOllamaToolName(serverName, tool.name),
-        description: tool.description || `Tool from ${serverName}`,
-        parameters: tool.inputSchema as OllamaTool['function']['parameters'],
-      },
-    }))
-  );
+export const convertMCPServerToolsToOllamaTools = (tools: ToolWithMCPServerName[]): OllamaTool[] => {
+  return tools.map(({ serverName, name, description, inputSchema }) => ({
+    type: 'function',
+    function: {
+      name: convertServerAndToolNameToOllamaToolName(serverName, name),
+      description: description || `Tool from ${serverName}`,
+      parameters: inputSchema as OllamaTool['function']['parameters'],
+    },
+  }));
 };
 
-export const convertSelectedOrAllToolsToOllamaTools = (
-  selectedTools: ToolContext[] | undefined,
-  allTools: MCPServerTools
+export const convertToolsToOllamaTools = (
+  tools: ToolWithMCPServerName[],
+  allTools: MCPServerToolsMap
 ): OllamaTool[] => {
   // If no tools are selected, return all tools (current behavior)
   if (!selectedTools || selectedTools.length === 0) {

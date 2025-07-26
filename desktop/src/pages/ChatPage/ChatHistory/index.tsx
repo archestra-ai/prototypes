@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
 import { AIResponse } from '@/components/kibo/ai-response';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/tailwind';
 import { useChatStore } from '@/stores/chat-store';
 
 import ToolCallIndicator from '../ToolCallIndicator';

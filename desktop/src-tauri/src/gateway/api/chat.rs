@@ -2,7 +2,7 @@ use crate::models::chat::{ChatDefinition, ChatWithInteractions, Model as Chat};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
-use axum::routing::get;
+use axum::routing::{delete, get};
 use axum::Router;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
@@ -29,24 +29,14 @@ impl Service {
         Self { db: Arc::new(db) }
     }
 
-    pub async fn get_all_chats(&self) -> Result<Vec<Chat>, sea_orm::DbErr> {
+    pub async fn get_all_chats(&self) -> Result<Vec<ChatWithInteractions>, sea_orm::DbErr> {
         Chat::load_all(&self.db).await
     }
 
-    pub async fn get_chat_by_id(
+    pub async fn create_chat(
         &self,
-        id: String,
-    ) -> Result<Option<ChatWithInteractions>, sea_orm::DbErr> {
-        let id = id
-            .parse::<i32>()
-            .map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
-        match Chat::load_by_id(id, &self.db).await? {
-            Some(chat) => chat.load_with_interactions(&self.db).await,
-            None => Ok(None),
-        }
-    }
-
-    pub async fn create_chat(&self, request: CreateChatRequest) -> Result<Chat, sea_orm::DbErr> {
+        request: CreateChatRequest,
+    ) -> Result<ChatWithInteractions, sea_orm::DbErr> {
         let definition = ChatDefinition {
             llm_provider: request.llm_provider,
             llm_model: request.llm_model,
@@ -65,7 +55,7 @@ impl Service {
         &self,
         id: String,
         request: UpdateChatRequest,
-    ) -> Result<Chat, sea_orm::DbErr> {
+    ) -> Result<ChatWithInteractions, sea_orm::DbErr> {
         let id = id
             .parse::<i32>()
             .map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
@@ -73,7 +63,11 @@ impl Service {
             .await?
             .ok_or_else(|| sea_orm::DbErr::RecordNotFound("Chat not found".to_string()))?;
 
-        chat.update_title(request.title, &self.db).await
+        let updated_chat = chat.chat.update_title(request.title, &self.db).await?;
+        Ok(ChatWithInteractions {
+            chat: updated_chat,
+            interactions: chat.interactions,
+        })
     }
 }
 
@@ -82,13 +76,13 @@ impl Service {
     path = "/api/chat",
     tag = "chat",
     responses(
-        (status = 200, description = "List all chats", body = Vec<Chat>),
+        (status = 200, description = "List all chats", body = Vec<ChatWithInteractions>),
         (status = 500, description = "Internal server error")
     )
 )]
 pub async fn get_all_chats(
     State(service): State<Arc<Service>>,
-) -> Result<Json<Vec<Chat>>, StatusCode> {
+) -> Result<Json<Vec<ChatWithInteractions>>, StatusCode> {
     service
         .get_all_chats()
         .await
@@ -97,43 +91,19 @@ pub async fn get_all_chats(
 }
 
 #[utoipa::path(
-    get,
-    path = "/api/chat/{id}",
-    tag = "chat",
-    params(
-        ("id" = String, Path, description = "Chat ID")
-    ),
-    responses(
-        (status = 200, description = "Chat with messages found", body = ChatWithInteractions),
-        (status = 404, description = "Chat not found"),
-        (status = 500, description = "Internal server error")
-    )
-)]
-pub async fn get_chat_by_id(
-    State(service): State<Arc<Service>>,
-    Path(id): Path<String>,
-) -> Result<Json<ChatWithInteractions>, StatusCode> {
-    match service.get_chat_by_id(id).await {
-        Ok(Some(chat)) => Ok(Json(chat)),
-        Ok(None) => Err(StatusCode::NOT_FOUND),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
-}
-
-#[utoipa::path(
     post,
     path = "/api/chat",
     tag = "chat",
     request_body = CreateChatRequest,
     responses(
-        (status = 201, description = "Chat created successfully", body = Chat),
+        (status = 201, description = "Chat created successfully", body = ChatWithInteractions),
         (status = 500, description = "Internal server error")
     )
 )]
 pub async fn create_chat(
     State(service): State<Arc<Service>>,
     Json(request): Json<CreateChatRequest>,
-) -> Result<(StatusCode, Json<Chat>), StatusCode> {
+) -> Result<(StatusCode, Json<ChatWithInteractions>), StatusCode> {
     service
         .create_chat(request)
         .await
@@ -173,7 +143,7 @@ pub async fn delete_chat(
     ),
     request_body = UpdateChatRequest,
     responses(
-        (status = 200, description = "Chat updated successfully", body = Chat),
+        (status = 200, description = "Chat updated successfully", body = ChatWithInteractions),
         (status = 404, description = "Chat not found"),
         (status = 500, description = "Internal server error")
     )
@@ -182,7 +152,7 @@ pub async fn update_chat(
     State(service): State<Arc<Service>>,
     Path(id): Path<String>,
     Json(request): Json<UpdateChatRequest>,
-) -> Result<Json<Chat>, StatusCode> {
+) -> Result<Json<ChatWithInteractions>, StatusCode> {
     match service.update_chat(id, request).await {
         Ok(chat) => Ok(Json(chat)),
         Err(sea_orm::DbErr::RecordNotFound(_)) => Err(StatusCode::NOT_FOUND),
@@ -195,17 +165,13 @@ pub fn create_router(db: DatabaseConnection) -> Router {
 
     Router::new()
         .route("/", get(get_all_chats).post(create_chat))
-        .route(
-            "/{id}",
-            get(get_chat_by_id).delete(delete_chat).patch(update_chat),
-        )
+        .route("/{id}", delete(delete_chat).patch(update_chat))
         .with_state(service)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::chat_interactions::Model as ChatInteractionModel;
     use crate::test_fixtures::database;
     use axum::body::Body;
     use axum::http::Request;
@@ -240,31 +206,11 @@ mod tests {
         assert_eq!(response.status(), StatusCode::CREATED);
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let created_chat: Chat = serde_json::from_slice(&body).unwrap();
-        assert!(created_chat.title.is_none());
-        assert_eq!(created_chat.llm_provider, "ollama");
-        assert_eq!(created_chat.llm_model, "llama3.2");
-        assert!(!created_chat.session_id.is_empty());
-
-        // Get the chat by id
-        let response = router
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/{}", created_chat.id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        let chat_with_interactions: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
-        assert_eq!(chat_with_interactions.chat.id, created_chat.id);
-        assert_eq!(chat_with_interactions.interactions.len(), 0);
+        let created_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
+        assert!(created_chat.chat.title.is_none());
+        assert_eq!(created_chat.chat.llm_provider, "ollama");
+        assert_eq!(created_chat.chat.llm_model, "llama3.2");
+        assert!(!created_chat.chat.session_id.is_empty());
     }
 
     #[rstest]
@@ -288,7 +234,7 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let chats: Vec<Chat> = serde_json::from_slice(&body).unwrap();
+        let chats: Vec<ChatWithInteractions> = serde_json::from_slice(&body).unwrap();
         assert_eq!(chats.len(), 0);
 
         // Create some chats
@@ -327,12 +273,12 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let chats: Vec<Chat> = serde_json::from_slice(&body).unwrap();
+        let chats: Vec<ChatWithInteractions> = serde_json::from_slice(&body).unwrap();
         assert_eq!(chats.len(), 3);
         // Chats should be ordered by created_at DESC (newest first)
-        assert!(chats.iter().any(|c| c.llm_model == "model-0"));
-        assert!(chats.iter().any(|c| c.llm_model == "model-1"));
-        assert!(chats.iter().any(|c| c.llm_model == "model-2"));
+        assert!(chats.iter().any(|c| c.chat.llm_model == "model-0"));
+        assert!(chats.iter().any(|c| c.chat.llm_model == "model-1"));
+        assert!(chats.iter().any(|c| c.chat.llm_model == "model-2"));
     }
 
     #[rstest]
@@ -360,7 +306,7 @@ mod tests {
             .unwrap();
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let created_chat: Chat = serde_json::from_slice(&body).unwrap();
+        let created_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
 
         // Delete the chat
         let response = router
@@ -368,7 +314,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("DELETE")
-                    .uri(format!("/{}", created_chat.id))
+                    .uri(format!("/{}", created_chat.chat.id))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -377,20 +323,23 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
 
-        // Verify it's deleted
+        // Verify it's deleted by checking it's not in the list
         let response = router
             .clone()
             .oneshot(
                 Request::builder()
                     .method("GET")
-                    .uri(format!("/{}", created_chat.id))
+                    .uri("/")
                     .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let chats: Vec<ChatWithInteractions> = serde_json::from_slice(&body).unwrap();
+        assert!(!chats.iter().any(|c| c.chat.id == created_chat.chat.id));
 
         // Deleting again should still return NO_CONTENT (idempotent)
         let response = router
@@ -398,7 +347,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("DELETE")
-                    .uri(format!("/{}", created_chat.id))
+                    .uri(format!("/{}", created_chat.chat.id))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -434,7 +383,7 @@ mod tests {
             .unwrap();
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let created_chat: Chat = serde_json::from_slice(&body).unwrap();
+        let created_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
 
         // Test updating title to a string
         let update_request = UpdateChatRequest {
@@ -446,7 +395,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("PATCH")
-                    .uri(format!("/{}", created_chat.id))
+                    .uri(format!("/{}", created_chat.chat.id))
                     .header("content-type", "application/json")
                     .body(Body::from(serde_json::to_string(&update_request).unwrap()))
                     .unwrap(),
@@ -457,8 +406,8 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let updated_chat: Chat = serde_json::from_slice(&body).unwrap();
-        assert_eq!(updated_chat.title, Some("My New Title".to_string()));
+        let updated_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
+        assert_eq!(updated_chat.chat.title, Some("My New Title".to_string()));
 
         // Test updating title back to None
         let update_request = UpdateChatRequest { title: None };
@@ -468,7 +417,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("PATCH")
-                    .uri(format!("/{}", created_chat.id))
+                    .uri(format!("/{}", created_chat.chat.id))
                     .header("content-type", "application/json")
                     .body(Body::from(serde_json::to_string(&update_request).unwrap()))
                     .unwrap(),
@@ -479,8 +428,8 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let updated_chat: Chat = serde_json::from_slice(&body).unwrap();
-        assert_eq!(updated_chat.title, None);
+        let updated_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
+        assert_eq!(updated_chat.chat.title, None);
     }
 
     #[rstest]
@@ -507,116 +456,5 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_get_non_existent_chat(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let router = create_router(db.clone());
-
-        let response = router
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri("/99999")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_chat_with_interactions(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let router = create_router(db.clone());
-
-        // Create a chat
-        let create_request = CreateChatRequest {
-            llm_provider: "ollama".to_string(),
-            llm_model: "llama3.2".to_string(),
-        };
-
-        let response = router
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/")
-                    .header("content-type", "application/json")
-                    .body(Body::from(serde_json::to_string(&create_request).unwrap()))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        let created_chat: Chat = serde_json::from_slice(&body).unwrap();
-
-        // Add some interactions
-        let contents = vec![
-            r#"{"role": "user", "content": "Hello"}"#,
-            r#"{"role": "assistant", "content": "Hi there!"}"#,
-            r#"{"role": "user", "content": "How are you?"}"#,
-        ];
-
-        for content in &contents {
-            ChatInteractionModel::save(created_chat.session_id.clone(), content.to_string(), &db)
-                .await
-                .unwrap();
-        }
-
-        // Get chat with interactions
-        let response = router
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/{}", created_chat.id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        let chat_with_interactions: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
-        assert_eq!(chat_with_interactions.chat.id, created_chat.id);
-        assert_eq!(chat_with_interactions.interactions.len(), 3);
-
-        // Verify interaction contents are preserved
-        for (i, interaction) in chat_with_interactions.interactions.iter().enumerate() {
-            assert_eq!(interaction.content.as_str().unwrap(), contents[i]);
-        }
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_invalid_chat_id_format(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let router = create_router(db.clone());
-
-        // Test with non-numeric ID
-        let response = router
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri("/not-a-number")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        // Invalid ID format will return INTERNAL_SERVER_ERROR
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 }

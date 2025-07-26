@@ -1,20 +1,24 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { CallToolRequest, ClientCapabilities, Tool } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/types.js';
 import { create } from 'zustand';
 
 import { ARCHESTRA_SERVER_MCP_PROXY_URL, ARCHESTRA_SERVER_MCP_URL } from '@/consts';
 import { type McpServer, type McpServerDefinition, getInstalledMcpServers } from '@/lib/api-client';
+import { getToolsGroupedByServer } from '@/lib/utils/mcp-server';
+import { formatToolName } from '@/lib/utils/tools';
+import type { ConnectedMCPServer, MCPServerToolsMap, ToolWithMCPServerName } from '@/types';
 
-import type { ConnectedMCPServer } from '../types';
-
-export type MCPServerTools = Record<string, Tool[]>;
+const ARCHESTRA_MCP_SERVER_NAME = 'archestra';
 
 interface MCPServersState {
   archestraMCPServer: ConnectedMCPServer;
   installedMCPServers: ConnectedMCPServer[];
   loadingInstalledMCPServers: boolean;
   errorLoadingInstalledMCPServers: string | null;
+  allTools: ToolWithMCPServerName[];
+  selectedTools: ToolWithMCPServerName[];
+  toolSearchQuery: string;
 }
 
 interface MCPServersActions {
@@ -24,7 +28,12 @@ interface MCPServersActions {
   loadInstalledMCPServers: () => Promise<void>;
   connectToArchestraMCPServer: () => Promise<void>;
   connectToMCPServer: (serverName: string, url: string) => Promise<Client | null>;
-  allAvailableTools: () => MCPServerTools;
+  getFilteredTools: () => ToolWithMCPServerName[];
+  getToolsGroupedByServer: () => MCPServerToolsMap;
+  getFilteredToolsGroupedByServer: () => MCPServerToolsMap;
+  addSelectedTool: (tool: ToolWithMCPServerName) => void;
+  removeSelectedTool: (tool: ToolWithMCPServerName) => void;
+  setToolSearchQuery: (query: string) => void;
 }
 
 type MCPServersStore = MCPServersState & MCPServersActions;
@@ -55,6 +64,18 @@ const configureMCPClient = async (
   return client;
 };
 
+const initializeConnectedMCPServerTools = async (
+  client: Client,
+  serverName: string
+): Promise<ToolWithMCPServerName[]> => {
+  const { tools } = await client.listTools();
+  return tools.map((tool) => ({
+    ...tool,
+    serverName,
+    enabled: true,
+  }));
+};
+
 export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
   // State
   archestraMCPServer: {
@@ -79,6 +100,9 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
   installedMCPServers: [],
   loadingInstalledMCPServers: false,
   errorLoadingInstalledMCPServers: null,
+  allTools: [],
+  selectedTools: [],
+  toolSearchQuery: '',
 
   // Actions
   addMCPServerToInstalledMCPServers: (mcpServer: McpServerDefinition) => {
@@ -119,7 +143,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
     const { archestraMCPServer, installedMCPServers } = get();
 
     let client: Client | null = null;
-    if (serverName === 'archestra') {
+    if (serverName === ARCHESTRA_MCP_SERVER_NAME) {
       client = archestraMCPServer.client;
     } else {
       const server = installedMCPServers.find((s) => s.name === serverName);
@@ -178,10 +202,12 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
 
     const attemptConnection = async (): Promise<boolean> => {
       try {
-        const client = await configureMCPClient('Archestra-client', ARCHESTRA_SERVER_MCP_URL, { tools: {} });
+        const client = await configureMCPClient(`${ARCHESTRA_MCP_SERVER_NAME}-client`, ARCHESTRA_SERVER_MCP_URL, {
+          tools: {},
+        });
 
         if (client) {
-          const { tools } = await client.listTools();
+          const tools = await initializeConnectedMCPServerTools(client, ARCHESTRA_MCP_SERVER_NAME);
 
           set((state) => ({
             archestraMCPServer: {
@@ -251,11 +277,18 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
       }
 
       // List available tools
-      const { tools } = await client.listTools();
+      const tools = await initializeConnectedMCPServerTools(client, serverName);
 
-      set((state) => ({
-        installedMCPServers: state.installedMCPServers.map((server) =>
-          server.name === serverName ? { ...server, client, tools, status: 'connected' } : server
+      set(({ installedMCPServers }) => ({
+        installedMCPServers: installedMCPServers.map((server) =>
+          server.name === serverName
+            ? {
+                ...server,
+                client,
+                tools,
+                status: 'connected',
+              }
+            : server
         ),
       }));
 
@@ -286,12 +319,48 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
     }
   },
 
-  allAvailableTools: () => {
-    const { installedMCPServers } = get();
-    return installedMCPServers.reduce((acc, server) => {
-      acc[server.name] = server.tools;
-      return acc;
-    }, {} as MCPServerTools);
+  setToolSearchQuery: (query: string) => {
+    set({ toolSearchQuery: query });
+  },
+
+  getFilteredTools: () => {
+    const { toolSearchQuery, allTools } = get();
+
+    if (!toolSearchQuery.trim()) {
+      return allTools;
+    }
+
+    const query = toolSearchQuery.toLowerCase();
+    const filtered = allTools.filter(({ serverName, name, description }) => {
+      const serverMatches = serverName.toLowerCase().includes(query);
+      const toolNameMatches = name.toLowerCase().includes(query);
+      const formattedNameMatches = formatToolName(name).toLowerCase().includes(query);
+      const descriptionMatches = description?.toLowerCase().includes(query) || false;
+      return serverMatches || toolNameMatches || formattedNameMatches || descriptionMatches;
+    });
+
+    return filtered;
+  },
+
+  getToolsGroupedByServer: () => getToolsGroupedByServer(get().allTools),
+  getFilteredToolsGroupedByServer: () => getToolsGroupedByServer(get().getFilteredTools()),
+
+  addSelectedTool: (tool: ToolWithMCPServerName) => {
+    set(({ selectedTools }) => {
+      // if tool is not already in selectedTools, add it
+      if (!selectedTools.some((t) => t.name === tool.name)) {
+        return {
+          selectedTools: [...selectedTools, tool],
+        };
+      }
+      return { selectedTools };
+    });
+  },
+
+  removeSelectedTool: (tool: ToolWithMCPServerName) => {
+    set(({ selectedTools }) => ({
+      selectedTools: selectedTools.filter((t) => t.name !== tool.name),
+    }));
   },
 }));
 

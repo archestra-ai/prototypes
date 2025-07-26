@@ -1,27 +1,24 @@
 import { listen } from '@tauri-apps/api/event';
-import { Message as OllamaMessage, ToolCall as OllamaToolCall } from 'ollama/browser';
+import { Message as OllamaMessage, Tool as OllamaTool, ToolCall as OllamaToolCall } from 'ollama/browser';
 import { create } from 'zustand';
 
-import type { ToolContext } from '../components/kibo/ai-input';
-import type { Chat } from '../lib/api';
-import { createChat, deleteChat, getAllChats, updateChat } from '../lib/api';
-import { ToolCallInfo } from '../types';
+import { type Chat, createChat, deleteChat, getAllChats, updateChat } from '@/lib/api';
+import {
+  checkModelSupportsTools,
+  initializeChat,
+  markChatInteractionAsCancelled,
+  parseThinkingContent,
+} from '@/lib/utils/chat';
+import { convertOllamaToolNameToServerAndToolName, convertToolsToOllamaTools } from '@/lib/utils/ollama';
+import type { ChatWithInteractions, ToolCallInfo, ToolWithMCPServerName } from '@/types';
+
 import { useDeveloperModeStore } from './developer-mode-store';
 import { useMCPServersStore } from './mcp-servers-store';
 import { useOllamaStore } from './ollama-store';
-import { convertOllamaToolNameToServerAndToolName, convertSelectedOrAllToolsToOllamaTools } from './ollama-store/utils';
-
-interface ParsedContent {
-  thinking: string;
-  response: string;
-  isThinkingStreaming: boolean;
-}
 
 interface ChatState {
   chats: Chat[];
-  currentChat: Chat | null;
-  // TODO: update this type...
-  chatHistory: any[];
+  currentChat: ChatWithInteractions | null;
   streamingMessageId: string | null;
   abortController: AbortController | null;
   isLoadingChats: boolean;
@@ -32,10 +29,10 @@ interface ChatActions {
   loadChats: () => Promise<void>;
   createNewChat: () => Promise<void>;
   selectChat: (chatId: number) => void;
+  getCurrentChatTitle: () => string;
   deleteCurrentChat: () => Promise<void>;
   updateChat: (chatId: number, title: string | null) => Promise<void>;
-  sendChatMessage: (message: string, selectedTools?: ToolContext[]) => Promise<void>;
-  clearChatHistory: () => void;
+  sendChatMessage: (message: string, selectedTools?: ToolWithMCPServerName[]) => Promise<void>;
   cancelStreaming: () => void;
   updateStreamingMessage: (messageId: string, content: string) => void;
   initializeStore: () => void;
@@ -43,78 +40,11 @@ interface ChatActions {
 
 type ChatStore = ChatState & ChatActions;
 
-export function checkModelSupportsTools(model: string): boolean {
-  return (
-    model.includes('functionary') ||
-    model.includes('mistral') ||
-    model.includes('command') ||
-    (model.includes('qwen') && !model.includes('0.6b')) ||
-    model.includes('hermes') ||
-    model.includes('llama3.1') ||
-    model.includes('llama-3.1') ||
-    model.includes('phi') ||
-    model.includes('granite')
-  );
-}
-
-export function addCancellationText(content: string): string {
-  return content.includes('[Cancelled]') ? content : content + ' [Cancelled]';
-}
-
-// TODO: update this type...
-export function markMessageAsCancelled(message: any): any {
-  return {
-    ...message,
-    isStreaming: false,
-    isToolExecuting: false,
-    isThinkingStreaming: false,
-    content: addCancellationText(message.content),
-  };
-}
-
-export function parseThinkingContent(content: string): ParsedContent {
-  if (!content) {
-    return { thinking: '', response: '', isThinkingStreaming: false };
-  }
-
-  const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
-
-  let thinking = '';
-  let response = content;
-  let isThinkingStreaming = false;
-
-  const completedMatches = [...content.matchAll(thinkRegex)];
-  const completedThinking = completedMatches.map((match) => match[1]).join('\n\n');
-
-  let contentWithoutCompleted = content.replace(thinkRegex, '');
-
-  const incompleteMatch = contentWithoutCompleted.match(/<think>([\s\S]*)$/);
-
-  if (incompleteMatch) {
-    const incompleteThinking = incompleteMatch[1];
-    const beforeIncomplete = contentWithoutCompleted.substring(0, contentWithoutCompleted.indexOf('<think>'));
-
-    thinking = completedThinking ? `${completedThinking}\n\n${incompleteThinking}` : incompleteThinking;
-    response = beforeIncomplete.trim();
-    isThinkingStreaming = true;
-  } else {
-    thinking = completedThinking;
-    response = contentWithoutCompleted.trim();
-    isThinkingStreaming = false;
-  }
-
-  return {
-    thinking,
-    response,
-    isThinkingStreaming,
-  };
-}
-
 const executeToolsAndCollectResults = async (
   toolCalls: OllamaToolCall[],
   ollamaMessages: OllamaMessage[],
   finalMessage: OllamaMessage | null
-) => {
+): Promise<ToolCallInfo[]> => {
   const { executeTool } = useMCPServersStore.getState();
 
   const toolResults: ToolCallInfo[] = [];
@@ -172,7 +102,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   // State
   chats: [],
   currentChat: null,
-  chatHistory: [],
   streamingMessageId: null,
   abortController: null,
   isLoadingChats: false,
@@ -183,11 +112,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ isLoadingChats: true });
     try {
       const { data } = await getAllChats();
-      set({
-        chats: data || [],
-        currentChat: data?.[0] || null,
-        isLoadingChats: false,
-      });
+
+      if (data) {
+        const initializedChats = data.map(initializeChat);
+
+        set({
+          chats: initializedChats,
+          currentChat: initializedChats[0],
+          isLoadingChats: false,
+        });
+      }
     } catch (error) {
       console.error('Failed to load chats:', error);
       set({ isLoadingChats: false });
@@ -207,7 +141,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         set((state) => ({
           chats: [data, ...state.chats],
           currentChat: data,
-          chatHistory: [],
         }));
       }
     } catch (error) {
@@ -219,6 +152,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({
       currentChat: get().chats.find((chat) => chat.id === chatId) || null,
     });
+  },
+
+  getCurrentChatTitle: () => {
+    const { currentChat } = get();
+    return currentChat?.title || 'New Chat';
   },
 
   deleteCurrentChat: async () => {
@@ -235,7 +173,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         return {
           chats: newChats,
           currentChat: newCurrentChat,
-          chatHistory: [],
         };
       });
     } catch (error) {
@@ -261,10 +198,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       console.error('Failed to update chat:', error);
       throw error; // Re-throw to let the UI handle the error
     }
-  },
-
-  clearChatHistory: () => {
-    set({ chatHistory: [] });
   },
 
   cancelStreaming: () => {
@@ -298,7 +231,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const { streamingMessageId } = get();
       set((state) => ({
         chatHistory: state.chatHistory.map((msg) =>
-          msg.id === streamingMessageId || msg.isStreaming || msg.isToolExecuting ? markMessageAsCancelled(msg) : msg
+          msg.id === streamingMessageId || msg.isStreaming || msg.isToolExecuting
+            ? markChatInteractionAsCancelled(msg)
+            : msg
         ),
       }));
     }
@@ -320,8 +255,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }));
   },
 
-  sendChatMessage: async (message: string, selectedTools?: ToolContext[]) => {
+  sendChatMessage: async (message: string) => {
+    const { allTools, selectedTools } = useMCPServersStore.getState();
     const { chat, selectedModel } = useOllamaStore.getState();
+    const { isDeveloperMode, systemPrompt } = useDeveloperModeStore.getState();
     const { currentChat } = get();
 
     if (!currentChat) {
@@ -329,9 +266,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
 
     const currentChatSessionId = currentChat.session_id;
-
-    const allTools = useMCPServersStore.getState().allAvailableTools();
-    const { isDeveloperMode, systemPrompt } = useDeveloperModeStore.getState();
 
     if (!message.trim()) {
       return;
@@ -399,8 +333,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         { role: 'user', content: message }
       );
 
-      const ollamaFormattedTools =
-        hasTools && modelSupportsTools ? convertSelectedOrAllToolsToOllamaTools(selectedTools, allTools) : [];
+      let ollamaFormattedTools: OllamaTool[] = [];
+      if (hasTools && modelSupportsTools) {
+        ollamaFormattedTools = convertToolsToOllamaTools(selectedTools, availableTools);
+      }
+
       const response = await chat(currentChatSessionId, ollamaMessages, ollamaFormattedTools);
 
       let accumulatedContent = '';

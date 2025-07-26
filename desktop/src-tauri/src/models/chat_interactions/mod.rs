@@ -57,7 +57,7 @@ impl Model {
             })?;
 
         let new_chat_interaction = ActiveModel {
-            chat_id: Set(chat.id),
+            chat_id: Set(chat.chat.id),
             content: Set(serde_json::json!(content)),
             ..Default::default()
         };
@@ -78,7 +78,7 @@ impl Model {
             .query_one(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "SELECT COUNT(*) as count FROM chat_interactions WHERE chat_id = ?",
-                vec![chat.id.into()],
+                vec![chat.chat.id.into()],
             ))
             .await?
             .ok_or_else(|| DbErr::RecordNotFound("No result returned".to_string()))?;

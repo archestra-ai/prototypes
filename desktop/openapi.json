@@ -24,7 +24,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Chat"
+                    "$ref": "#/components/schemas/ChatWithInteractions"
                   }
                 }
               }
@@ -54,7 +54,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Chat"
+                  "$ref": "#/components/schemas/ChatWithInteractions"
                 }
               }
             }
@@ -66,39 +66,6 @@
       }
     },
     "/api/chat/{id}": {
-      "get": {
-        "tags": ["chat"],
-        "operationId": "get_chat_by_id",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "Chat ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Chat with messages found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatWithInteractions"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Chat not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      },
       "delete": {
         "tags": ["chat"],
         "operationId": "delete_chat",
@@ -152,7 +119,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Chat"
+                  "$ref": "#/components/schemas/ChatWithInteractions"
                 }
               }
             }
@@ -740,19 +707,23 @@
         }
       },
       "ChatWithInteractions": {
-        "type": "object",
-        "required": ["chat", "interactions"],
-        "properties": {
-          "chat": {
+        "allOf": [
+          {
             "$ref": "#/components/schemas/Chat"
           },
-          "interactions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatInteraction"
+          {
+            "type": "object",
+            "required": ["interactions"],
+            "properties": {
+              "interactions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ChatInteraction"
+                }
+              }
             }
           }
-        }
+        ]
       },
       "ConnectExternalMCPClientRequest": {
         "type": "object",
