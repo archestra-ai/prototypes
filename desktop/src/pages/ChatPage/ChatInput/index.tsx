@@ -61,9 +61,57 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
 
     try {
       let finalMessage = input.trim();
+      const { activateAgent, currentObjective, stopAgent } = useAgentStore.getState();
 
-      // Add tool context to the message if tools are selected
-      if (selectedTools.length > 0) {
+      // Handle agent commands
+      if (finalMessage.startsWith('/agent')) {
+        const objective = finalMessage.substring(6).trim();
+
+        if (!objective) {
+          // This will be handled by the error message in the response
+          setInput('');
+          return;
+        }
+
+        // Activate agent state
+        await activateAgent(objective);
+
+        // Send the objective as the initial message with agent context
+        setInput('');
+        await sendSSEMessage(objective, {
+          tools: selectedTools.map((tool) => `${tool.serverName}_${tool.toolName}`),
+          agentContext: {
+            mode: 'autonomous',
+            objective: objective,
+            activate: true,
+          },
+        });
+        return;
+      }
+
+      // Handle stop command
+      if (finalMessage === '/stop' && isAgentActive) {
+        stopAgent();
+        setInput('');
+        // Send stop signal through SSE
+        await sendSSEMessage('/stop', {
+          agentContext: {
+            mode: 'stop',
+          },
+        });
+        return;
+      }
+
+      // Regular message or agent interaction
+      const agentContext = isAgentActive
+        ? {
+            mode: 'autonomous',
+            objective: currentObjective,
+          }
+        : undefined;
+
+      // Add tool context to the message if tools are selected (only for non-agent mode)
+      if (!isAgentActive && selectedTools.length > 0) {
         const toolContexts = selectedTools.map((tool) => `Use ${tool.toolName} from ${tool.serverName}`).join(', ');
         finalMessage = `${toolContexts}. ${finalMessage}`;
       }
@@ -71,6 +119,7 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
       setInput('');
       await sendSSEMessage(finalMessage, {
         tools: selectedTools.map((tool) => `${tool.serverName}_${tool.toolName}`),
+        agentContext,
       });
     } catch (error) {
       console.error('Failed to send message:', error);

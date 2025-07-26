@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 
-import { usePerformanceMonitor } from '@/components/agent/performance-optimizations';
+import { usePerformanceMonitor } from '@/components/agent/utils.performance';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// Import cn utility
+import { cn } from '@/lib/utils';
 import { useAgentStore } from '@/stores/agent-store';
 import { useChatStore } from '@/stores/chat-store';
 import { ChatMessage } from '@/types';
@@ -31,13 +33,13 @@ export function PerformanceTestPanel() {
     const measureFPS = () => {
       frameCount++;
       const currentTime = performance.now();
-      
+
       if (currentTime >= lastTime + 1000) {
         setFps(Math.round((frameCount * 1000) / (currentTime - lastTime)));
         frameCount = 0;
         lastTime = currentTime;
       }
-      
+
       animationId = requestAnimationFrame(measureFPS);
     };
 
@@ -66,7 +68,7 @@ export function PerformanceTestPanel() {
         content: `Test message ${i}: This is a longer user message to simulate real conversation content. The user is asking about implementation details of a complex system that requires detailed explanation.`,
         timestamp: new Date(),
       };
-      
+
       // Directly update chat history
       chatStore.chatHistory.push(userMessage);
 
@@ -199,56 +201,45 @@ This helps test the rendering performance with substantial content.`,
               <div>Avg per msg: {messageCount > 0 ? (renderTime / messageCount).toFixed(2) : '0'}ms</div>
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <div className="text-sm font-medium">Performance Metrics</div>
             <div className="space-y-1 text-sm">
-              <div className={cn('flex items-center gap-1', fps >= 50 ? 'text-green-600' : fps >= 30 ? 'text-yellow-600' : 'text-red-600')}>
+              <div
+                className={cn(
+                  'flex items-center gap-1',
+                  fps >= 50 ? 'text-green-600' : fps >= 30 ? 'text-yellow-600' : 'text-red-600'
+                )}
+              >
                 <div className="h-2 w-2 rounded-full bg-current" />
                 {fps >= 50 ? 'Smooth' : fps >= 30 ? 'Acceptable' : 'Poor'} Performance
               </div>
-              <div>Memory: {typeof performance !== 'undefined' && 'memory' in performance ? `${Math.round((performance as any).memory.usedJSHeapSize / 1048576)}MB` : 'N/A'}</div>
+              <div>
+                Memory:{' '}
+                {typeof performance !== 'undefined' && 'memory' in performance
+                  ? `${Math.round((performance as any).memory.usedJSHeapSize / 1048576)}MB`
+                  : 'N/A'}
+              </div>
             </div>
           </div>
         </div>
 
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            onClick={() => generateLargeHistory(100)}
-            disabled={isGenerating}
-          >
+          <Button size="sm" onClick={() => generateLargeHistory(100)} disabled={isGenerating}>
             Generate 100 Messages
           </Button>
-          <Button
-            size="sm"
-            onClick={() => generateLargeHistory(500)}
-            disabled={isGenerating}
-          >
+          <Button size="sm" onClick={() => generateLargeHistory(500)} disabled={isGenerating}>
             Generate 500 Messages
           </Button>
-          <Button
-            size="sm"
-            onClick={() => generateLargeHistory(1000)}
-            disabled={isGenerating}
-          >
+          <Button size="sm" onClick={() => generateLargeHistory(1000)} disabled={isGenerating}>
             Generate 1000 Messages
           </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={clearHistory}
-            disabled={isGenerating}
-          >
+          <Button size="sm" variant="destructive" onClick={clearHistory} disabled={isGenerating}>
             Clear All
           </Button>
         </div>
 
-        {isGenerating && (
-          <div className="text-sm text-muted-foreground animate-pulse">
-            Generating messages...
-          </div>
-        )}
+        {isGenerating && <div className="text-sm text-muted-foreground animate-pulse">Generating messages...</div>}
 
         <div className="text-xs text-muted-foreground">
           <p>Performance optimizations applied:</p>
@@ -264,6 +255,3 @@ This helps test the rendering performance with substantial content.`,
     </Card>
   );
 }
-
-// Import cn utility
-import { cn } from '@/lib/utils';

@@ -8,7 +8,7 @@ import {
   MemoizedReasoningDisplay,
   MemoizedTaskProgressDisplay,
   useThrottledValue,
-} from '@/components/agent/performance-optimizations';
+} from '@/components/agent/utils.performance';
 import { AIResponse } from '@/components/kibo/ai-response';
 import { ToolParts } from '@/components/kibo/tool-part';
 import { ScrollArea } from '@/components/ui/scroll-area';

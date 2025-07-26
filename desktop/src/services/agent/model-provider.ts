@@ -22,7 +22,7 @@ export class OllamaProvider implements ModelProvider {
   constructor(modelName: string, baseURL?: string) {
     this.modelName = modelName;
     // Use the baseURL from Ollama store if not provided
-    const url = baseURL || this.getOllamaBaseURL();
+    baseURL || this.getOllamaBaseURL();
 
     // Do NOT add /api suffix - the proxy URL already includes the full path
 

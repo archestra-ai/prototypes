@@ -48,6 +48,7 @@ sea-orm = { version = "1.0", features = ["sqlx-sqlite", "runtime-tokio-rustls", 
 sea-orm-migration = { version = "1.0", features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
 rmcp = { version = "0.3.0", features = ["server", "macros", "transport-streamable-http-server", "transport-worker"] }
 axum = { version = "0.8.4", features = ["macros"] }
+tower-http = { version = "0.6", features = ["cors"] }
 tauri-plugin-http = "2"
 utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono", "macros"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }

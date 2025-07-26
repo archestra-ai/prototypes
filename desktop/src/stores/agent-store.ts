@@ -153,7 +153,7 @@ export const useAgentStore = create<AgentStore>()(
       });
     },
 
-    sendAgentMessage: (message: string) => {
+    sendAgentMessage: () => {
       const { isAgentActive } = get();
       if (!isAgentActive) {
         return;

@@ -139,7 +139,7 @@ export class ArchestraAgentNative {
         tools: this.supportsTools ? this.tools : undefined,
         stopWhen: stepCountIs(this.config.maxSteps || 10),
         abortSignal: this.abortController.signal,
-        onStepFinish: ({ text, toolCalls, toolResults, finishReason }) => {
+        onStepFinish: ({ toolCalls }) => {
           // Update progress
           if (this.state.plan) {
             this.updateProgress({

@@ -96,9 +96,6 @@ export class ArchestraAgentV5 {
       // Build system prompt
       const systemPrompt = this.buildSystemPrompt(context);
 
-      // Memory context
-      const memoryContext = this.memoryManager.getContext();
-
       this.updateState({ mode: 'executing', currentTask: objective });
 
       // Use v5 streamText with proper configuration

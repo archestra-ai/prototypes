@@ -1,11 +1,10 @@
-import React, { memo } from 'react';
 import { Bot, CheckCircle, Loader2 } from 'lucide-react';
+import React, { memo } from 'react';
 
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
 import { cn } from '@/lib/utils';
-import { ReasoningDataPart, TaskProgressDataPart } from '@/types/agent';
-
 import ToolCallIndicator from '@/pages/ChatPage/ToolCallIndicator';
+import { ReasoningDataPart, TaskProgressDataPart } from '@/types/agent';
 
 /**
  * Performance-optimized message rendering components using React.memo
@@ -94,7 +93,11 @@ MemoizedAgentModeIndicator.displayName = 'MemoizedAgentModeIndicator';
 
 // Memoized component for rendering reasoning data
 export const MemoizedReasoningDisplay = memo(
-  ({ reasoningParts, isThinking, thinkingContent }: {
+  ({
+    reasoningParts,
+    isThinking,
+    thinkingContent,
+  }: {
     reasoningParts: ReasoningDataPart[];
     isThinking?: boolean;
     thinkingContent?: string;
@@ -160,7 +163,9 @@ export const MemoizedTaskProgressDisplay = memo(
           Task Progress: {latestProgress.data.progress.completed}/{latestProgress.data.progress.total}
         </div>
         {latestProgress.data.progress.currentStep && (
-          <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">{latestProgress.data.progress.currentStep}</div>
+          <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+            {latestProgress.data.progress.currentStep}
+          </div>
         )}
       </div>
     );
@@ -168,9 +173,9 @@ export const MemoizedTaskProgressDisplay = memo(
   (prevProps, nextProps) => {
     const prevLatest = prevProps.taskProgressParts[prevProps.taskProgressParts.length - 1];
     const nextLatest = nextProps.taskProgressParts[nextProps.taskProgressParts.length - 1];
-    
+
     if (!prevLatest || !nextLatest) return prevLatest === nextLatest;
-    
+
     return (
       prevLatest.data.progress.completed === nextLatest.data.progress.completed &&
       prevLatest.data.progress.total === nextLatest.data.progress.total &&

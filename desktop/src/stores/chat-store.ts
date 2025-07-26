@@ -222,7 +222,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const { chat, selectedModel } = useOllamaStore.getState();
 
     const allTools = useMCPServersStore.getState().allAvailableTools();
-    const { activateAgent, isAgentActive } = useAgentStore.getState();
+    const { activateAgent, isAgentActive, stopAgent } = useAgentStore.getState();
     const { isDeveloperMode, systemPrompt } = useDeveloperModeStore.getState();
 
     const modelSupportsTools = checkModelSupportsTools(selectedModel);
@@ -273,9 +273,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ],
       }));
 
-      // Activate the agent with the objective
+      // Activate the agent state
       try {
+        // Update agent store state to mark agent as active
         await activateAgent(objective);
+
+        // The actual agent execution will happen through SSE when we send the message
+        // We'll send the objective as the first message with agent context
+        return;
       } catch (error) {
         set((state) => ({
           chatHistory: [
@@ -294,8 +299,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     // Check if this is a /stop command
     if (message === '/stop') {
-      const { stopAgent } = useAgentStore.getState();
-
       // Add user message to chat
       set((state) => ({
         chatHistory: [
@@ -338,25 +341,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       return;
     }
 
-    // If agent is active, forward the message to the agent
-    if (isAgentActive) {
-      const { sendAgentMessage } = useAgentStore.getState();
-      sendAgentMessage(message);
-
-      // Add user message to chat
-      set((state) => ({
-        chatHistory: [
-          ...state.chatHistory,
-          {
-            id: Date.now().toString(),
-            role: 'user',
-            content: message,
-            timestamp: new Date(),
-          },
-        ],
-      }));
-      return;
-    }
+    // For SSE implementation, we'll handle all messages (including agent messages) through the SSE endpoint
+    // The SSE endpoint will check agent context and handle accordingly
+    // This is now handled by ChatInput which uses useSSEChat directly
     set((state) => ({
       streamingMessageId: aiMsgId,
       abortController,

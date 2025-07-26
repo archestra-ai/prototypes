@@ -25,4 +25,7 @@ mcp.json
 # Serena and Claude files
 .serena/
 docs
-CLAUDE.md
+.claude/** 
+!.claude/commands
+!.claude/templates
+!.claude/settings.json

@@ -177,6 +177,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "tower",
+ "tower-http",
  "url 2.5.4",
  "utoipa",
  "utoipa-swagger-ui",

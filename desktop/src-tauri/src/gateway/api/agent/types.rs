@@ -16,6 +16,8 @@ pub struct AgentContext {
     pub mode: Option<String>,
     pub custom_instructions: Option<String>,
     pub reasoning_mode: Option<String>,
+    #[serde(default)]
+    pub activate: Option<bool>,
 }
 
 /// SSE message types for streaming

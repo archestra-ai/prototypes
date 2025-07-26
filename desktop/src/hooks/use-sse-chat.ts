@@ -103,6 +103,42 @@ export function useSSEChat(options?: UseSSEChatOptions) {
 
       // Update chat store
       useChatStore.setState({ chatHistory: chatMessages });
+
+      // Process agent-specific messages
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage?.parts) {
+        lastMessage.parts.forEach((part: any) => {
+          if (part.type === 'data' && part.data) {
+            const { type: dataType, ...data } = part.data;
+
+            if (dataType === 'agent-state') {
+              // Update agent state
+              const agentStore = useAgentStore.getState();
+              if (data.mode) {
+                agentStore.setAgentMode(data.mode);
+              }
+              if (data.objective) {
+                useAgentStore.setState({ currentObjective: data.objective });
+              }
+            } else if (dataType === 'reasoning') {
+              // Add reasoning entry
+              const agentStore = useAgentStore.getState();
+              agentStore.addReasoningEntry({
+                id: crypto.randomUUID(),
+                type: data.type || 'planning',
+                content: data.content || '',
+                alternatives: [],
+                timestamp: new Date(),
+                confidence: data.confidence || 0.8,
+              });
+            } else if (dataType === 'task-progress') {
+              // Update task progress
+              const agentStore = useAgentStore.getState();
+              agentStore.updateProgress(data);
+            }
+          }
+        });
+      }
     }
   }, [messages, status]);
 

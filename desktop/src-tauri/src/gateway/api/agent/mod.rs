@@ -1,6 +1,6 @@
 use axum::{
     extract::State,
-    http::{HeaderMap, StatusCode},
+    http::{HeaderMap, StatusCode, Method, header},
     response::{
         sse::{Event, KeepAlive, Sse},
         IntoResponse, Response,
@@ -8,6 +8,7 @@ use axum::{
     routing::post,
     Json, Router,
 };
+use tower_http::cors::{CorsLayer, Any};
 use futures_util::stream::{Stream, StreamExt};
 use reqwest::Client;
 use sea_orm::DatabaseConnection;
@@ -118,9 +119,17 @@ impl AgentService {
 pub fn create_router(db: DatabaseConnection) -> Router {
     let service = Arc::new(AgentService::new(db));
     
+    // Configure CORS to handle all responses including errors
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
+        .max_age(std::time::Duration::from_secs(3600));
+    
     Router::new()
         .route("/chat", post(handle_agent_chat).options(handle_options))
         .with_state(service)
+        .layer(cors)
 }
 
 /// Handle OPTIONS requests for CORS preflight
@@ -273,8 +282,59 @@ async fn execute_agent_stream(
         role: "assistant".to_string(),
     }).await?;
     
+    // Check if this is an agent activation or agent message
+    let mut messages = request.messages;
+    if let Some(agent_context) = &request.agent_context {
+        if agent_context.mode.as_deref() == Some("autonomous") {
+            // Send agent state update
+            tx.send(SseMessage::DataPart {
+                data_type: "agent-state".to_string(),
+                data: serde_json::json!({
+                    "mode": "planning",
+                    "objective": agent_context.objective,
+                }),
+            }).await?;
+            
+            // If this is an activation, prepend system prompt
+            if agent_context.activate.unwrap_or(false) {
+                if let Some(objective) = &agent_context.objective {
+                    // Add system prompt for agent behavior
+                    messages.insert(0, ChatMessage {
+                        role: "system".to_string(),
+                        content: format!(
+                            "You are an autonomous AI agent. Your objective is: {}\n\n\
+                            You should:\n\
+                            1. Break down the objective into clear tasks\n\
+                            2. Execute tasks using available tools\n\
+                            3. Provide reasoning for your actions\n\
+                            4. Report progress and results\n\n\
+                            Think step by step and use tools when needed.",
+                            objective
+                        ),
+                    });
+                    
+                    // Send initial reasoning
+                    tx.send(SseMessage::DataPart {
+                        data_type: "reasoning".to_string(),
+                        data: serde_json::json!({
+                            "type": "planning",
+                            "content": format!("Analyzing objective: {}", objective),
+                        }),
+                    }).await?;
+                }
+            }
+        } else if agent_context.mode.as_deref() == Some("stop") {
+            // Handle stop command
+            tx.send(SseMessage::ContentDelta {
+                delta: "Agent execution stopped.".to_string(),
+            }).await?;
+            tx.send(SseMessage::MessageComplete { usage: None }).await?;
+            return Ok(());
+        }
+    }
+    
     // Convert messages to Ollama format
-    let ollama_messages: Vec<OllamaMessage> = request.messages.into_iter()
+    let ollama_messages: Vec<OllamaMessage> = messages.into_iter()
         .map(|msg| OllamaMessage {
             role: msg.role,
             content: msg.content,

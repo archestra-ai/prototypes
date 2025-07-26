@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 
-import { ToolCategory, categorizeeTool, isToolSensitive, jsonSchemaToZod } from './mcp-tool-wrapper-ai-sdk';
+import { ToolCategory, isToolSensitive, jsonSchemaToZod } from './mcp-tool-wrapper-ai-sdk';
 
 /**
  * Enhanced MCP Tool Wrapper for AI SDK v5
@@ -101,7 +101,6 @@ function generateOutputSchema(mcpTool: Tool): z.ZodSchema | undefined {
  * Create an enhanced v5 MCP tool wrapper with output schema and callbacks
  */
 export function createMCPToolV5(mcpTool: Tool, serverName: string, options?: ToolExecutionOptionsV5): any {
-  const category = categorizeeTool(mcpTool.name, mcpTool.description);
   const isSensitive = isToolSensitive(mcpTool.name);
 
   // Convert schemas
@@ -215,9 +214,9 @@ export function createAgentToolCallbacks(
       onReasoningUpdate?.(`Tool ${toolName} failed: ${error.message}`);
     },
 
-    onInputStart: (input) => {},
+    onInputStart: () => {},
 
-    onInputDelta: (delta) => {},
+    onInputDelta: () => {},
   };
 }
 
