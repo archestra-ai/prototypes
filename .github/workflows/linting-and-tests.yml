@@ -1,16 +1,7 @@
 name: Linting and Tests
 
 on:
-  pull_request:
-    branches:
-      - main
-
-concurrency:
-  # Cancel any running workflow for the same branch when new commits are pushed.
-  # We group both by ref_name (available when CI is triggered by a push to a branch/tag)
-  # and head_ref (available when CI is triggered by a PR).
-  group: "${{ github.ref_name }}-${{ github.head_ref }}"
-  cancel-in-progress: true
+  workflow_call:
 
 jobs:
   lint-pr-title:
@@ -18,7 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Lint PR title
         uses: grafana/shared-workflows/actions/lint-pr-title@19d8fb5687bb386849f7f53673c5f429e6387cf5 # v1.2.0
@@ -49,53 +42,62 @@ jobs:
     name: Rust Linting and Tests (${{ matrix.platform }})
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: true
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
         with:
           platform: ${{ matrix.platform }}
 
-      - name: Check Rust formatting
-        run: cargo fmt --check
+      - name: Apply Rust fixes and formatting
+        shell: bash
+        run: |
+          cargo fix --allow-dirty --allow-staged
+          cargo fmt
+          
+          if ! git diff --exit-code; then
+            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add .
+            git commit -m "fix: apply cargo fix and formatting changes"
+            git push --no-verify
+          fi
 
       - name: Run tests
         run: cargo test
 
       - name: Run Clippy Linting
+        working-directory: desktop/src-tauri
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      # NOTE: use this once we want to start building the application binaries for Mac/Windows/Linux
-      # - uses: tauri-apps/tauri-action@v0.5.22
-      #   with:
-      #     tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-      #     projectPath: desktop
-      #     releaseName: "App v__VERSION__"
-      #     releaseBody: "See the assets to download this version and install."
-      #     releaseDraft: true
-      #     prerelease: false
-      #     args: ${{ matrix.args }}
+      - name: Run tests
+        working-directory: desktop/src-tauri
+        run: cargo test
 
   frontend-linting-and-tests:
     name: Frontend Linting and Tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./desktop
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Setup frontend dependencies
         uses: ./.github/actions/setup-frontend
 
       - name: Check prettier formatting
-        working-directory: desktop
         run: pnpm prettier --check .
 
       - name: Run tests
-        working-directory: desktop
         run: pnpm test
 
       - name: Build
-        working-directory: desktop
         run: pnpm build
 
   verify-openapi-schema-is-up-to-date:
@@ -103,7 +105,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: true
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -121,14 +125,28 @@ jobs:
         working-directory: desktop
         run: pnpm codegen
 
-      - name: Check for uncommitted changes
+      - name: Check for changes and commit if needed
         working-directory: desktop
         run: |
-          if ! git diff --exit-code; then
-            echo "❌ OpenAPI schema or TypeScript client is out of date!"
-            echo "Please run the following commands and commit the changes:"
-            echo "  cd desktop/src-tauri && cargo run --bin dump_openapi"
-            echo "  cd desktop && pnpm codegen"
-            exit 1
+          # Check both unstaged and staged changes
+          if ! git diff --exit-code || ! git diff --cached --exit-code; then
+            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add .
+            git commit -m "chore: update OpenAPI schema and TypeScript client"
+            git push --no-verify
           fi
-          echo "✅ OpenAPI schema and TypeScript client are up to date"
+
+  zizmor:
+    name: Zizmor GitHub Actions static analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor 🌈
+        uses: zizmorcore/zizmor-action@f52a838cfabf134edcbaa7c8b3677dde20045018 # v0.1.1

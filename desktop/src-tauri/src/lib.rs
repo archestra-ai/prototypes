@@ -52,7 +52,7 @@ pub fn run() {
         println!("Single instance plugin set up successfully");
     }
 
-    builder
+    let app = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
@@ -77,9 +77,9 @@ pub fn run() {
             });
 
             // Start Ollama server automatically on app startup
-            let app_handle = app.handle().clone();
+            let ollama_service = ollama::Service::new(app.handle().clone());
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = ollama::start_ollama_server_on_startup(app_handle).await {
+                if let Err(e) = ollama_service.start_server_on_startup().await {
                     eprintln!("Failed to start Ollama server: {e}");
                 }
             });
@@ -128,8 +128,33 @@ pub fn run() {
             });
             println!("Deep link handler set up successfully");
 
+            #[cfg(debug_assertions)] // only include this code on debug builds
+            {
+                let window = app.get_webview_window("main").unwrap();
+                window.open_devtools();
+                window.close_devtools();
+            }
+
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|_app_handle, event| {
+        if let tauri::RunEvent::ExitRequested { api: _, .. } = event {
+            println!("Archestra is shutting down, cleaning up resources...");
+
+            // Block on async cleanup
+            tauri::async_runtime::block_on(async {
+                // Shutdown Ollama server
+                if let Err(e) = ollama::shutdown().await {
+                    eprintln!("Failed to shutdown Ollama: {e}");
+                }
+
+                // Note: MCP servers will be stopped automatically via kill_on_drop, no need to explicitly stop them here
+            });
+
+            println!("Cleanup completed");
+        }
+    });
 }

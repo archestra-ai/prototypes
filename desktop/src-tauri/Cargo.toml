@@ -52,11 +52,14 @@ tauri-plugin-http = "2"
 utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono", "macros"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 utoipauto = "0.2"
+once_cell = "1.21.3"
 
 [dev-dependencies]
-tauri-mcp = "0.1"
 tempfile = "3.8"
 rstest = "0.25.0"
 rstest_reuse = "0.7.0"
 sea-orm-cli = "1.1.14"
 tower = { version = "0.5", features = ["util"] }
+
+[target."cfg(target_os = \"macos\")".dev-dependencies]
+tauri-mcp = "0.1"

@@ -39,7 +39,7 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connected');
   const scrollAreaRef = useRef<HTMLElement | null>(null);
   const isScrollingRef = useRef(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Throttle plan updates to prevent excessive re-renders
   const throttledPlan = useThrottledValue(plan, 100);
