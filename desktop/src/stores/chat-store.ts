@@ -533,13 +533,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     get().loadChats();
 
     // Listen for chat title updates from the backend
-    listen<{ chatSessionId: string; title: string }>('chat-title-updated', (event) => {
+    listen<{ chat_id: number; title: string }>('chat-title-updated', ({ payload: { chat_id, title } }) => {
       set((state) => ({
-        chats: state.chats.map((chat) =>
-          chat.session_id === event.payload.chatSessionId
-            ? { ...chat, title: event.payload.title, updated_at: new Date().toISOString() }
-            : chat
-        ),
+        chats: state.chats.map((chat) => (chat.id === chat_id ? { ...chat, title } : chat)),
       }));
     });
   },

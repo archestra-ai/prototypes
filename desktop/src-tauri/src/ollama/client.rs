@@ -11,6 +11,12 @@ pub struct OllamaClient {
     pub client: Ollama,
 }
 
+impl Default for OllamaClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OllamaClient {
     pub fn new() -> Self {
         Self {
@@ -37,7 +43,7 @@ impl OllamaClient {
                 println!("Response: {}", response.response);
                 Ok(response.response.trim().to_string())
             }
-            Err(e) => Err(format!("Failed to generate title: {}", e)),
+            Err(e) => Err(format!("Failed to generate title: {e}")),
         }
     }
 
@@ -53,7 +59,7 @@ impl OllamaClient {
                     None => None,
                 }
             })),
-            Err(e) => Err(format!("Failed to start chat stream: {}", e)),
+            Err(e) => Err(format!("Failed to start chat stream: {e}")),
         }
     }
 }

@@ -54,8 +54,7 @@ impl Model {
             .await?
             .ok_or_else(|| {
                 DbErr::RecordNotFound(format!(
-                    "Chat not found with session_id: {}",
-                    chat_session_id
+                    "Chat not found with session_id: {chat_session_id}"
                 ))
             })?;
 

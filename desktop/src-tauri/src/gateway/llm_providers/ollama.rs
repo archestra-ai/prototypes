@@ -71,6 +71,7 @@ impl Service {
         }
 
         let chat = chat_with_interactions.chat;
+        let chat_id = chat.id;
         match self
             .ollama_client
             .generate_title(&chat_model, full_chat_context)
@@ -88,7 +89,7 @@ impl Service {
                     let _ = self.app_handle.emit(
                         "chat-title-updated",
                         serde_json::json!({
-                            "chatSessionId": chat_session_id,
+                            "chat_id": chat_id.clone(),
                             "title": title
                         }),
                     );
@@ -136,7 +137,7 @@ impl Service {
                 "user" => MessageRole::User,
                 "assistant" => MessageRole::Assistant,
                 "system" => MessageRole::System,
-                _ => return Err(format!("Invalid role: {}", role_str)),
+                _ => return Err(format!("Invalid role: {role_str}")),
             };
 
             let content = msg_json["content"]
@@ -172,16 +173,10 @@ impl Service {
                 vec![]
             };
 
-            let images = if let Some(images_json) = msg_json["images"].as_array() {
-                Some(
-                    images_json
+            let images = msg_json["images"].as_array().map(|images_json| images_json
                         .iter()
-                        .filter_map(|img| img.as_str().map(|s| Image::from_base64(s)))
-                        .collect(),
-                )
-            } else {
-                None
-            };
+                        .filter_map(|img| img.as_str().map(Image::from_base64))
+                        .collect());
 
             let thinking = msg_json["thinking"].as_str().map(|s| s.to_string());
 
@@ -295,8 +290,8 @@ impl Service {
                         }
 
                         // If this is the final message, save it
-                        if chat_response.done {
-                            if !accumulated_content.is_empty() {
+                        if chat_response.done
+                            && !accumulated_content.is_empty() {
                                 let content_json = serde_json::json!({
                                     "role": "assistant",
                                     "content": accumulated_content
@@ -331,7 +326,6 @@ impl Service {
                                     }
                                 }
                             }
-                        }
                     }
                     Err(e) => {
                         let error_json = serde_json::json!({
@@ -412,7 +406,7 @@ impl Service {
                 let body_stream = stream.map(|result| {
                     result
                         .map(|bytes| axum::body::Bytes::from(bytes.to_vec()))
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                        .map_err(std::io::Error::other)
                 });
 
                 let mut response = Response::builder().status(status.as_u16());
