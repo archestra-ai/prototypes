@@ -154,19 +154,15 @@ impl Service {
             .map_err(|_| "Failed to load chat".to_string())?
             .ok_or_else(|| "Chat not found".to_string())?;
 
-        let chat_model = chat.chat.llm_model.clone();
-
-        // Load chat with interactions
-        let chat_with_interactions = chat;
+        let chat_model = chat.llm_model.clone();
 
         // Build context from chat interactions
         let mut full_chat_context = String::new();
-        for interaction in &chat_with_interactions.interactions {
+        for interaction in &chat.interactions {
             full_chat_context.push_str(&interaction.content.to_string());
             full_chat_context.push_str("\n\n");
         }
 
-        let chat = chat_with_interactions.chat;
         let chat_id = chat.id;
         match self
             .ollama_client
@@ -177,6 +173,7 @@ impl Service {
                 println!("Generated title: {title}");
                 // Update chat title
                 if chat
+                    .chat
                     .update_title(Some(title.clone()), &self.db)
                     .await
                     .is_ok()
@@ -220,7 +217,7 @@ impl Service {
 
         // Load or create chat
         let chat_session_id = match Chat::load_by_session_id(session_id.clone(), &self.db).await {
-            Ok(Some(c)) => c.chat.session_id.clone(),
+            Ok(Some(c)) => c.session_id.clone(),
             Ok(None) => {
                 // Create new chat if it doesn't exist
                 match Chat::save(
@@ -232,7 +229,7 @@ impl Service {
                 )
                 .await
                 {
-                    Ok(c) => c.chat.session_id.clone(),
+                    Ok(c) => c.session_id.clone(),
                     Err(e) => return Err(format!("Failed to create chat: {e}")),
                 }
             }

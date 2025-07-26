@@ -193,7 +193,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (data) {
         // Update the chat in the local state
         set(({ currentChat, chats }) => ({
-          currentChat: currentChat?.chat.id === chatId ? { ...currentChat, title } : currentChat,
+          currentChat: currentChat?.chat?.id === chatId ? { ...currentChat, title } : currentChat,
           chats: chats.map((chat) => (chat.chat.id === chatId ? { ...chat, title } : chat)),
         }));
       }
@@ -223,7 +223,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({
         currentChat: {
           ...currentChat,
-          interactions: currentChat?.interactions.map((interaction) =>
+          interactions: currentChat?.interactions?.map((interaction) =>
             interaction.id === streamingMessageId || interaction.isStreaming || interaction.isToolExecuting
               ? {
                   ...interaction,
@@ -243,7 +243,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({
         currentChat: {
           ...currentChat,
-          interactions: currentChat?.interactions.map((interaction) =>
+          interactions: currentChat?.interactions?.map((interaction) =>
             interaction.id === streamingMessageId || interaction.isStreaming || interaction.isToolExecuting
               ? markChatInteractionAsCancelled(interaction)
               : interaction
@@ -263,7 +263,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({
       currentChat: {
         ...currentChat,
-        interactions: currentChat?.interactions.map((interaction) =>
+        interactions: currentChat?.interactions?.map((interaction) =>
           interaction.id === messageId && interaction.isStreaming
             ? {
                 ...interaction,
@@ -409,7 +409,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           currentChat: {
             ...currentChat,
             // TODO: typing
-            interactions: currentChat?.interactions.map((interaction: any) =>
+            interactions: currentChat?.interactions?.map((interaction: any) =>
               interaction.id === aiMsgId
                 ? {
                     ...interaction,
@@ -426,7 +426,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           currentChat: {
             ...currentChat,
             // TODO: typing
-            interactions: currentChat?.interactions.map((interaction: any) =>
+            interactions: currentChat?.interactions?.map((interaction: any) =>
               interaction.id === aiMsgId
                 ? {
                     ...interaction,
@@ -458,7 +458,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 currentChat: {
                   ...currentChat,
                   // TODO: typing
-                  interactions: currentChat?.interactions.map((interaction: any) =>
+                  interactions: currentChat?.interactions?.map((interaction: any) =>
                     interaction.id === aiMsgId
                       ? {
                           ...interaction,
@@ -480,7 +480,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           currentChat: {
             ...currentChat,
             // TODO: typing
-            interactions: currentChat?.interactions.map((interaction: any) =>
+            interactions: currentChat?.interactions?.map((interaction: any) =>
               interaction.id === aiMsgId
                 ? {
                     ...interaction,
@@ -501,7 +501,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           currentChat: {
             ...currentChat,
             // TODO: typing
-            interactions: currentChat?.interactions.map((interaction: any) =>
+            interactions: currentChat?.interactions?.map((interaction: any) =>
               interaction.id === aiMsgId ? markChatInteractionAsCancelled(interaction) : interaction
             ),
           },
@@ -511,7 +511,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           currentChat: {
             ...currentChat,
             // TODO: typing
-            interactions: currentChat?.interactions.map((interaction: any) =>
+            interactions: currentChat?.interactions?.map((interaction: any) =>
               interaction.id === aiMsgId
                 ? {
                     ...interaction,
@@ -534,7 +534,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
      */
     listen<ChatTitleUpdatedEvent>('chat-title-updated', ({ payload: { chat_id, title } }) => {
       set(({ chats, currentChat }) => {
-        const updatedChatIsCurrentChat = currentChat?.chat.id === chat_id;
+        const updatedChatIsCurrentChat = currentChat?.chat?.id === chat_id;
         const newCurrentChat = updatedChatIsCurrentChat
           ? { ...currentChat, chat: { ...currentChat.chat, title } }
           : currentChat;

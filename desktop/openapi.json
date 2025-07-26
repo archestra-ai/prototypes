@@ -709,7 +709,30 @@
       "ChatWithInteractions": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/Chat"
+            "type": "object",
+            "required": ["id", "session_id", "llm_provider", "llm_model", "created_at"],
+            "properties": {
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "id": {
+                "type": "integer",
+                "format": "int32"
+              },
+              "llm_model": {
+                "type": "string"
+              },
+              "llm_provider": {
+                "type": "string"
+              },
+              "session_id": {
+                "type": "string"
+              },
+              "title": {
+                "type": ["string", "null"]
+              }
+            }
           },
           {
             "type": "object",

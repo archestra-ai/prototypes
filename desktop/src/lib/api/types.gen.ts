@@ -26,7 +26,14 @@ export type ChatInteractionDefinition = {
   content: Value;
 };
 
-export type ChatWithInteractions = Chat & {
+export type ChatWithInteractions = {
+  created_at: string;
+  id: number;
+  llm_model: string;
+  llm_provider: string;
+  session_id: string;
+  title?: string | null;
+} & {
   interactions: Array<ChatInteraction>;
 };
 

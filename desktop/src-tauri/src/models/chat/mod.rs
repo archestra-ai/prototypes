@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use sea_orm::{ActiveModelTrait, QueryOrder, Set};
 use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 use utoipa::ToSchema;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize, ToSchema)]
@@ -44,8 +45,17 @@ pub struct ChatDefinition {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ChatWithInteractions {
     #[serde(flatten)]
+    #[schema(inline)]
     pub chat: Model,
     pub interactions: Vec<ChatInteractionModel>,
+}
+
+impl Deref for ChatWithInteractions {
+    type Target = Model;
+
+    fn deref(&self) -> &Self::Target {
+        &self.chat
+    }
 }
 
 impl Model {
@@ -58,9 +68,7 @@ impl Model {
             llm_model: Set(definition.llm_model),
             ..Default::default()
         };
-
         let chat = new_chat.insert(db).await?;
-
         Ok(ChatWithInteractions {
             chat,
             interactions: vec![],
@@ -146,23 +154,26 @@ mod tests {
 
         // Create chat
         let chat = Model::save(definition, &db).await.unwrap();
-        assert!(chat.chat.title.is_none());
-        assert_eq!(chat.chat.llm_provider, "ollama");
-        assert_eq!(chat.chat.llm_model, "llama3.2");
-        assert!(!chat.chat.session_id.is_empty());
+        assert!(chat.title.is_none());
+        assert_eq!(chat.llm_provider, "ollama");
+        assert_eq!(chat.llm_model, "llama3.2");
+        assert!(!chat.session_id.is_empty());
 
         // Load by session_id
-        let loaded_by_session = Model::load_by_session_id(chat.chat.session_id.clone(), &db)
+        let loaded_by_session = Model::load_by_session_id(chat.session_id.clone(), &db)
             .await
             .unwrap();
         assert!(loaded_by_session.is_some());
-        assert_eq!(loaded_by_session.unwrap().chat.id, chat.chat.id);
+        assert_eq!(loaded_by_session.unwrap().id, chat.id);
 
         // Load all chats
         let all_chats = Model::load_all(&db).await.unwrap();
         assert_eq!(all_chats.len(), 1);
-
-        // TODO: assert that the data is correct structure
+        assert_eq!(all_chats[0].id, chat.id);
+        assert_eq!(all_chats[0].title, None);
+        assert_eq!(all_chats[0].llm_provider, "ollama");
+        assert_eq!(all_chats[0].llm_model, "llama3.2");
+        assert!(!all_chats[0].session_id.is_empty());
 
         // Update title
         let updated = chat
@@ -218,10 +229,10 @@ mod tests {
         let all_chats = Model::load_all(&db).await.unwrap();
 
         // Find our chats in the results
-        let our_chat_ids = [chat1.chat.id, chat2.chat.id, chat3.chat.id];
+        let our_chat_ids = [chat1.id, chat2.id, chat3.id];
         let our_chats: Vec<_> = all_chats
             .into_iter()
-            .filter(|c| our_chat_ids.contains(&c.chat.id))
+            .filter(|c| our_chat_ids.contains(&c.id))
             .collect();
 
         // We should find all 3 of our chats
@@ -235,13 +246,13 @@ mod tests {
         // Verify each chat has the expected content
         assert!(our_chats
             .iter()
-            .any(|c| c.chat.id == chat1.chat.id && c.chat.llm_model == "llama3.2"));
+            .any(|c| c.id == chat1.id && c.llm_model == "llama3.2"));
         assert!(our_chats
             .iter()
-            .any(|c| c.chat.id == chat2.chat.id && c.chat.llm_model == "llama3.1"));
+            .any(|c| c.id == chat2.id && c.llm_model == "llama3.1"));
         assert!(our_chats
             .iter()
-            .any(|c| c.chat.id == chat3.chat.id && c.chat.llm_model == "claude-3"));
+            .any(|c| c.id == chat3.id && c.llm_model == "claude-3"));
     }
 
     #[rstest]
@@ -262,7 +273,7 @@ mod tests {
         // Add interactions
         for i in 0..3 {
             ChatInteractionModel::save(
-                chat.chat.session_id.clone(),
+                chat.session_id.clone(),
                 format!(r#"{{"role": "user", "content": "Message {i}"}}"#),
                 &db,
             )
@@ -271,17 +282,16 @@ mod tests {
         }
 
         // Verify interactions exist
-        let count =
-            ChatInteractionModel::count_chat_interactions(chat.chat.session_id.clone(), &db)
-                .await
-                .unwrap();
+        let count = ChatInteractionModel::count_chat_interactions(chat.session_id.clone(), &db)
+            .await
+            .unwrap();
         assert_eq!(count, 3);
 
         // Delete chat
-        Model::delete(chat.chat.id, &db).await.unwrap();
+        Model::delete(chat.id, &db).await.unwrap();
 
         // Verify chat is deleted
-        let deleted_chat = Model::load_by_id(chat.chat.id, &db).await.unwrap();
+        let deleted_chat = Model::load_by_id(chat.id, &db).await.unwrap();
         assert!(deleted_chat.is_none());
 
         // Note: We can't check if interactions are deleted without a direct query
@@ -314,7 +324,49 @@ mod tests {
         .unwrap();
 
         // Session IDs should be unique
-        assert_ne!(chat1.chat.session_id, chat2.chat.session_id);
+        assert_ne!(chat1.session_id, chat2.session_id);
+    }
+
+    #[test]
+    fn test_chat_with_interactions_serialization() {
+        let chat = Model {
+            id: 1,
+            session_id: "test-session".to_string(),
+            title: Some("Test Chat".to_string()),
+            llm_provider: "ollama".to_string(),
+            llm_model: "llama3.2".to_string(),
+            created_at: Utc::now(),
+        };
+
+        let interaction = ChatInteractionModel {
+            id: 1,
+            chat_id: 1,
+            content: serde_json::json!({"role": "user", "content": "Hello"}),
+            created_at: Utc::now(),
+        };
+
+        let chat_with_interactions = ChatWithInteractions {
+            chat,
+            interactions: vec![interaction],
+        };
+
+        let json = serde_json::to_string_pretty(&chat_with_interactions).unwrap();
+        println!("Serialized ChatWithInteractions:\n{}", json);
+
+        // Verify the JSON has flattened structure
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(value.get("id").is_some());
+        assert!(value.get("session_id").is_some());
+        assert!(value.get("title").is_some());
+        assert!(value.get("llm_provider").is_some());
+        assert!(value.get("llm_model").is_some());
+        assert!(value.get("created_at").is_some());
+        assert!(value.get("interactions").is_some());
+        assert!(value.get("interactions").unwrap().is_array());
+        assert_eq!(
+            value.get("interactions").unwrap().as_array().unwrap().len(),
+            1
+        );
     }
 
     #[rstest]

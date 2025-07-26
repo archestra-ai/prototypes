@@ -207,10 +207,10 @@ mod tests {
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let created_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
-        assert!(created_chat.chat.title.is_none());
-        assert_eq!(created_chat.chat.llm_provider, "ollama");
-        assert_eq!(created_chat.chat.llm_model, "llama3.2");
-        assert!(!created_chat.chat.session_id.is_empty());
+        assert!(created_chat.title.is_none());
+        assert_eq!(created_chat.llm_provider, "ollama");
+        assert_eq!(created_chat.llm_model, "llama3.2");
+        assert!(!created_chat.session_id.is_empty());
     }
 
     #[rstest]
@@ -276,9 +276,9 @@ mod tests {
         let chats: Vec<ChatWithInteractions> = serde_json::from_slice(&body).unwrap();
         assert_eq!(chats.len(), 3);
         // Chats should be ordered by created_at DESC (newest first)
-        assert!(chats.iter().any(|c| c.chat.llm_model == "model-0"));
-        assert!(chats.iter().any(|c| c.chat.llm_model == "model-1"));
-        assert!(chats.iter().any(|c| c.chat.llm_model == "model-2"));
+        assert!(chats.iter().any(|c| c.llm_model == "model-0"));
+        assert!(chats.iter().any(|c| c.llm_model == "model-1"));
+        assert!(chats.iter().any(|c| c.llm_model == "model-2"));
     }
 
     #[rstest]
@@ -314,7 +314,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("DELETE")
-                    .uri(format!("/{}", created_chat.chat.id))
+                    .uri(format!("/{}", created_chat.id))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -339,7 +339,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let chats: Vec<ChatWithInteractions> = serde_json::from_slice(&body).unwrap();
-        assert!(!chats.iter().any(|c| c.chat.id == created_chat.chat.id));
+        assert!(!chats.iter().any(|c| c.id == created_chat.id));
 
         // Deleting again should still return NO_CONTENT (idempotent)
         let response = router
@@ -347,7 +347,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("DELETE")
-                    .uri(format!("/{}", created_chat.chat.id))
+                    .uri(format!("/{}", created_chat.id))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -395,7 +395,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("PATCH")
-                    .uri(format!("/{}", created_chat.chat.id))
+                    .uri(format!("/{}", created_chat.id))
                     .header("content-type", "application/json")
                     .body(Body::from(serde_json::to_string(&update_request).unwrap()))
                     .unwrap(),
@@ -407,7 +407,7 @@ mod tests {
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let updated_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
-        assert_eq!(updated_chat.chat.title, Some("My New Title".to_string()));
+        assert_eq!(updated_chat.title, Some("My New Title".to_string()));
 
         // Test updating title back to None
         let update_request = UpdateChatRequest { title: None };
@@ -417,7 +417,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("PATCH")
-                    .uri(format!("/{}", created_chat.chat.id))
+                    .uri(format!("/{}", created_chat.id))
                     .header("content-type", "application/json")
                     .body(Body::from(serde_json::to_string(&update_request).unwrap()))
                     .unwrap(),
@@ -429,7 +429,7 @@ mod tests {
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let updated_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
-        assert_eq!(updated_chat.chat.title, None);
+        assert_eq!(updated_chat.title, None);
     }
 
     #[rstest]

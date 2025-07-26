@@ -2,7 +2,7 @@ import { XIcon } from 'lucide-react';
 
 import { ToolHoverCard } from '@/components/ToolHoverCard';
 import { Badge } from '@/components/ui/badge';
-import { formatToolName } from '@/lib/format-tool-name';
+import { formatToolName } from '@/lib/utils/tools';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import type { ToolWithMCPServerName } from '@/types';
 

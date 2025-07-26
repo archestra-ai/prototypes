@@ -43,7 +43,7 @@ export default function Sidebar({ children }: SidebarProps) {
     useChatStore();
   const { activeView, activeSubView, setActiveView, setActiveSubView } = useNavigationStore();
 
-  const currentChatId = currentChat?.id;
+  const currentChatId = currentChat?.chat?.id;
 
   const allTools = getToolsGroupedByServer();
   const filteredTools = getFilteredToolsGroupedByServer();
@@ -52,6 +52,22 @@ export default function Sidebar({ children }: SidebarProps) {
   const searchQueryIsEmpty = !toolSearchQuery.trim();
 
   const tools = searchQueryIsEmpty ? allTools : filteredTools;
+
+  console.log(
+    `currentChatId: ${currentChatId},
+    currentChat: ${JSON.stringify(currentChat)},
+    chats: ${JSON.stringify(chats)}
+    activeView: ${activeView},
+    activeSubView: ${activeSubView}
+    toolSearchQuery: ${toolSearchQuery}
+    hasFilteredTools: ${hasFilteredTools}
+    searchQueryIsEmpty: ${searchQueryIsEmpty}
+    tools: ${JSON.stringify(tools)}
+    allTools: ${JSON.stringify(allTools)}
+    filteredTools: ${JSON.stringify(filteredTools)}
+    loadingInstalledMCPServers: ${loadingInstalledMCPServers}
+    `
+  );
 
   return (
     <SidebarProvider className="flex flex-col flex-1">
@@ -108,27 +124,33 @@ export default function Sidebar({ children }: SidebarProps) {
                               <div className="px-2 py-1.5 text-xs text-muted-foreground">No chats yet</div>
                             </SidebarMenuItem>
                           ) : (
-                            chats.map(({ id, title }) => (
-                              <SidebarMenuItem key={id} className="ml-6 group-data-[collapsible=icon]:hidden">
-                                <SidebarMenuButton
-                                  onClick={() => selectChat(id)}
-                                  isActive={currentChatId === id}
-                                  size="sm"
-                                  className="cursor-pointer hover:bg-accent/50 text-sm justify-between group"
-                                >
-                                  {currentChatId === id ? (
-                                    <EditableTitle
-                                      title={title}
-                                      isAnimated={!title}
-                                      onSave={(newTitle) => updateChat(id, newTitle)}
-                                    />
-                                  ) : (
-                                    <span className="truncate">{title || 'New Chat'}</span>
-                                  )}
-                                  {currentChatId === id && <DeleteChatConfirmation onDelete={deleteCurrentChat} />}
-                                </SidebarMenuButton>
-                              </SidebarMenuItem>
-                            ))
+                            chats.map((chat) => {
+                              const {
+                                chat: { id, title },
+                              } = chat;
+
+                              return (
+                                <SidebarMenuItem key={id} className="ml-6 group-data-[collapsible=icon]:hidden">
+                                  <SidebarMenuButton
+                                    onClick={() => selectChat(id)}
+                                    isActive={currentChatId === id}
+                                    size="sm"
+                                    className="cursor-pointer hover:bg-accent/50 text-sm justify-between group"
+                                  >
+                                    {currentChatId === id ? (
+                                      <EditableTitle
+                                        title={title}
+                                        isAnimated={!title}
+                                        onSave={(newTitle) => updateChat(id, newTitle)}
+                                      />
+                                    ) : (
+                                      <span className="truncate">{title || 'New Chat'}</span>
+                                    )}
+                                    {currentChatId === id && <DeleteChatConfirmation onDelete={deleteCurrentChat} />}
+                                  </SidebarMenuButton>
+                                </SidebarMenuItem>
+                              );
+                            })
                           )}
                         </>
                       )}

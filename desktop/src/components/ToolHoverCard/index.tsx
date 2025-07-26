@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import { formatToolName } from '@/lib/format-tool-name';
+import { formatToolName } from '@/lib/utils/tools';
 import type { ToolWithMCPServerName } from '@/types';
 
 import { ToolServerIcon } from '../ToolServerIcon';

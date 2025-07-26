@@ -8,8 +8,6 @@ import { useNavigationStore } from './stores/navigation-store';
 import { useThemeStore } from './stores/theme-store';
 import { NavigationViewKey } from './types';
 
-import './index.css';
-
 export default function App() {
   useThemeStore();
 
