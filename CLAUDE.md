@@ -149,8 +149,8 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 
 - `src/database/`: Database layer with SeaORM entities and migrations
 - `src/models/`: Business logic and data models
-  - `chat/`: Chat management with CRUD operations and title generation
-  - `message/`: Message persistence and chat history management
+  - `chat/`: Chat management with CRUD operations and automatic title generation
+  - `chat_interactions/`: Message persistence and chat history management
   - `mcp_server/`: MCP server models including OAuth support
   - `external_mcp_client/`: External MCP client configurations
   - `mcp_request_log/`: Request logging and analytics
@@ -160,7 +160,10 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
   - `/llm/:provider`: Proxies requests to LLM providers
-- `src/ollama.rs`: Ollama integration for local LLM and chat title generation
+- `src/ollama/`: Ollama integration module
+  - `client.rs`: HTTP client for Ollama API
+  - `server.rs`: Ollama server management
+  - `consts.rs`: Ollama-related constants
 - `src/openapi.rs`: OpenAPI schema configuration using utoipa
 - `binaries/`: Embedded Ollama binaries for different platforms
 - `sandbox-exec-profiles/`: macOS sandbox profiles for security
@@ -183,21 +186,20 @@ The application uses SQLite with SeaORM for database management. Key tables incl
 #### Chat Management Tables
 
 - **chats**: Stores chat sessions with metadata
-
-  - `id` (Primary Key): Auto-incrementing chat identifier
-  - `title`: Chat title (auto-generated or user-defined)
+  - `id` (Primary Key): Auto-incrementing integer
+  - `session_id` (Unique): UUID-v4 generated automatically via SQLite expression
+  - `title` (Optional): Chat title (auto-generated after 4 messages or user-defined)
   - `llm_provider`: LLM provider used (e.g., "ollama")
-  - `llm_model`: Specific model name (e.g., "llama3.2")
-  - `created_at`, `updated_at`: Timestamps
+  - `created_at`: Timestamp with timezone
 
-- **messages**: Stores individual messages within chats
-  - `id` (Primary Key): Auto-incrementing message identifier
+- **chat_interactions**: Stores individual messages within chats
+  - `id` (Primary Key): Auto-incrementing integer
   - `chat_id` (Foreign Key): References chats.id with CASCADE delete
-  - `role`: Message role ("user", "assistant", "system")
-  - `content`: Message content as text
-  - `created_at`: Timestamp
+  - `content` (JSON): Message data with role and content
+  - `created_at`: Timestamp with timezone
+  - Index on `chat_id` for query performance
 
-The relationship ensures that deleting a chat automatically removes all associated messages.
+The relationship ensures that deleting a chat automatically removes all associated messages via CASCADE delete.
 
 ### Key Patterns
 
@@ -261,37 +263,49 @@ export const useItemStore = create<StoreState>((set) => ({
 The application provides RESTful endpoints for chat management:
 
 ```typescript
-// Get all chats (ordered by updated_at DESC)
+// List all chats (ordered by created_at DESC)
 GET /api/chat
-Response: Chat[]
+Response: ChatWithInteractions[]
 
-// Get specific chat with messages
-GET /api/chat/{id}
-Response: ChatWithMessages
-
-// Create new chat
+// Create new chat with specified LLM provider
 POST /api/chat
-Body: { llm_provider: string, llm_model: string }
-Response: Chat (with auto-generated title "New Chat")
+Body: { llm_provider: string }
+Response: ChatWithInteractions
 
-// Delete chat and all messages (CASCADE deletes all messages)
+// Update chat title
+PATCH /api/chat/{id}
+Body: { title: string }
+Response: ChatWithInteractions
+
+// Delete chat and all messages (CASCADE deletes all interactions)
 DELETE /api/chat/{id}
 Response: 204 No Content
 ```
 
 **Chat Persistence Workflow**:
 
-1. When a user sends their first message, the frontend automatically creates a new chat if none exists
-2. During conversation streaming through the Ollama proxy (`/llm/ollama/api/chat`), messages are automatically saved to the database
-3. User messages are saved before sending to the LLM
-4. Assistant responses are captured and saved after streaming completes
+1. Frontend sends chat request with `session_id` to `/llm/ollama/api/chat`
+2. Backend checks if chat exists by `session_id`, creates new chat if not found
+3. User message is persisted to `chat_interactions` table before sending to LLM
+4. Response streams to frontend while being accumulated in background (`tokio::spawn`)
+5. Complete assistant response is persisted after streaming completes
+6. Messages are stored as JSON: `{"role": "user|assistant", "content": "text"}`
 
 **Chat Title Generation**:
 
-- Triggers automatically after the 4th message in a chat (2 user + 2 assistant messages)
+- Triggers automatically after exactly 4 interactions (2 user + 2 assistant messages)
 - Uses the same LLM model as the chat to generate a concise 5-6 word title
-- Runs asynchronously in the background without blocking the conversation
-- Emits a `chat-title-updated` event that the frontend listens to for real-time UI updates
+- Runs asynchronously in background using `tokio::spawn` with 30-second timeout
+- Emits `chat-title-updated` Tauri event with `{chat_id, title}` payload
+- Frontend updates UI in real-time via event listener without page refresh
+
+**Frontend State Management**:
+
+- Uses Zustand store (`chat-store.ts`) for centralized chat state
+- Handles streaming messages with `streamingMessageId` tracking
+- Supports request cancellation via `AbortController`
+- Event listeners automatically sync backend changes to UI
+- All API calls use generated TypeScript client for type safety
 
 ### Important Configuration
 
@@ -379,3 +393,14 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - Mock external dependencies appropriately in tests
 - CI automatically formats Rust code and regenerates OpenAPI schemas, committing changes back to PRs
 - CI uses GitHub Actions bot credentials for automated commits
+
+### Testing Patterns
+
+#### Chat Feature Testing
+
+- **Rust Tests**: Use `rstest` fixtures for database setup in chat API tests
+- **API Tests**: Test all CRUD operations with proper error cases (404, 500)
+- **Integration Tests**: Verify cascade deletes and foreign key constraints
+- **Frontend Tests**: Mock API responses for chat operations
+- **Streaming Tests**: Test message accumulation and persistence during streaming
+- **Event Tests**: Verify Tauri events are emitted correctly for UI updates
