@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - release-*
   workflow_dispatch:
 
 permissions:
@@ -76,12 +75,21 @@ jobs:
           app-id: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_ID }}
           private-key: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY }}
 
-      - name: Fetch GitHub release for app-v0.1.0
-        env:
-          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+      - name: Update version from release-please tag
+        if: needs.release-please.outputs.desktop_release_created
         run: |
-          echo "Fetching GitHub release for tag app-v0.1.0..."
-          gh release view app-v0.1.0 --json name,tagName,publishedAt,assets || echo "Release app-v0.1.0 not found or not accessible"
+          TAG_NAME="${{ needs.release-please.outputs['desktop--tag_name'] }}"
+          VERSION="${TAG_NAME#app-v}"
+          echo "Updating version to $VERSION from tag $TAG_NAME"
+          
+          # Update package.json
+          jq --arg version "$VERSION" '.version = $version' desktop/package.json > desktop/package.json.tmp && mv desktop/package.json.tmp desktop/package.json
+          
+          # Update Cargo.toml
+          sed -i.bak "s/^version = .*/version = \"$VERSION\"/" desktop/src-tauri/Cargo.toml && rm desktop/src-tauri/Cargo.toml.bak
+          
+          # Update tauri.conf.json
+          jq --arg version "$VERSION" '.version = $version' desktop/src-tauri/tauri.conf.json > desktop/src-tauri/tauri.conf.json.tmp && mv desktop/src-tauri/tauri.conf.json.tmp desktop/src-tauri/tauri.conf.json
 
       - name: setup node
         uses: actions/setup-node@v4
