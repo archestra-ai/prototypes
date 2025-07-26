@@ -1,10 +1,9 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 import { ARCHESTRA_SERVER_API_URL } from '@/consts';
 import { useAgentStore } from '@/stores/agent-store';
-import { useOllamaStore } from '@/stores/ollama-store';
 
 interface UseSSEChatOptions {
   onError?: (error: Error) => void;
@@ -17,99 +16,28 @@ interface UseSSEChatOptions {
  * Provides unified interface for both chat and agent modes
  */
 export function useSSEChat(options?: UseSSEChatOptions) {
-  const { selectedModel } = useOllamaStore();
-  const { isAgentActive } = useAgentStore();
-  const [customInput, setCustomInput] = useState('');
-  const [customError, setCustomError] = useState<Error | null>(null);
-
-  // Configure useChat with our SSE endpoint
-  const { messages, sendMessage, status, error, stop, regenerate, setMessages, addToolResult } = useChat({
-    transport: new DefaultChatTransport({
-      api: `${ARCHESTRA_SERVER_API_URL}/chat`,
-      headers: () => ({
-        'Content-Type': 'application/json',
-      }),
-    }),
+  // Use Vercel AI SDK's useChat with DefaultChatTransport
+  const chat = useChat({
+    // Use a consistent ID so multiple components share the same chat state
+    id: 'main-chat',
+    api: `${ARCHESTRA_SERVER_API_URL}/chat`,
+    streamProtocol: 'data',
+    // Body should be passed when sending messages, not here
     onError: (error) => {
       console.error('[useSSEChat] Chat error:', error);
-      setCustomError(error);
       options?.onError?.(error);
     },
-    onFinish: ({ message }) => {
-      console.log('[useSSEChat] Chat finished:', { message });
-      options?.onFinish?.({ message });
+    onFinish: (message) => {
+      console.log('[useSSEChat] Chat finished:', message);
+      options?.onFinish?.(message);
     },
-    onToolCall: async ({ toolCall }) => {
-      console.log('[useSSEChat] Tool call:', { toolCall });
-      await options?.onToolCall?.({ toolCall });
-    },
+    onToolCall: options?.onToolCall,
   });
-
-  // Custom sendMessage that includes our metadata
-  const sendChatMessage = useCallback(
-    async (
-      text: string,
-      options?: {
-        tools?: string[];
-        agentContext?: any;
-      }
-    ) => {
-      try {
-        console.log('[useSSEChat] Sending message:', { text, options });
-        setCustomError(null);
-
-        // Build the message with proper formatting
-        await sendMessage(
-          { text },
-          {
-            body: {
-              model: selectedModel,
-              tools: options?.tools,
-              agent_context:
-                options?.agentContext ||
-                (isAgentActive
-                  ? {
-                      mode: 'autonomous',
-                    }
-                  : undefined),
-            },
-          }
-        );
-
-        console.log('[useSSEChat] Message sent successfully');
-      } catch (err) {
-        console.error('[useSSEChat] Error sending message:', err);
-        setCustomError(err as Error);
-        throw err;
-      }
-    },
-    [sendMessage, selectedModel, isAgentActive]
-  );
-
-  // Handle input state separately to match existing pattern
-  const handleInputChange = useCallback((value: string) => {
-    setCustomInput(value);
-  }, []);
-
-  const handleSubmit = useCallback(
-    async (e?: React.FormEvent) => {
-      e?.preventDefault();
-      if (customInput.trim()) {
-        try {
-          await sendChatMessage(customInput);
-          setCustomInput('');
-        } catch (err) {
-          console.error('[useSSEChat] Submit error:', err);
-        }
-      }
-    },
-    [customInput, sendChatMessage]
-  );
 
   // Process agent-specific data parts from messages
   useEffect(() => {
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
+    if (chat.messages.length > 0) {
+      const lastMessage = chat.messages[chat.messages.length - 1];
       if (lastMessage?.parts) {
         lastMessage.parts.forEach((part: any) => {
           if (part.type === 'data' && part.data) {
@@ -144,49 +72,42 @@ export function useSSEChat(options?: UseSSEChatOptions) {
         });
       }
     }
-  }, [messages]);
+  }, [chat.messages]);
 
-  // Log status changes
-  useEffect(() => {
-    console.log('[useSSEChat] Status changed:', status);
-  }, [status]);
+  // Log available properties in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[useSSEChat] Hook called with ID:', 'main-chat');
+    console.log('[useSSEChat] Messages count:', chat.messages.length);
+    console.log('[useSSEChat] Status:', chat.status);
+    console.log('[useSSEChat] Chat instance ID:', (chat as any).id);
 
-  // Log messages when they change
-  useEffect(() => {
-    console.log('[useSSEChat] Messages updated:', messages.length, messages);
-  }, [messages]);
-
-  // Log errors
-  useEffect(() => {
-    if (error || customError) {
-      console.error('[useSSEChat] Current error:', error || customError);
+    // Log detailed message structure
+    if (chat.messages.length > 0) {
+      chat.messages.forEach((msg, idx) => {
+        console.log(`[useSSEChat] Message ${idx}:`, {
+          id: msg.id,
+          role: msg.role,
+          content: (msg as any).content,
+          text: (msg as any).text,
+          parts: msg.parts,
+          partsCount: msg.parts?.length,
+        });
+        if (msg.parts) {
+          msg.parts.forEach((part: any, partIdx: number) => {
+            console.log(`[useSSEChat] Message ${idx} Part ${partIdx}:`, part);
+          });
+        }
+      });
     }
-  }, [error, customError]);
 
-  return {
-    // Message state
-    messages,
-    setMessages,
+    if (chat.error) {
+      console.error('[useSSEChat] Error:', chat.error);
+    }
+  }
 
-    // Input handling
-    input: customInput,
-    setInput: handleInputChange,
-    handleSubmit,
-
-    // Actions
-    sendMessage: sendChatMessage,
-    stop,
-    reload: regenerate,
-    addToolResult,
-
-    // Status
-    status,
-    isLoading: status === 'streaming',
-    error: error || customError,
-
-    // Helper to check if can send message
-    canSend: status === 'ready' && customInput.trim().length > 0,
-  };
+  // Return the chat interface directly from Vercel AI SDK v5
+  // v5 doesn't provide input/handleInputChange/handleSubmit - users manage their own input state
+  return chat;
 }
 
 /**

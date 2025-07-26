@@ -10,7 +10,7 @@ The Vercel AI SDK v5 uses a specific Server-Sent Events (SSE) based stream proto
 - Each message is a JSON object with a `type` field
 - Text content uses start/delta/end pattern with unique IDs
 - Special `[DONE]` marker indicates stream termination
-- Requires `x-vercel-ai-ui-message-stream: v1` header
+- Requires `x-vercel-ai-ui-message-stream: v1` header from the server
 
 ## Message Format
 
@@ -111,27 +111,10 @@ Note the empty line after each message (SSE requirement).
 "data: [DONE]\n\n"
 ```
 
-### Required Headers
+### Required Headers from the server
 
 ```
 Content-Type: text/event-stream
 Cache-Control: no-cache
 x-vercel-ai-ui-message-stream: v1
 ```
-
-## Current Implementation Issues
-
-1. Our backend sends custom event types like `message_start`, `content_delta` instead of the required format
-2. We're not using the start/delta/end pattern for text
-3. Missing the `[DONE]` termination marker
-4. Missing the `x-vercel-ai-ui-message-stream` header
-
-## Migration Path
-
-To fix our implementation:
-
-1. Update SSE event format to use `data:` prefix only (no event names)
-2. Implement text-start/text-delta/text-end pattern
-3. Add proper message start and finish events
-4. Add `[DONE]` termination
-5. Add required header

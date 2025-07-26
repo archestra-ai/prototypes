@@ -11,6 +11,7 @@ import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 
 import ChatHistory from './ChatHistory';
 import ChatInput from './ChatInput';
+import { DebugChat } from './DebugChat';
 
 interface ChatPageProps {
   selectedTools?: ToolContext[];
@@ -55,7 +56,7 @@ export default function ChatPage({ selectedTools, onToolRemove }: ChatPageProps)
             <CardTitle>Chat</CardTitle>
           </CardHeader>
           <CardContent className="flex-1 overflow-hidden flex flex-col p-0">
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden min-h-0">
               <ChatHistory />
             </div>
 
@@ -83,6 +84,7 @@ export default function ChatPage({ selectedTools, onToolRemove }: ChatPageProps)
           </CardContent>
         </Card>
       </div>
+      <DebugChat />
     </div>
   );
 }

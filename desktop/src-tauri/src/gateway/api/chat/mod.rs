@@ -1,6 +1,6 @@
 use axum::{
     extract::State,
-    http::{HeaderMap, StatusCode, Method, header},
+    http::{header, HeaderMap, Method, StatusCode},
     response::{
         sse::{Event, KeepAlive, Sse},
         IntoResponse, Response,
@@ -8,11 +8,11 @@ use axum::{
     routing::post,
     Json, Router,
 };
-use tower_http::cors::{CorsLayer, Any};
 use futures_util::stream::{Stream, StreamExt};
 use reqwest::Client;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
+use tower_http::cors::{Any, CorsLayer};
 
 use std::{convert::Infallible, time::Duration};
 use tokio::sync::mpsc;
@@ -118,14 +118,14 @@ impl ChatService {
 /// Create the chat router with SSE endpoints
 pub fn create_router(db: DatabaseConnection) -> Router {
     let service = Arc::new(ChatService::new(db));
-    
+
     // Configure CORS to handle all responses including errors
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
         .max_age(std::time::Duration::from_secs(3600));
-    
+
     Router::new()
         .route("/", post(handle_chat).options(handle_options))
         .with_state(service)
@@ -136,10 +136,16 @@ pub fn create_router(db: DatabaseConnection) -> Router {
 async fn handle_options() -> Result<Response, StatusCode> {
     let mut headers = HeaderMap::new();
     headers.insert("Access-Control-Allow-Origin", "*".parse().unwrap());
-    headers.insert("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS".parse().unwrap());
-    headers.insert("Access-Control-Allow-Headers", "Content-Type, Authorization".parse().unwrap());
+    headers.insert(
+        "Access-Control-Allow-Methods",
+        "GET, POST, PUT, DELETE, OPTIONS".parse().unwrap(),
+    );
+    headers.insert(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization".parse().unwrap(),
+    );
     headers.insert("Access-Control-Max-Age", "3600".parse().unwrap());
-    
+
     Ok((headers, "").into_response())
 }
 
@@ -165,26 +171,31 @@ async fn handle_chat(
 ) -> Result<Response, StatusCode> {
     // Default to streaming unless explicitly set to false
     let should_stream = payload.stream.unwrap_or(true);
-    
+
     if !should_stream {
         // Non-streaming response (not implemented yet)
         return Err(StatusCode::NOT_IMPLEMENTED);
     }
-    
+
     // Create SSE stream
     let stream = create_chat_stream(service, payload).await;
-    
+
     // Build response with CORS headers
     let mut headers = HeaderMap::new();
     headers.insert("Access-Control-Allow-Origin", "*".parse().unwrap());
-    headers.insert("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS".parse().unwrap());
-    headers.insert("Access-Control-Allow-Headers", "Content-Type, Authorization".parse().unwrap());
+    headers.insert(
+        "Access-Control-Allow-Methods",
+        "GET, POST, PUT, DELETE, OPTIONS".parse().unwrap(),
+    );
+    headers.insert(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization".parse().unwrap(),
+    );
     headers.insert("Cache-Control", "no-cache".parse().unwrap());
     headers.insert("x-vercel-ai-ui-message-stream", "v1".parse().unwrap());
-    
-    let sse = Sse::new(stream)
-        .keep_alive(KeepAlive::new().interval(Duration::from_secs(30)));
-    
+
+    let sse = Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(30)));
+
     Ok((headers, sse).into_response())
 }
 
@@ -194,111 +205,153 @@ async fn create_chat_stream(
     request: ChatRequest,
 ) -> impl Stream<Item = Result<Event, Infallible>> {
     let (tx, rx) = mpsc::channel::<SseMessage>(100);
-    
+
     // Spawn task to handle chat execution
     tokio::spawn(async move {
         if let Err(e) = execute_chat_stream(service, request, tx.clone()).await {
             // Send error event
-            let _ = tx.send(SseMessage::Error {
-                error: format!("Chat execution failed: {}", e),
-            }).await;
+            let _ = tx
+                .send(SseMessage::Error {
+                    error: format!("Chat execution failed: {}", e),
+                })
+                .await;
         }
     });
-    
-    // Convert receiver to SSE events
+
+    // Convert receiver to SSE events following Vercel AI SDK v5 protocol
     ReceiverStream::new(rx).map(|msg| {
         Ok(match msg {
             SseMessage::MessageStart { id, role: _ } => {
-                Event::default()
-                    .data(serde_json::to_string(&serde_json::json!({
+                // Start message event
+                Event::default().data(
+                    serde_json::to_string(&serde_json::json!({
                         "type": "start",
                         "messageId": id
-                    })).unwrap())
+                    }))
+                    .unwrap(),
+                )
+            }
+            SseMessage::TextStart { id } => {
+                // Text start event
+                Event::default().data(
+                    serde_json::to_string(&serde_json::json!({
+                        "type": "text-start",
+                        "id": id
+                    }))
+                    .unwrap(),
+                )
             }
             SseMessage::TextDelta { id, delta } => {
-                Event::default()
-                    .data(serde_json::to_string(&serde_json::json!({
+                // Text delta event
+                Event::default().data(
+                    serde_json::to_string(&serde_json::json!({
                         "type": "text-delta",
                         "id": id,
                         "delta": delta
-                    })).unwrap())
-            }
-            SseMessage::TextStart { id } => {
-                Event::default()
-                    .data(serde_json::to_string(&serde_json::json!({
-                        "type": "text-start",
-                        "id": id
-                    })).unwrap())
+                    }))
+                    .unwrap(),
+                )
             }
             SseMessage::TextEnd { id } => {
-                Event::default()
-                    .data(serde_json::to_string(&serde_json::json!({
+                // Text end event
+                Event::default().data(
+                    serde_json::to_string(&serde_json::json!({
                         "type": "text-end",
                         "id": id
-                    })).unwrap())
+                    }))
+                    .unwrap(),
+                )
             }
             SseMessage::ContentDelta { delta } => {
                 // Legacy support - convert to TextDelta with default ID
-                Event::default()
-                    .data(serde_json::to_string(&serde_json::json!({
+                Event::default().data(
+                    serde_json::to_string(&serde_json::json!({
                         "type": "text-delta",
                         "id": "text-main",
                         "delta": delta
-                    })).unwrap())
+                    }))
+                    .unwrap(),
+                )
             }
             SseMessage::StreamEnd => {
-                Event::default()
-                    .data("[DONE]")
+                // Stream end marker
+                Event::default().data("[DONE]")
             }
-            SseMessage::ToolCallStart { tool_call_id, tool_name } => {
-                Event::default()
-                    .data(serde_json::to_string(&serde_json::json!({
+            SseMessage::ToolCallStart {
+                tool_call_id,
+                tool_name,
+            } => {
+                // Tool input start
+                Event::default().data(
+                    serde_json::to_string(&serde_json::json!({
                         "type": "tool-input-start",
                         "toolCallId": tool_call_id,
                         "toolName": tool_name
-                    })).unwrap())
+                    }))
+                    .unwrap(),
+                )
             }
-            SseMessage::ToolCallDelta { tool_call_id, args_delta } => {
-                Event::default()
-                    .data(serde_json::to_string(&serde_json::json!({
+            SseMessage::ToolCallDelta {
+                tool_call_id,
+                args_delta,
+            } => {
+                // Tool input delta
+                Event::default().data(
+                    serde_json::to_string(&serde_json::json!({
                         "type": "tool-input-delta",
                         "toolCallId": tool_call_id,
                         "inputTextDelta": args_delta
-                    })).unwrap())
+                    }))
+                    .unwrap(),
+                )
             }
-            SseMessage::ToolCallResult { tool_call_id, tool_name: _, result } => {
-                Event::default()
-                    .data(serde_json::to_string(&serde_json::json!({
+            SseMessage::ToolCallResult {
+                tool_call_id,
+                tool_name: _,
+                result,
+            } => {
+                // Tool output available
+                Event::default().data(
+                    serde_json::to_string(&serde_json::json!({
                         "type": "tool-output-available",
                         "toolCallId": tool_call_id,
                         "output": result
-                    })).unwrap())
+                    }))
+                    .unwrap(),
+                )
             }
             SseMessage::DataPart { data_type, data } => {
-                Event::default()
-                    .data(serde_json::to_string(&serde_json::json!({
+                // Custom data parts with data- prefix
+                Event::default().data(
+                    serde_json::to_string(&serde_json::json!({
                         "type": format!("data-{}", data_type),
                         "data": data
-                    })).unwrap())
+                    }))
+                    .unwrap(),
+                )
             }
             SseMessage::MessageComplete { usage: _ } => {
-                Event::default()
-                    .data(serde_json::to_string(&serde_json::json!({
+                // Finish message event
+                Event::default().data(
+                    serde_json::to_string(&serde_json::json!({
                         "type": "finish"
-                    })).unwrap())
+                    }))
+                    .unwrap(),
+                )
             }
             SseMessage::Error { error } => {
-                Event::default()
-                    .data(serde_json::to_string(&serde_json::json!({
+                // Error event
+                Event::default().data(
+                    serde_json::to_string(&serde_json::json!({
                         "type": "error",
                         "errorText": error
-                    })).unwrap())
+                    }))
+                    .unwrap(),
+                )
             }
             SseMessage::Ping => {
-                // V5 doesn't use ping events in the same way
-                Event::default()
-                    .event("")
-                    .data("")
+                // Keep-alive ping
+                Event::default().event("ping").data("")
             }
         })
     })
@@ -315,8 +368,9 @@ async fn execute_chat_stream(
     tx.send(SseMessage::MessageStart {
         id: message_id.clone(),
         role: "assistant".to_string(),
-    }).await?;
-    
+    })
+    .await?;
+
     // Check if this is an agent activation or agent message
     let mut messages = request.messages;
     if let Some(agent_context) = &request.agent_context {
@@ -328,27 +382,31 @@ async fn execute_chat_stream(
                     "mode": "planning",
                     "objective": agent_context.objective,
                 }),
-            }).await?;
-            
+            })
+            .await?;
+
             // If this is an activation, prepend system prompt
             if agent_context.activate.unwrap_or(false) {
                 if let Some(objective) = &agent_context.objective {
                     // Add system prompt for agent behavior
-                    messages.insert(0, ChatMessage {
-                        role: "system".to_string(),
-                        content: Some(format!(
-                            "You are an autonomous AI agent. Your objective is: {}\n\n\
+                    messages.insert(
+                        0,
+                        ChatMessage {
+                            role: "system".to_string(),
+                            content: Some(format!(
+                                "You are an autonomous AI agent. Your objective is: {}\n\n\
                             You should:\n\
                             1. Break down the objective into clear tasks\n\
                             2. Execute tasks using available tools\n\
                             3. Provide reasoning for your actions\n\
                             4. Report progress and results\n\n\
                             Think step by step and use tools when needed.",
-                            objective
-                        )),
-                        parts: None,
-                    });
-                    
+                                objective
+                            )),
+                            parts: None,
+                        },
+                    );
+
                     // Send initial reasoning
                     tx.send(SseMessage::DataPart {
                         data_type: "reasoning".to_string(),
@@ -356,7 +414,8 @@ async fn execute_chat_stream(
                             "type": "planning",
                             "content": format!("Analyzing objective: {}", objective),
                         }),
-                    }).await?;
+                    })
+                    .await?;
                 }
             }
         } else if agent_context.mode.as_deref() == Some("stop") {
@@ -364,21 +423,22 @@ async fn execute_chat_stream(
             let stop_text_id = format!("text-{}", uuid::Uuid::new_v4());
             tx.send(SseMessage::TextStart {
                 id: stop_text_id.clone(),
-            }).await?;
+            })
+            .await?;
             tx.send(SseMessage::TextDelta {
                 id: stop_text_id.clone(),
                 delta: "Agent execution stopped.".to_string(),
-            }).await?;
-            tx.send(SseMessage::TextEnd {
-                id: stop_text_id,
-            }).await?;
+            })
+            .await?;
+            tx.send(SseMessage::TextEnd { id: stop_text_id }).await?;
             tx.send(SseMessage::MessageComplete { usage: None }).await?;
             return Ok(());
         }
     }
-    
+
     // Convert messages to Ollama format
-    let ollama_messages: Vec<OllamaMessage> = messages.into_iter()
+    let ollama_messages: Vec<OllamaMessage> = messages
+        .into_iter()
         .map(|msg| {
             let content = msg.get_content();
             OllamaMessage {
@@ -387,14 +447,14 @@ async fn execute_chat_stream(
             }
         })
         .collect();
-    
+
     // Convert tool names to Ollama tool format if provided
     let tools = if let Some(tool_names) = request.tools {
         Some(convert_tools_to_ollama_format(&service.db, tool_names).await?)
     } else {
         None
     };
-    
+
     // Build Ollama request
     let ollama_request = OllamaChatRequest {
         model: request.model.unwrap_or_else(|| "llama3.2".to_string()),
@@ -402,35 +462,36 @@ async fn execute_chat_stream(
         stream: true,
         tools,
     };
-    
+
     // Call Ollama API
     let ollama_url = format!("http://localhost:{}/api/chat", OLLAMA_SERVER_PORT);
-    let response = service.http_client
+    let response = service
+        .http_client
         .post(&ollama_url)
         .json(&ollama_request)
         .send()
         .await?;
-    
+
     if !response.status().is_success() {
         return Err(format!("Ollama API error: {}", response.status()).into());
     }
-    
+
     // Stream response chunks
     let mut stream = response.bytes_stream();
     let mut accumulated_content = String::new();
     let text_block_id = format!("text-{}", uuid::Uuid::new_v4());
     let mut text_started = false;
-    
+
     while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
         let text = String::from_utf8_lossy(&chunk);
-        
+
         // Parse each line as a JSON object (Ollama sends newline-delimited JSON)
         for line in text.lines() {
             if line.trim().is_empty() {
                 continue;
             }
-            
+
             match serde_json::from_str::<OllamaChatChunk>(line) {
                 Ok(chat_chunk) => {
                     // Send content delta
@@ -439,43 +500,56 @@ async fn execute_chat_stream(
                         if !text_started {
                             tx.send(SseMessage::TextStart {
                                 id: text_block_id.clone(),
-                            }).await?;
+                            })
+                            .await?;
                             text_started = true;
                         }
-                        
+
                         accumulated_content.push_str(&chat_chunk.message.content);
                         tx.send(SseMessage::TextDelta {
                             id: text_block_id.clone(),
                             delta: chat_chunk.message.content.clone(),
-                        }).await?;
+                        })
+                        .await?;
                     }
-                    
+
                     // Handle tool calls if present
                     if let Some(tool_calls) = chat_chunk.message.tool_calls {
                         for tool_call in tool_calls {
-                            let tool_id = tool_call.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+                            let tool_id = tool_call
+                                .id
+                                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
                             let tool_name = tool_call.function.name.clone();
-                            
+
                             // Send tool call start event
                             tx.send(SseMessage::ToolCallStart {
                                 tool_call_id: tool_id.clone(),
                                 tool_name: tool_name.clone(),
-                            }).await?;
-                            
+                            })
+                            .await?;
+
                             // Send tool arguments
                             tx.send(SseMessage::ToolCallDelta {
                                 tool_call_id: tool_id.clone(),
                                 args_delta: tool_call.function.arguments.to_string(),
-                            }).await?;
-                            
+                            })
+                            .await?;
+
                             // Execute tool server-side
-                            match execute_mcp_tool(&service.db, &tool_name, &tool_call.function.arguments).await {
+                            match execute_mcp_tool(
+                                &service.db,
+                                &tool_name,
+                                &tool_call.function.arguments,
+                            )
+                            .await
+                            {
                                 Ok(result) => {
                                     tx.send(SseMessage::ToolCallResult {
                                         tool_call_id: tool_id,
                                         tool_name,
                                         result,
-                                    }).await?;
+                                    })
+                                    .await?;
                                 }
                                 Err(e) => {
                                     tx.send(SseMessage::ToolCallResult {
@@ -484,32 +558,44 @@ async fn execute_chat_stream(
                                         result: serde_json::json!({
                                             "error": format!("Tool execution failed: {}", e)
                                         }),
-                                    }).await?;
+                                    })
+                                    .await?;
                                 }
                             }
                         }
                     }
-                    
+
                     // If done, handle completion
                     if chat_chunk.done {
                         // Send text-end if we sent any text
                         if text_started {
                             tx.send(SseMessage::TextEnd {
                                 id: text_block_id.clone(),
-                            }).await?;
+                            })
+                            .await?;
+                            text_started = false; // Mark as ended to avoid double send
                         }
-                        if let (Some(prompt_tokens), Some(completion_tokens)) = 
-                            (chat_chunk.prompt_eval_count, chat_chunk.eval_count) {
-                            tx.send(SseMessage::MessageComplete {
-                                usage: Some(UsageStats {
-                                    prompt_tokens,
-                                    completion_tokens,
-                                    total_tokens: prompt_tokens + completion_tokens,
-                                }),
-                            }).await?;
-                        }
+
+                        // Send completion with usage stats if available
+                        let usage = if let (Some(prompt_tokens), Some(completion_tokens)) =
+                            (chat_chunk.prompt_eval_count, chat_chunk.eval_count)
+                        {
+                            Some(UsageStats {
+                                prompt_tokens,
+                                completion_tokens,
+                                total_tokens: prompt_tokens + completion_tokens,
+                            })
+                        } else {
+                            None
+                        };
+
+                        tx.send(SseMessage::MessageComplete { usage }).await?;
+
                         // Send [DONE] marker
                         tx.send(SseMessage::StreamEnd).await?;
+
+                        // Return early since streaming is complete
+                        return Ok(());
                     }
                 }
                 Err(e) => {
@@ -518,22 +604,18 @@ async fn execute_chat_stream(
             }
         }
     }
-    
-    // Send text-end if we sent any text
+
     if text_started {
         tx.send(SseMessage::TextEnd {
             id: text_block_id.clone(),
-        }).await?;
+        })
+        .await?;
+
+        tx.send(SseMessage::MessageComplete { usage: None }).await?;
+
+        tx.send(SseMessage::StreamEnd).await?;
     }
-    
-    // Always send completion
-    tx.send(SseMessage::MessageComplete {
-        usage: None,
-    }).await?;
-    
-    // Send [DONE] marker
-    tx.send(SseMessage::StreamEnd).await?;
-    
+
     Ok(())
 }
 
@@ -545,7 +627,7 @@ async fn convert_tools_to_ollama_format(
     tool_names: Vec<String>,
 ) -> Result<Vec<OllamaTool>, Box<dyn std::error::Error + Send + Sync>> {
     let mut ollama_tools = Vec::new();
-    
+
     for tool_name in tool_names {
         // For now, create a basic tool definition
         // The actual tool execution will happen through the MCP proxy
@@ -562,7 +644,7 @@ async fn convert_tools_to_ollama_format(
             },
         });
     }
-    
+
     Ok(ollama_tools)
 }
 
@@ -577,10 +659,10 @@ async fn execute_mcp_tool(
     if parts.len() != 2 {
         return Err(format!("Invalid tool name format: {}", tool_name).into());
     }
-    
+
     let server_name = parts[0];
     let tool_name_only = parts[1];
-    
+
     // Create JSON-RPC request for MCP proxy
     let mcp_request = serde_json::json!({
         "jsonrpc": "2.0",
@@ -591,30 +673,33 @@ async fn execute_mcp_tool(
             "arguments": arguments
         }
     });
-    
+
     // Call MCP proxy endpoint
     let client = reqwest::Client::new();
-    let proxy_url = format!("http://localhost:{}/mcp_proxy/{}", crate::gateway::GATEWAY_SERVER_PORT, server_name);
-    
-    let response = client
-        .post(&proxy_url)
-        .json(&mcp_request)
-        .send()
-        .await?;
-    
+    let proxy_url = format!(
+        "http://localhost:{}/mcp_proxy/{}",
+        crate::gateway::GATEWAY_SERVER_PORT,
+        server_name
+    );
+
+    let response = client.post(&proxy_url).json(&mcp_request).send().await?;
+
     if !response.status().is_success() {
         let error_text = response.text().await?;
         return Err(format!("MCP proxy error: {}", error_text).into());
     }
-    
+
     let result: serde_json::Value = response.json().await?;
-    
+
     // Extract result from JSON-RPC response
     if let Some(error) = result.get("error") {
         return Err(format!("MCP tool error: {}", error).into());
     }
-    
-    Ok(result.get("result").cloned().unwrap_or(serde_json::Value::Null))
+
+    Ok(result
+        .get("result")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null))
 }
 
 #[cfg(test)]
@@ -653,7 +738,7 @@ mod tests {
 
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        
+
         // Verify it's an SSE response
         let content_type = response.headers().get("content-type").unwrap();
         assert_eq!(content_type, "text/event-stream");

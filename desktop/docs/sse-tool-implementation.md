@@ -85,15 +85,6 @@ await sendMessage('Search for agent files', {
 });
 ```
 
-## Testing
-
-Use the test component at `src/components/test-sse-tools.tsx` to verify:
-
-- SSE streaming works
-- Tool execution flows correctly
-- Error handling functions
-- State transitions display properly
-
 ## Future Enhancements
 
 1. **Unified Endpoint**: Merge chat and agent modes

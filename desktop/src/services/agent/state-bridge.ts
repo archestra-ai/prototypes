@@ -1,7 +1,6 @@
 import type { UIMessage } from 'ai';
 
 import { useAgentStore } from '@/stores/agent-store';
-import { useChatStore } from '@/stores/chat-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import type { ChatMessage, ToolCallInfo } from '@/types';
 import type { AgentContext, AgentUIMessage, ReasoningEntry, TaskProgress, ToolInfo } from '@/types/agent';
@@ -128,19 +127,10 @@ export class AgentStateBridge implements StateBridge {
 
   /**
    * Sync a UIMessage from useChat to Zustand stores
+   * @deprecated Chat store has been removed - use Vercel AI SDK directly
    */
   syncMessageToZustand(message: UIMessage): void {
-    const chatStore = useChatStore.getState();
     const agentStore = useAgentStore.getState();
-
-    // Convert and add to chat history
-    const chatMessage = convertUIMessageToChatMessage(message);
-    const updatedHistory = [...chatStore.chatHistory, chatMessage];
-
-    // Update chat store
-    useChatStore.setState({
-      chatHistory: updatedHistory,
-    });
 
     // Extract and sync agent-specific data
     const agentMessage = message as AgentUIMessage;
@@ -152,23 +142,26 @@ export class AgentStateBridge implements StateBridge {
 
       // Process message parts for agent state updates
       const msg = message as any;
-      if (msg.content && Array.isArray(msg.content)) {
-        msg.content.forEach((part: any) => {
-          if (part.type === 'data') {
-            const data = part.data as any;
+      msg.parts?.forEach((part: any) => {
+        if (part.type === 'data' && part.data) {
+          const { type: dataType, ...data } = part.data;
 
-            // Handle reasoning updates
-            if (data.type === 'reasoning' && data.entry) {
-              agentStore.addReasoningEntry(data.entry);
-            }
-
-            // Handle task progress updates
-            if (data.type === 'task-progress' && data.progress) {
-              agentStore.updateProgress(data.progress);
-            }
+          if (dataType === 'reasoning') {
+            agentStore.addReasoningEntry({
+              id: crypto.randomUUID(),
+              type: data.type || 'planning',
+              content: data.content || '',
+              alternatives: [],
+              timestamp: new Date(),
+              confidence: data.confidence || 0.8,
+            });
+          } else if (dataType === 'task-progress') {
+            agentStore.updateProgress(data);
+          } else if (dataType === 'task-plan') {
+            agentStore.updatePlan(data.plan);
           }
-        });
-      }
+        }
+      });
     }
   }
 

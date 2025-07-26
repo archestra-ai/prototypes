@@ -4,7 +4,6 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import { ToolCategory } from '../services/agent/mcp-tool-wrapper-ai-sdk';
 import { AgentStateBridge } from '../services/agent/state-bridge';
 import { AgentMode, AgentState, MemoryEntry, ReasoningEntry, TaskPlan, TaskProgress } from '../types/agent';
-import { useChatStore } from './chat-store';
 
 // Memory search criteria
 interface MemorySearchCriteria {
@@ -348,82 +347,5 @@ export const useAgentStore = create<AgentStore>()(
   }))
 );
 
-// Store initialization and cleanup
-let cleanupAgentStore: (() => void) | null = null;
-
-function initializeAgentStore() {
-  // Prevent multiple initializations
-  if (cleanupAgentStore) {
-    return cleanupAgentStore;
-  }
-
-  // Track previous chat history length to detect new messages
-  let previousChatLength = 0;
-  let isProcessingMessage = false;
-
-  // Remove duplicate agent initialization - agent should only be created in activateAgent
-  // This was causing duplicate agent instances and secondary Ollama calls
-
-  // Defer subscription to avoid initialization issues
-  const timeoutId = setTimeout(() => {
-    const unsubscribe = useChatStore.subscribe((state) => {
-      const chatHistory = state.chatHistory;
-
-      // Only process if chat history actually changed and we're not already processing
-      if (chatHistory.length === previousChatLength || isProcessingMessage) {
-        return;
-      }
-
-      const agentState = useAgentStore.getState();
-
-      // Check if a new message was added
-      if (agentState.isAgentActive && chatHistory.length > previousChatLength) {
-        const lastMessage = chatHistory[chatHistory.length - 1];
-        if (lastMessage.role === 'user' && !lastMessage.toolCalls && !(lastMessage as any).isFromAgent) {
-          // Set flag to prevent infinite loop
-          isProcessingMessage = true;
-
-          // User messages during agent execution are handled through SSE
-
-          // Reset flag after a small delay
-          setTimeout(() => {
-            isProcessingMessage = false;
-          }, 100);
-        }
-      }
-
-      previousChatLength = chatHistory.length;
-    });
-
-    // Store the unsubscribe function
-    cleanupAgentStore = () => {
-      unsubscribe();
-    };
-  }, 0);
-
-  // Cleanup on window unload
-  const handleUnload = () => {
-    if (cleanupAgentStore) {
-      cleanupAgentStore();
-    }
-  };
-
-  window.addEventListener('beforeunload', handleUnload);
-
-  // Return cleanup function
-  return () => {
-    clearTimeout(timeoutId);
-    if (cleanupAgentStore) {
-      cleanupAgentStore();
-    }
-    window.removeEventListener('beforeunload', handleUnload);
-  };
-}
-
-// Initialize the store lazily
-if (typeof window !== 'undefined') {
-  initializeAgentStore();
-}
-
-// Export cleanup function for testing
-export { cleanupAgentStore };
+// Note: Chat history monitoring has been removed as we're using Vercel AI SDK
+// Agent activation and message handling now happens through the useSSEChat hook

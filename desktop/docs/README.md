@@ -34,7 +34,7 @@ The codebase has been updated to use Vercel AI SDK v5 with proper SSE streaming:
 - ✅ Implemented full v5 SSE protocol with data-only events
 - ✅ Uses proper text-start/delta/end pattern for streaming
 - ✅ Supports tool calling with input/output streaming
-- ✅ Includes required `x-vercel-ai-ui-message-stream: v1` header
+- ✅ Includes required `x-vercel-ai-ui-message-stream: v1` serverheader
 - ✅ Proper [DONE] termination marker
 
 ### Implementation Highlights

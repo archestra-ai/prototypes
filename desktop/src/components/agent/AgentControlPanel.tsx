@@ -77,12 +77,9 @@ export function AgentControlPanel({ className }: AgentControlPanelProps) {
       await activateAgent(objective.trim());
 
       // Send the objective through SSE with agent context
-      await sendMessage(objective.trim(), {
-        agentContext: {
-          mode: 'autonomous',
-          objective: objective.trim(),
-          activate: true,
-        },
+      // For v5, just pass the text, backend handles agent context
+      await sendMessage({
+        text: objective.trim(),
       });
 
       setObjective(''); // Clear input after activation

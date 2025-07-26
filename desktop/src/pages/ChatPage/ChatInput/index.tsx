@@ -1,7 +1,7 @@
 'use client';
 
 import { FileText } from 'lucide-react';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import {
   AIInput,
@@ -21,7 +21,6 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSSEChat } from '@/hooks/use-sse-chat';
 import { useAgentStore } from '@/stores/agent-store';
-import { useChatStore } from '@/stores/chat-store';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 import { useOllamaStore } from '@/stores/ollama-store';
 
@@ -31,12 +30,14 @@ interface ChatInputProps {
 }
 
 export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInputProps) {
-  // Use SSE chat hook for sending messages
-  const { sendMessage: sendSSEMessage, status: sseStatus, stop: cancelStreaming, input, setInput } = useSSEChat();
+  // Manage input state locally since v5 doesn't provide it
+  const [input, setInput] = useState('');
 
-  const { clearChatHistory } = useChatStore();
-  const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
-  const isStreaming = sseStatus === 'streaming' || sseStatus === 'submitted';
+  // Use SSE chat hook with v5 API
+  const { sendMessage, status, stop: cancelStreaming, setMessages } = useSSEChat();
+
+  const { isDeveloperMode, toggleDeveloperMode, systemPrompt } = useDeveloperModeStore();
+  const isStreaming = status === 'streaming' || status === 'submitted';
 
   const { installedModels, loadingInstalledModels, loadingInstalledModelsError, selectedModel, setSelectedModel } =
     useOllamaStore();
@@ -44,6 +45,7 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
   const { isAgentActive, mode: agentMode } = useAgentStore();
 
   const disabled = isStreaming || (isAgentActive && agentMode === 'initializing');
+  const canSend = !disabled && input.trim().length > 0 && selectedModel !== null;
 
   // Fetch installed models when component mounts
   useEffect(() => {
@@ -59,71 +61,70 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
       return;
     }
 
-    try {
-      let finalMessage = input.trim();
-      const { activateAgent, currentObjective, stopAgent } = useAgentStore.getState();
+    // Handle special commands
+    const trimmedInput = input.trim();
 
-      // Handle agent commands
-      if (finalMessage.startsWith('/agent')) {
-        const objective = finalMessage.substring(6).trim();
+    // Handle agent commands
+    if (trimmedInput.startsWith('/agent')) {
+      const objective = trimmedInput.substring(6).trim();
 
-        if (!objective) {
-          // This will be handled by the error message in the response
-          setInput('');
-          return;
-        }
-
-        // Activate agent state
-        await activateAgent(objective);
-
-        // Send the objective as the initial message with agent context
+      if (!objective) {
+        // Send the message as-is, let backend handle the error
+        await sendMessage({ text: trimmedInput });
         setInput('');
-        await sendSSEMessage(objective, {
-          tools: selectedTools.map((tool) => `${tool.serverName}_${tool.toolName}`),
-          agentContext: {
+        return;
+      }
+
+      // Activate agent state locally
+      const { activateAgent } = useAgentStore.getState();
+      await activateAgent(objective);
+    } else if (trimmedInput === '/stop' && isAgentActive) {
+      // Stop agent locally
+      const { stopAgent } = useAgentStore.getState();
+      stopAgent();
+    }
+
+    // For all messages (including agent commands), send through SSE
+    // The backend will handle the actual processing
+    console.log('[ChatInput] Sending message:', trimmedInput);
+    try {
+      // Prepare the body data for the backend
+      const body: any = {
+        model: selectedModel,
+        // Convert tools to tool names if any
+        tools: selectedTools?.map((tool) => `${tool.server}_${tool.tool}`) || [],
+      };
+
+      // Add agent context if this is an agent command
+      if (trimmedInput.startsWith('/agent')) {
+        const objective = trimmedInput.substring(6).trim();
+        if (objective) {
+          body.agent_context = {
             mode: 'autonomous',
             objective: objective,
             activate: true,
-          },
-        });
-        return;
+          };
+        }
+      } else if (trimmedInput === '/stop' && isAgentActive) {
+        body.agent_context = {
+          mode: 'stop',
+        };
       }
 
-      // Handle stop command
-      if (finalMessage === '/stop' && isAgentActive) {
-        stopAgent();
-        setInput('');
-        // Send stop signal through SSE
-        await sendSSEMessage('/stop', {
-          agentContext: {
-            mode: 'stop',
-          },
-        });
-        return;
-      }
-
-      // Regular message or agent interaction
-      const agentContext = isAgentActive
-        ? {
-            mode: 'autonomous',
-            objective: currentObjective,
-          }
-        : undefined;
-
-      // Add tool context to the message if tools are selected (only for non-agent mode)
-      if (!isAgentActive && selectedTools.length > 0) {
-        const toolContexts = selectedTools.map((tool) => `Use ${tool.toolName} from ${tool.serverName}`).join(', ');
-        finalMessage = `${toolContexts}. ${finalMessage}`;
-      }
-
-      setInput('');
-      await sendSSEMessage(finalMessage, {
-        tools: selectedTools.map((tool) => `${tool.serverName}_${tool.toolName}`),
-        agentContext,
+      // For v5, sendMessage expects text property and body
+      const result = await sendMessage({
+        text: trimmedInput,
+        body,
       });
+      console.log('[ChatInput] Message sent successfully, result:', result);
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('[ChatInput] Error sending message:', error);
     }
+    setInput(''); // Clear input after sending
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -133,8 +134,9 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
         const textarea = e.currentTarget;
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
-        const newMessage = input.substring(0, start) + '\n' + input.substring(end);
-        setInput(newMessage);
+        const newValue = input.substring(0, start) + '\n' + input.substring(end);
+
+        setInput(newValue);
 
         // Move cursor position after the new line
         setTimeout(() => {
@@ -142,7 +144,7 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
         }, 0);
       } else if (!e.shiftKey) {
         e.preventDefault();
-        if (!disabled) {
+        if (!disabled && canSend) {
           onSubmit();
         }
       }
@@ -151,7 +153,7 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
 
   const handleModelChange = (modelName: string) => {
     setSelectedModel(modelName);
-    clearChatHistory();
+    setMessages([]); // Clear chat history when changing models
   };
 
   return (
@@ -161,7 +163,7 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
           <AIInputContextPills tools={selectedTools} onRemoveTool={onToolRemove || (() => {})} />
           <AIInputTextarea
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder={
               disabled
@@ -217,7 +219,7 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
             <AIInputSubmit
               status={isStreaming ? 'streaming' : 'ready'}
               onClick={isStreaming ? cancelStreaming : undefined}
-              disabled={!input.trim() && sseStatus !== 'streaming'}
+              disabled={!canSend}
             />
           </AIInputToolbar>
         </AIInput>
