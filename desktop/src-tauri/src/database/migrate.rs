@@ -1,6 +1,8 @@
 use super::connection::{get_database_connection_with_app, get_database_path};
+use crate::database::migration::Migrator;
 use sea_orm::{DatabaseConnection, DbErr};
 use sea_orm_migration::prelude::*;
+use sea_orm_migration::MigratorTrait;
 
 pub async fn init_database(app: tauri::AppHandle) -> Result<(), String> {
     println!("🏁 Initializing database...");
@@ -23,9 +25,6 @@ pub async fn init_database(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 async fn run_migrations(db: &DatabaseConnection) -> Result<(), DbErr> {
-    use crate::database::migration::Migrator;
-    use sea_orm_migration::MigratorTrait;
-
     // Run all migrations
     Migrator::up(db, None).await?;
 

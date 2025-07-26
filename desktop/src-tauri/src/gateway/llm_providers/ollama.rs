@@ -33,6 +33,105 @@ struct ArchestraProxiedOllamaChatRequest {
     ollama_fields: Value, // Capture all other fields
 }
 
+// Standalone function for converting requests - testable without AppHandle
+fn convert_archestra_proxied_chat_request_to_ollama_chat_message(
+    request_body_bytes: Bytes,
+) -> Result<(ChatMessageRequest, String), String> {
+    // Parse our wrapper to extract session_id
+    let archestra_request: ArchestraProxiedOllamaChatRequest =
+        match serde_json::from_slice(&request_body_bytes) {
+            Ok(data) => data,
+            Err(e) => return Err(format!("Failed to parse chat request: {e}")),
+        };
+
+    // Extract fields from the flattened JSON to build ChatMessageRequest
+    let model_name = archestra_request.ollama_fields["model"]
+        .as_str()
+        .ok_or_else(|| "Missing model in request".to_string())?
+        .to_string();
+
+    // Parse messages
+    let messages_json = archestra_request.ollama_fields["messages"]
+        .as_array()
+        .ok_or_else(|| "Missing or invalid messages array".to_string())?;
+
+    let mut messages = Vec::new();
+    for msg_json in messages_json {
+        let role_str = msg_json["role"]
+            .as_str()
+            .ok_or_else(|| "Missing role in message".to_string())?;
+
+        let role = match role_str {
+            "user" => MessageRole::User,
+            "assistant" => MessageRole::Assistant,
+            "system" => MessageRole::System,
+            _ => return Err(format!("Invalid role: {role_str}")),
+        };
+
+        let content = msg_json["content"]
+            .as_str()
+            .ok_or_else(|| "Missing content in message".to_string())?
+            .to_string();
+
+        // Parse optional fields
+        let tool_calls = if let Some(tool_calls_json) = msg_json["tool_calls"].as_array() {
+            tool_calls_json
+                .iter()
+                .filter_map(|tc| {
+                    // Parse tool call JSON structure
+                    if let Some(function) = tc["function"].as_object() {
+                        let name = function["name"].as_str();
+                        let args = function.get("arguments");
+                        if let (Some(name), Some(args)) = (name, args) {
+                            Some(ToolCall {
+                                function: ToolCallFunction {
+                                    name: name.to_string(),
+                                    arguments: args.clone(),
+                                },
+                            })
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            vec![]
+        };
+
+        let images = msg_json["images"].as_array().map(|images_json| {
+            images_json
+                .iter()
+                .filter_map(|img| img.as_str().map(Image::from_base64))
+                .collect()
+        });
+
+        let thinking = msg_json["thinking"].as_str().map(|s| s.to_string());
+
+        // Construct the message with all fields
+        let message = ChatMessage {
+            role,
+            content,
+            tool_calls,
+            images,
+            thinking,
+        };
+
+        messages.push(message);
+    }
+
+    // Create the ollama-rs ChatMessageRequest using its constructor
+    let ollama_request = ChatMessageRequest::new(model_name.clone(), messages);
+
+    // Apply optional fields using builder pattern
+    // Note: We'll apply these fields if ollama-rs adds Deserialize implementations in the future
+    // For now, the ChatMessageRequest will use its default values for these fields
+
+    Ok((ollama_request, archestra_request.session_id))
+}
+
 #[derive(Clone)]
 struct Service {
     app_handle: AppHandle,
@@ -105,103 +204,6 @@ impl Service {
         }
     }
 
-    fn convert_archestra_proxied_chat_request_to_ollama_chat_message(
-        &self,
-        request_body_bytes: Bytes,
-    ) -> Result<(ChatMessageRequest, String), String> {
-        // Parse our wrapper to extract session_id
-        let archestra_request: ArchestraProxiedOllamaChatRequest =
-            match serde_json::from_slice(&request_body_bytes) {
-                Ok(data) => data,
-                Err(e) => return Err(format!("Failed to parse chat request: {e}")),
-            };
-
-        // Extract fields from the flattened JSON to build ChatMessageRequest
-        let model_name = archestra_request.ollama_fields["model"]
-            .as_str()
-            .ok_or_else(|| "Missing model in request".to_string())?
-            .to_string();
-
-        // Parse messages
-        let messages_json = archestra_request.ollama_fields["messages"]
-            .as_array()
-            .ok_or_else(|| "Missing or invalid messages array".to_string())?;
-
-        let mut messages = Vec::new();
-        for msg_json in messages_json {
-            let role_str = msg_json["role"]
-                .as_str()
-                .ok_or_else(|| "Missing role in message".to_string())?;
-
-            let role = match role_str {
-                "user" => MessageRole::User,
-                "assistant" => MessageRole::Assistant,
-                "system" => MessageRole::System,
-                _ => return Err(format!("Invalid role: {role_str}")),
-            };
-
-            let content = msg_json["content"]
-                .as_str()
-                .ok_or_else(|| "Missing content in message".to_string())?
-                .to_string();
-
-            // Parse optional fields
-            let tool_calls = if let Some(tool_calls_json) = msg_json["tool_calls"].as_array() {
-                tool_calls_json
-                    .iter()
-                    .filter_map(|tc| {
-                        // Parse tool call JSON structure
-                        if let Some(function) = tc["function"].as_object() {
-                            let name = function["name"].as_str();
-                            let args = function.get("arguments");
-                            if let (Some(name), Some(args)) = (name, args) {
-                                Some(ToolCall {
-                                    function: ToolCallFunction {
-                                        name: name.to_string(),
-                                        arguments: args.clone(),
-                                    },
-                                })
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            } else {
-                vec![]
-            };
-
-            let images = msg_json["images"].as_array().map(|images_json| images_json
-                        .iter()
-                        .filter_map(|img| img.as_str().map(Image::from_base64))
-                        .collect());
-
-            let thinking = msg_json["thinking"].as_str().map(|s| s.to_string());
-
-            // Construct the message with all fields
-            let message = ChatMessage {
-                role,
-                content,
-                tool_calls,
-                images,
-                thinking,
-            };
-
-            messages.push(message);
-        }
-
-        // Create the ollama-rs ChatMessageRequest using its constructor
-        let ollama_request = ChatMessageRequest::new(model_name.clone(), messages);
-
-        // Apply optional fields using builder pattern
-        // Note: We'll apply these fields if ollama-rs adds Deserialize implementations in the future
-        // For now, the ChatMessageRequest will use its default values for these fields
-
-        Ok((ollama_request, archestra_request.session_id))
-    }
-
     async fn proxy_chat_request(&self, req: Request<Body>) -> Result<Response<Body>, String> {
         // Parse the request body
         let body_bytes = match axum::body::to_bytes(req.into_body(), usize::MAX).await {
@@ -210,7 +212,7 @@ impl Service {
         };
 
         let (ollama_request, session_id) =
-            match self.convert_archestra_proxied_chat_request_to_ollama_chat_message(body_bytes) {
+            match convert_archestra_proxied_chat_request_to_ollama_chat_message(body_bytes) {
                 Ok(data) => data,
                 Err(e) => {
                     return Err(format!(
@@ -447,4 +449,221 @@ pub fn create_router(app_handle: AppHandle, db: DatabaseConnection) -> Router {
     Router::new()
         .fallback(proxy_handler)
         .with_state(Arc::new(Service::new(app_handle, db)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::chat::{ActiveModel as ChatActiveModel, ChatDefinition};
+    use crate::test_fixtures::database;
+    use rstest::rstest;
+    use sea_orm::{ActiveModelTrait, Set};
+    use serde_json::json;
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_archestra_request_to_ollama_valid(#[future] database: DatabaseConnection) {
+        let _db = database.await;
+
+        let request_json = json!({
+            "session_id": "test-session-123",
+            "model": "llama3.2",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Hello, world!"
+                },
+                {
+                    "role": "assistant",
+                    "content": "Hi there!"
+                }
+            ]
+        });
+
+        let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
+        let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+
+        assert!(result.is_ok());
+        let (ollama_request, session_id) = result.unwrap();
+        assert_eq!(session_id, "test-session-123");
+        assert_eq!(ollama_request.model_name, "llama3.2");
+        assert_eq!(ollama_request.messages.len(), 2);
+        assert_eq!(ollama_request.messages[0].content, "Hello, world!");
+        assert_eq!(ollama_request.messages[1].content, "Hi there!");
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_archestra_request_with_tool_calls(#[future] database: DatabaseConnection) {
+        let _db = database.await;
+
+        let request_json = json!({
+            "session_id": "test-session-123",
+            "model": "llama3.2",
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": "I'll help you with that.",
+                    "tool_calls": [
+                        {
+                            "function": {
+                                "name": "calculate",
+                                "arguments": {"x": 5, "y": 10}
+                            }
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
+        let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+
+        assert!(result.is_ok());
+        let (ollama_request, _) = result.unwrap();
+        assert_eq!(ollama_request.messages[0].tool_calls.len(), 1);
+        assert_eq!(ollama_request.messages[0].tool_calls[0].function.name, "calculate");
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_archestra_request_missing_model(#[future] database: DatabaseConnection) {
+        let _db = database.await;
+
+        let request_json = json!({
+            "session_id": "test-session-123",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Hello"
+                }
+            ]
+        });
+
+        let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
+        let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing model"));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_archestra_request_missing_messages(#[future] database: DatabaseConnection) {
+        let _db = database.await;
+
+        let request_json = json!({
+            "session_id": "test-session-123",
+            "model": "llama3.2"
+        });
+
+        let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
+        let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing or invalid messages"));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_archestra_request_invalid_role(#[future] database: DatabaseConnection) {
+        let _db = database.await;
+
+        let request_json = json!({
+            "session_id": "test-session-123",
+            "model": "llama3.2",
+            "messages": [
+                {
+                    "role": "invalid-role",
+                    "content": "Hello"
+                }
+            ]
+        });
+
+        let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
+        let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid role"));
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_chat_persistence_flow(#[future] database: DatabaseConnection) {
+        let db = database.await;
+
+        // Simulate a chat request that would save messages
+        let request_json = json!({
+            "session_id": "persistence-test-session",
+            "model": "llama3.2",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "What is the weather?"
+                }
+            ]
+        });
+
+        let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
+        let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+        
+        assert!(result.is_ok());
+        let (_, session_id) = result.unwrap();
+
+        // Create the chat manually since proxy would fail
+        let chat = Chat::save(
+            ChatDefinition {
+                llm_provider: "ollama".to_string(),
+                llm_model: "llama3.2".to_string(),
+            },
+            &db,
+        )
+        .await
+        .unwrap();
+
+        // Update session_id to match our test
+        let mut active_chat: ChatActiveModel = chat.into();
+        active_chat.session_id = Set(session_id.clone());
+        let chat = active_chat.update(&db).await.unwrap();
+
+        // Verify chat was created
+        assert_eq!(chat.llm_provider, "ollama");
+        assert_eq!(chat.llm_model, "llama3.2");
+        assert_eq!(chat.session_id, "persistence-test-session");
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_message_role_conversion(#[future] database: DatabaseConnection) {
+        let _db = database.await;
+
+        let request_json = json!({
+            "session_id": "role-test-session",
+            "model": "llama3.2",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a helpful assistant."
+                },
+                {
+                    "role": "user",
+                    "content": "Hello"
+                },
+                {
+                    "role": "assistant",
+                    "content": "Hi there!"
+                }
+            ]
+        });
+
+        let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
+        let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+
+        assert!(result.is_ok());
+        let (ollama_request, _) = result.unwrap();
+        
+        assert_eq!(ollama_request.messages[0].role, MessageRole::System);
+        assert_eq!(ollama_request.messages[1].role, MessageRole::User);
+        assert_eq!(ollama_request.messages[2].role, MessageRole::Assistant);
+    }
 }

@@ -307,6 +307,8 @@ mod tests {
     };
     use rstest::*;
     use tower::ServiceExt;
+    use crate::models::mcp_request_log::{Column, Entity};
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     fn app(db: DatabaseConnection) -> Router {
         create_router(db)
@@ -516,9 +518,6 @@ mod tests {
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
         // Check that a log entry was created
-        use crate::models::mcp_request_log::{Column, Entity};
-        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-
         let logs = Entity::find()
             .filter(Column::ServerName.eq("test-server"))
             .all(&db)

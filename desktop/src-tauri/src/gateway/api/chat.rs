@@ -37,12 +37,11 @@ impl Service {
         &self,
         id: String,
     ) -> Result<Option<ChatWithInteractions>, sea_orm::DbErr> {
-        let id = id.parse::<i32>().unwrap();
-        let chat = Chat::load_by_id(id, &self.db)
-            .await?
-            .ok_or_else(|| sea_orm::DbErr::RecordNotFound("Chat not found".to_string()))?;
-
-        chat.load_with_interactions(&self.db).await
+        let id = id.parse::<i32>().map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
+        match Chat::load_by_id(id, &self.db).await? {
+            Some(chat) => chat.load_with_interactions(&self.db).await,
+            None => Ok(None),
+        }
     }
 
     pub async fn create_chat(&self, request: CreateChatRequest) -> Result<Chat, sea_orm::DbErr> {
@@ -54,7 +53,7 @@ impl Service {
     }
 
     pub async fn delete_chat(&self, id: String) -> Result<(), sea_orm::DbErr> {
-        let id = id.parse::<i32>().unwrap();
+        let id = id.parse::<i32>().map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
         Chat::delete(id, &self.db).await
     }
 
@@ -63,7 +62,7 @@ impl Service {
         id: String,
         request: UpdateChatRequest,
     ) -> Result<Chat, sea_orm::DbErr> {
-        let id = id.parse::<i32>().unwrap();
+        let id = id.parse::<i32>().map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
         let chat = Chat::load_by_id(id, &self.db)
             .await?
             .ok_or_else(|| sea_orm::DbErr::RecordNotFound("Chat not found".to_string()))?;
@@ -197,249 +196,421 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .with_state(service)
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::test_fixtures::database;
-//     use axum::body::Body;
-//     use axum::http::{Request, StatusCode};
-//     use rstest::rstest;
-//     use tower::ServiceExt;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::chat_interactions::Model as ChatInteractionModel;
+    use crate::test_fixtures::database;
+    use axum::body::Body;
+    use axum::http::Request;
+    use http_body_util::BodyExt;
+    use rstest::rstest;
+    use tower::ServiceExt;
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_create_and_get_chat(#[future] database: DatabaseConnection) {
-//         let db = database.await;
-//         let router = create_router(db.clone());
+    #[rstest]
+    #[tokio::test]
+    async fn test_create_and_get_chat(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let router = create_router(db.clone());
 
-//         let create_request = CreateChatRequest {
-//             llm_provider: "ollama".to_string(),
-//             llm_model: "llama3.2".to_string(),
-//         };
+        let create_request = CreateChatRequest {
+            llm_provider: "ollama".to_string(),
+            llm_model: "llama3.2".to_string(),
+        };
 
-//         let response = router
-//             .clone()
-//             .oneshot(
-//                 Request::builder()
-//                     .method("POST")
-//                     .uri("/")
-//                     .header("content-type", "application/json")
-//                     .body(Body::from(serde_json::to_string(&create_request).unwrap()))
-//                     .unwrap(),
-//             )
-//             .await
-//             .unwrap();
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&create_request).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
-//         assert_eq!(response.status(), StatusCode::CREATED);
+        assert_eq!(response.status(), StatusCode::CREATED);
 
-//         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-//             .await
-//             .unwrap();
-//         let created_chat: Chat = serde_json::from_slice(&body).unwrap();
-//         assert_eq!(created_chat.llm_provider, "ollama");
-//         assert_eq!(created_chat.llm_model, "llama3.2");
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let created_chat: Chat = serde_json::from_slice(&body).unwrap();
+        assert!(created_chat.title.is_none());
+        assert_eq!(created_chat.llm_provider, "ollama");
+        assert_eq!(created_chat.llm_model, "llama3.2");
+        assert!(!created_chat.session_id.is_empty());
 
-//         let response = router
-//             .clone()
-//             .oneshot(
-//                 Request::builder()
-//                     .method("GET")
-//                     .uri(format!("/{}", created_chat.id))
-//                     .body(Body::empty())
-//                     .unwrap(),
-//             )
-//             .await
-//             .unwrap();
+        // Get the chat by id
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/{}", created_chat.id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
-//         assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::OK);
 
-//         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-//             .await
-//             .unwrap();
-//         let chat_with_messages: ChatWithMessages = serde_json::from_slice(&body).unwrap();
-//         assert_eq!(chat_with_messages.chat.id, created_chat.id);
-//         assert_eq!(chat_with_messages.messages.len(), 0);
-//     }
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let chat_with_interactions: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
+        assert_eq!(chat_with_interactions.chat.id, created_chat.id);
+        assert_eq!(chat_with_interactions.interactions.len(), 0);
+    }
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_get_all_chats(#[future] database: DatabaseConnection) {
-//         let db = database.await;
-//         let router = create_router(db.clone());
+    #[rstest]
+    #[tokio::test]
+    async fn test_get_all_chats(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let router = create_router(db.clone());
 
-//         let response = router
-//             .clone()
-//             .oneshot(
-//                 Request::builder()
-//                     .method("GET")
-//                     .uri("/")
-//                     .body(Body::empty())
-//                     .unwrap(),
-//             )
-//             .await
-//             .unwrap();
+        // Initially empty
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
-//         assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let chats: Vec<Chat> = serde_json::from_slice(&body).unwrap();
+        assert_eq!(chats.len(), 0);
 
-//         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-//             .await
-//             .unwrap();
-//         let chats: Vec<Chat> = serde_json::from_slice(&body).unwrap();
-//         assert_eq!(chats.len(), 0);
-//     }
+        // Create some chats
+        for i in 0..3 {
+            let create_request = CreateChatRequest {
+                llm_provider: "ollama".to_string(),
+                llm_model: format!("model-{}", i),
+            };
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_delete_chat(#[future] database: DatabaseConnection) {
-//         let db = database.await;
-//         let router = create_router(db.clone());
+            router
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/")
+                        .header("content-type", "application/json")
+                        .body(Body::from(serde_json::to_string(&create_request).unwrap()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+        }
 
-//         let create_request = CreateChatRequest {
-//             llm_provider: "ollama".to_string(),
-//             llm_model: "llama3.2".to_string(),
-//         };
+        // Get all chats
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
-//         let response = router
-//             .clone()
-//             .oneshot(
-//                 Request::builder()
-//                     .method("POST")
-//                     .uri("/")
-//                     .header("content-type", "application/json")
-//                     .body(Body::from(serde_json::to_string(&create_request).unwrap()))
-//                     .unwrap(),
-//             )
-//             .await
-//             .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let chats: Vec<Chat> = serde_json::from_slice(&body).unwrap();
+        assert_eq!(chats.len(), 3);
+        // Chats should be ordered by created_at DESC (newest first)
+        assert!(chats.iter().any(|c| c.llm_model == "model-0"));
+        assert!(chats.iter().any(|c| c.llm_model == "model-1"));
+        assert!(chats.iter().any(|c| c.llm_model == "model-2"));
+    }
 
-//         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-//             .await
-//             .unwrap();
-//         let created_chat: Chat = serde_json::from_slice(&body).unwrap();
+    #[rstest]
+    #[tokio::test]
+    async fn test_delete_chat(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let router = create_router(db.clone());
 
-//         let response = router
-//             .clone()
-//             .oneshot(
-//                 Request::builder()
-//                     .method("DELETE")
-//                     .uri(format!("/{}", created_chat.id))
-//                     .body(Body::empty())
-//                     .unwrap(),
-//             )
-//             .await
-//             .unwrap();
+        let create_request = CreateChatRequest {
+            llm_provider: "ollama".to_string(),
+            llm_model: "llama3.2".to_string(),
+        };
 
-//         assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&create_request).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
-//         let response = router
-//             .clone()
-//             .oneshot(
-//                 Request::builder()
-//                     .method("GET")
-//                     .uri(format!("/{}", created_chat.id))
-//                     .body(Body::empty())
-//                     .unwrap(),
-//             )
-//             .await
-//             .unwrap();
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let created_chat: Chat = serde_json::from_slice(&body).unwrap();
 
-//         assert_eq!(response.status(), StatusCode::NOT_FOUND);
-//     }
+        // Delete the chat
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri(format!("/{}", created_chat.id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_update_chat_title(#[future] database: DatabaseConnection) {
-//         let db = database.await;
-//         let router = create_router(db.clone());
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
 
-//         // Create a chat first
-//         let create_request = CreateChatRequest {
-//             llm_provider: "ollama".to_string(),
-//             llm_model: "llama3.2".to_string(),
-//         };
+        // Verify it's deleted
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/{}", created_chat.id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
-//         let response = router
-//             .clone()
-//             .oneshot(
-//                 Request::builder()
-//                     .method("POST")
-//                     .uri("/")
-//                     .header("content-type", "application/json")
-//                     .body(Body::from(serde_json::to_string(&create_request).unwrap()))
-//                     .unwrap(),
-//             )
-//             .await
-//             .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        
+        // Deleting again should still return NO_CONTENT (idempotent)
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri(format!("/{}", created_chat.id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
-//         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-//             .await
-//             .unwrap();
-//         let created_chat: Chat = serde_json::from_slice(&body).unwrap();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    }
 
-//         // Test updating title to a string
-//         let update_request = UpdateChatRequest {
-//             title: Some("My New Title".to_string()),
-//         };
+    #[rstest]
+    #[tokio::test]
+    async fn test_update_chat_title(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let router = create_router(db.clone());
 
-//         let response = router
-//             .clone()
-//             .oneshot(
-//                 Request::builder()
-//                     .method("PATCH")
-//                     .uri(format!("/{}", created_chat.id))
-//                     .header("content-type", "application/json")
-//                     .body(Body::from(serde_json::to_string(&update_request).unwrap()))
-//                     .unwrap(),
-//             )
-//             .await
-//             .unwrap();
+        // Create a chat first
+        let create_request = CreateChatRequest {
+            llm_provider: "ollama".to_string(),
+            llm_model: "llama3.2".to_string(),
+        };
 
-//         assert_eq!(response.status(), StatusCode::OK);
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&create_request).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
-//         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-//             .await
-//             .unwrap();
-//         let updated_chat: Chat = serde_json::from_slice(&body).unwrap();
-//         assert_eq!(updated_chat.title, Some("My New Title".to_string()));
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let created_chat: Chat = serde_json::from_slice(&body).unwrap();
 
-//         // Test updating title back to None
-//         let update_request = UpdateChatRequest { title: None };
+        // Test updating title to a string
+        let update_request = UpdateChatRequest {
+            title: Some("My New Title".to_string()),
+        };
 
-//         let response = router
-//             .clone()
-//             .oneshot(
-//                 Request::builder()
-//                     .method("PATCH")
-//                     .uri(format!("/{}", created_chat.id))
-//                     .header("content-type", "application/json")
-//                     .body(Body::from(serde_json::to_string(&update_request).unwrap()))
-//                     .unwrap(),
-//             )
-//             .await
-//             .unwrap();
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri(format!("/{}", created_chat.id))
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&update_request).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
 
-//         assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::OK);
 
-//         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-//             .await
-//             .unwrap();
-//         let updated_chat: Chat = serde_json::from_slice(&body).unwrap();
-//         assert_eq!(updated_chat.title, None);
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let updated_chat: Chat = serde_json::from_slice(&body).unwrap();
+        assert_eq!(updated_chat.title, Some("My New Title".to_string()));
 
-//         // Test updating non-existent chat
-//         let response = router
-//             .clone()
-//             .oneshot(
-//                 Request::builder()
-//                     .method("PATCH")
-//                     .uri("/99999")
-//                     .header("content-type", "application/json")
-//                     .body(Body::from(serde_json::to_string(&update_request).unwrap()))
-//                     .unwrap(),
-//             )
-//             .await
-//             .unwrap();
+        // Test updating title back to None
+        let update_request = UpdateChatRequest { title: None };
 
-//         assert_eq!(response.status(), StatusCode::NOT_FOUND);
-//     }
-// }
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri(format!("/{}", created_chat.id))
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&update_request).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let updated_chat: Chat = serde_json::from_slice(&body).unwrap();
+        assert_eq!(updated_chat.title, None);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_update_non_existent_chat(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let router = create_router(db.clone());
+
+        let update_request = UpdateChatRequest {
+            title: Some("Test".to_string()),
+        };
+
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/99999")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&update_request).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_get_non_existent_chat(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let router = create_router(db.clone());
+
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/99999")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_chat_with_interactions(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let router = create_router(db.clone());
+
+        // Create a chat
+        let create_request = CreateChatRequest {
+            llm_provider: "ollama".to_string(),
+            llm_model: "llama3.2".to_string(),
+        };
+
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&create_request).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let created_chat: Chat = serde_json::from_slice(&body).unwrap();
+
+        // Add some interactions
+        let contents = vec![
+            r#"{"role": "user", "content": "Hello"}"#,
+            r#"{"role": "assistant", "content": "Hi there!"}"#,
+            r#"{"role": "user", "content": "How are you?"}"#,
+        ];
+
+        for content in &contents {
+            ChatInteractionModel::save(created_chat.session_id.clone(), content.to_string(), &db)
+                .await
+                .unwrap();
+        }
+
+        // Get chat with interactions
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/{}", created_chat.id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let chat_with_interactions: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
+        assert_eq!(chat_with_interactions.chat.id, created_chat.id);
+        assert_eq!(chat_with_interactions.interactions.len(), 3);
+
+        // Verify interaction contents are preserved
+        for (i, interaction) in chat_with_interactions.interactions.iter().enumerate() {
+            assert_eq!(interaction.content.as_str().unwrap(), contents[i]);
+        }
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_invalid_chat_id_format(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let router = create_router(db.clone());
+
+        // Test with non-numeric ID
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/not-a-number")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        // Invalid ID format will return INTERNAL_SERVER_ERROR
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+}

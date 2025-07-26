@@ -2,6 +2,7 @@ use crate::database::connection::get_database_connection_with_app;
 use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel, ServerConfig};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
+use url::Url;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GmailTokens {
@@ -11,8 +12,6 @@ pub struct GmailTokens {
 }
 
 pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
-    use url::Url;
-
     println!("Received Gmail OAuth callback: {url}");
 
     if let Ok(parsed_url) = Url::parse(&url) {

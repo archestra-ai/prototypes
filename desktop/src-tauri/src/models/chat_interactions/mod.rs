@@ -89,138 +89,158 @@ impl Model {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::models::chat::{ChatDefinition, Model as ChatModel};
-//     use crate::test_fixtures::database;
-//     use rstest::rstest;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::chat::ActiveModel as ChatActiveModel;
+    use crate::test_fixtures::database;
+    use rstest::rstest;
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_interaction_crud(#[future] database: DatabaseConnection) {
-//         let db = database.await;
+    #[rstest]
+    #[tokio::test]
+    async fn test_save_chat_interaction(#[future] database: DatabaseConnection) {
+        let db = database.await;
 
-//         let chat_def = ChatDefinition {
-//             llm_provider: "ollama".to_string(),
-//             llm_model: "llama3.2".to_string(),
-//         };
-//         let chat = ChatModel::save(chat_def, &db).await.unwrap();
+        // Create a chat with session_id
+        let chat = ChatActiveModel {
+            title: Set(Some("Test Chat".to_string())),
+            llm_provider: Set("ollama".to_string()),
+            llm_model: Set("llama3.2".to_string()),
+            session_id: Set("test-session-123".to_string()),
+            ..Default::default()
+        }
+        .insert(&db)
+        .await
+        .unwrap();
 
-//         let interaction_def = ChatInteractionDefinition {
-//             chat_id: chat.id,
-//             content: serde_json::json!({
-//                 "role": "user",
-//                 "content": "Hello, world!"
-//             }),
-//         };
+        // Save a chat interaction using session_id
+        let content = r#"{"role": "user", "content": "Hello, world!"}"#;
+        let interaction = Model::save("test-session-123".to_string(), content.to_string(), &db)
+            .await
+            .unwrap();
 
-//         let interaction = Model::save(interaction_def, &db).await.unwrap();
-//         assert_eq!(interaction.chat_id, chat.id);
-//         assert_eq!(interaction.content["role"], "user");
-//         assert_eq!(interaction.content["content"], "Hello, world!");
+        assert_eq!(interaction.chat_id, chat.id);
+        let saved_content = interaction.content.as_str().unwrap();
+        assert_eq!(saved_content, content);
+    }
 
-//         let interactions = Model::load_by_chat(chat.id, &db).await.unwrap();
-//         assert_eq!(interactions.len(), 1);
-//         assert_eq!(interactions[0].id, interaction.id);
-//     }
+    #[rstest]
+    #[tokio::test]
+    async fn test_save_with_invalid_session_id(#[future] database: DatabaseConnection) {
+        let db = database.await;
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_save_message_helper(#[future] database: DatabaseConnection) {
-//         let db = database.await;
+        // Try to save with non-existent session_id
+        let result = Model::save(
+            "non-existent-session".to_string(),
+            "test content".to_string(),
+            &db,
+        )
+        .await;
 
-//         let chat_def = ChatDefinition {
-//             llm_provider: "ollama".to_string(),
-//             llm_model: "llama3.2".to_string(),
-//         };
-//         let chat = ChatModel::save(chat_def, &db).await.unwrap();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Chat not found with session_id"));
+    }
 
-//         let interaction = Model::save_message(
-//             chat.id,
-//             "user".to_string(),
-//             "Hello, world!".to_string(),
-//             &db,
-//         )
-//         .await
-//         .unwrap();
+    #[rstest]
+    #[tokio::test]
+    async fn test_count_chat_interactions(#[future] database: DatabaseConnection) {
+        let db = database.await;
 
-//         assert_eq!(interaction.chat_id, chat.id);
-//         assert_eq!(interaction.content["role"], "user");
-//         assert_eq!(interaction.content["content"], "Hello, world!");
-//     }
+        // Create a chat
+        let _chat = ChatActiveModel {
+            title: Set(Some("Test Chat".to_string())),
+            llm_provider: Set("ollama".to_string()),
+            llm_model: Set("llama3.2".to_string()),
+            session_id: Set("count-test-session".to_string()),
+            ..Default::default()
+        }
+        .insert(&db)
+        .await
+        .unwrap();
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_multiple_interactions(#[future] database: DatabaseConnection) {
-//         let db = database.await;
+        // Initially should be 0
+        let count = Model::count_chat_interactions("count-test-session".to_string(), &db)
+            .await
+            .unwrap();
+        assert_eq!(count, 0);
 
-//         let chat_def = ChatDefinition {
-//             llm_provider: "ollama".to_string(),
-//             llm_model: "llama3.2".to_string(),
-//         };
-//         let chat = ChatModel::save(chat_def, &db).await.unwrap();
+        // Add some interactions
+        for i in 0..3 {
+            let content = format!(r#"{{"role": "user", "content": "Message {i}"}}"#);
+            Model::save("count-test-session".to_string(), content, &db)
+                .await
+                .unwrap();
+        }
 
-//         let interactions = vec![
-//             ChatInteractionDefinition {
-//                 chat_id: chat.id,
-//                 content: serde_json::json!({
-//                     "role": "user",
-//                     "content": "Hello"
-//                 }),
-//             },
-//             ChatInteractionDefinition {
-//                 chat_id: chat.id,
-//                 content: serde_json::json!({
-//                     "role": "assistant",
-//                     "content": "Hi there!"
-//                 }),
-//             },
-//             ChatInteractionDefinition {
-//                 chat_id: chat.id,
-//                 content: serde_json::json!({
-//                     "role": "user",
-//                     "content": "How are you?"
-//                 }),
-//             },
-//         ];
+        // Count should be 3
+        let count = Model::count_chat_interactions("count-test-session".to_string(), &db)
+            .await
+            .unwrap();
+        assert_eq!(count, 3);
+    }
 
-//         for interaction_def in interactions {
-//             Model::save(interaction_def, &db).await.unwrap();
-//         }
+    #[rstest]
+    #[tokio::test]
+    async fn test_count_with_invalid_session_id(#[future] database: DatabaseConnection) {
+        let db = database.await;
 
-//         let loaded_interactions = Model::load_by_chat(chat.id, &db).await.unwrap();
-//         assert_eq!(loaded_interactions.len(), 3);
-//         assert_eq!(loaded_interactions[0].content["role"], "user");
-//         assert_eq!(loaded_interactions[1].content["role"], "assistant");
-//         assert_eq!(loaded_interactions[2].content["role"], "user");
-//     }
+        let result = Model::count_chat_interactions("non-existent-session".to_string(), &db).await;
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_delete_by_chat(#[future] database: DatabaseConnection) {
-//         let db = database.await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Chat not found"));
+    }
 
-//         let chat_def = ChatDefinition {
-//             llm_provider: "ollama".to_string(),
-//             llm_model: "llama3.2".to_string(),
-//         };
-//         let chat = ChatModel::save(chat_def, &db).await.unwrap();
+    #[rstest]
+    #[tokio::test]
+    async fn test_multiple_chats_isolation(#[future] database: DatabaseConnection) {
+        let db = database.await;
 
-//         let interaction_def = ChatInteractionDefinition {
-//             chat_id: chat.id,
-//             content: serde_json::json!({
-//                 "role": "user",
-//                 "content": "Test message"
-//             }),
-//         };
-//         Model::save(interaction_def.clone(), &db).await.unwrap();
-//         Model::save(interaction_def, &db).await.unwrap();
+        // Create two chats
+        let _chat1 = ChatActiveModel {
+            title: Set(Some("Chat 1".to_string())),
+            llm_provider: Set("ollama".to_string()),
+            llm_model: Set("llama3.2".to_string()),
+            session_id: Set("session-1".to_string()),
+            ..Default::default()
+        }
+        .insert(&db)
+        .await
+        .unwrap();
 
-//         let deleted = Model::delete_by_chat(chat.id, &db).await.unwrap();
-//         assert_eq!(deleted, 2);
+        let _chat2 = ChatActiveModel {
+            title: Set(Some("Chat 2".to_string())),
+            llm_provider: Set("ollama".to_string()),
+            llm_model: Set("llama3.2".to_string()),
+            session_id: Set("session-2".to_string()),
+            ..Default::default()
+        }
+        .insert(&db)
+        .await
+        .unwrap();
 
-//         let interactions = Model::load_by_chat(chat.id, &db).await.unwrap();
-//         assert_eq!(interactions.len(), 0);
-//     }
-// }
+        // Add interactions to each chat
+        Model::save("session-1".to_string(), "Chat 1 message".to_string(), &db)
+            .await
+            .unwrap();
+        Model::save("session-2".to_string(), "Chat 2 message 1".to_string(), &db)
+            .await
+            .unwrap();
+        Model::save("session-2".to_string(), "Chat 2 message 2".to_string(), &db)
+            .await
+            .unwrap();
+
+        // Verify counts are isolated
+        let count1 = Model::count_chat_interactions("session-1".to_string(), &db)
+            .await
+            .unwrap();
+        let count2 = Model::count_chat_interactions("session-2".to_string(), &db)
+            .await
+            .unwrap();
+
+        assert_eq!(count1, 1);
+        assert_eq!(count2, 2);
+    }
+}
