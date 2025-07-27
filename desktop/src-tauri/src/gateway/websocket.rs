@@ -248,7 +248,7 @@ mod tests {
         for i in 0..50 {
             let msg = WebSocketMessage::ChatTitleUpdated(ChatTitleUpdatedWebSocketPayload {
                 chat_id: i,
-                title: format!("Chat {}", i),
+                title: format!("Chat {i}"),
             });
             let _ = service.broadcast_tx.send(msg);
         }
@@ -270,7 +270,7 @@ mod tests {
         assert_eq!(cloned.title, "Long Chat Title That Should Be Preserved");
 
         // Test debug formatting
-        let debug_str = format!("{:?}", payload);
+        let debug_str = format!("{payload:?}");
         assert!(debug_str.contains("999"));
         assert!(debug_str.contains("Long Chat Title"));
     }
@@ -300,7 +300,7 @@ mod tests {
             let handle = tokio::spawn(async move {
                 let msg = WebSocketMessage::ChatTitleUpdated(ChatTitleUpdatedWebSocketPayload {
                     chat_id: i,
-                    title: format!("Concurrent {}", i),
+                    title: format!("Concurrent {i}"),
                 });
                 service_clone.broadcast(msg).await;
             });
