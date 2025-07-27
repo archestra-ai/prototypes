@@ -26,7 +26,6 @@ use tracing::{debug, error};
 // Constants
 const MIN_INTERACTIONS_FOR_TITLE_GENERATION: u64 = 4;
 
-
 #[derive(Clone)]
 struct Service {
     app_handle: AppHandle,
@@ -38,11 +37,13 @@ struct Service {
 // create our own "ProxiedOllamaChatRequest" struct, which contains session_id + all of the OllamaChatRequest
 // fields and flatten everything into one object and deserialize the request json bytes into that struct, but
 // OllamaChatRequest doesn't "implement" Deserialize.. so this is the alternative
-fn convert_proxied_request_to_ollama_request(body_bytes: &[u8]) -> Result<(ChatMessageRequest, String), String> {
+fn convert_proxied_request_to_ollama_request(
+    body_bytes: &[u8],
+) -> Result<(ChatMessageRequest, String), String> {
     debug!("Converting proxied request to ollama request");
 
     // First, parse as JSON Value to extract session_id
-    let json_value: serde_json::Value = match serde_json::from_slice(&body_bytes) {
+    let json_value: serde_json::Value = match serde_json::from_slice(body_bytes) {
         Ok(value) => value,
         Err(e) => {
             error!("Failed to parse JSON: {e}");
@@ -55,7 +56,7 @@ fn convert_proxied_request_to_ollama_request(body_bytes: &[u8]) -> Result<(ChatM
         Some(id) => {
             debug!("Extracted session_id: {}", id);
             id.to_string()
-        },
+        }
         None => {
             error!("Missing session_id in request");
             return Err("Missing session_id in request".to_string());
@@ -82,18 +83,18 @@ fn convert_proxied_request_to_ollama_request(body_bytes: &[u8]) -> Result<(ChatM
 
     // Create ChatMessageRequest using the constructor
     let mut ollama_request = ChatMessageRequest::new(model_name.clone(), messages);
-    
+
     // Set optional fields if they exist
     if let Some(options_value) = json_value.get("options") {
         if let Ok(options) = serde_json::from_value::<ModelOptions>(options_value.clone()) {
             ollama_request = ollama_request.options(options);
         }
     }
-    
+
     if let Some(template) = json_value.get("template").and_then(|v| v.as_str()) {
         ollama_request = ollama_request.template(template.to_string());
     }
-    
+
     // NOTE: for right now we don't use format and keep_alive, and the exported structs from ollama-rs
     // don't implement Deserialize so it makes these difficult to deserialize. If we start using them,
     // figure out a solution here..
@@ -102,19 +103,19 @@ fn convert_proxied_request_to_ollama_request(body_bytes: &[u8]) -> Result<(ChatM
     //         ollama_request = ollama_request.format(format);
     //     }
     // }
-    
+
     // if let Some(keep_alive_value) = json_value.get("keep_alive") {
     //     if let Ok(keep_alive) = serde_json::from_value::<KeepAlive>(keep_alive_value.clone()) {
     //         ollama_request = ollama_request.keep_alive(keep_alive);
     //     }
     // }
-    
+
     if let Some(tools_value) = json_value.get("tools") {
         if let Ok(tools) = serde_json::from_value::<Vec<ToolInfo>>(tools_value.clone()) {
             ollama_request = ollama_request.tools(tools);
         }
     }
-    
+
     if let Some(think) = json_value.get("think").and_then(|v| v.as_bool()) {
         ollama_request = ollama_request.think(think);
     }
@@ -145,8 +146,13 @@ impl Service {
         let mut full_chat_context = String::new();
         for interaction in &chat.interactions {
             // Deserialize the ChatMessage from the JSON content
-            if let Ok(chat_message) = serde_json::from_value::<ChatMessage>(interaction.content.clone()) {
-                full_chat_context.push_str(&format!("{:?}: {}\n\n", chat_message.role, chat_message.content));
+            if let Ok(chat_message) =
+                serde_json::from_value::<ChatMessage>(interaction.content.clone())
+            {
+                full_chat_context.push_str(&format!(
+                    "{:?}: {}\n\n",
+                    chat_message.role, chat_message.content
+                ));
             }
         }
 
@@ -191,28 +197,29 @@ impl Service {
             Ok(bytes) => {
                 debug!("Request body size: {} bytes", bytes.len());
                 bytes
-            },
+            }
             Err(e) => {
                 error!("Failed to read request body: {}", e);
-                return Err(format!("Failed to read request body: {}", e));
+                return Err(format!("Failed to read request body: {e}"));
             }
         };
 
-        let (ollama_request, session_id) = match convert_proxied_request_to_ollama_request(&body_bytes) {
-            Ok((request, session_id)) => (request, session_id),
-            Err(e) => return Err(e),
-        };
+        let (ollama_request, session_id) =
+            match convert_proxied_request_to_ollama_request(&body_bytes) {
+                Ok((request, session_id)) => (request, session_id),
+                Err(e) => return Err(e),
+            };
 
         // Load or create chat
         let chat_session_id = match Chat::load_by_session_id(session_id.clone(), &self.db).await {
             Ok(Some(c)) => {
                 debug!("Found existing chat with session_id: {}", c.session_id);
                 c.session_id.clone()
-            },
+            }
             Ok(None) => {
                 error!("Chat not found for session_id: {}", session_id);
                 return Err("Chat not found".to_string());
-            },
+            }
             Err(e) => {
                 error!("Failed to load chat: {}", e);
                 return Err(format!("Failed to load chat: {e}"));
@@ -227,8 +234,7 @@ impl Service {
             let content_json = serde_json::json!(&last_msg);
 
             if let Err(e) =
-                ChatInteraction::save(chat_session_id.clone(), content_json, &self.db)
-                    .await
+                ChatInteraction::save(chat_session_id.clone(), content_json, &self.db).await
             {
                 error!("Failed to save user message: {e}");
             }
@@ -240,7 +246,7 @@ impl Service {
             Ok(stream) => {
                 debug!("Successfully started chat stream");
                 stream
-            },
+            }
             Err(e) => {
                 error!("Failed to start chat stream: {}", e);
                 return Err(format!("Failed to start chat stream: {e}"));
@@ -267,7 +273,8 @@ impl Service {
                         accumulated_content.push_str(&chat_response.message.content);
 
                         // Convert to JSON and send with newline for NDJSON format
-                        let mut json_response = serde_json::to_vec(&chat_response).unwrap_or_default();
+                        let mut json_response =
+                            serde_json::to_vec(&chat_response).unwrap_or_default();
                         json_response.push(b'\n'); // Add newline for NDJSON
                         if tx
                             .send(Ok(axum::body::Bytes::from(json_response)))
@@ -331,9 +338,7 @@ impl Service {
                         });
                         let mut error_bytes = serde_json::to_vec(&error_json).unwrap_or_default();
                         error_bytes.push(b'\n'); // Add newline for NDJSON
-                        let _ = tx
-                            .send(Ok(axum::body::Bytes::from(error_bytes)))
-                            .await;
+                        let _ = tx.send(Ok(axum::body::Bytes::from(error_bytes))).await;
                         break;
                     }
                 }
@@ -423,8 +428,10 @@ impl Service {
             }
             Err(e) => {
                 error!("Failed to proxy request to Ollama: {}", e);
-                Err(format!("Failed to proxy request to Ollama (is Ollama running?): {e}"))
-            },
+                Err(format!(
+                    "Failed to proxy request to Ollama (is Ollama running?): {e}"
+                ))
+            }
         }
     }
 }
@@ -445,7 +452,7 @@ async fn proxy_handler(
         Ok(response) => response,
         Err(e) => {
             error!("Request failed with error: {}", e);
-            (StatusCode::BAD_GATEWAY, format!("Proxy error: {}", e)).into_response()
+            (StatusCode::BAD_GATEWAY, format!("Proxy error: {e}")).into_response()
         }
     }
 }

@@ -1,4 +1,6 @@
-use crate::models::chat::{ChatDefinition, ChatWithInteractions as ChatWithInteractionsModel, Model as Chat};
+use crate::models::chat::{
+    ChatDefinition, ChatWithInteractions as ChatWithInteractionsModel, Model as Chat,
+};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
@@ -57,26 +59,35 @@ pub struct ChatMessage {
 impl From<OllamaChatMessage> for ChatMessage {
     fn from(msg: OllamaChatMessage) -> Self {
         // Convert tool_calls
-        let tool_calls = msg.tool_calls.into_iter().map(|call| {
-            // Serialize and deserialize to convert from ollama-rs ToolCall to our schema
-            let json = serde_json::to_value(&call).unwrap_or_default();
-            serde_json::from_value(json).unwrap_or(ToolCall {
-                function: ToolCallFunction {
-                    name: String::new(),
-                    arguments: serde_json::Value::Object(serde_json::Map::new()),
-                }
+        let tool_calls = msg
+            .tool_calls
+            .into_iter()
+            .map(|call| {
+                // Serialize and deserialize to convert from ollama-rs ToolCall to our schema
+                let json = serde_json::to_value(&call).unwrap_or_default();
+                serde_json::from_value(json).unwrap_or(ToolCall {
+                    function: ToolCallFunction {
+                        name: String::new(),
+                        arguments: serde_json::Value::Object(serde_json::Map::new()),
+                    },
+                })
             })
-        }).collect();
+            .collect();
 
         // Convert images if present
-        let images = msg.images.map(|imgs| {
-            imgs.into_iter().map(|img| {
-                // Convert Image to base64 string
-                serde_json::to_value(&img)
-                    .and_then(|v| serde_json::from_value::<String>(v))
-                    .unwrap_or_default()
-            }).collect()
-        }).unwrap_or_else(Vec::new);
+        let images = msg
+            .images
+            .map(|imgs| {
+                imgs.into_iter()
+                    .map(|img| {
+                        // Convert Image to base64 string
+                        serde_json::to_value(&img)
+                            .and_then(serde_json::from_value::<String>)
+                            .unwrap_or_default()
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
 
         // Convert role from ollama-rs MessageRole to our enum
         let role = match format!("{:?}", msg.role).to_lowercase().as_str() {
@@ -90,7 +101,7 @@ impl From<OllamaChatMessage> for ChatMessage {
         ChatMessage {
             role,
             content: msg.content,
-            thinking: msg.thinking.unwrap_or_else(String::new),
+            thinking: msg.thinking.unwrap_or_default(),
             tool_calls,
             images,
         }

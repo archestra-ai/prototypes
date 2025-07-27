@@ -2,8 +2,8 @@ use crate::database::connection::get_database_connection_with_app;
 use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel, ServerConfig};
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
-use url::Url;
 use tracing::{debug, error};
+use url::Url;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GmailTokens {

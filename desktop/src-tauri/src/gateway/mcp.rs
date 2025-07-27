@@ -1,5 +1,4 @@
 use crate::models::mcp_server::Model as MCPServerModel;
-use tracing::error;
 use rmcp::{
     handler::server::{router::tool::ToolRouter, tool::Parameters},
     model::{
@@ -23,6 +22,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::error;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

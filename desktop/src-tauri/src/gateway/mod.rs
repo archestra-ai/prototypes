@@ -26,7 +26,7 @@ pub async fn start_gateway(
         .init();
 
     info!("Starting gateway server...");
-    
+
     let mcp_service = mcp::create_streamable_http_service(user_id, db.clone()).await;
     let mcp_proxy_router = mcp_proxy::create_router(db.clone());
     let api_router = api::create_router(db.clone());
@@ -36,7 +36,7 @@ pub async fn start_gateway(
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
-        
+
     // Create trace layer for logging
     let trace_layer = TraceLayer::new_for_http()
         .make_span_with(DefaultMakeSpan::new().level(Level::INFO))

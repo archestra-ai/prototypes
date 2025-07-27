@@ -3,7 +3,6 @@ use crate::database::connection::get_database_connection_with_app;
 use crate::models::mcp_server::Model;
 use crate::utils::node;
 use rmcp::model::{Resource as MCPResource, Tool as MCPTool};
-use tracing::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::process::Stdio;
@@ -12,6 +11,7 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, Mutex as TokioMutex, RwLock};
+use tracing::{debug, error, info};
 
 // Constants for resource management
 const MAX_BUFFER_SIZE: usize = 1000;

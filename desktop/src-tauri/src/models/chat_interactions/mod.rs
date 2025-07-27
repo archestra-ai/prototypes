@@ -219,24 +219,36 @@ mod tests {
         .unwrap();
 
         // Add interactions to each chat
-        Model::save("session-1".to_string(), serde_json::json!({
-            "role": "user",
-            "content": "Chat 1 message"
-        }), &db)
-            .await
-            .unwrap();
-        Model::save("session-2".to_string(), serde_json::json!({
-            "role": "user",
-            "content": "Chat 2 message 1"
-        }), &db)
-            .await
-            .unwrap();
-        Model::save("session-2".to_string(), serde_json::json!({
-            "role": "assistant",
-            "content": "Chat 2 message 2"
-        }), &db)
-            .await
-            .unwrap();
+        Model::save(
+            "session-1".to_string(),
+            serde_json::json!({
+                "role": "user",
+                "content": "Chat 1 message"
+            }),
+            &db,
+        )
+        .await
+        .unwrap();
+        Model::save(
+            "session-2".to_string(),
+            serde_json::json!({
+                "role": "user",
+                "content": "Chat 2 message 1"
+            }),
+            &db,
+        )
+        .await
+        .unwrap();
+        Model::save(
+            "session-2".to_string(),
+            serde_json::json!({
+                "role": "assistant",
+                "content": "Chat 2 message 2"
+            }),
+            &db,
+        )
+        .await
+        .unwrap();
 
         // Verify counts are isolated
         let count1 = Model::count_chat_interactions("session-1".to_string(), &db)
