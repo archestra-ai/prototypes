@@ -128,7 +128,7 @@ export default function ChatInput(_props: ChatInputProps) {
       const body: any = {
         model: selectedModel,
         // Convert tools to tool names if any
-        tools: selectedTools?.map((tool) => `${tool.serverName}_${tool.toolName}`) || [],
+        tools: selectedTools?.map((tool) => `${tool.serverName}_${tool.name}`) || [],
       };
 
       // Add agent context if this is an agent command

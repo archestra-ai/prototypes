@@ -137,7 +137,6 @@ export default function ChatHistory(_props: ChatHistoryProps) {
             <div className="text-center text-muted-foreground py-8">No messages yet. Start a conversation!</div>
           ) : (
             messages.map((message, index) => {
-              console.log(`[ChatHistory] Rendering message ${index}:`, message);
               return (
                 <ChatMessage
                   key={message.id}
