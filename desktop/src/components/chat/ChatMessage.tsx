@@ -1,7 +1,7 @@
 import type { UIMessage } from 'ai';
 import { Bot, User } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/tailwind';
 
 import { MessageContent } from './MessageContent';
 

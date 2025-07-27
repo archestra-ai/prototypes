@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/tailwind';
 import { useChatContext } from '@/providers/chat-provider';
 import { ToolCategory } from '@/services/agent/mcp-tool-wrapper-ai-sdk';
 import { useAgentStore } from '@/stores/agent-store';

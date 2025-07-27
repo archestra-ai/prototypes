@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/tailwind';
 import { useAgentStore } from '@/stores/agent-store';
 import { TaskProgressDataPart, TaskProgress as TaskProgressType, TaskStep } from '@/types/agent';
 

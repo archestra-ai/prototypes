@@ -1,7 +1,7 @@
 'use client';
 
 import { FileText } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import ToolPill from '@/components/ToolPill';
 import {
@@ -17,7 +17,7 @@ import {
   AIInputToolbar,
   AIInputTools,
 } from '@/components/kibo/ai-input';
-import { ToolContext } from '@/components/kibo/ai-input';
+// Remove this import - ToolContext is defined below
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils/tailwind';
 import { useChatContext } from '@/providers/chat-provider';
@@ -27,26 +27,37 @@ import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
 import { ChatInteractionStatus } from '@/types';
 
+// Define ToolContext interface
+interface ToolContext {
+  serverName: string;
+  toolName: string;
+  enabled: boolean;
+  description?: string;
+}
+
 interface ChatInputProps {}
 
 // AIInputContextPills component for displaying selected tools
 interface AIInputContextPillsProps {
   tools: ToolContext[];
-  onRemoveTool: (tool: ToolContext) => void;
 }
 
-function AIInputContextPills({ tools, onRemoveTool }: AIInputContextPillsProps) {
+function AIInputContextPills({ tools }: AIInputContextPillsProps) {
   if (!tools || tools.length === 0) return null;
 
   return (
     <div className={cn('flex flex-wrap gap-2 p-3 pb-0')}>
-      {tools.map((tool, index) => (
-        <ToolPill
-          key={`${tool.serverName}-${tool.toolName}-${index}`}
-          tool={tool}
-          onRemove={() => onRemoveTool(tool)}
-        />
-      ))}
+      {tools.map((tool, index) => {
+        // Convert ToolContext to ToolWithMCPServerName
+        const toolWithMCPServerName = {
+          serverName: tool.serverName,
+          name: tool.toolName,
+          enabled: tool.enabled,
+          description: tool.description || '',
+          inputSchema: { type: 'object' as const }, // Add minimal schema as it's required by BaseTool
+        };
+        return <ToolPill key={`${tool.serverName}-${tool.toolName}-${index}`} tool={toolWithMCPServerName} />;
+      })}
     </div>
   );
 }
@@ -152,10 +163,6 @@ export default function ChatInput(_props: ChatInputProps) {
     setInput(e.target.value);
   };
 
-  const handleToolRemove = (tool: ToolContext) => {
-    useMCPServersStore.getState().toggleSelectedTool(tool.serverName, tool.toolName);
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       if (e.metaKey || e.ctrlKey) {
@@ -189,7 +196,14 @@ export default function ChatInput(_props: ChatInputProps) {
     <TooltipProvider>
       <div className="space-y-2">
         <AIInput onSubmit={onSubmit} className="bg-inherit">
-          <AIInputContextPills tools={selectedTools} onRemoveTool={handleToolRemove} />
+          <AIInputContextPills
+            tools={selectedTools.map((tool) => ({
+              serverName: tool.serverName,
+              toolName: tool.name,
+              enabled: tool.enabled,
+              description: tool.description,
+            }))}
+          />
           <AIInputTextarea
             value={input}
             onChange={handleInputChange}
@@ -246,7 +260,7 @@ export default function ChatInput(_props: ChatInputProps) {
               </Tooltip>
             </AIInputTools>
             <AIInputSubmit
-              status={isStreaming ? 'streaming' : 'ready'}
+              status={isStreaming ? ChatInteractionStatus.Streaming : ChatInteractionStatus.Ready}
               onClick={isStreaming ? cancelStreaming : undefined}
               disabled={!canSend}
             />

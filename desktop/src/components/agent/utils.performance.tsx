@@ -2,8 +2,8 @@ import { Bot, CheckCircle, Loader2 } from 'lucide-react';
 import React, { memo } from 'react';
 
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
-import { cn } from '@/lib/utils';
-import ToolCallIndicator from '@/pages/ChatPage/ToolCallIndicator';
+import { cn } from '@/lib/utils/tailwind';
+import ToolCallIndicator from '@/pages/ChatPage/ChatHistory/Interactions/ToolCallIndicator';
 import { ReasoningDataPart, TaskProgressDataPart } from '@/types/agent';
 
 /**

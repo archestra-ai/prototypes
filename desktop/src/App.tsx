@@ -22,7 +22,7 @@ export default function App() {
     }
   };
 
-  const overflowClassName = activeView === NavigationViewKey.Chat ? ' overflow-x-hidden' : ' overflow-y-auto';
+  // Removed unused overflowClassName variable
 
   return (
     <div className="[--header-height:2.25rem] h-screen flex flex-col">

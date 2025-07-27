@@ -2,7 +2,7 @@ import { Bell } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/tailwind';
 import {
   HumanInLoopHandler,
   ToolApprovalRequest,

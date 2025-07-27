@@ -2,7 +2,7 @@ import { Brain, Loader2, Pause, Play, Square } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/tailwind';
 import { useAgentStore } from '@/stores/agent-store';
 import { AgentMode } from '@/types/agent';
 
