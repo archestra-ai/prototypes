@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, Mutex as TokioMutex, RwLock};
+use tracing::{debug, error, info};
 
 // Constants for resource management
 const MAX_BUFFER_SIZE: usize = 1000;
@@ -132,7 +133,7 @@ impl MCPServerManager {
         };
 
         let env_vars = env.unwrap_or_default();
-        println!(
+        debug!(
             "🚀 MCP [{}] Starting: {} {}",
             name,
             actual_command,
@@ -196,11 +197,11 @@ impl MCPServerManager {
             let mut stdin = stdin;
             while let Some(message) = stdin_rx.recv().await {
                 if let Err(e) = stdin.write_all(message.as_bytes()).await {
-                    eprintln!("Failed to write to stdin: {e}");
+                    error!("Failed to write to stdin: {e}");
                     break;
                 }
                 if let Err(e) = stdin.flush().await {
-                    eprintln!("Failed to flush stdin: {e}");
+                    error!("Failed to flush stdin: {e}");
                     break;
                 }
             }
@@ -216,7 +217,7 @@ impl MCPServerManager {
             while let Ok(Some(line)) = lines.next_line().await {
                 // Only log non-JSON responses or errors for debugging
                 if !line.trim_start().starts_with('{') {
-                    println!("MCP [{server_name_clone}] {line}");
+                    debug!("MCP [{server_name_clone}] {line}");
                 }
 
                 let mut buffer = buffer_clone.lock().await;
@@ -237,7 +238,7 @@ impl MCPServerManager {
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                eprintln!("⚠️ MCP [{server_name_clone2}] {line}");
+                error!("⚠️ MCP [{server_name_clone2}] {line}");
             }
         });
 
@@ -262,7 +263,7 @@ impl MCPServerManager {
             servers.insert(name.clone(), server);
         }
 
-        println!("✅ MCP [{name}] Started successfully");
+        debug!("✅ MCP [{name}] Started successfully");
         Ok(())
     }
 
@@ -280,7 +281,7 @@ impl MCPServerManager {
         let url = args[0].clone();
         let headers = env.unwrap_or_default();
 
-        println!("🚀 MCP [{name}] Starting HTTP server at: {url}");
+        info!("🚀 MCP [{name}] Starting HTTP server at: {url}");
 
         let server = MCPServer {
             name: name.clone(),
@@ -304,13 +305,13 @@ impl MCPServerManager {
             servers.insert(name.clone(), server);
         }
 
-        println!("✅ MCP [{name}] HTTP server started successfully");
+        info!("✅ MCP [{name}] HTTP server started successfully");
         Ok(())
     }
 
     /// Stop an MCP server
     pub async fn stop_server(&self, server_name: &str) -> Result<(), String> {
-        println!("🛑 MCP [{server_name}] Stopping server");
+        info!("🛑 MCP [{server_name}] Stopping server");
 
         let server = {
             let mut servers = self.servers.write().await;
@@ -327,14 +328,14 @@ impl MCPServerManager {
             if let Some(process_handle) = server.process_handle {
                 let mut child = process_handle.lock().await;
                 if let Err(e) = child.kill().await {
-                    eprintln!("⚠️ MCP [{server_name}] Failed to kill process: {e}");
+                    error!("⚠️ MCP [{server_name}] Failed to kill process: {e}");
                 }
             }
 
-            println!("✅ MCP [{server_name}] Stopped successfully");
+            info!("✅ MCP [{server_name}] Stopped successfully");
             Ok(())
         } else {
-            eprintln!("❌ MCP [{server_name}] Server not found");
+            error!("❌ MCP [{server_name}] Server not found");
             Err(format!("MCP server '{server_name}' not found"))
         }
     }
@@ -354,7 +355,7 @@ impl MCPServerManager {
             } else {
                 available.join(", ")
             };
-            eprintln!("❌ MCP [{server_name}] Server not found. Available: [{available_str}]");
+            error!("❌ MCP [{server_name}] Server not found. Available: [{available_str}]");
             format!("Server '{server_name}' not found")
         })?;
 
@@ -374,7 +375,7 @@ impl MCPServerManager {
                 ("invalid-json".to_string(), "null".to_string())
             };
 
-        println!("📡 MCP [{server_name}] {method} (id: {request_id})");
+        debug!("📡 MCP [{server_name}] {method} (id: {request_id})");
 
         match &server.server_type {
             ServerType::Http { url, headers } => {
@@ -389,26 +390,26 @@ impl MCPServerManager {
                 }
 
                 let response = req.send().await.map_err(|e| {
-                    eprintln!("❌ MCP [{server_name}] HTTP request failed: {e}");
+                    error!("❌ MCP [{server_name}] HTTP request failed: {e}");
                     format!("HTTP request failed: {e}")
                 })?;
 
                 let status = response.status();
                 let response_text = response.text().await.map_err(|e| {
-                    eprintln!("❌ MCP [{server_name}] Failed to read response: {e}");
+                    error!("❌ MCP [{server_name}] Failed to read response: {e}");
                     format!("Failed to read response: {e}")
                 })?;
 
                 if status.is_success() {
-                    println!("✅ MCP [{server_name}] HTTP {method} completed");
+                    debug!("✅ MCP [{server_name}] HTTP {method} completed");
                 } else {
-                    eprintln!("⚠️ MCP [{server_name}] HTTP {method} returned {status}");
+                    error!("⚠️ MCP [{server_name}] HTTP {method} returned {status}");
                 }
                 Ok(response_text)
             }
             ServerType::Process => {
                 let stdin_tx = server.stdin_tx.as_ref().ok_or_else(|| {
-                    eprintln!("❌ MCP [{server_name}] No stdin channel available");
+                    error!("❌ MCP [{server_name}] No stdin channel available");
                     "No stdin channel available".to_string()
                 })?;
 
@@ -416,20 +417,20 @@ impl MCPServerManager {
                     .send(format!("{request_body}\n"))
                     .await
                     .map_err(|e| {
-                        eprintln!("❌ MCP [{server_name}] Failed to send to stdin: {e}");
+                        error!("❌ MCP [{server_name}] Failed to send to stdin: {e}");
                         format!("Failed to send request: {e}")
                     })?;
 
                 // Parse request using our flexible structure
                 let request: FlexibleJsonRpcRequest =
                     serde_json::from_str(&request_body).map_err(|e| {
-                        eprintln!("❌ MCP [{server_name}] Invalid JSON-RPC: {e}");
+                        error!("❌ MCP [{server_name}] Invalid JSON-RPC: {e}");
                         format!("Failed to parse request: {e}")
                     })?;
 
                 // Check if this is a notification (no ID) or a regular request
                 if request.id.is_none() {
-                    println!("📢 MCP [{server_name}] {method} notification sent");
+                    debug!("📢 MCP [{server_name}] {method} notification sent");
                     return Ok("".to_string()); // Notifications don't expect responses
                 }
                 // Wait for response with matching ID
@@ -441,7 +442,7 @@ impl MCPServerManager {
                     let elapsed = start_time.elapsed();
 
                     if elapsed > REQUEST_TIMEOUT {
-                        eprintln!(
+                        error!(
                             "⏰ MCP [{server_name}] {method} (id: {request_id}) timed out after {elapsed:?}"
                         );
                         return Err("Request timeout".to_string());
@@ -451,7 +452,7 @@ impl MCPServerManager {
                     if elapsed.saturating_sub(last_status_log.elapsed()) >= Duration::from_secs(5) {
                         let buffer_size = server.response_buffer.lock().await.len();
                         if buffer_size > 0 || discarded_count > 0 {
-                            println!("⏳ MCP [{server_name}] Waiting for {method} response (buffer: {buffer_size}, discarded: {discarded_count})");
+                            debug!("⏳ MCP [{server_name}] Waiting for {method} response (buffer: {buffer_size}, discarded: {discarded_count})");
                         }
                         last_status_log = Instant::now();
                     }
@@ -475,7 +476,7 @@ impl MCPServerManager {
                                     };
 
                                     if ids_match {
-                                        println!("✅ MCP [{server_name}] {method} completed");
+                                        debug!("✅ MCP [{server_name}] {method} completed");
                                         return Ok(entry.content);
                                     } else {
                                         // Silently discard non-matching responses (like init responses)
@@ -508,7 +509,7 @@ lazy_static::lazy_static! {
 
 /// Start all configured MCP servers using the global manager
 pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> {
-    println!("Starting all persisted MCP servers...");
+    info!("Starting all persisted MCP servers...");
 
     let db = get_database_connection_with_app(&app)
         .await
@@ -519,11 +520,11 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
         .map_err(|e| format!("Failed to load MCP servers: {e}"))?;
 
     if installed_mcp_servers.is_empty() {
-        println!("No installed MCP servers found to start.");
+        info!("No installed MCP servers found to start.");
         return Ok(());
     }
 
-    println!("Found {} MCP servers to start", installed_mcp_servers.len());
+    info!("Found {} MCP servers to start", installed_mcp_servers.len());
 
     let server_count = installed_mcp_servers.len();
 
@@ -533,7 +534,7 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
         let config: ServerConfig = serde_json::from_str(&server.server_config)
             .map_err(|e| format!("Failed to parse server config for {server_name}: {e}"))?;
 
-        println!(
+        debug!(
             "🚀 MCP [{}] Queuing startup: {} {}",
             server_name,
             config.command,
@@ -552,13 +553,13 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
                 .await
             {
                 Ok(_) => {} // Success already logged by start_server
-                Err(e) => eprintln!("❌ MCP [{name}] Startup failed: {e}"),
+                Err(e) => error!("❌ MCP [{name}] Startup failed: {e}"),
             }
         });
     }
 
     if server_count > 0 {
-        println!("✅ Queued {server_count} MCP servers for startup");
+        debug!("✅ Queued {server_count} MCP servers for startup");
     }
     Ok(())
 }

@@ -2,41 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import type { ToolWithMCPServerName } from '@/types';
 
-import {
-  convertMCPServerToolsToOllamaTools,
-  convertOllamaToolNameToServerAndToolName,
-  convertServerAndToolNameToOllamaToolName,
-} from './ollama';
+import { convertMCPServerToolsToOllamaTools } from './ollama';
 
-describe('Ollama Store Utility Functions', () => {
-  describe('convertServerAndToolNameToOllamaToolName', () => {
-    it('should combine server name and tool name with underscore', () => {
-      expect(convertServerAndToolNameToOllamaToolName('Slack', 'channel_get_history')).toBe(
-        'Slack_channel_get_history'
-      );
-    });
-  });
-
-  describe('convertOllamaToolNameToServerAndToolName', () => {
-    it('should split on first underscore only', () => {
-      expect(convertOllamaToolNameToServerAndToolName('Slack_channel_get_history')).toEqual([
-        'Slack',
-        'channel_get_history',
-      ]);
-    });
-
-    it('should handle server names with underscores', () => {
-      expect(convertOllamaToolNameToServerAndToolName('My_Server_tool_name')).toEqual(['My', 'Server_tool_name']);
-      expect(convertOllamaToolNameToServerAndToolName('Test_Server_get_data')).toEqual(['Test', 'Server_get_data']);
-    });
-
-    it('should throw error for invalid format (no underscore)', () => {
-      expect(() => convertOllamaToolNameToServerAndToolName('InvalidToolName')).toThrow(
-        'Invalid tool name format: InvalidToolName. Expected format: serverName_toolName'
-      );
-    });
-  });
-
+describe('ollama utility functions', () => {
   describe('convertMCPServerToolsToOllamaTools', () => {
     it('should convert MCP server tools to Ollama tools format', () => {
       const mockTools: ToolWithMCPServerName[] = [

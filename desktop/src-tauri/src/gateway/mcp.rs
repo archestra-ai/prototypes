@@ -22,6 +22,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::error;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,8 +103,6 @@ impl Service {
 
     #[tool(description = "Get the current Archestra context")]
     async fn get_context(&self) -> Result<CallToolResult, MCPError> {
-        println!("Getting context");
-
         let context = self.context.lock().await;
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&*context).unwrap_or_else(|_| "{}".to_string()),
@@ -115,8 +114,6 @@ impl Service {
         &self,
         Parameters(UpdateContextRequest { key, value }): Parameters<UpdateContextRequest>,
     ) -> Result<CallToolResult, MCPError> {
-        println!("Updating context: {key} = {value}");
-
         let mut context = self.context.lock().await;
         context.project_context.insert(key.clone(), value.clone());
         Ok(CallToolResult::success(vec![Content::text(format!(
@@ -129,8 +126,6 @@ impl Service {
         &self,
         Parameters(SetActiveModelsRequest { models }): Parameters<SetActiveModelsRequest>,
     ) -> Result<CallToolResult, MCPError> {
-        println!("Setting active models: {models:?}");
-
         let mut context = self.context.lock().await;
         context.active_models = models.clone();
         Ok(CallToolResult::success(vec![Content::text(format!(
@@ -140,8 +135,6 @@ impl Service {
 
     #[tool(description = "List all installed MCP servers that can be proxied")]
     async fn list_installed_mcp_servers(&self) -> Result<CallToolResult, MCPError> {
-        println!("Listing installed MCP servers");
-
         match MCPServerModel::load_installed_mcp_servers(&self.db).await {
             Ok(servers) => {
                 let server_list: Vec<_> = servers
@@ -158,7 +151,7 @@ impl Service {
                                 "has_meta": definition.meta.is_some()
                             })),
                             Err(e) => {
-                                eprintln!("Failed to convert model to definition: {e}");
+                                error!("Failed to convert model to definition: {e}");
                                 None
                             }
                         }
@@ -174,7 +167,7 @@ impl Service {
                 )]))
             }
             Err(e) => {
-                println!("Failed to load installed MCP servers: {e}");
+                error!("Failed to load installed MCP servers: {e}");
                 Err(MCPError::internal_error(
                     format!("Failed to load installed MCP servers: {e}"),
                     None,

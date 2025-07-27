@@ -12,17 +12,41 @@ fn main() {
 
     println!("OpenAPI schema written to openapi.json");
 
-    // Run prettier to format the JSON file
-    println!("Running prettier on openapi.json...");
+    // Run frontend codegen command
+    println!("Running frontend codegen command...");
+    let frontend_codegen_result = Command::new("pnpm")
+        .args(["codegen"])
+        .current_dir("..")
+        .output();
+
+    match frontend_codegen_result {
+        Ok(output) => {
+            if output.status.success() {
+                println!("Successfully ran frontend codegen command");
+            } else {
+                eprintln!("Frontend codegen failed with status: {}", output.status);
+                eprintln!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+                eprintln!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+                std::process::exit(1);
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to run frontend codegen command: {e}");
+            eprintln!("Make sure to run 'pnpm install' in the desktop directory");
+            std::process::exit(1);
+        }
+    }
+
+    println!("Running prettier...");
     let prettier_result = Command::new("pnpm")
-        .args(["prettier", "--write", "openapi.json"])
+        .args(["prettier", "--write"])
         .current_dir("..")
         .output();
 
     match prettier_result {
         Ok(output) => {
             if output.status.success() {
-                println!("Successfully formatted openapi.json with prettier");
+                println!("Successfully formatted with prettier");
             } else {
                 eprintln!("Prettier failed with status: {}", output.status);
                 eprintln!("stdout: {}", String::from_utf8_lossy(&output.stdout));

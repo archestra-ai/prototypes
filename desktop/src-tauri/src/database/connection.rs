@@ -3,6 +3,7 @@ use sea_orm::{Database, DatabaseConnection, DbErr};
 use sea_orm_migration::MigratorTrait;
 use std::path::PathBuf;
 use tauri::Manager;
+use tracing::debug;
 
 pub fn get_database_path(app: &tauri::AppHandle) -> std::result::Result<PathBuf, String> {
     let data_dir = app
@@ -31,30 +32,30 @@ pub async fn get_database_connection(app: &tauri::AppHandle) -> Result<DatabaseC
     let db_path = get_database_path(app)?;
     let db_url = format!("sqlite:{}?mode=rwc", db_path.to_string_lossy());
 
-    println!("🗄️  Connecting to database: {db_url}");
+    debug!("🗄️  Connecting to database: {db_url}");
 
     let db = Database::connect(&db_url)
         .await
         .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
     // Run migrations
-    println!("📊 Running database migrations...");
+    debug!("📊 Running database migrations...");
     Migrator::up(&db, None)
         .await
         .map_err(|e| format!("Failed to run migrations: {e}"))?;
 
-    println!("✅ Database connection established and migrations completed");
+    debug!("✅ Database connection established and migrations completed");
 
     Ok(db)
 }
 
 /// Initialize the database (for use in app setup)
 pub async fn init_database(app: &tauri::AppHandle) -> Result<DatabaseConnection, String> {
-    println!("🏁 Initializing SeaORM database...");
+    debug!("🏁 Initializing SeaORM database...");
 
     let db = get_database_connection(app).await?;
 
-    println!("✅ SeaORM database initialized successfully");
+    debug!("✅ SeaORM database initialized successfully");
 
     Ok(db)
 }

@@ -1,24 +1,23 @@
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
 import { AIResponse } from '@/components/kibo/ai-response';
-import { ToolCallStatus } from '@/types';
+import { ChatInteraction } from '@/types';
 
 import ToolCallIndicator from './ToolCallIndicator';
 import ToolExecutionResult from './ToolExecutionResult';
 
-// TODO: update this type...
 interface AssistantInteractionProps {
-  interaction: any;
+  interaction: ChatInteraction;
 }
 
-export default function AssistantInteraction({ interaction: { content } }: AssistantInteractionProps) {
+export default function AssistantInteraction({ interaction }: AssistantInteractionProps) {
   const {
     content: assistantContent,
-    toolCalls,
     isToolExecuting,
     isThinkingStreaming,
     isStreaming,
     thinkingContent,
-  } = content;
+    toolCalls,
+  } = interaction;
 
   return (
     <div className="relative">
@@ -28,17 +27,8 @@ export default function AssistantInteraction({ interaction: { content } }: Assis
 
       {toolCalls && toolCalls.length > 0 && (
         <div className="space-y-2 mb-4">
-          {toolCalls.map((toolCall: any) => (
-            <ToolExecutionResult
-              key={toolCall.id}
-              serverName={toolCall.serverName}
-              toolName={toolCall.toolName}
-              arguments={toolCall.arguments}
-              result={toolCall.result || ''}
-              executionTime={toolCall.executionTime}
-              status={toolCall.error ? ToolCallStatus.Error : ToolCallStatus.Completed}
-              error={toolCall.error}
-            />
+          {toolCalls.map((toolCall) => (
+            <ToolExecutionResult key={toolCall.id} toolCall={toolCall} />
           ))}
         </div>
       )}

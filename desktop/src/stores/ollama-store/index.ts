@@ -113,7 +113,6 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
 
       await get().fetchInstalledModels();
     } catch (error) {
-      console.error(`Failed to download model ${fullModelName}:`, error);
     } finally {
       set((state) => {
         const newModelsBeingDownloaded = new Set(state.modelsBeingDownloaded);

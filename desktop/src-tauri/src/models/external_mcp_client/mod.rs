@@ -4,6 +4,7 @@ use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::PathBuf;
+use tracing::{debug, error};
 use utoipa::ToSchema;
 
 const ARCHESTRA_MCP_SERVER_KEY: &str = "archestra.ai";
@@ -93,7 +94,7 @@ impl Model {
             .await
             .map_err(|e| {
                 let err_msg = format!("Failed to delete external MCP client: {e}");
-                println!("❌ {err_msg}");
+                error!("❌ {err_msg}");
                 err_msg
             })?;
         Ok(())
@@ -170,8 +171,8 @@ impl Model {
     ) -> Result<(), String> {
         let config_path = Self::get_config_path_for_external_mcp_client(client_name)?;
 
-        println!("🔌 Connecting {client_name} client...");
-        println!("📍 Config path: {}", config_path.display());
+        debug!("🔌 Connecting {client_name} client...");
+        debug!("📍 Config path: {}", config_path.display());
 
         let mut config = Self::read_config_file(&config_path)?;
 
@@ -202,9 +203,9 @@ impl Model {
         let installed_mcp_servers = MCPServer::load_installed_mcp_servers(db)
             .await
             .map_err(|e| e.to_string())?;
-        println!("🔧 Available MCP servers: {installed_mcp_servers:?}");
+        debug!("🔧 Available MCP servers: {installed_mcp_servers:?}");
 
-        println!(
+        debug!(
             "➕ Adding {} MCP servers to {} config",
             installed_mcp_servers.len(),
             client_name
@@ -222,7 +223,7 @@ impl Model {
                     serde_json::to_value(server_config).unwrap(),
                 );
             }
-            println!("  ✅ Added MCP server: {server_key}");
+            debug!("  ✅ Added MCP server: {server_key}");
         }
 
         // remove all entries with that're suffixed with "(archestra.ai)" that aren't in the installed_mcp_servers list
@@ -246,13 +247,13 @@ impl Model {
 
         for key in keys_to_remove {
             external_client_mcp_servers_config.remove(&key);
-            println!("  ❌ Removed MCP server: {key}");
+            debug!("  ❌ Removed MCP server: {key}");
         }
 
-        println!("📝 Writing config to: {}", config_path.display());
+        debug!("📝 Writing config to: {}", config_path.display());
         Self::write_config_file(&config_path, &config)?;
 
-        println!(
+        debug!(
             "✅ Updated {} MCP config at {}",
             client_name,
             config_path.display()
@@ -287,7 +288,7 @@ impl Model {
     ) -> Result<(), String> {
         let config_path = Self::get_config_path_for_external_mcp_client(client_name)?;
 
-        println!("🔌 Disconnecting {client_name} client...");
+        debug!("🔌 Disconnecting {client_name} client...");
         let mut config = Self::read_config_file(&config_path)?;
 
         if let Some(mcp_servers) = config["mcpServers"].as_object_mut() {
@@ -303,7 +304,7 @@ impl Model {
 
             for key in keys_to_remove {
                 mcp_servers.remove(&key);
-                println!("  ❌ Removed MCP server: {key}");
+                debug!("  ❌ Removed MCP server: {key}");
             }
         }
 
@@ -314,7 +315,7 @@ impl Model {
             .await
             .map_err(|e| format!("Failed to delete external MCP client: {e}"))?;
 
-        println!("✅ Removed Archestra tools from {client_name} MCP config");
+        debug!("✅ Removed Archestra tools from {client_name} MCP config");
 
         Ok(())
     }
@@ -341,44 +342,44 @@ impl Model {
     }
 
     pub fn write_config_file(path: &PathBuf, config: &Value) -> Result<(), String> {
-        println!("📝 Attempting to write config file to: {}", path.display());
+        debug!("📝 Attempting to write config file to: {}", path.display());
 
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
-            println!("📁 Creating parent directory: {}", parent.display());
+            debug!("📁 Creating parent directory: {}", parent.display());
             std::fs::create_dir_all(parent).map_err(|e| {
                 let err_msg = format!(
                     "Failed to create config directory {}: {}",
                     parent.display(),
                     e
                 );
-                println!("❌ {err_msg}");
+                error!("❌ {err_msg}");
                 err_msg
             })?;
         }
 
         let content = serde_json::to_string_pretty(config).map_err(|e| {
             let err_msg = format!("Failed to serialize config: {e}");
-            println!("❌ {err_msg}");
+            error!("❌ {err_msg}");
             err_msg
         })?;
 
-        println!("📄 Writing {} bytes to file", content.len());
+        debug!("📄 Writing {} bytes to file", content.len());
         std::fs::write(path, &content).map_err(|e| {
             let err_msg = format!("Failed to write config file {}: {}", path.display(), e);
-            println!("❌ {err_msg}");
+            error!("❌ {err_msg}");
             err_msg
         })?;
 
         // Verify the file was written correctly
         if let Ok(written_content) = std::fs::read_to_string(path) {
             if written_content == content {
-                println!("✅ Config file written and verified successfully");
+                debug!("✅ Config file written and verified successfully");
             } else {
-                println!("⚠️  Config file written but content doesn't match");
+                error!("⚠️  Config file written but content doesn't match");
             }
         } else {
-            println!("⚠️  Config file written but couldn't verify content");
+            error!("⚠️  Config file written but couldn't verify content");
         }
 
         Ok(())

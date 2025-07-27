@@ -4,6 +4,8 @@ use std::net::SocketAddr;
 use tauri::AppHandle;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
+use tracing::{info, Level};
 
 pub mod api;
 pub mod llm_providers;
@@ -17,6 +19,14 @@ pub async fn start_gateway(
     app_handle: AppHandle,
     db: DatabaseConnection,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize tracing
+    tracing_subscriber::fmt()
+        .with_max_level(Level::DEBUG)
+        .with_target(false)
+        .init();
+
+    info!("Starting gateway server...");
+
     let mcp_service = mcp::create_streamable_http_service(user_id, db.clone()).await;
     let mcp_proxy_router = mcp_proxy::create_router(db.clone());
     let api_router = api::create_router(db.clone());
@@ -27,28 +37,35 @@ pub async fn start_gateway(
         .allow_methods(Any)
         .allow_headers(Any);
 
+    // Create trace layer for logging
+    let trace_layer = TraceLayer::new_for_http()
+        .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+        .on_request(DefaultOnRequest::new().level(Level::INFO))
+        .on_response(DefaultOnResponse::new().level(Level::INFO));
+
     let app = Router::new()
         .nest("/mcp_proxy", mcp_proxy_router)
         .nest("/llm", llm_providers_router)
         .nest("/api", api_router)
         .nest_service("/mcp", mcp_service)
-        .layer(cors);
+        .layer(cors)
+        .layer(trace_layer);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], GATEWAY_SERVER_PORT));
     let listener = TcpListener::bind(addr).await?;
 
-    println!("Gateway started successfully on http://{addr}");
-    println!("  - Archestra MCP endpoint (streamable HTTP): http://{addr}/mcp");
-    println!("  - Proxy endpoints: http://{addr}/mcp_proxy/<server_name>");
-    println!("  - LLM endpoints: http://{addr}/llm/<provider>");
-    println!("  - API endpoints: http://{addr}/api");
+    info!("Gateway started successfully on http://{addr}");
+    info!("  - Archestra MCP endpoint (streamable HTTP): http://{addr}/mcp");
+    info!("  - Proxy endpoints: http://{addr}/mcp_proxy/<server_name>");
+    info!("  - LLM endpoints: http://{addr}/llm/<provider>");
+    info!("  - API endpoints: http://{addr}/api");
 
     let server = axum::serve(listener, app);
 
     if let Err(e) = server.await {
-        eprintln!("Server error: {e}");
+        tracing::error!("Server error: {e}");
     }
 
-    println!("Server has been shut down");
+    info!("Server has been shut down");
     Ok(())
 }

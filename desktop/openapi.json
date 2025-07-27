@@ -634,9 +634,57 @@
   },
   "components": {
     "schemas": {
-      "Chat": {
+      "ChatInteraction": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ChatMessage"
+          },
+          {
+            "type": "object",
+            "required": ["created_at"],
+            "properties": {
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        ]
+      },
+      "ChatMessage": {
         "type": "object",
-        "required": ["id", "session_id", "llm_provider", "created_at"],
+        "required": ["role", "content", "thinking", "tool_calls", "images"],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "$ref": "#/components/schemas/ChatMessageRole"
+          },
+          "thinking": {
+            "type": "string"
+          },
+          "tool_calls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolCall"
+            }
+          }
+        }
+      },
+      "ChatMessageRole": {
+        "type": "string",
+        "enum": ["user", "assistant", "tool", "system", "unknown"]
+      },
+      "ChatWithInteractions": {
+        "type": "object",
+        "required": ["id", "session_id", "title", "llm_provider", "created_at", "interactions"],
         "properties": {
           "created_at": {
             "type": "string",
@@ -645,6 +693,12 @@
           "id": {
             "type": "integer",
             "format": "int32"
+          },
+          "interactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatInteraction"
+            }
           },
           "llm_provider": {
             "type": "string"
@@ -653,91 +707,9 @@
             "type": "string"
           },
           "title": {
-            "type": ["string", "null"]
-          }
-        }
-      },
-      "ChatDefinition": {
-        "type": "object",
-        "required": ["llm_provider"],
-        "properties": {
-          "llm_provider": {
             "type": "string"
           }
         }
-      },
-      "ChatInteraction": {
-        "type": "object",
-        "required": ["id", "chat_id", "created_at", "content"],
-        "properties": {
-          "chat_id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "content": {
-            "$ref": "#/components/schemas/Value"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "id": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "ChatInteractionDefinition": {
-        "type": "object",
-        "required": ["chat_id", "content"],
-        "properties": {
-          "chat_id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "content": {
-            "$ref": "#/components/schemas/Value"
-          }
-        }
-      },
-      "ChatWithInteractions": {
-        "allOf": [
-          {
-            "type": "object",
-            "required": ["id", "session_id", "llm_provider", "created_at"],
-            "properties": {
-              "created_at": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "id": {
-                "type": "integer",
-                "format": "int32"
-              },
-              "llm_provider": {
-                "type": "string"
-              },
-              "session_id": {
-                "type": "string"
-              },
-              "title": {
-                "type": ["string", "null"]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": ["interactions"],
-            "properties": {
-              "interactions": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/ChatInteraction"
-                }
-              }
-            }
-          }
-        ]
       },
       "ConnectExternalMCPClientRequest": {
         "type": "object",
@@ -1221,6 +1193,25 @@
           }
         }
       },
+      "ToolCall": {
+        "type": "object",
+        "required": ["function"],
+        "properties": {
+          "function": {
+            "$ref": "#/components/schemas/ToolCallFunction"
+          }
+        }
+      },
+      "ToolCallFunction": {
+        "type": "object",
+        "required": ["name", "arguments"],
+        "properties": {
+          "arguments": {},
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "UpdateChatRequest": {
         "type": "object",
         "properties": {
@@ -1228,8 +1219,7 @@
             "type": ["string", "null"]
           }
         }
-      },
-      "Value": {}
+      }
     }
   },
   "tags": [

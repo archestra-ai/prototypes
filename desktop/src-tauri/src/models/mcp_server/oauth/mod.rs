@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri_plugin_opener::OpenerExt;
+use tracing::{debug, error};
 use utoipa::ToSchema;
 
 pub mod gmail;
@@ -40,7 +41,7 @@ pub async fn start_oauth_auth(
 pub async fn handle_oauth_callback(app: tauri::AppHandle, url: String) {
     use url::Url;
 
-    println!("Received OAuth callback: {url}");
+    debug!("Received OAuth callback: {url}");
 
     if let Ok(parsed_url) = Url::parse(&url) {
         let query_params: std::collections::HashMap<String, String> = parsed_url
@@ -55,7 +56,7 @@ pub async fn handle_oauth_callback(app: tauri::AppHandle, url: String) {
             .clone();
 
         if let Some(error) = query_params.get("error") {
-            eprintln!("OAuth error for {service}: {error}");
+            error!("OAuth error for {service}: {error}");
             // Emit error to frontend
             let _ = app.emit("oauth-error", format!("OAuth error: {error}"));
             return;
@@ -67,7 +68,7 @@ pub async fn handle_oauth_callback(app: tauri::AppHandle, url: String) {
                 gmail::handle_gmail_oauth_callback(app, url).await;
             }
             _ => {
-                eprintln!("Unsupported OAuth service: {service}");
+                error!("Unsupported OAuth service: {service}");
                 let _ = app.emit("oauth-error", format!("Unsupported service: {service}"));
             }
         }

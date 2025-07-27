@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ToolCallInfo, ToolCallStatus } from '@/types';
+import { ToolCall, ToolCallStatus } from '@/types';
 
 interface ToolCallIndicatorProps {
-  toolCalls: ToolCallInfo[];
+  toolCalls: ToolCall[];
   isExecuting: boolean;
 }
 
@@ -47,7 +47,7 @@ export default function ToolCallIndicator({ toolCalls, isExecuting }: ToolCallIn
           <div className="flex gap-1 ml-auto">
             {pendingCalls.map((call) => (
               <Badge key={call.id} variant="outline" className="text-xs bg-blue-100 dark:bg-blue-900">
-                {call.serverName}.{call.toolName}
+                {call.serverName}.{call.name}
               </Badge>
             ))}
           </div>
@@ -76,7 +76,7 @@ export default function ToolCallIndicator({ toolCalls, isExecuting }: ToolCallIn
                     className="text-xs text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 p-2 rounded border-l-2 border-green-400"
                   >
                     <div className="font-medium mb-1">
-                      {call.serverName}.{call.toolName}
+                      {call.serverName}.{call.name}
                     </div>
                     <div className="font-mono text-green-600 dark:text-green-400 whitespace-pre-wrap break-words max-w-full">
                       {call.result}

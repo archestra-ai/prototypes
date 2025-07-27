@@ -3,12 +3,13 @@ use crate::database::migration::Migrator;
 use sea_orm::{DatabaseConnection, DbErr};
 use sea_orm_migration::prelude::*;
 use sea_orm_migration::MigratorTrait;
+use tracing::debug;
 
 pub async fn init_database(app: tauri::AppHandle) -> Result<(), String> {
-    println!("🏁 Initializing database...");
+    debug!("🏁 Initializing database...");
 
     let db_path = get_database_path(&app)?;
-    println!("🗄️  Database path: {}", db_path.display());
+    debug!("🗄️  Database path: {}", db_path.display());
 
     let db = get_database_connection_with_app(&app)
         .await
@@ -19,7 +20,7 @@ pub async fn init_database(app: tauri::AppHandle) -> Result<(), String> {
         .await
         .map_err(|e| format!("Failed to run database migrations: {e}"))?;
 
-    println!("✅ Database initialized successfully with SeaORM migrations");
+    debug!("✅ Database initialized successfully with SeaORM migrations");
 
     Ok(())
 }
