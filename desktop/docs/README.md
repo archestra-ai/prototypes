@@ -22,10 +22,6 @@ This directory contains architectural documentation and implementation guides fo
 - **[Chat State Sharing Issue](./chat-state-sharing-issue.md)** - Resolved issue with chat state not being shared between components
 - **[Model Selection Implementation](./model-selection-implementation.md)** - How model selection is passed to the backend in v5
 
-### Reference
-
-- **[Vercel AI SDK Chatbot](./vercel-ai-sdk-chatbot.md)** - Official Vercel documentation on building AI chatbots
-
 ## Key Findings
 
 ### Current State

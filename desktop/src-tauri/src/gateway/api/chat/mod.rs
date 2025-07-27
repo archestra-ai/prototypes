@@ -18,10 +18,11 @@ use std::{convert::Infallible, time::Duration};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
+pub mod crud;
 mod types;
 use types::*;
 
-use crate::ollama::OLLAMA_SERVER_PORT;
+use crate::ollama::consts::OLLAMA_SERVER_PORT;
 use std::sync::Arc;
 
 /// Ollama chat request format
@@ -115,20 +116,29 @@ impl ChatService {
     }
 }
 
-/// Create the chat router with SSE endpoints
+/// Create the chat router with both CRUD and SSE endpoints
 pub fn create_router(db: DatabaseConnection) -> Router {
-    let service = Arc::new(ChatService::new(db));
+    let stream_service = Arc::new(ChatService::new(db.clone()));
 
     // Configure CORS to handle all responses including errors
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE, Method::OPTIONS])
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
         .max_age(std::time::Duration::from_secs(3600));
 
+    // Create CRUD router
+    let crud_router = crud::create_crud_router(db);
+
+    // Create streaming router
+    let stream_router = Router::new()
+        .route("/stream", post(handle_chat).options(handle_options))
+        .with_state(stream_service);
+
+    // Merge routers
     Router::new()
-        .route("/", post(handle_chat).options(handle_options))
-        .with_state(service)
+        .merge(crud_router)
+        .merge(stream_router)
         .layer(cors)
 }
 
@@ -579,7 +589,6 @@ async fn execute_chat_stream(
                                 id: text_block_id.clone(),
                             })
                             .await?;
-                            text_started = false; // Mark as ended to avoid double send
                         }
 
                         // Send completion with usage stats if available

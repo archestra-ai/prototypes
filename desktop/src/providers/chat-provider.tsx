@@ -20,7 +20,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
   // Create transport with prepareSendMessagesRequest to customize the request body
   const chatTransport = useMemo(() => {
     return new DefaultChatTransport({
-      api: `${ARCHESTRA_SERVER_API_URL}/chat`,
+      api: `${ARCHESTRA_SERVER_API_URL}/chat/stream`,
       prepareSendMessagesRequest: ({ messages }) => {
         // Build the request body with messages and metadata
         const body = {

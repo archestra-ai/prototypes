@@ -118,7 +118,6 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - **Routing**: Tanstack React Router
 - **Backend**: Rust with Tauri v2 framework, Axum web framework, SeaORM for SQLite database
 - **API Layer**: HTTP gateway on port 54587 with OpenAPI schema generation using utoipa
-- **Services**: Node.js OAuth proxy for handling OAuth flows
 - **AI Integration**: Ollama for local LLM support, MCP (Model Context Protocol) for tool integration
 - **Testing**: Vitest + React Testing Library (frontend), Rust built-in test framework with rstest (backend)
 
@@ -157,9 +156,11 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `src/gateway/`: HTTP gateway exposing the following APIs:
   - `/api`: REST API for Archestra resources (OpenAPI documented)
     - `/api/chat`: Chat CRUD operations (create, read, update, delete chats)
+    - `/api/chat/stream`: SSE streaming endpoint for Vercel AI SDK v5
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
   - `/llm/:provider`: Proxies requests to LLM providers
+    - `/llm/ollama/*`: Proxies all requests to embedded Ollama instance
 - `src/ollama/`: Ollama integration module
   - `client.rs`: HTTP client for Ollama API
   - `server.rs`: Ollama server management
@@ -284,12 +285,11 @@ Response: 204 No Content
 
 **Chat Persistence Workflow**:
 
-1. Frontend sends chat request with `session_id` to `/llm/ollama/api/chat`
-2. Backend checks if chat exists by `session_id`, creates new chat if not found
-3. User message is persisted to `chat_interactions` table before sending to LLM
-4. Response streams to frontend while being accumulated in background (`tokio::spawn`)
-5. Complete assistant response is persisted after streaming completes
-6. Messages are stored as JSON: `{"role": "user|assistant", "content": "text"}`
+1. Frontend uses `/api/chat/stream` endpoint via Vercel AI SDK v5's `useChat` hook
+2. Chat is automatically created on first message via `/api/chat` CRUD endpoint
+3. Messages are persisted during streaming via the Ollama proxy interceptor
+4. Backend maintains chat session through automatic title generation after 4 messages
+5. Frontend can manage chats via REST endpoints: GET, POST, PATCH, DELETE at `/api/chat`
 
 **Chat Title Generation**:
 

@@ -3,7 +3,7 @@ use crate::models::chat_interactions::{
 };
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
-use sea_orm::{ActiveModelTrait, QueryOrder, Set};
+use sea_orm::{ActiveModelTrait, QueryOrder, QuerySelect, Set};
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 use utoipa::ToSchema;
@@ -40,6 +40,12 @@ pub struct ChatDefinition {
     pub llm_provider: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatTitleUpdatedEvent {
+    pub chat_id: i32,
+    pub title: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ChatWithInteractions {
     #[serde(flatten)]
@@ -53,6 +59,32 @@ impl Deref for ChatWithInteractions {
 
     fn deref(&self) -> &Self::Target {
         &self.chat
+    }
+}
+
+impl ChatWithInteractions {
+    pub async fn count_interactions(&self, db: &DatabaseConnection) -> Result<usize, DbErr> {
+        use crate::models::chat_interactions::{Entity as ChatInteractionEntity, Column as ChatInteractionColumn};
+        
+        let count = ChatInteractionEntity::find()
+            .filter(ChatInteractionColumn::ChatId.eq(self.chat.id))
+            .count(db)
+            .await?;
+        
+        Ok(count as usize)
+    }
+    
+    pub async fn get_first_interactions(&self, db: &DatabaseConnection, limit: usize) -> Result<Vec<ChatInteractionModel>, DbErr> {
+        use crate::models::chat_interactions::{Entity as ChatInteractionEntity, Column as ChatInteractionColumn};
+        
+        let interactions = ChatInteractionEntity::find()
+            .filter(ChatInteractionColumn::ChatId.eq(self.chat.id))
+            .order_by_asc(ChatInteractionColumn::CreatedAt)
+            .limit(limit as u64)
+            .all(db)
+            .await?;
+        
+        Ok(interactions)
     }
 }
 
