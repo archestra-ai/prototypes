@@ -1,0 +1,25 @@
+--- a/.github/workflows/release-please.yml
++++ b/.github/workflows/release-please.yml
+@@ -75,20 +75,6 @@ jobs:
+           app-id: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_ID }}
+           private-key: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY }}
+ 
+-      - name: Update version from release-please tag
+-        if: needs.release-please.outputs.desktop_release_created
+-        env:
+-          TAG_NAME: ${{ needs.release-please.outputs['desktop--tag_name'] }}
+-        run: |
+-          VERSION="${TAG_NAME#app-v}"
+-          echo "Updating version to $VERSION from tag $TAG_NAME"
+-
+-          # Update package.json
+-          jq --arg version "$VERSION" '.version = $version' desktop/package.json > desktop/package.json.tmp && mv desktop/package.json.tmp desktop/package.json
+-
+-          # Update Cargo.toml
+-          sed -i.bak "s/^version = .*/version = \"$VERSION\"/" desktop/src-tauri/Cargo.toml && rm desktop/src-tauri/Cargo.toml.bak
+-
+-          # Update tauri.conf.json
+-          jq --arg version "$VERSION" '.version = $version' desktop/src-tauri/tauri.conf.json > desktop/src-tauri/tauri.conf.json.tmp && mv desktop/src-tauri/tauri.conf.json.tmp desktop/src-tauri/tauri.conf.json
+-
+       - name: setup node
+         uses: actions/setup-node@v4
