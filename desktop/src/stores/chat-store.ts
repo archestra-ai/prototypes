@@ -213,7 +213,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const newChats = chats.filter((chat) => chat.id !== currentChat.id);
         return {
           chats: newChats,
-          currentChat: newChats.length > 0 ? newChats[0] : null,
+          currentChatSessionId: newChats.length > 0 ? newChats[0].session_id : null,
         };
       });
     } catch (error) {}
@@ -235,7 +235,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (data) {
         // Update the chat in the local state
         set(({ chats }) => ({
-          currentChat: currentChat.id === chatId ? { ...currentChat, title } : currentChat,
           chats: chats.map((chat) => (chat.id === chatId ? { ...chat, title } : chat)),
         }));
       }
