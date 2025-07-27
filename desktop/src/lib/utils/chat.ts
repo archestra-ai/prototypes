@@ -75,7 +75,7 @@ export function parseThinkingContent(content: string): ParsedContent {
   };
 }
 
-export const generateNewToolCallId = () => Date.now();
+export const generateNewToolCallId = () => crypto.randomUUID();
 
 export const initializeToolCalls = (toolCalls: ServerToolCall[]): ToolCall[] => {
   return toolCalls.map((toolCall) => {
@@ -96,9 +96,9 @@ export const initializeToolCalls = (toolCalls: ServerToolCall[]): ToolCall[] => 
   });
 };
 
-export const generateNewMessageId = () => Date.now();
+export const generateNewMessageId = () => crypto.randomUUID();
 
-export const generateNewMessageCreatedAt = () => new Date().toISOString();
+export const generateNewMessageCreatedAt = () => crypto.randomUUID();
 
 export const initializeChat = (chat: ServerChatWithInteractions): ChatWithInteractions => {
   return {

@@ -42,10 +42,7 @@ export enum ToolCallStatus {
  * track the state of tool execution in the UI
  */
 export interface ToolCall extends BaseToolCall {
-  /**
-   * id is just a seconds from epoch that is generated on the UI side, this doesn't exist in the backend
-   */
-  id: number;
+  id: string;
   serverName: string;
   name: string;
   arguments: Record<string, any>;
@@ -69,10 +66,7 @@ export enum ChatInteractionStatus {
  * track the state of various things like streaming, thinking, tool execution, etc.
  */
 export interface ChatInteraction extends Omit<BaseChatInteraction, 'tool_calls'> {
-  /**
-   * id is just a seconds from epoch that is generated on the UI side, this doesn't exist in the backend
-   */
-  id: number;
+  id: string;
   /**
    * toolCalls is a superset of the tool_calls field in the backend API
    */

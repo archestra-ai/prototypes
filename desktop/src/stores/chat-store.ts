@@ -38,7 +38,7 @@ interface ChatState {
   status: ChatInteractionStatus;
   chats: ChatWithInteractions[];
   currentChatSessionId: string | null;
-  streamingMessageId: number | null;
+  streamingMessageId: string | null;
   abortController: AbortController | null;
   isLoadingChats: boolean;
   isLoadingMessages: boolean;
@@ -56,7 +56,7 @@ interface ChatActions {
   updateChat: (chatId: number, title: string) => Promise<void>;
   sendChatMessage: (message: string, selectedTools?: ToolWithMCPServerName[]) => Promise<void>;
   cancelStreaming: () => void;
-  updateStreamingMessage: (messageId: number, content: string) => void;
+  updateStreamingMessage: (messageId: string, content: string) => void;
   initializeStore: () => void;
 }
 
@@ -309,7 +309,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  updateStreamingMessage: (messageId: number, content: string) => {
+  updateStreamingMessage: (messageId: string, content: string) => {
     const { chats, getCurrentChat } = get();
     const currentChat = getCurrentChat();
     if (!currentChat) {
