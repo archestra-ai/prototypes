@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils/tailwind';
-import { useChatStore } from '@/stores/chat-store';
+import { useChatContext } from '@/providers/chat-provider';
 import { ChatInteraction } from '@/types';
 
 import { AssistantInteraction, OtherInteraction, ToolInteraction, UserInteraction } from './Interactions';
@@ -48,12 +48,20 @@ const getInteractionClassName = (interaction: ChatInteraction) => {
 };
 
 export default function ChatHistory(_props: ChatHistoryProps) {
-  const { getCurrentChat } = useChatStore();
+  const { messages } = useChatContext();
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const scrollAreaRef = useRef<HTMLElement | null>(null);
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const currentChat = getCurrentChat();
+
+  // Debug logging
+  useEffect(() => {
+    console.log('[ChatHistory] Messages:', messages);
+    console.log('[ChatHistory] Messages length:', messages.length);
+    if (messages.length > 0) {
+      console.log('[ChatHistory] First message:', messages[0]);
+    }
+  }, [messages]);
 
   // Scroll to bottom when new messages are added or content changes
   const scrollToBottom = useCallback(() => {
@@ -106,21 +114,38 @@ export default function ChatHistory(_props: ChatHistoryProps) {
     }
   }, [handleScroll]);
 
-  // Trigger scroll when chat changes (only if shouldAutoScroll is true)
+  // Trigger scroll when messages change (only if shouldAutoScroll is true)
   useEffect(() => {
     const timeoutId = setTimeout(scrollToBottom, 50);
     return () => clearTimeout(timeoutId);
-  }, [currentChat, scrollToBottom]);
+  }, [messages, scrollToBottom]);
 
   return (
     <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full border rounded-lg">
       <div className="p-4 space-y-4">
-        {currentChat?.interactions.map((interaction) => (
-          <div key={interaction.id} className={cn('p-3 rounded-lg', getInteractionClassName(interaction))}>
-            <div className="text-xs font-medium mb-1 opacity-70 capitalize">{interaction.role}</div>
-            <Interaction interaction={interaction} />
-          </div>
-        ))}
+        {messages.map((message) => {
+          // Convert UIMessage to ChatInteraction format
+          const interaction: ChatInteraction = {
+            id: message.id,
+            role: message.role,
+            content: message.parts.find((part) => part.type === 'text')?.text || '',
+            thinking: '',
+            toolCalls: [],
+            images: [],
+            thinkingContent: '',
+            isStreaming: false,
+            isThinkingStreaming: false,
+            isToolExecuting: false,
+            created_at: new Date().toISOString(),
+          };
+
+          return (
+            <div key={message.id} className={cn('p-3 rounded-lg', getInteractionClassName(interaction))}>
+              <div className="text-xs font-medium mb-1 opacity-70 capitalize">{message.role}</div>
+              <Interaction interaction={interaction} />
+            </div>
+          );
+        })}
       </div>
     </ScrollArea>
   );

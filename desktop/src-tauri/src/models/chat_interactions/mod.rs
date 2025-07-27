@@ -3,10 +3,11 @@ use sea_orm::entity::prelude::*;
 use sea_orm::{ActiveModelTrait, DatabaseBackend, Set, Statement};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use utoipa::ToSchema;
 
 use crate::models::chat::Model as ChatModel;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize, ToSchema)]
 #[sea_orm(table_name = "chat_interactions")]
 pub struct Model {
     #[sea_orm(primary_key)]

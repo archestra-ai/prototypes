@@ -124,8 +124,8 @@ export default function ChatInput(_props: ChatInputProps) {
     // The backend will handle the actual processing
     console.log('[ChatInput] Sending message:', trimmedInput);
     try {
-      // Prepare the body data for the backend
-      const body: any = {
+      // Prepare the metadata for the backend
+      const metadata: any = {
         model: selectedModel,
         // Convert tools to tool names if any
         tools: selectedTools?.map((tool) => `${tool.serverName}_${tool.name}`) || [],
@@ -135,22 +135,26 @@ export default function ChatInput(_props: ChatInputProps) {
       if (trimmedInput.startsWith('/agent')) {
         const objective = trimmedInput.substring(6).trim();
         if (objective) {
-          body.agent_context = {
+          metadata.agent_context = {
             mode: 'autonomous',
             objective: objective,
             activate: true,
           };
         }
       } else if (trimmedInput === '/stop' && isAgentActive) {
-        body.agent_context = {
+        metadata.agent_context = {
           mode: 'stop',
         };
       }
 
+      // Update global metadata in ChatProvider before sending
+      // We need to access the globalMetadata variable from ChatProvider
+      // This is a workaround for Vercel AI SDK v5 limitations
+      (window as any).__CHAT_METADATA__ = metadata;
+
       // For v5, sendMessage expects an object with text property
       const result = await sendMessage({
         text: trimmedInput,
-        metadata: body,
       });
       console.log('[ChatInput] Message sent successfully, result:', result);
     } catch (error) {

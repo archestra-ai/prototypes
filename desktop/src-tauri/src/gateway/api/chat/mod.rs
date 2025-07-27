@@ -22,7 +22,7 @@ pub mod crud;
 mod types;
 use types::*;
 
-use crate::ollama::consts::OLLAMA_SERVER_PORT;
+use crate::ollama::server::get_ollama_server_port;
 use std::sync::Arc;
 
 /// Ollama chat request format
@@ -480,7 +480,7 @@ async fn execute_chat_stream(
     };
 
     // Call Ollama API
-    let ollama_url = format!("http://localhost:{}/api/chat", OLLAMA_SERVER_PORT);
+    let ollama_url = format!("http://localhost:{}/api/chat", get_ollama_server_port());
     let response = service
         .http_client
         .post(&ollama_url)

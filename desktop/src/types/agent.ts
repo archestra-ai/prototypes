@@ -1,6 +1,6 @@
 import type { TextPart, Tool, ToolCallPart, ToolResultPart, UIMessage } from 'ai';
 
-import { ChatMessage, ToolCallInfo } from '../types';
+import { ChatMessage, ToolCall } from '../types';
 
 // AI SDK v5 Message Integration Types
 /**
@@ -243,7 +243,7 @@ export interface AgentChatMessage extends ChatMessage {
 }
 
 // Agent-Specific Tool Calls
-export interface AgentToolCall extends ToolCallInfo {
+export interface AgentToolCall extends ToolCall {
   selectionReasoning: string;
   alternativeTools: string[];
   retryStrategy: RetryStrategy;

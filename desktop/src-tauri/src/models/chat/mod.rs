@@ -6,8 +6,9 @@ use sea_orm::entity::prelude::*;
 use sea_orm::{ActiveModelTrait, QueryOrder, QuerySelect, Set};
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
+use utoipa::ToSchema;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize, ToSchema)]
 #[sea_orm(table_name = "chats")]
 pub struct Model {
     #[sea_orm(primary_key)]
@@ -44,7 +45,7 @@ pub struct ChatTitleUpdatedEvent {
     pub title: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ChatWithInteractions {
     #[serde(flatten)]
     pub chat: Model,

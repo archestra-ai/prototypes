@@ -63,7 +63,7 @@ export interface ChatMessage {
   timestamp: Date;
   isStreaming?: boolean;
   isThinkingStreaming?: boolean;
-  toolCalls?: ToolCallInfo[];
+  toolCalls?: ToolCall[];
   isToolExecuting?: boolean;
   isFromAgent?: boolean;
   agentMetadata?: {
