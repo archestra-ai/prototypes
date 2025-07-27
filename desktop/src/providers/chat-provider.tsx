@@ -84,6 +84,10 @@ export function ChatProvider({ children }: ChatProviderProps) {
                 break;
               case 'completed':
                 store.setAgentMode('completed');
+                // After a short delay, transition back to idle
+                setTimeout(() => {
+                  store.stopAgent();
+                }, 2000);
                 break;
               default:
                 store.setAgentMode('initializing');
@@ -120,6 +124,13 @@ export function ChatProvider({ children }: ChatProviderProps) {
           console.log('[ChatProvider] Task progress update:', eventData.progress);
           const { updateProgress } = useAgentStore.getState();
           updateProgress(eventData.progress);
+        }
+
+        // Handle tool call events
+        if (dataType === 'tool-call' && eventData) {
+          console.log('[ChatProvider] Tool call event:', eventData);
+          // Tool events are now handled through the data- prefix
+          // The UI components will process these through the message parts
         }
       }
     },

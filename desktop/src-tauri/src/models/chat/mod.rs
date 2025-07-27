@@ -62,26 +62,34 @@ impl Deref for ChatWithInteractions {
 
 impl ChatWithInteractions {
     pub async fn count_interactions(&self, db: &DatabaseConnection) -> Result<usize, DbErr> {
-        use crate::models::chat_interactions::{Entity as ChatInteractionEntity, Column as ChatInteractionColumn};
-        
+        use crate::models::chat_interactions::{
+            Column as ChatInteractionColumn, Entity as ChatInteractionEntity,
+        };
+
         let count = ChatInteractionEntity::find()
             .filter(ChatInteractionColumn::ChatId.eq(self.chat.id))
             .count(db)
             .await?;
-        
+
         Ok(count as usize)
     }
-    
-    pub async fn get_first_interactions(&self, db: &DatabaseConnection, limit: usize) -> Result<Vec<ChatInteractionModel>, DbErr> {
-        use crate::models::chat_interactions::{Entity as ChatInteractionEntity, Column as ChatInteractionColumn};
-        
+
+    pub async fn get_first_interactions(
+        &self,
+        db: &DatabaseConnection,
+        limit: usize,
+    ) -> Result<Vec<ChatInteractionModel>, DbErr> {
+        use crate::models::chat_interactions::{
+            Column as ChatInteractionColumn, Entity as ChatInteractionEntity,
+        };
+
         let interactions = ChatInteractionEntity::find()
             .filter(ChatInteractionColumn::ChatId.eq(self.chat.id))
             .order_by_asc(ChatInteractionColumn::CreatedAt)
             .limit(limit as u64)
             .all(db)
             .await?;
-        
+
         Ok(interactions)
     }
 }

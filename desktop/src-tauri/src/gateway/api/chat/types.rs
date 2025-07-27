@@ -14,11 +14,11 @@ pub struct MessagePart {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub role: String,
-    
+
     // Support both content (simple format) and parts (Vercel AI SDK format)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parts: Option<Vec<MessagePart>>,
 }

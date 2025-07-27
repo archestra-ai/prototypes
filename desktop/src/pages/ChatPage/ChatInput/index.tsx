@@ -78,10 +78,11 @@ export default function ChatInput(_props: ChatInputProps) {
   const { installedModels, loadingInstalledModels, loadingInstalledModelsError, selectedModel, setSelectedModel } =
     useOllamaStore();
 
-  const { isAgentActive, mode: agentMode } = useAgentStore();
+  const { isAgentActive, mode: agentMode, stopAgent } = useAgentStore();
 
   const disabled = isStreaming || (isAgentActive && agentMode === 'initializing');
   const canSend = !disabled && input.trim().length > 0 && selectedModel !== null;
+  const canStop = isStreaming || (isAgentActive && (agentMode === 'planning' || agentMode === 'executing'));
 
   // Fetch installed models when component mounts
   useEffect(() => {
@@ -264,9 +265,32 @@ export default function ChatInput(_props: ChatInputProps) {
               </Tooltip>
             </AIInputTools>
             <AIInputSubmit
-              status={isStreaming ? ChatInteractionStatus.Streaming : ChatInteractionStatus.Ready}
-              onClick={isStreaming ? cancelStreaming : undefined}
-              disabled={!canSend}
+              status={canStop ? ChatInteractionStatus.Streaming : ChatInteractionStatus.Ready}
+              onClick={
+                canStop
+                  ? async () => {
+                      if (isStreaming) {
+                        cancelStreaming();
+                      }
+                      if (isAgentActive && (agentMode === 'planning' || agentMode === 'executing')) {
+                        // Send stop command to backend
+                        (window as any).__CHAT_METADATA__ = {
+                          model: selectedModel,
+                          agent_context: {
+                            mode: 'stop',
+                          },
+                        };
+
+                        // Send the stop message
+                        await sendMessage({ text: '/stop' });
+
+                        // Stop agent locally
+                        stopAgent();
+                      }
+                    }
+                  : undefined
+              }
+              disabled={!canSend && !canStop}
             />
           </AIInputToolbar>
         </AIInput>

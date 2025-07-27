@@ -56,7 +56,7 @@ export const TaskProgress = React.memo(function TaskProgressInner({
   // Track step completion animations
   useEffect(() => {
     if (onStepComplete && plan && plan.steps) {
-      plan.steps.forEach((step) => {
+      plan.steps.forEach((step: TaskStep) => {
         if (step.status === 'completed' && !realtimeSteps.has(step.id)) {
           setRealtimeSteps((prev) => new Map(prev).set(step.id, Date.now()));
           setAnimatingSteps((prev) => new Set(prev).add(step.id));
@@ -193,7 +193,7 @@ export const TaskProgress = React.memo(function TaskProgressInner({
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Tasks</h4>
             <div className="space-y-1.5 max-h-64 overflow-y-auto">
-              {plan.steps.map((step, index) => (
+              {plan.steps.map((step: TaskStep, index: number) => (
                 <div
                   key={step.id}
                   className={cn(
@@ -244,13 +244,13 @@ export const TaskProgress = React.memo(function TaskProgressInner({
               </div>
               <div>
                 <div className="text-2xl font-semibold text-primary">
-                  {plan?.steps?.filter((s) => s.status === 'in_progress').length || 0}
+                  {plan?.steps?.filter((s: TaskStep) => s.status === 'in_progress').length || 0}
                 </div>
                 <div className="text-xs text-muted-foreground">Active</div>
               </div>
               <div>
                 <div className="text-2xl font-semibold text-destructive">
-                  {plan?.steps?.filter((s) => s.status === 'failed').length || 0}
+                  {plan?.steps?.filter((s: TaskStep) => s.status === 'failed').length || 0}
                 </div>
                 <div className="text-xs text-muted-foreground">Failed</div>
               </div>

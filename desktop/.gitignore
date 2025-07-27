@@ -27,7 +27,5 @@ mcp.json
 # docs
 docs
 .claude/**
-!.claude/commands
-!.claude/commands/*
 !.claude/templates
 !.claude/settings.json
