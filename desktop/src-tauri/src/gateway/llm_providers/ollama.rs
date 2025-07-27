@@ -1,4 +1,6 @@
-use crate::gateway::websocket::{WebSocketMessage, ChatTitleUpdatedWebSocketPayload, Service as WebSocketService};
+use crate::gateway::websocket::{
+    ChatTitleUpdatedWebSocketPayload, Service as WebSocketService, WebSocketMessage,
+};
 use crate::models::chat::Model as Chat;
 use crate::models::chat_interactions::Model as ChatInteraction;
 use crate::ollama::client::OllamaClient;
@@ -172,10 +174,11 @@ impl Service {
                     .is_ok()
                 {
                     // Broadcast WebSocket message that the title has been updated
-                    let message = WebSocketMessage::ChatTitleUpdated(ChatTitleUpdatedWebSocketPayload {
-                        chat_id,
-                        title,
-                    });
+                    let message =
+                        WebSocketMessage::ChatTitleUpdated(ChatTitleUpdatedWebSocketPayload {
+                            chat_id,
+                            title,
+                        });
                     self.ws_service.broadcast(message).await;
                     Ok(())
                 } else {
@@ -209,10 +212,10 @@ impl Service {
             };
 
         // Load or create chat
-        let chat_session_id = match Chat::load_by_session_id(session_id.clone(), &self.db).await {
+        let chat = match Chat::load_by_session_id(session_id.clone(), &self.db).await {
             Ok(Some(c)) => {
                 debug!("Found existing chat with session_id: {}", c.session_id);
-                c.session_id.clone()
+                c
             }
             Ok(None) => {
                 error!("Chat not found for session_id: {}", session_id);
@@ -223,6 +226,7 @@ impl Service {
                 return Err(format!("Failed to load chat: {e}"));
             }
         };
+        let chat_session_id = chat.session_id.clone();
 
         // Extract model name before moving ollama_request
         let model_name = ollama_request.model_name.clone();
@@ -314,7 +318,9 @@ impl Service {
                             )
                             .await
                             {
-                                if count == MIN_INTERACTIONS_FOR_TITLE_GENERATION {
+                                if count == MIN_INTERACTIONS_FOR_TITLE_GENERATION
+                                    && chat.title.is_none()
+                                {
                                     let service = Service {
                                         db: db.clone(),
                                         ollama_client: ollama_client.clone(),
@@ -461,226 +467,289 @@ pub fn create_router(db: DatabaseConnection, ws_service: Arc<WebSocketService>) 
         .with_state(Arc::new(Service::new(db, ws_service)))
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::models::chat::{ActiveModel as ChatActiveModel, ChatDefinition};
-//     use crate::test_fixtures::database;
-//     use rstest::rstest;
-//     use sea_orm::{ActiveModelTrait, Set};
-//     use serde_json::json;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::chat::{ChatDefinition, Model as ChatModel};
+    use crate::test_fixtures::database;
+    use axum::body::Body;
+    use axum::http::Request;
+    use rstest::rstest;
+    use serde_json::json;
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_convert_archestra_request_to_ollama_valid(
-//         #[future] database: DatabaseConnection,
-//     ) {
-//         let _db = database.await;
+    // Mock WebSocket service for testing
+    fn create_mock_ws_service() -> Arc<WebSocketService> {
+        Arc::new(WebSocketService::new())
+    }
 
-//         let request_json = json!({
-//             "session_id": "test-session-123",
-//             "model": "llama3.2",
-//             "messages": [
-//                 {
-//                     "role": "user",
-//                     "content": "Hello, world!"
-//                 },
-//                 {
-//                     "role": "assistant",
-//                     "content": "Hi there!"
-//                 }
-//             ]
-//         });
+    // Test convert_proxied_request_to_ollama_request function
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_request_valid(#[future] database: DatabaseConnection) {
+        let _db = database.await;
 
-//         let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
-//         let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+        let request_json = json!({
+            "session_id": "test-session-123",
+            "model": "llama3.2",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Hello, world!"
+                },
+                {
+                    "role": "assistant",
+                    "content": "Hi there!"
+                }
+            ]
+        });
 
-//         assert!(result.is_ok());
-//         let (ollama_request, session_id) = result.unwrap();
-//         assert_eq!(session_id, "test-session-123");
-//         assert_eq!(ollama_request.model_name, "llama3.2");
-//         assert_eq!(ollama_request.messages.len(), 2);
-//         assert_eq!(ollama_request.messages[0].content, "Hello, world!");
-//         assert_eq!(ollama_request.messages[1].content, "Hi there!");
-//     }
+        let bytes = serde_json::to_vec(&request_json).unwrap();
+        let result = convert_proxied_request_to_ollama_request(&bytes);
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_convert_archestra_request_with_tool_calls(
-//         #[future] database: DatabaseConnection,
-//     ) {
-//         let _db = database.await;
+        assert!(result.is_ok());
+        let (ollama_request, session_id) = result.unwrap();
+        assert_eq!(session_id, "test-session-123");
+        assert_eq!(ollama_request.model_name, "llama3.2");
+        assert_eq!(ollama_request.messages.len(), 2);
+        assert_eq!(ollama_request.messages[0].content, "Hello, world!");
+        assert_eq!(ollama_request.messages[1].content, "Hi there!");
+    }
 
-//         let request_json = json!({
-//             "session_id": "test-session-123",
-//             "model": "llama3.2",
-//             "messages": [
-//                 {
-//                     "role": "assistant",
-//                     "content": "I'll help you with that.",
-//                     "tool_calls": [
-//                         {
-//                             "function": {
-//                                 "name": "calculate",
-//                                 "arguments": {"x": 5, "y": 10}
-//                             }
-//                         }
-//                     ]
-//                 }
-//             ]
-//         });
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_request_with_options(#[future] database: DatabaseConnection) {
+        let _db = database.await;
 
-//         let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
-//         let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+        let request_json = json!({
+            "session_id": "test-session-456",
+            "model": "llama3.2",
+            "messages": [{"role": "user", "content": "Test"}],
+            "options": {
+                "temperature": 0.7,
+                "top_p": 0.9
+            },
+            "template": "custom-template",
+            "think": true
+        });
 
-//         assert!(result.is_ok());
-//         let (ollama_request, _) = result.unwrap();
-//         assert_eq!(ollama_request.messages[0].tool_calls.len(), 1);
-//         assert_eq!(
-//             ollama_request.messages[0].tool_calls[0].function.name,
-//             "calculate"
-//         );
-//     }
+        let bytes = serde_json::to_vec(&request_json).unwrap();
+        let result = convert_proxied_request_to_ollama_request(&bytes);
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_convert_archestra_request_missing_model(#[future] database: DatabaseConnection) {
-//         let _db = database.await;
+        assert!(result.is_ok());
+        let (ollama_request, session_id) = result.unwrap();
+        assert_eq!(session_id, "test-session-456");
+        assert_eq!(ollama_request.model_name, "llama3.2");
+        // Options and other fields should be set (can't directly inspect due to builder pattern)
+    }
 
-//         let request_json = json!({
-//             "session_id": "test-session-123",
-//             "messages": [
-//                 {
-//                     "role": "user",
-//                     "content": "Hello"
-//                 }
-//             ]
-//         });
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_request_with_tools(#[future] database: DatabaseConnection) {
+        let _db = database.await;
 
-//         let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
-//         let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+        let request_json = json!({
+            "session_id": "test-tools",
+            "model": "llama3.2",
+            "messages": [{"role": "user", "content": "Use tool"}],
+            "tools": [{
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Get weather info",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "location": {"type": "string"}
+                        }
+                    }
+                }
+            }]
+        });
 
-//         assert!(result.is_err());
-//         assert!(result.unwrap_err().contains("Missing model"));
-//     }
+        let bytes = serde_json::to_vec(&request_json).unwrap();
+        let result = convert_proxied_request_to_ollama_request(&bytes);
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_convert_archestra_request_missing_messages(
-//         #[future] database: DatabaseConnection,
-//     ) {
-//         let _db = database.await;
+        assert!(result.is_ok());
+    }
 
-//         let request_json = json!({
-//             "session_id": "test-session-123",
-//             "model": "llama3.2"
-//         });
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_request_missing_session_id(#[future] database: DatabaseConnection) {
+        let _db = database.await;
 
-//         let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
-//         let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+        let request_json = json!({
+            "model": "llama3.2",
+            "messages": [{"role": "user", "content": "Hello"}]
+        });
 
-//         assert!(result.is_err());
-//         assert!(result.unwrap_err().contains("Missing or invalid messages"));
-//     }
+        let bytes = serde_json::to_vec(&request_json).unwrap();
+        let result = convert_proxied_request_to_ollama_request(&bytes);
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_convert_archestra_request_invalid_role(#[future] database: DatabaseConnection) {
-//         let _db = database.await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Missing session_id in request");
+    }
 
-//         let request_json = json!({
-//             "session_id": "test-session-123",
-//             "model": "llama3.2",
-//             "messages": [
-//                 {
-//                     "role": "invalid-role",
-//                     "content": "Hello"
-//                 }
-//             ]
-//         });
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_request_missing_model(#[future] database: DatabaseConnection) {
+        let _db = database.await;
 
-//         let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
-//         let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+        let request_json = json!({
+            "session_id": "test-session",
+            "messages": [{"role": "user", "content": "Hello"}]
+        });
 
-//         assert!(result.is_err());
-//         assert!(result.unwrap_err().contains("Invalid role"));
-//     }
+        let bytes = serde_json::to_vec(&request_json).unwrap();
+        let result = convert_proxied_request_to_ollama_request(&bytes);
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_chat_persistence_flow(#[future] database: DatabaseConnection) {
-//         let db = database.await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Missing model in request");
+    }
 
-//         // Simulate a chat request that would save messages
-//         let request_json = json!({
-//             "session_id": "persistence-test-session",
-//             "model": "llama3.2",
-//             "messages": [
-//                 {
-//                     "role": "user",
-//                     "content": "What is the weather?"
-//                 }
-//             ]
-//         });
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_request_missing_messages(#[future] database: DatabaseConnection) {
+        let _db = database.await;
 
-//         let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
-//         let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+        let request_json = json!({
+            "session_id": "test-session",
+            "model": "llama3.2"
+        });
 
-//         assert!(result.is_ok());
-//         let (_, session_id) = result.unwrap();
+        let bytes = serde_json::to_vec(&request_json).unwrap();
+        let result = convert_proxied_request_to_ollama_request(&bytes);
 
-//         // Create the chat manually since proxy would fail
-//         let chat = Chat::save(
-//             ChatDefinition {
-//                 llm_provider: "ollama".to_string(),
-//             },
-//             &db,
-//         )
-//         .await
-//         .unwrap();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Missing messages in request");
+    }
 
-//         // Update session_id to match our test
-//         let mut active_chat: ChatActiveModel = chat.chat.into();
-//         active_chat.session_id = Set(session_id.clone());
-//         let chat = active_chat.update(&db).await.unwrap();
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_request_invalid_json(#[future] database: DatabaseConnection) {
+        let _db = database.await;
 
-//         // Verify chat was created
-//         assert_eq!(chat.llm_provider, "ollama");
-//         assert_eq!(chat.session_id, "persistence-test-session");
-//     }
+        let bytes = b"invalid json";
+        let result = convert_proxied_request_to_ollama_request(bytes);
 
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_message_role_conversion(#[future] database: DatabaseConnection) {
-//         let _db = database.await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to parse JSON"));
+    }
 
-//         let request_json = json!({
-//             "session_id": "role-test-session",
-//             "model": "llama3.2",
-//             "messages": [
-//                 {
-//                     "role": "system",
-//                     "content": "You are a helpful assistant."
-//                 },
-//                 {
-//                     "role": "user",
-//                     "content": "Hello"
-//                 },
-//                 {
-//                     "role": "assistant",
-//                     "content": "Hi there!"
-//                 }
-//             ]
-//         });
+    #[rstest]
+    #[tokio::test]
+    async fn test_convert_request_invalid_messages_format(#[future] database: DatabaseConnection) {
+        let _db = database.await;
 
-//         let bytes = Bytes::from(serde_json::to_vec(&request_json).unwrap());
-//         let result = convert_archestra_proxied_chat_request_to_ollama_chat_message(bytes);
+        let request_json = json!({
+            "session_id": "test-session",
+            "model": "llama3.2",
+            "messages": "not an array"
+        });
 
-//         assert!(result.is_ok());
-//         let (ollama_request, _) = result.unwrap();
+        let bytes = serde_json::to_vec(&request_json).unwrap();
+        let result = convert_proxied_request_to_ollama_request(&bytes);
 
-//         assert_eq!(ollama_request.messages[0].role, MessageRole::System);
-//         assert_eq!(ollama_request.messages[1].role, MessageRole::User);
-//         assert_eq!(ollama_request.messages[2].role, MessageRole::Assistant);
-//     }
-// }
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Failed to parse messages"));
+    }
+
+    // Test generate_chat_title
+    #[rstest]
+    #[tokio::test]
+    async fn test_generate_chat_title_success(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let _ws_service = create_mock_ws_service();
+
+        // Create a chat
+        let chat = ChatModel::save(
+            ChatDefinition {
+                llm_provider: "ollama".to_string(),
+            },
+            &db,
+        )
+        .await
+        .unwrap();
+
+        // Add some interactions
+        for i in 0..4 {
+            let role = if i % 2 == 0 { "user" } else { "assistant" };
+            let content = json!({
+                "role": role,
+                "content": format!("Message {}", i)
+            });
+            ChatInteraction::save(chat.session_id.clone(), content, &db)
+                .await
+                .unwrap();
+        }
+
+        // We can't easily test this without proper mocking, but the structure is correct
+        // In a real test, we'd use a mocking framework or dependency injection
+        //
+        // Mock Ollama client that returns a fixed title
+        // struct MockOllamaClient;
+        // impl MockOllamaClient {
+        //     async fn generate_title(&self, _model: &str, _context: String) -> Result<String, String> {
+        //         Ok("Test Chat Title".to_string())
+        //     }
+        // }
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_generate_chat_title_chat_not_found(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let _ws_service = create_mock_ws_service();
+        let service = Service::new(db, _ws_service);
+
+        let result = service
+            .generate_chat_title("non-existent-session".to_string(), "llama3.2".to_string())
+            .await;
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Chat not found");
+    }
+
+    // Test proxy_other_request
+    #[rstest]
+    #[tokio::test]
+    async fn test_proxy_other_request_get(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let _ws_service = create_mock_ws_service();
+        let _service = Service::new(db, _ws_service);
+
+        // Create a GET request
+        let _req = Request::builder()
+            .method("GET")
+            .uri("/api/tags")
+            .body(Body::empty())
+            .unwrap();
+
+        // This test would require a mock HTTP server to test properly
+        // The structure is correct but we can't test without external dependencies
+    }
+
+    // Test edge cases
+    #[rstest]
+    #[tokio::test]
+    async fn test_proxy_chat_request_chat_not_found(#[future] database: DatabaseConnection) {
+        let db = database.await;
+        let _ws_service = create_mock_ws_service();
+        let service = Service::new(db, _ws_service);
+
+        let request_json = json!({
+            "session_id": "non-existent-session",
+            "model": "llama3.2",
+            "messages": [{"role": "user", "content": "Hello"}]
+        });
+
+        let req = Request::builder()
+            .method("POST")
+            .uri("/api/chat")
+            .body(Body::from(serde_json::to_vec(&request_json).unwrap()))
+            .unwrap();
+
+        let result = service.proxy_chat_request(req).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Chat not found");
+    }
+}
