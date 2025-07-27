@@ -3,6 +3,7 @@ import { DefaultChatTransport } from 'ai';
 import { ReactNode, createContext, useContext, useMemo } from 'react';
 
 import { ARCHESTRA_SERVER_API_URL } from '@/consts';
+import { useAgentStore } from '@/stores/agent-store';
 import { useOllamaStore } from '@/stores/ollama-store';
 
 // Use window object to share metadata between ChatInput and ChatProvider
@@ -61,6 +62,66 @@ export function ChatProvider({ children }: ChatProviderProps) {
     },
     onData: (data) => {
       console.log('[ChatProvider] Data received:', data);
+
+      // Handle custom data events with data- prefix
+      if (data.type && data.type.startsWith('data-')) {
+        const dataType = data.type.substring(5); // Remove 'data-' prefix
+        const eventData = data.data as any;
+
+        // Handle agent state updates
+        if (dataType === 'agent-state' && eventData) {
+          console.log('[ChatProvider] Agent state update:', eventData);
+          const store = useAgentStore.getState();
+
+          if (eventData.mode) {
+            // Map backend modes to frontend AgentMode
+            switch (eventData.mode) {
+              case 'planning':
+                store.setAgentMode('planning');
+                break;
+              case 'executing':
+                store.setAgentMode('executing');
+                break;
+              case 'completed':
+                store.setAgentMode('completed');
+                break;
+              default:
+                store.setAgentMode('initializing');
+            }
+          }
+
+          // Update objective if provided
+          if (eventData.objective) {
+            useAgentStore.setState({
+              currentObjective: eventData.objective,
+              isAgentActive: true,
+            });
+          }
+        }
+
+        // Handle reasoning events
+        if (dataType === 'reasoning' && eventData) {
+          console.log('[ChatProvider] Reasoning update:', eventData);
+          const { addReasoningEntry } = useAgentStore.getState();
+
+          if (eventData.content) {
+            addReasoningEntry({
+              id: Date.now().toString(),
+              type: eventData.type || 'planning',
+              content: eventData.content,
+              confidence: 0.8, // Default confidence
+              timestamp: new Date(),
+            });
+          }
+        }
+
+        // Handle task progress events
+        if (dataType === 'task-progress' && eventData?.progress) {
+          console.log('[ChatProvider] Task progress update:', eventData.progress);
+          const { updateProgress } = useAgentStore.getState();
+          updateProgress(eventData.progress);
+        }
+      }
     },
   });
 

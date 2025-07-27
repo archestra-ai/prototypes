@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { AgentControlPanel, AgentModeIndicator, ReasoningPanel } from '@/components/agent';
+import { AgentControlPanel, AgentModeIndicator, ReasoningPanel, TaskProgress } from '@/components/agent';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChatProvider } from '@/providers/chat-provider';
@@ -43,6 +43,7 @@ export default function ChatPage(_props: ChatPageProps) {
               <CollapsibleContent>
                 <CardContent>
                   <AgentControlPanel />
+                  <TaskProgress className="mt-4" />
                   <ReasoningPanel />
                 </CardContent>
               </CollapsibleContent>

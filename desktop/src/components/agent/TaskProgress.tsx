@@ -19,6 +19,12 @@ interface TaskProgressProps {
   enableRealtimeUpdates?: boolean;
 }
 
+// Selector functions defined outside component to prevent recreation
+const selectPlan = (state: any) => state.plan;
+const selectProgress = (state: any) => state.progress;
+const selectMode = (state: any) => state.mode;
+const selectCurrentTask = (state: any) => state.currentTask;
+
 export const TaskProgress = React.memo(function TaskProgressInner({
   className,
   compact = false,
@@ -26,17 +32,10 @@ export const TaskProgress = React.memo(function TaskProgressInner({
   onStepComplete,
   enableRealtimeUpdates = false,
 }: TaskProgressProps) {
-  const {
-    plan,
-    progress: storeProgress,
-    mode,
-    currentTask,
-  } = useAgentStore((state) => ({
-    plan: state.plan,
-    progress: state.progress,
-    mode: state.mode,
-    currentTask: state.currentTask,
-  }));
+  const plan = useAgentStore(selectPlan);
+  const storeProgress = useAgentStore(selectProgress);
+  const mode = useAgentStore(selectMode);
+  const currentTask = useAgentStore(selectCurrentTask);
 
   const [realtimeSteps, setRealtimeSteps] = useState<Map<string, number>>(new Map());
   const [animatingSteps, setAnimatingSteps] = useState<Set<string>>(new Set());
@@ -56,7 +55,7 @@ export const TaskProgress = React.memo(function TaskProgressInner({
 
   // Track step completion animations
   useEffect(() => {
-    if (onStepComplete && plan) {
+    if (onStepComplete && plan && plan.steps) {
       plan.steps.forEach((step) => {
         if (step.status === 'completed' && !realtimeSteps.has(step.id)) {
           setRealtimeSteps((prev) => new Map(prev).set(step.id, Date.now()));
@@ -126,7 +125,8 @@ export const TaskProgress = React.memo(function TaskProgressInner({
     }
   };
 
-  if (!plan || mode === 'idle') {
+  // Early return if agent is not active
+  if (mode === 'idle' || !storeProgress) {
     return null;
   }
 
@@ -153,7 +153,7 @@ export const TaskProgress = React.memo(function TaskProgressInner({
                 <Activity className="h-4 w-4 text-green-500 animate-pulse" />
               )}
             </CardTitle>
-            <CardDescription className="mt-1">{plan.objective}</CardDescription>
+            {plan && <CardDescription className="mt-1">{plan.objective}</CardDescription>}
           </div>
           <div className="text-right">
             <div className="text-2xl font-semibold">{progressPercent}%</div>
@@ -189,47 +189,49 @@ export const TaskProgress = React.memo(function TaskProgressInner({
         )}
 
         {/* Task list */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">Tasks</h4>
-          <div className="space-y-1.5 max-h-64 overflow-y-auto">
-            {plan.steps.map((step, index) => (
-              <div
-                key={step.id}
-                className={cn(
-                  'flex items-start gap-2 rounded-md p-2 text-sm transition-all duration-300',
-                  step.status === 'in_progress' && 'bg-primary/5',
-                  step.status === 'completed' && 'opacity-60',
-                  step.status === 'failed' && 'bg-destructive/5',
-                  animatingSteps.has(step.id) && 'scale-105 bg-green-50 dark:bg-green-950/20'
-                )}
-              >
-                <div className="mt-0.5">{getStepIcon(step)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate font-medium">
-                      {index + 1}. {step.description}
-                    </p>
-                    <span
-                      className={cn(
-                        'text-xs shrink-0',
-                        step.status === 'completed' && 'text-green-600',
-                        step.status === 'failed' && 'text-destructive',
-                        step.status === 'in_progress' && 'text-primary',
-                        step.status === 'pending' && 'text-muted-foreground'
-                      )}
-                    >
-                      {getStepStatusText(step)}
-                    </span>
-                  </div>
-                  {step.result?.error && <p className="mt-1 text-xs text-destructive">{step.result.error}</p>}
-                  {step.reasoningText && step.status === 'in_progress' && (
-                    <p className="mt-1 text-xs text-muted-foreground">{step.reasoningText}</p>
+        {plan && plan.steps && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Tasks</h4>
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              {plan.steps.map((step, index) => (
+                <div
+                  key={step.id}
+                  className={cn(
+                    'flex items-start gap-2 rounded-md p-2 text-sm transition-all duration-300',
+                    step.status === 'in_progress' && 'bg-primary/5',
+                    step.status === 'completed' && 'opacity-60',
+                    step.status === 'failed' && 'bg-destructive/5',
+                    animatingSteps.has(step.id) && 'scale-105 bg-green-50 dark:bg-green-950/20'
                   )}
+                >
+                  <div className="mt-0.5">{getStepIcon(step)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate font-medium">
+                        {index + 1}. {step.description}
+                      </p>
+                      <span
+                        className={cn(
+                          'text-xs shrink-0',
+                          step.status === 'completed' && 'text-green-600',
+                          step.status === 'failed' && 'text-destructive',
+                          step.status === 'in_progress' && 'text-primary',
+                          step.status === 'pending' && 'text-muted-foreground'
+                        )}
+                      >
+                        {getStepStatusText(step)}
+                      </span>
+                    </div>
+                    {step.result?.error && <p className="mt-1 text-xs text-destructive">{step.result.error}</p>}
+                    {step.reasoningText && step.status === 'in_progress' && (
+                      <p className="mt-1 text-xs text-muted-foreground">{step.reasoningText}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Summary stats */}
         {(progress.completed > 0 || mode === 'completed') && (
@@ -242,13 +244,13 @@ export const TaskProgress = React.memo(function TaskProgressInner({
               </div>
               <div>
                 <div className="text-2xl font-semibold text-primary">
-                  {plan.steps.filter((s) => s.status === 'in_progress').length}
+                  {plan?.steps?.filter((s) => s.status === 'in_progress').length || 0}
                 </div>
                 <div className="text-xs text-muted-foreground">Active</div>
               </div>
               <div>
                 <div className="text-2xl font-semibold text-destructive">
-                  {plan.steps.filter((s) => s.status === 'failed').length}
+                  {plan?.steps?.filter((s) => s.status === 'failed').length || 0}
                 </div>
                 <div className="text-xs text-muted-foreground">Failed</div>
               </div>

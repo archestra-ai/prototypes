@@ -334,19 +334,11 @@ async fn create_chat_stream(
                 )
             }
             SseMessage::DataPart { data_type, data } => {
-                // Custom data parts in Vercel AI SDK format
-                let mut data_obj = serde_json::json!({
-                    "type": data_type
-                });
-                if let Some(obj) = data.as_object() {
-                    for (k, v) in obj {
-                        data_obj[k] = v.clone();
-                    }
-                }
+                // Custom data parts need data- prefix for Vercel AI SDK v5
                 Event::default().data(
                     serde_json::to_string(&serde_json::json!({
-                        "type": "data",
-                        "data": data_obj
+                        "type": format!("data-{}", data_type),
+                        "data": data
                     }))
                     .unwrap(),
                 )
@@ -437,6 +429,20 @@ async fn execute_chat_stream(
                         }),
                     })
                     .await?;
+                    
+                    // Send initial task progress
+                    tx.send(SseMessage::DataPart {
+                        data_type: "task-progress".to_string(),
+                        data: serde_json::json!({
+                            "progress": {
+                                "completed": 0,
+                                "total": 1,
+                                "currentStep": "Planning tasks...",
+                                "percentComplete": 0
+                            }
+                        }),
+                    })
+                    .await?;
                 }
             }
         } else if agent_context.mode.as_deref() == Some("stop") {
@@ -483,6 +489,7 @@ async fn execute_chat_stream(
     // Keep track of tool results for potential second LLM call
     let mut tool_results: Vec<(String, String, serde_json::Value)> = Vec::new();
     let mut had_tool_calls = false;
+    let mut completed_tools = 0;
 
     // Make the initial LLM call
     let ollama_request = OllamaChatRequest {
@@ -545,6 +552,8 @@ async fn execute_chat_stream(
                     // Handle tool calls if present
                     if let Some(tool_calls) = chat_chunk.message.tool_calls {
                         had_tool_calls = true;
+                        let total_tools = tool_calls.len();
+                        
                         for tool_call in tool_calls {
                             let tool_id = tool_call
                                 .id
@@ -583,8 +592,23 @@ async fn execute_chat_stream(
                                     
                                     tx.send(SseMessage::ToolCallResult {
                                         tool_call_id: tool_id,
-                                        tool_name,
+                                        tool_name: tool_name.clone(),
                                         result,
+                                    })
+                                    .await?;
+                                    
+                                    // Update progress after successful tool execution
+                                    completed_tools += 1;
+                                    tx.send(SseMessage::DataPart {
+                                        data_type: "task-progress".to_string(),
+                                        data: serde_json::json!({
+                                            "progress": {
+                                                "completed": completed_tools,
+                                                "total": total_tools,
+                                                "currentStep": format!("Executed tool: {}", tool_name),
+                                                "percentComplete": (completed_tools * 100 / total_tools) as i32
+                                            }
+                                        }),
                                     })
                                     .await?;
                                 }
