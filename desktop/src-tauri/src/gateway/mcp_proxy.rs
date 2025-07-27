@@ -191,7 +191,6 @@ impl Service {
         match forward_raw_request(&server_name, request_body.clone()).await {
             Ok(raw_response) => {
                 println!("✅ Successfully received response from server '{server_name}'");
-                println!("📤 Response: {raw_response}");
 
                 let duration_ms = start_time.elapsed().as_millis() as i32;
 
@@ -301,12 +300,14 @@ pub fn create_router(db: DatabaseConnection) -> Router {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::mcp_request_log::{Column, Entity};
     use crate::test_fixtures::database;
     use axum::{
         body::Body,
         http::{Request, StatusCode},
     };
     use rstest::*;
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
     use tower::ServiceExt;
 
     fn app(db: DatabaseConnection) -> Router {
@@ -517,9 +518,6 @@ mod tests {
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
         // Check that a log entry was created
-        use crate::models::mcp_request_log::{Column, Entity};
-        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-
         let logs = Entity::find()
             .filter(Column::ServerName.eq("test-server"))
             .all(&db)

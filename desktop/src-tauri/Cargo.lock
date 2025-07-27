@@ -153,6 +153,7 @@ dependencies = [
  "futures-util",
  "http-body-util",
  "lazy_static",
+ "ollama-rs",
  "once_cell",
  "reqwest 0.12.22",
  "rmcp",
@@ -4038,6 +4039,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ollama-rs"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "659dd1460a1079db751a236b301e78e63486758fee7e2db1ddcd2372c264be36"
+dependencies = [
+ "async-stream",
+ "log",
+ "reqwest 0.12.22",
+ "schemars 1.0.4",
+ "serde",
+ "serde_json",
+ "static_assertions",
+ "thiserror 2.0.12",
+ "tokio",
+ "tokio-stream",
+ "url 2.5.4",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5328,21 +5348,20 @@ dependencies = [
 
 [[package]]
 name = "rstest"
-version = "0.25.0"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fc39292f8613e913f7df8fa892b8944ceb47c247b78e1b1ae2f09e019be789d"
+checksum = "c721f131ce14d37eb6365d6848fe38703fff9b961c83038a926673e91769d1ef"
 dependencies = [
  "futures-timer",
  "futures-util",
  "rstest_macros",
- "rustc_version",
 ]
 
 [[package]]
 name = "rstest_macros"
-version = "0.25.0"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f168d99749d307be9de54d23fd226628d99768225ef08f6ffb52e0182a27746"
+checksum = "af1954176ab4f2ced085ad2c7a1b257be46299aa0093dabaa4e078b4af25eb3c"
 dependencies = [
  "cfg-if",
  "glob",
@@ -5937,6 +5956,7 @@ version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30b9eff21ebe718216c6ec64e1d9ac57087aad11efc64e32002bce4a0d4c03d3"
 dependencies = [
+ "indexmap 2.10.0",
  "itoa",
  "memchr",
  "ryu",

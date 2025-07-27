@@ -90,7 +90,6 @@ impl Model {
             name: Set(definition.name.clone()),
             server_config: Set(server_config_json),
             meta: Set(meta_json),
-            created_at: Set(chrono::Utc::now()),
             ..Default::default()
         };
 
@@ -264,7 +263,6 @@ impl From<MCPServerDefinition> for ActiveModel {
             name: Set(definition.name),
             server_config: Set(serde_json::to_string(&definition.server_config).unwrap_or_default()),
             meta: Set(meta_json),
-            created_at: Set(chrono::Utc::now()),
             ..Default::default()
         }
     }

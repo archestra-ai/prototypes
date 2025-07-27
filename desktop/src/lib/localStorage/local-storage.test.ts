@@ -1,5 +1,5 @@
 /// <reference types="vitest/globals" />
-import { OllamaLocalStorage } from './local-storage';
+import { OllamaLocalStorage } from './';
 
 describe('OllamaLocalStorage', () => {
   beforeEach(() => {

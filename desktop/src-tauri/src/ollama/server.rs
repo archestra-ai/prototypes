@@ -1,6 +1,6 @@
 use once_cell::sync::OnceCell;
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tauri_plugin_shell::{process::CommandChild, ShellExt};
 use tokio::sync::Mutex;
 
@@ -80,19 +80,6 @@ impl Service {
 // Helper function for the proxy handler to get the app handle
 pub fn get_app_handle() -> Option<&'static AppHandle> {
     APP_HANDLE.get()
-}
-
-// Helper function to emit chat title updates
-pub fn emit_chat_title_updated(chat_id: i32, title: String) {
-    if let Some(handle) = get_app_handle() {
-        let _ = handle.emit(
-            "chat-title-updated",
-            serde_json::json!({
-                "chatId": chat_id,
-                "title": title
-            }),
-        );
-    }
 }
 
 // Shutdown function to clean up Ollama process

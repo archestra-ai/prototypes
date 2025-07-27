@@ -1,3 +1,4 @@
+use crate::database::migration::Migrator;
 use sea_orm::{Database, DatabaseConnection, DbErr};
 use sea_orm_migration::MigratorTrait;
 use std::path::PathBuf;
@@ -38,7 +39,6 @@ pub async fn get_database_connection(app: &tauri::AppHandle) -> Result<DatabaseC
 
     // Run migrations
     println!("📊 Running database migrations...");
-    use crate::database::migration::Migrator;
     Migrator::up(&db, None)
         .await
         .map_err(|e| format!("Failed to run migrations: {e}"))?;

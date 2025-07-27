@@ -307,7 +307,7 @@ pub async fn create_streamable_http_service(
         Arc::new(LocalSessionManager::default()),
         StreamableHttpServerConfig {
             sse_keep_alive: Some(std::time::Duration::from_secs(30)),
-            stateful_mode: true, // Enable stateful mode for session management
+            stateful_mode: false,
         },
     )
 }

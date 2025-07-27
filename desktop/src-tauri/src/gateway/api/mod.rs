@@ -17,5 +17,6 @@ pub fn create_router(db: DatabaseConnection) -> Router {
             "/mcp_request_log",
             mcp_request_log::create_router(db.clone()),
         )
-        .nest("/mcp_server", mcp_server::create_router(db))
+        .nest("/mcp_server", mcp_server::create_router(db.clone()))
+        .nest("/chat", chat::create_router(db))
 }

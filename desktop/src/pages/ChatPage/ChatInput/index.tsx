@@ -1,12 +1,12 @@
 'use client';
 
 import { FileText } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
+import ToolPill from '@/components/ToolPill';
 import {
   AIInput,
   AIInputButton,
-  AIInputContextPills,
   AIInputModelSelect,
   AIInputModelSelectContent,
   AIInputModelSelectItem,
@@ -16,25 +16,50 @@ import {
   AIInputTextarea,
   AIInputToolbar,
   AIInputTools,
-  ToolContext,
 } from '@/components/kibo/ai-input';
+import { ToolContext } from '@/components/kibo/ai-input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils/tailwind';
 import { useChatContext } from '@/providers/chat-provider';
 import { useAgentStore } from '@/stores/agent-store';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
+import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
+import { ChatInteractionStatus } from '@/types';
 
-interface ChatInputProps {
-  selectedTools?: ToolContext[];
-  onToolRemove?: (tool: ToolContext) => void;
+interface ChatInputProps {}
+
+// AIInputContextPills component for displaying selected tools
+interface AIInputContextPillsProps {
+  tools: ToolContext[];
+  onRemoveTool: (tool: ToolContext) => void;
 }
 
-export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInputProps) {
+function AIInputContextPills({ tools, onRemoveTool }: AIInputContextPillsProps) {
+  if (!tools || tools.length === 0) return null;
+
+  return (
+    <div className={cn('flex flex-wrap gap-2 p-3 pb-0')}>
+      {tools.map((tool, index) => (
+        <ToolPill
+          key={`${tool.serverName}-${tool.toolName}-${index}`}
+          tool={tool}
+          onRemove={() => onRemoveTool(tool)}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default function ChatInput(_props: ChatInputProps) {
   // Manage input state locally since v5 doesn't provide it
   const [input, setInput] = useState('');
 
   // Use the shared chat context
   const { sendMessage, status, stop: cancelStreaming, setMessages } = useChatContext();
+
+  // Get selected tools from store
+  const { selectedTools } = useMCPServersStore();
 
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const isStreaming = status === 'streaming' || status === 'submitted';
@@ -127,6 +152,10 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
     setInput(e.target.value);
   };
 
+  const handleToolRemove = (tool: ToolContext) => {
+    useMCPServersStore.getState().toggleSelectedTool(tool.serverName, tool.toolName);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       if (e.metaKey || e.ctrlKey) {
@@ -160,7 +189,7 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
     <TooltipProvider>
       <div className="space-y-2">
         <AIInput onSubmit={onSubmit} className="bg-inherit">
-          <AIInputContextPills tools={selectedTools} onRemoveTool={onToolRemove || (() => {})} />
+          <AIInputContextPills tools={selectedTools} onRemoveTool={handleToolRemove} />
           <AIInputTextarea
             value={input}
             onChange={handleInputChange}

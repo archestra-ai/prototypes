@@ -1,10 +1,12 @@
 use axum::Router;
 use sea_orm::DatabaseConnection;
 use std::net::SocketAddr;
+use tauri::AppHandle;
 use tokio::net::TcpListener;
+use tower_http::cors::{Any, CorsLayer};
 
 pub mod api;
-mod llm_providers;
+pub mod llm_providers;
 mod mcp;
 mod mcp_proxy;
 
@@ -12,18 +14,25 @@ pub const GATEWAY_SERVER_PORT: u16 = 54587;
 
 pub async fn start_gateway(
     user_id: String,
+    app_handle: AppHandle,
     db: DatabaseConnection,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mcp_service = mcp::create_streamable_http_service(user_id, db.clone()).await;
     let mcp_proxy_router = mcp_proxy::create_router(db.clone());
     let api_router = api::create_router(db.clone());
-    let llm_providers_router = llm_providers::create_router(db.clone());
+    let llm_providers_router = llm_providers::create_router(app_handle.clone(), db.clone());
+
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
 
     let app = Router::new()
         .nest("/mcp_proxy", mcp_proxy_router)
         .nest("/llm", llm_providers_router)
         .nest("/api", api_router)
-        .nest_service("/mcp", mcp_service);
+        .nest_service("/mcp", mcp_service)
+        .layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], GATEWAY_SERVER_PORT));
     let listener = TcpListener::bind(addr).await?;

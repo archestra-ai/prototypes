@@ -101,7 +101,7 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   const isLastMessageStreaming = isLoading && lastMessage?.role === 'assistant';
 
   return (
-    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full">
+    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full border rounded-lg">
       <div className="px-6 py-4">
         {/* Connection Status */}
         {error && (

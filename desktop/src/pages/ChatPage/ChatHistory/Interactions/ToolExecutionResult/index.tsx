@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ToolCallStatus } from '@/types';
 
 interface ToolExecutionResultProps {
   serverName: string;
@@ -11,7 +12,7 @@ interface ToolExecutionResultProps {
   arguments: Record<string, any>;
   result: string;
   executionTime?: number;
-  status: 'success' | 'error';
+  status: ToolCallStatus;
   error?: string;
 }
 
@@ -45,7 +46,7 @@ export default function ToolExecutionResult({
     <div className="border rounded-lg p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 dark:border-blue-800">
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2">
-          {status === 'success' ? (
+          {status === ToolCallStatus.Completed ? (
             <CheckCircle className="h-4 w-4 text-green-600" />
           ) : (
             <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -87,7 +88,7 @@ export default function ToolExecutionResult({
 
       {/* Result Content */}
       <div className="mt-2">
-        {status === 'error' && error ? (
+        {status === ToolCallStatus.Error && error ? (
           <div className="p-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-300">
             <strong>Error:</strong> {error}
           </div>

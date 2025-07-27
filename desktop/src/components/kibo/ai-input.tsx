@@ -4,13 +4,11 @@ import { Loader2Icon, SendIcon, SquareIcon, XIcon } from 'lucide-react';
 import type { ComponentProps, HTMLAttributes, KeyboardEventHandler } from 'react';
 import React, { Children, useCallback, useEffect, useRef } from 'react';
 
-import { ToolHoverCard } from '@/components/ToolHoverCard';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { formatToolName } from '@/lib/format-tool-name';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/tailwind';
+import { ChatInteractionStatus } from '@/types';
 
 type UseAutoResizeTextareaProps = {
   minHeight: number;
@@ -138,7 +136,7 @@ export const AIInputButton = React.forwardRef<HTMLButtonElement, AIInputButtonPr
 AIInputButton.displayName = 'AIInputButton';
 
 export type AIInputSubmitProps = ComponentProps<typeof Button> & {
-  status?: 'submitted' | 'streaming' | 'ready' | 'error';
+  status?: ChatInteractionStatus;
 };
 export const AIInputSubmit = ({
   className,
@@ -149,11 +147,11 @@ export const AIInputSubmit = ({
   ...props
 }: AIInputSubmitProps) => {
   let Icon = <SendIcon />;
-  if (status === 'submitted') {
+  if (status === ChatInteractionStatus.Submitted) {
     Icon = <Loader2Icon className="animate-spin" />;
-  } else if (status === 'streaming') {
+  } else if (status === ChatInteractionStatus.Streaming) {
     Icon = <SquareIcon />;
-  } else if (status === 'error') {
+  } else if (status === ChatInteractionStatus.Error) {
     Icon = <XIcon />;
   }
 
@@ -202,84 +200,3 @@ export type AIInputModelSelectValueProps = ComponentProps<typeof SelectValue>;
 export const AIInputModelSelectValue = ({ className, ...props }: AIInputModelSelectValueProps) => (
   <SelectValue className={cn(className)} {...props} />
 );
-
-export interface ToolContext {
-  serverName: string;
-  toolName: string;
-  enabled?: boolean;
-  description?: string;
-}
-
-export type AIInputContextPillsProps = HTMLAttributes<HTMLDivElement> & {
-  tools: ToolContext[];
-  onRemoveTool: (tool: ToolContext) => void;
-};
-export const AIInputContextPills = ({ className, tools, onRemoveTool, ...props }: AIInputContextPillsProps) => {
-  if (tools.length === 0) return null;
-
-  const getServerIcon = (serverName: string) => {
-    switch (serverName.toLowerCase()) {
-      case 'gmail':
-        return (
-          <div className="w-3 h-3 bg-red-500 rounded-sm flex items-center justify-center">
-            <span className="text-white text-[8px] font-bold">M</span>
-          </div>
-        );
-      case 'slack':
-        return (
-          <div className="w-3 h-3 bg-purple-500 rounded-sm flex items-center justify-center">
-            <span className="text-white text-[8px] font-bold">#</span>
-          </div>
-        );
-      default:
-        return (
-          <div className="w-3 h-3 bg-blue-500 rounded-sm flex items-center justify-center">
-            <span className="text-white text-[8px] font-bold">{serverName.charAt(0).toUpperCase()}</span>
-          </div>
-        );
-    }
-  };
-
-  const getStatusDot = (enabled?: boolean) => {
-    if (enabled === false) {
-      return <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />;
-    }
-    // Default to enabled (green) if not specified
-    return <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />;
-  };
-
-  return (
-    <div className={cn('flex flex-wrap gap-2 p-3 pb-0', className)} {...props}>
-      {tools.map((tool, index) => (
-        <ToolHoverCard
-          key={`${tool.serverName}-${tool.toolName}-${index}`}
-          tool={{
-            serverName: tool.serverName,
-            toolName: tool.toolName,
-            enabled: tool.enabled,
-            description: tool.description,
-          }}
-          side="top"
-          align="start"
-          showInstructions={true}
-          instructionText="Click the × to remove this tool from your context"
-        >
-          <div>
-            <Badge variant="secondary" className="flex items-center gap-1.5 px-2 py-1 text-xs cursor-pointer">
-              {getServerIcon(tool.serverName)}
-              {getStatusDot(tool.enabled)}
-              <span>{formatToolName(tool.toolName)}</span>
-              <button
-                onClick={() => onRemoveTool(tool)}
-                className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                type="button"
-              >
-                <XIcon className="h-3 w-3" />
-              </button>
-            </Badge>
-          </div>
-        </ToolHoverCard>
-      ))}
-    </div>
-  );
-};
