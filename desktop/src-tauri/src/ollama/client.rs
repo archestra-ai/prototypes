@@ -1,10 +1,11 @@
-use crate::ollama::consts::OLLAMA_SERVER_PORT;
+use crate::ollama::server::get_ollama_server_port;
 use futures_util::stream::{Stream, StreamExt};
 use ollama_rs::generation::{
     chat::{request::ChatMessageRequest, ChatMessageResponse},
     completion::request::GenerationRequest,
 };
 use ollama_rs::Ollama;
+use tracing::debug;
 
 #[derive(Clone)]
 pub struct OllamaClient {
@@ -19,8 +20,9 @@ impl Default for OllamaClient {
 
 impl OllamaClient {
     pub fn new() -> Self {
+        let port = get_ollama_server_port();
         Self {
-            client: Ollama::new("http://127.0.0.1", OLLAMA_SERVER_PORT),
+            client: Ollama::new("http://127.0.0.1", port),
         }
     }
 
@@ -33,7 +35,7 @@ impl OllamaClient {
             "Based on this conversation, generate a brief 5-6 word title that captures the main topic. Return only the title, no quotes or extra text:\n\n{full_chat_context}"
         );
 
-        println!("Prompt: {prompt}");
+        debug!("Prompt: {prompt}");
 
         // For now, just use the basic GenerationRequest without options
         let mut request = GenerationRequest::new(model.to_string(), prompt);
@@ -41,7 +43,7 @@ impl OllamaClient {
 
         match self.client.generate(request).await {
             Ok(response) => {
-                println!("Response: {}", response.response);
+                debug!("Response: {}", response.response);
                 Ok(response.response.trim().to_string())
             }
             Err(e) => Err(format!("Failed to generate title: {e}")),

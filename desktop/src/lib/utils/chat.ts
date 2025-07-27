@@ -1,5 +1,7 @@
-import type { ChatWithInteractions as ServerChatWithInteractions } from '@/lib/api-client';
-import type { ChatInteraction, ChatWithInteractions } from '@/types';
+import type { ChatWithInteractions as ServerChatWithInteractions, ToolCall as ServerToolCall } from '@/lib/api-client';
+import { type ChatInteraction, type ChatWithInteractions, type ToolCall, ToolCallStatus } from '@/types';
+
+import { convertArchestraToolNameToServerAndToolName } from './tools';
 
 interface ParsedContent {
   thinking: string;
@@ -25,13 +27,13 @@ export function addCancellationText(content: string): string {
   return content.includes('[Cancelled]') ? content : content + ' [Cancelled]';
 }
 
-export function markChatInteractionAsCancelled(message: ChatInteraction): ChatInteraction {
+export function markChatInteractionAsCancelled(interaction: ChatInteraction): ChatInteraction {
   return {
-    ...message,
+    ...interaction,
     isStreaming: false,
     isToolExecuting: false,
     isThinkingStreaming: false,
-    content: addCancellationText(message.content),
+    content: addCancellationText(interaction.content),
   };
 }
 
@@ -73,16 +75,39 @@ export function parseThinkingContent(content: string): ParsedContent {
   };
 }
 
+export const generateNewToolCallId = () => Date.now();
+
+export const initializeToolCalls = (toolCalls: ServerToolCall[]): ToolCall[] => {
+  return toolCalls.map((toolCall) => {
+    const [serverName, toolName] = convertArchestraToolNameToServerAndToolName(toolCall.function.name);
+    return {
+      ...toolCall,
+      id: generateNewToolCallId(),
+      serverName,
+      name: toolName,
+      arguments: toolCall.function.arguments as Record<string, any>,
+      result: '',
+      error: '',
+      status: ToolCallStatus.Pending,
+      executionTime: 0,
+      startTime: null,
+      endTime: null,
+    };
+  });
+};
+
+export const generateNewMessageId = () => Date.now();
+
+export const generateNewMessageCreatedAt = () => new Date().toISOString();
+
 export const initializeChat = (chat: ServerChatWithInteractions): ChatWithInteractions => {
   return {
     ...chat,
     interactions: chat.interactions.map((interaction) => ({
       ...interaction,
-      /**
-       * NOTE: for right now, the content is coming from the server as a jsonified string.. we'll worry about
-       * better typing here later
-       */
-      content: JSON.parse(interaction.content as string),
+      id: generateNewMessageId(),
+      toolCalls: initializeToolCalls(interaction.tool_calls),
+      thinkingContent: '',
       isStreaming: false,
       isToolExecuting: false,
       isThinkingStreaming: false,

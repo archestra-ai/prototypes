@@ -3,6 +3,7 @@ use sea_orm::entity::prelude::*;
 use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tracing::error;
 use utoipa::ToSchema;
 
 pub mod oauth;
@@ -116,7 +117,7 @@ impl Model {
         // If updating, stop the existing server first
         if is_update {
             if let Err(e) = sandbox::stop_mcp_server(&definition.name).await {
-                eprintln!("Warning: Failed to stop server before update: {e}");
+                error!("Warning: Failed to stop server before update: {e}");
             }
         }
 
@@ -125,7 +126,7 @@ impl Model {
 
         // Start the server after saving
         if let Err(e) = sandbox::start_mcp_server(definition).await {
-            eprintln!("Warning: Failed to start server after save: {e}");
+            error!("Warning: Failed to start server after save: {e}");
             // Don't fail the save operation, but log the error
         }
 

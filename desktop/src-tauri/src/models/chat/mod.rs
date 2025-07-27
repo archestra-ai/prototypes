@@ -6,11 +6,9 @@ use sea_orm::entity::prelude::*;
 use sea_orm::{ActiveModelTrait, QueryOrder, Set};
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
-use utoipa::ToSchema;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "chats")]
-#[schema(as = Chat)]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
@@ -35,15 +33,14 @@ impl Related<ChatInteractionEntity> for Entity {
 
 impl ActiveModelBehavior for ActiveModel {}
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatDefinition {
     pub llm_provider: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatWithInteractions {
     #[serde(flatten)]
-    #[schema(inline)]
     pub chat: Model,
     pub interactions: Vec<ChatInteractionModel>,
 }
@@ -258,7 +255,10 @@ mod tests {
         for i in 0..3 {
             ChatInteractionModel::save(
                 chat.session_id.clone(),
-                format!(r#"{{"role": "user", "content": "Message {i}"}}"#),
+                serde_json::json!({
+                    "role": "user",
+                    "content": format!("Message {i}")
+                }),
                 &db,
             )
             .await
@@ -332,7 +332,6 @@ mod tests {
         };
 
         let json = serde_json::to_string_pretty(&chat_with_interactions).unwrap();
-        println!("Serialized ChatWithInteractions:\n{json}");
 
         // Verify the JSON has flattened structure
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();

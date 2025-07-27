@@ -179,6 +179,8 @@ dependencies = [
  "tokio-util",
  "tower",
  "tower-http",
+ "tracing",
+ "tracing-subscriber",
  "url 2.5.4",
  "utoipa",
  "utoipa-swagger-ui",
@@ -7534,6 +7536,7 @@ dependencies = [
  "tower",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]

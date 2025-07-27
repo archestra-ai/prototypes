@@ -4,26 +4,14 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ToolCallStatus } from '@/types';
+import { ToolCall, ToolCallStatus } from '@/types';
 
 interface ToolExecutionResultProps {
-  serverName: string;
-  toolName: string;
-  arguments: Record<string, any>;
-  result: string;
-  executionTime?: number;
-  status: ToolCallStatus;
-  error?: string;
+  toolCall: ToolCall;
 }
 
 export default function ToolExecutionResult({
-  serverName,
-  toolName,
-  arguments: toolArguments,
-  result,
-  executionTime,
-  status,
-  error,
+  toolCall: { serverName, name, arguments: toolArguments, result, executionTime, status, error },
 }: ToolExecutionResultProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showArguments, setShowArguments] = useState(false);
@@ -56,7 +44,7 @@ export default function ToolExecutionResult({
             <Badge variant="outline" className="mr-1 text-xs">
               {serverName}
             </Badge>
-            {toolName}
+            {name}
           </span>
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">

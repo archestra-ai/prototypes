@@ -5,6 +5,7 @@ import { LucideIcon } from 'lucide-react';
 import type {
   ChatInteraction as BaseChatInteraction,
   ChatWithInteractions as BaseChatWithInteractions,
+  ToolCall as BaseToolCall,
   McpServerDefinition,
 } from '@/lib/api-client';
 
@@ -36,17 +37,24 @@ export enum ToolCallStatus {
   Error = 'error',
 }
 
-export interface ToolCallInfo {
-  id: string;
+/**
+ * NOTE: the following fields are not part of the backend API, they are only used on the UI side to
+ * track the state of tool execution in the UI
+ */
+export interface ToolCall extends BaseToolCall {
+  /**
+   * id is just a seconds from epoch that is generated on the UI side, this doesn't exist in the backend
+   */
+  id: number;
   serverName: string;
-  toolName: string;
+  name: string;
   arguments: Record<string, any>;
-  result?: string;
-  error?: string;
+  result: string;
+  error: string | null;
   status: ToolCallStatus;
-  executionTime?: number;
-  startTime: Date;
-  endTime?: Date;
+  executionTime: number | null;
+  startTime: Date | null;
+  endTime: Date | null;
 }
 
 export enum ChatInteractionStatus {
@@ -56,26 +64,29 @@ export enum ChatInteractionStatus {
   Error = 'error',
 }
 
-export enum ChatInteractionRole {
-  User = 'user',
-  Assistant = 'assistant',
-  Tool = 'tool',
-  System = 'system',
-  Error = 'error',
-}
-
-export interface ChatInteraction extends BaseChatInteraction {
+/**
+ * NOTE: the following fields are not part of the backend API, they are only used on the UI side to
+ * track the state of various things like streaming, thinking, tool execution, etc.
+ */
+export interface ChatInteraction extends Omit<BaseChatInteraction, 'tool_calls'> {
   /**
-   * NOTE: for right now, the content is coming from the server as a jsonified string.. we'll worry about
-   * better typing here later
+   * id is just a seconds from epoch that is generated on the UI side, this doesn't exist in the backend
    */
-  content: any;
+  id: number;
+  /**
+   * toolCalls is a superset of the tool_calls field in the backend API
+   */
+  toolCalls: ToolCall[];
+  thinkingContent: string;
   isStreaming: boolean;
   isToolExecuting: boolean;
   isThinkingStreaming: boolean;
 }
 
-export interface ChatWithInteractions extends BaseChatWithInteractions {
+export interface ChatWithInteractions extends Omit<BaseChatWithInteractions, 'interactions'> {
+  /**
+   * interactions is a superset of the interactions field in the backend API
+   */
   interactions: ChatInteraction[];
 }
 

@@ -3,6 +3,7 @@ use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel, Se
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use url::Url;
+use tracing::{debug, error};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GmailTokens {
@@ -12,7 +13,7 @@ pub struct GmailTokens {
 }
 
 pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
-    println!("Received Gmail OAuth callback: {url}");
+    debug!("Received Gmail OAuth callback: {url}");
 
     if let Ok(parsed_url) = Url::parse(&url) {
         let query_params: std::collections::HashMap<String, String> = parsed_url
@@ -58,13 +59,13 @@ pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
             match get_database_connection_with_app(&app).await {
                 Ok(db) => {
                     if let Err(e) = MCPServerModel::save_server(&db, &definition).await {
-                        eprintln!("Failed to save Gmail MCP server: {e}");
+                        error!("Failed to save Gmail MCP server: {e}");
                         let _ = app.emit("oauth-error", format!("Failed to save server: {e}"));
                         return;
                     }
                 }
                 Err(e) => {
-                    eprintln!("Failed to get database connection: {e}");
+                    error!("Failed to get database connection: {e}");
                     let _ = app.emit("oauth-error", format!("Database error: {e}"));
                     return;
                 }
@@ -79,9 +80,9 @@ pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
                 }),
             );
 
-            println!("Gmail authentication completed successfully!");
+            debug!("Gmail authentication completed successfully!");
         } else if let Some(error) = query_params.get("error") {
-            eprintln!("Gmail OAuth error: {error}");
+            error!("Gmail OAuth error: {error}");
             // Emit error to frontend
             let _ = app.emit("oauth-error", format!("OAuth error: {error}"));
         }

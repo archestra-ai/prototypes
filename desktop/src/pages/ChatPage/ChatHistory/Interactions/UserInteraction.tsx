@@ -1,8 +1,9 @@
-// TODO: update this type...
+import { ChatInteraction } from '@/types';
+
 interface UserInteractionProps {
-  interaction: any;
+  interaction: ChatInteraction;
 }
 
-export default function UserInteraction({ interaction: { content } }: UserInteractionProps) {
-  return <div className="text-sm whitespace-pre-wrap">{content.content}</div>;
+export default function UserInteraction({ interaction }: UserInteractionProps) {
+  return <div className="text-sm whitespace-pre-wrap">{interaction.content}</div>;
 }

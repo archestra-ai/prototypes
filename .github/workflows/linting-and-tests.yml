@@ -56,7 +56,7 @@ jobs:
         run: |
           cargo fix --allow-dirty --allow-staged
           cargo fmt
-          
+
           if ! git diff --exit-code; then
             git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git config --local user.name "github-actions[bot]"
@@ -117,13 +117,9 @@ jobs:
       - name: Setup frontend dependencies
         uses: ./.github/actions/setup-frontend
 
-      - name: Generate OpenAPI schema
+      - name: Codegen
         working-directory: desktop/src-tauri
-        run: cargo run --bin dump_openapi
-
-      - name: Generate TypeScript client
-        working-directory: desktop
-        run: pnpm codegen
+        run: cargo run --bin codegen
 
       - name: Check for changes and commit if needed
         working-directory: desktop

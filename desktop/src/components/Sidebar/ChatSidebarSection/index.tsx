@@ -9,9 +9,9 @@ import { useChatStore } from '@/stores/chat-store';
 interface ChatSidebarProps {}
 
 export default function ChatSidebarSection(_props: ChatSidebarProps) {
-  const { chats, currentChat, isLoadingChats, selectChat, createNewChat, deleteCurrentChat, updateChat } =
+  const { chats, getCurrentChat, isLoadingChats, selectChat, createNewChat, deleteCurrentChat, updateChat } =
     useChatStore();
-  const currentChatId = currentChat.id;
+  const currentChatId = getCurrentChat()?.id;
 
   return (
     <>

@@ -3,13 +3,11 @@ use sea_orm::entity::prelude::*;
 use sea_orm::{ActiveModelTrait, DatabaseBackend, Set, Statement};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use utoipa::ToSchema;
 
 use crate::models::chat::Model as ChatModel;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "chat_interactions")]
-#[schema(as = ChatInteraction)]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
@@ -37,7 +35,7 @@ impl Related<crate::models::chat::Entity> for Entity {
 
 impl ActiveModelBehavior for ActiveModel {}
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatInteractionDefinition {
     pub chat_id: i32,
     pub content: JsonValue,
@@ -46,7 +44,7 @@ pub struct ChatInteractionDefinition {
 impl Model {
     pub async fn save(
         chat_session_id: String,
-        content: String,
+        content: JsonValue,
         db: &DatabaseConnection,
     ) -> Result<Model, DbErr> {
         // Find the chat by session_id to get the id
@@ -58,7 +56,7 @@ impl Model {
 
         let new_chat_interaction = ActiveModel {
             chat_id: Set(chat.id),
-            content: Set(serde_json::json!(content)),
+            content: Set(content),
             ..Default::default()
         };
 
@@ -111,14 +109,16 @@ mod tests {
         .unwrap();
 
         // Save a chat interaction using session_id
-        let content = r#"{"role": "user", "content": "Hello, world!"}"#;
-        let interaction = Model::save("test-session-123".to_string(), content.to_string(), &db)
+        let content = serde_json::json!({
+            "role": "user",
+            "content": "Hello, world!"
+        });
+        let interaction = Model::save("test-session-123".to_string(), content.clone(), &db)
             .await
             .unwrap();
 
         assert_eq!(interaction.chat_id, chat.id);
-        let saved_content = interaction.content.as_str().unwrap();
-        assert_eq!(saved_content, content);
+        assert_eq!(interaction.content, content);
     }
 
     #[rstest]
@@ -129,7 +129,7 @@ mod tests {
         // Try to save with non-existent session_id
         let result = Model::save(
             "non-existent-session".to_string(),
-            "test content".to_string(),
+            serde_json::json!({"content": "test content"}),
             &db,
         )
         .await;
@@ -165,7 +165,10 @@ mod tests {
 
         // Add some interactions
         for i in 0..3 {
-            let content = format!(r#"{{"role": "user", "content": "Message {i}"}}"#);
+            let content = serde_json::json!({
+                "role": "user",
+                "content": format!("Message {i}")
+            });
             Model::save("count-test-session".to_string(), content, &db)
                 .await
                 .unwrap();
@@ -216,13 +219,22 @@ mod tests {
         .unwrap();
 
         // Add interactions to each chat
-        Model::save("session-1".to_string(), "Chat 1 message".to_string(), &db)
+        Model::save("session-1".to_string(), serde_json::json!({
+            "role": "user",
+            "content": "Chat 1 message"
+        }), &db)
             .await
             .unwrap();
-        Model::save("session-2".to_string(), "Chat 2 message 1".to_string(), &db)
+        Model::save("session-2".to_string(), serde_json::json!({
+            "role": "user",
+            "content": "Chat 2 message 1"
+        }), &db)
             .await
             .unwrap();
-        Model::save("session-2".to_string(), "Chat 2 message 2".to_string(), &db)
+        Model::save("session-2".to_string(), serde_json::json!({
+            "role": "assistant",
+            "content": "Chat 2 message 2"
+        }), &db)
             .await
             .unwrap();
 

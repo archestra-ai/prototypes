@@ -1,9 +1,11 @@
-use crate::models::chat::{ChatDefinition, ChatWithInteractions, Model as Chat};
+use crate::models::chat::{ChatDefinition, ChatWithInteractions as ChatWithInteractionsModel, Model as Chat};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use axum::routing::{delete, get};
 use axum::Router;
+use chrono::{DateTime, Utc};
+use ollama_rs::generation::chat::ChatMessage as OllamaChatMessage;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -19,6 +21,126 @@ pub struct UpdateChatRequest {
     pub title: Option<String>,
 }
 
+// Schema for ToolCall based on ollama-rs
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ToolCall {
+    pub function: ToolCallFunction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ToolCallFunction {
+    pub name: String,
+    pub arguments: serde_json::Value,
+}
+
+// Role enum for chat messages
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum ChatMessageRole {
+    User,
+    Assistant,
+    Tool,
+    System,
+    Unknown,
+}
+
+// Manual schema implementation for ChatMessage content
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ChatMessage {
+    pub role: ChatMessageRole,
+    pub content: String,
+    pub thinking: String,
+    pub tool_calls: Vec<ToolCall>,
+    pub images: Vec<String>,
+}
+
+impl From<OllamaChatMessage> for ChatMessage {
+    fn from(msg: OllamaChatMessage) -> Self {
+        // Convert tool_calls
+        let tool_calls = msg.tool_calls.into_iter().map(|call| {
+            // Serialize and deserialize to convert from ollama-rs ToolCall to our schema
+            let json = serde_json::to_value(&call).unwrap_or_default();
+            serde_json::from_value(json).unwrap_or(ToolCall {
+                function: ToolCallFunction {
+                    name: String::new(),
+                    arguments: serde_json::Value::Object(serde_json::Map::new()),
+                }
+            })
+        }).collect();
+
+        // Convert images if present
+        let images = msg.images.map(|imgs| {
+            imgs.into_iter().map(|img| {
+                // Convert Image to base64 string
+                serde_json::to_value(&img)
+                    .and_then(|v| serde_json::from_value::<String>(v))
+                    .unwrap_or_default()
+            }).collect()
+        }).unwrap_or_else(Vec::new);
+
+        // Convert role from ollama-rs MessageRole to our enum
+        let role = match format!("{:?}", msg.role).to_lowercase().as_str() {
+            "user" => ChatMessageRole::User,
+            "assistant" => ChatMessageRole::Assistant,
+            "tool" => ChatMessageRole::Tool,
+            "system" => ChatMessageRole::System,
+            _ => ChatMessageRole::Unknown,
+        };
+
+        ChatMessage {
+            role,
+            content: msg.content,
+            thinking: msg.thinking.unwrap_or_else(String::new),
+            tool_calls,
+            images,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ChatInteraction {
+    pub created_at: DateTime<Utc>,
+    #[serde(flatten)]
+    pub content: ChatMessage,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ChatWithInteractions {
+    pub id: i32,
+    pub session_id: String,
+    pub title: String,
+    pub llm_provider: String,
+    pub created_at: DateTime<Utc>,
+    pub interactions: Vec<ChatInteraction>,
+}
+
+impl From<ChatWithInteractionsModel> for ChatWithInteractions {
+    fn from(chat_with_interactions: ChatWithInteractionsModel) -> Self {
+        let interactions = chat_with_interactions
+            .interactions
+            .into_iter()
+            .filter_map(|interaction| {
+                // Deserialize the content field from JSON to OllamaChatMessage
+                serde_json::from_value::<OllamaChatMessage>(interaction.content)
+                    .ok()
+                    .map(|content| ChatInteraction {
+                        created_at: interaction.created_at,
+                        content: ChatMessage::from(content),
+                    })
+            })
+            .collect();
+
+        Self {
+            id: chat_with_interactions.chat.id,
+            session_id: chat_with_interactions.chat.session_id,
+            title: chat_with_interactions.chat.title.unwrap_or_default(),
+            llm_provider: chat_with_interactions.chat.llm_provider,
+            created_at: chat_with_interactions.chat.created_at,
+            interactions,
+        }
+    }
+}
+
 pub struct Service {
     db: Arc<DatabaseConnection>,
 }
@@ -29,7 +151,8 @@ impl Service {
     }
 
     pub async fn get_all_chats(&self) -> Result<Vec<ChatWithInteractions>, sea_orm::DbErr> {
-        Chat::load_all(&self.db).await
+        let chats = Chat::load_all(&self.db).await?;
+        Ok(chats.into_iter().map(ChatWithInteractions::from).collect())
     }
 
     pub async fn create_chat(
@@ -39,7 +162,8 @@ impl Service {
         let definition = ChatDefinition {
             llm_provider: request.llm_provider,
         };
-        Chat::save(definition, &self.db).await
+        let chat = Chat::save(definition, &self.db).await?;
+        Ok(ChatWithInteractions::from(chat))
     }
 
     pub async fn delete_chat(&self, id: String) -> Result<(), sea_orm::DbErr> {
@@ -62,10 +186,11 @@ impl Service {
             .ok_or_else(|| sea_orm::DbErr::RecordNotFound("Chat not found".to_string()))?;
 
         let updated_chat = chat.chat.update_title(request.title, &self.db).await?;
-        Ok(ChatWithInteractions {
+        let updated_with_interactions = ChatWithInteractionsModel {
             chat: updated_chat,
             interactions: chat.interactions,
-        })
+        };
+        Ok(ChatWithInteractions::from(updated_with_interactions))
     }
 }
 
@@ -204,7 +329,7 @@ mod tests {
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let created_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
-        assert!(created_chat.title.is_none());
+        assert_eq!(created_chat.title, "");
         assert_eq!(created_chat.llm_provider, "ollama");
         assert!(!created_chat.session_id.is_empty());
     }
@@ -396,7 +521,7 @@ mod tests {
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let updated_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
-        assert_eq!(updated_chat.title, Some("My New Title".to_string()));
+        assert_eq!(updated_chat.title, "My New Title");
 
         // Test updating title back to None
         let update_request = UpdateChatRequest { title: None };
@@ -418,7 +543,7 @@ mod tests {
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let updated_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
-        assert_eq!(updated_chat.title, None);
+        assert_eq!(updated_chat.title, "");
     }
 
     #[rstest]

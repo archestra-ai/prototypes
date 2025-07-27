@@ -102,7 +102,7 @@ export default function MCPServerWithToolsSidebarSection(_props: MCPServerWithTo
                           <div className="w-full">
                             <SidebarMenuButton
                               size="sm"
-                              className="justify-between text-sm w-full"
+                              className="justify-between text-sm w-full cursor-pointer"
                               onClick={() => addSelectedTool(tool)}
                             >
                               <div className="flex items-center gap-2">
