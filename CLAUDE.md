@@ -402,12 +402,14 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
   - Generates a GitHub App installation token using `actions/create-github-app-token@v2`
   - Token is created from `ARCHESTRA_RELEASER_GITHUB_APP_ID` and `ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY` secrets
   - Generated token is used for both fetching existing releases and creating new ones via tauri-action
-- **Version Management**: When a desktop release is created:
-  - Automatically extracts version from release-please tag (format: `app-vX.Y.Z`)
-  - Updates version in three locations:
-    - `desktop/package.json` (using jq)
-    - `desktop/src-tauri/Cargo.toml` (using sed)
-    - `desktop/src-tauri/tauri.conf.json` (using jq)
+- **Version Management**: Release-please automatically manages version updates through `extra-files` configuration:
+  - **Configuration**: Located in `.github/release-please/release-please-config.json`
+  - **Extra Files**: Automatically updates version numbers in:
+    - `desktop/package.json` (JSON format, path: `$.version`)
+    - `desktop/src-tauri/Cargo.toml` (TOML format, path: `$.package.version`)
+    - `desktop/src-tauri/tauri.conf.json` (JSON format, path: `$.version`)
+  - **Process**: Version updates happen when release-please creates the release PR, not during the build
+  - **Format**: Versions are extracted from release-please tags (format: `app-vX.Y.Z`)
 - **Multi-platform desktop builds**: When a desktop release is created:
   - Builds Tauri desktop applications for Linux (ubuntu-latest) and Windows (windows-latest)
   - Uses matrix strategy with `fail-fast: false` to ensure all platforms build
