@@ -1,6 +1,6 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { ARCHESTRA_SERVER_API_URL } from '@/consts';
 import { useAgentStore } from '@/stores/agent-store';
@@ -16,14 +16,17 @@ interface UseSSEChatOptions {
  * Provides unified interface for both chat and agent modes
  */
 export function useSSEChat(options?: UseSSEChatOptions) {
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: `${ARCHESTRA_SERVER_API_URL}/chat`,
+      }),
+    []
+  );
+
   const chat = useChat({
-    // Use a consistent ID so multiple components share the same chat state
     id: 'main-chat',
-    // Configure transport to use our backend endpoint
-    transport: new DefaultChatTransport({
-      api: `${ARCHESTRA_SERVER_API_URL}/chat`,
-    }),
-    // Body should be passed when sending messages, not here
+    transport,
     onError: (error) => {
       console.error('[useSSEChat] Chat error:', error);
       options?.onError?.(error);
@@ -75,36 +78,12 @@ export function useSSEChat(options?: UseSSEChatOptions) {
     }
   }, [chat.messages]);
 
-  // Log available properties in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[useSSEChat] Hook called with ID:', 'main-chat');
-    console.log('[useSSEChat] Messages count:', chat.messages.length);
-    console.log('[useSSEChat] Status:', chat.status);
-    console.log('[useSSEChat] Chat instance ID:', (chat as any).id);
-
-    // Log detailed message structure
-    if (chat.messages.length > 0) {
-      chat.messages.forEach((msg, idx) => {
-        console.log(`[useSSEChat] Message ${idx}:`, {
-          id: msg.id,
-          role: msg.role,
-          content: (msg as any).content,
-          text: (msg as any).text,
-          parts: msg.parts,
-          partsCount: msg.parts?.length,
-        });
-        if (msg.parts) {
-          msg.parts.forEach((part: any, partIdx: number) => {
-            console.log(`[useSSEChat] Message ${idx} Part ${partIdx}:`, part);
-          });
-        }
-      });
+  // Log available properties in development (reduced logging)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[useSSEChat] Messages updated:', chat.messages.length);
     }
-
-    if (chat.error) {
-      console.error('[useSSEChat] Error:', chat.error);
-    }
-  }
+  }, [chat.messages.length]);
 
   // Return the chat interface directly from Vercel AI SDK v5
   // v5 doesn't provide input/handleInputChange/handleSubmit - users manage their own input state

@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useSSEChat } from '@/hooks/use-sse-chat';
 import { cn } from '@/lib/utils';
+import { useChatContext } from '@/providers/chat-provider';
 import { ToolCategory } from '@/services/agent/mcp-tool-wrapper-ai-sdk';
 import { useAgentStore } from '@/stores/agent-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
@@ -21,17 +21,8 @@ interface AgentControlPanelProps {
 }
 
 export function AgentControlPanel({ className }: AgentControlPanelProps) {
-  // Use the SSE chat hook
-  const {
-    sendMessage,
-    stop: abortChat,
-    status,
-    error: chatError,
-  } = useSSEChat({
-    onError: (error) => {
-      console.error('[AgentControlPanel] Chat error:', error);
-    },
-  });
+  // Use the shared chat context
+  const { sendMessage, stop: abortChat, status, error: chatError } = useChatContext();
 
   const isChatLoading = status === 'streaming' || status === 'submitted';
 

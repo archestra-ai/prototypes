@@ -169,6 +169,9 @@ async fn handle_chat(
     State(service): State<Arc<ChatService>>,
     Json(payload): Json<ChatRequest>,
 ) -> Result<Response, StatusCode> {
+    // Log the received request
+    eprintln!("[handle_chat] Received request with model: {:?}", payload.model);
+    
     // Default to streaming unless explicitly set to false
     let should_stream = payload.stream.unwrap_or(true);
 
@@ -456,8 +459,11 @@ async fn execute_chat_stream(
     };
 
     // Build Ollama request
+    let selected_model = request.model.clone().unwrap_or_else(|| "llama3.2".to_string());
+    eprintln!("[execute_chat_stream] Using model: {}", selected_model);
+    
     let ollama_request = OllamaChatRequest {
-        model: request.model.unwrap_or_else(|| "llama3.2".to_string()),
+        model: selected_model,
         messages: ollama_messages,
         stream: true,
         tools,
@@ -620,31 +626,108 @@ async fn execute_chat_stream(
 }
 
 /// Convert tool names (serverName_toolName) to Ollama tool format
-/// For now, we create basic tool definitions based on the tool names
-/// In the future, this could query the actual tool schemas from MCP servers
+/// This queries the actual tool schemas from MCP servers via the proxy
 async fn convert_tools_to_ollama_format(
     _db: &DatabaseConnection,
     tool_names: Vec<String>,
 ) -> Result<Vec<OllamaTool>, Box<dyn std::error::Error + Send + Sync>> {
     let mut ollama_tools = Vec::new();
-
+    
+    // Group tools by server for efficient querying
+    let mut tools_by_server: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    
     for tool_name in tool_names {
-        // For now, create a basic tool definition
-        // The actual tool execution will happen through the MCP proxy
-        ollama_tools.push(OllamaTool {
-            tool_type: "function".to_string(),
-            function: OllamaToolFunction {
-                name: tool_name.clone(),
-                description: format!("MCP tool: {}", tool_name),
-                parameters: serde_json::json!({
-                    "type": "object",
-                    "properties": {},
-                    "additionalProperties": true
-                }),
-            },
-        });
+        // Split serverName_toolName
+        let parts: Vec<&str> = tool_name.splitn(2, '_').collect();
+        if parts.len() != 2 {
+            eprintln!("Invalid tool name format: {}", tool_name);
+            continue;
+        }
+        
+        let server_name = parts[0].to_string();
+        let tool_name_only = parts[1].to_string();
+        
+        tools_by_server
+            .entry(server_name)
+            .or_insert_with(Vec::new)
+            .push(tool_name_only);
     }
-
+    
+    // Query each server for its tools
+    for (server_name, requested_tools) in tools_by_server {
+        // Create JSON-RPC request to list tools
+        let list_tools_request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": uuid::Uuid::new_v4().to_string(),
+            "method": "tools/list",
+            "params": {}
+        });
+        
+        match crate::models::mcp_server::sandbox::forward_raw_request(
+            &server_name,
+            serde_json::to_string(&list_tools_request)?
+        ).await {
+            Ok(response_str) => {
+                if let Ok(response) = serde_json::from_str::<serde_json::Value>(&response_str) {
+                    if let Some(result) = response.get("result") {
+                        if let Some(tools) = result.get("tools").and_then(|t| t.as_array()) {
+                            // Process each tool from the MCP server
+                            for tool in tools {
+                                if let Some(name) = tool.get("name").and_then(|n| n.as_str()) {
+                                    // Check if this tool was requested
+                                    if requested_tools.contains(&name.to_string()) {
+                                        let description = tool
+                                            .get("description")
+                                            .and_then(|d| d.as_str())
+                                            .unwrap_or("No description available")
+                                            .to_string();
+                                        
+                                        // Get input schema if available
+                                        let parameters = tool
+                                            .get("inputSchema")
+                                            .cloned()
+                                            .unwrap_or_else(|| serde_json::json!({
+                                                "type": "object",
+                                                "properties": {},
+                                                "additionalProperties": true
+                                            }));
+                                        
+                                        ollama_tools.push(OllamaTool {
+                                            tool_type: "function".to_string(),
+                                            function: OllamaToolFunction {
+                                                name: format!("{}_{}", server_name, name),
+                                                description,
+                                                parameters,
+                                            },
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to list tools from server '{}': {}", server_name, e);
+                // Fall back to basic tool definition for this server's tools
+                for tool_name_only in requested_tools {
+                    ollama_tools.push(OllamaTool {
+                        tool_type: "function".to_string(),
+                        function: OllamaToolFunction {
+                            name: format!("{}_{}", server_name, tool_name_only),
+                            description: format!("MCP tool from server: {}", server_name),
+                            parameters: serde_json::json!({
+                                "type": "object",
+                                "properties": {},
+                                "additionalProperties": true
+                            }),
+                        },
+                    });
+                }
+            }
+        }
+    }
+    
     Ok(ollama_tools)
 }
 

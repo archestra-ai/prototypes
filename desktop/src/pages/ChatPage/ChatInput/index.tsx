@@ -19,7 +19,7 @@ import {
   ToolContext,
 } from '@/components/kibo/ai-input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useSSEChat } from '@/hooks/use-sse-chat';
+import { useChatContext } from '@/providers/chat-provider';
 import { useAgentStore } from '@/stores/agent-store';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 import { useOllamaStore } from '@/stores/ollama-store';
@@ -33,8 +33,8 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
   // Manage input state locally since v5 doesn't provide it
   const [input, setInput] = useState('');
 
-  // Use SSE chat hook with v5 API
-  const { sendMessage, status, stop: cancelStreaming, setMessages } = useSSEChat();
+  // Use the shared chat context
+  const { sendMessage, status, stop: cancelStreaming, setMessages } = useChatContext();
 
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const isStreaming = status === 'streaming' || status === 'submitted';

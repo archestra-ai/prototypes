@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ChatMessage } from '@/components/chat';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useSSEChat } from '@/hooks/use-sse-chat';
+import { useChatContext } from '@/providers/chat-provider';
 import { useAgentStore } from '@/stores/agent-store';
 
 const CHAT_SCROLL_AREA_ID = 'chat-scroll-area';
@@ -12,24 +12,16 @@ const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-ar
 interface ChatHistoryProps {}
 
 export default function ChatHistory(_props: ChatHistoryProps) {
-  // Use the new SSE chat hook
-  const chat = useSSEChat();
+  // Use the shared chat context
+  const chat = useChatContext();
   const { messages, status, error } = chat;
-
-  // Log the entire chat object
-  console.log('[ChatHistory] Full chat object:', chat);
 
   const isLoading = status === 'streaming' || status === 'submitted';
 
   // Debug logging
   useEffect(() => {
-    console.log('[ChatHistory] Component mounted/updated');
-    console.log('[ChatHistory] Rendering with messages:', messages.length);
-    console.log('[ChatHistory] Messages:', messages);
-    console.log('[ChatHistory] Status:', status);
-    console.log('[ChatHistory] Error:', error);
-    console.log('[ChatHistory] isLoading:', isLoading);
-  }, [messages, status, error, isLoading]);
+    console.log('[ChatHistory] Messages:', messages.length, 'Status:', status);
+  }, [messages.length, status]);
 
   const { mode: agentMode, currentObjective, reasoningMode } = useAgentStore();
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
@@ -141,9 +133,6 @@ export default function ChatHistory(_props: ChatHistoryProps) {
 
         {/* Chat Messages */}
         <div className="space-y-4">
-          <div className="text-xs text-gray-500">
-            Debug: messages.length = {messages.length}, status = {status}
-          </div>
           {messages.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">No messages yet. Start a conversation!</div>
           ) : (

@@ -1,6 +1,9 @@
 # Chat State Migration Plan: Removing Custom State Management
 
-This document outlines the migration plan to remove custom state management from the chat implementation and fully embrace Vercel AI SDK v5's built-in capabilities.
+**Status: Partially Completed (4 of 6 phases)**  
+**Last Updated: 2025-07-27**
+
+This document outlines the migration plan to remove custom state management from the chat implementation and fully embrace Vercel AI SDK v5's built-in capabilities. The migration was partially completed, with 4 out of 6 phases finished. The remaining phases (tool handling migration) were not completed as the current implementation is working well.
 
 ## Current State Analysis
 
@@ -16,13 +19,6 @@ The current chat store maintains:
 - `sendChatMessage` - **Replace with**: SDK's `sendMessage`
 - `cancelStreaming` - **Replace with**: SDK's `stop`
 - `updateStreamingMessage` - **Not needed**: SDK handles streaming automatically
-
-#### 2. **Custom Input Management in use-sse-chat**
-
-- `customInput` state - **Replace with**: SDK's `input` and `setInput`
-- `customError` state - **Replace with**: SDK's `error`
-- `handleInputChange` - **Replace with**: SDK's `handleInputChange`
-- `handleSubmit` - **Replace with**: SDK's `handleSubmit`
 
 #### 3. **Tool Execution Flow**
 
@@ -257,6 +253,10 @@ The Vercel AI SDK's `useChat` returns `UIMessage` objects which don't support pr
 When the backend needs provider-specific options, it should use `convertToModelMessages` to convert
 UIMessage objects to ModelMessage objects. This conversion should happen server-side.
 
+**Update**: The `experimental_prepareRequestBody` API is no longer available in v5. To pass metadata like model selection,
+use `prepareSendMessagesRequest` in the `DefaultChatTransport` configuration. Due to v5 architecture, metadata must be stored
+in a ref or global variable to be accessible within the transport configuration.
+
 ```typescript
 // AFTER: Simplified ChatInput using SDK patterns
 export default function ChatInput({ selectedTools = [] }: ChatInputProps) {
@@ -371,3 +371,14 @@ The remaining work focuses on tool handling:
 ## Conclusion
 
 This migration successfully removed the bulk of custom state management, achieving significant simplification. The chat implementation now directly leverages Vercel AI SDK v5's capabilities, resulting in cleaner, more maintainable code that follows established patterns.
+
+## Why Phases 2 & 4 Were Not Completed
+
+The remaining phases (tool handling migration) were not completed because:
+
+1. **Current Implementation Works Well**: The existing server-side tool execution through MCP is functioning correctly
+2. **Architectural Fit**: The backend-driven approach for tool execution aligns better with the security model
+3. **Complexity vs Benefit**: The effort to migrate tool handling to v5 patterns would not provide significant benefits
+4. **Focus Shifted**: Development priorities moved to other features once the core chat functionality was working
+
+The partially completed migration still achieved the main goals of simplifying state management and adopting v5's streaming capabilities.

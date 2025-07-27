@@ -18,12 +18,13 @@ This directory contains architectural documentation and implementation guides fo
 - **[SSE Tool Implementation](./sse-tool-implementation.md)** - Tool calling implementation over SSE
 - **[Vercel AI SDK v5 Stream Protocol](./vercel-ai-sdk-v5-stream-protocol.md)** - Detailed v5 SSE protocol specification
 - **[Chat Simplification Analysis](./chat-simplification-analysis.md)** - Analysis of the current chat implementation and recommendations for simplification
-- **[Chat State Migration Plan](./chat-state-migration-plan.md)** - Plan for migrating chat state management to Vercel AI SDK v5
+- **[Chat State Migration Plan](./chat-state-migration-plan.md)** - Historical: Partially completed migration to Vercel AI SDK v5 (4/6 phases)
+- **[Chat State Sharing Issue](./chat-state-sharing-issue.md)** - Resolved issue with chat state not being shared between components
+- **[Model Selection Implementation](./model-selection-implementation.md)** - How model selection is passed to the backend in v5
 
 ### Reference
 
-- **[Vercel AI Building Agents](./vercel-ai-building-agents.md)** - Official Vercel documentation on building AI agents
-- **[Chat Simplification Analysis](./chat-simplification-analysis.md)** - Analysis of the current chat implementation and recommendations for simplification
+- **[Vercel AI SDK Chatbot](./vercel-ai-sdk-chatbot.md)** - Official Vercel documentation on building AI chatbots
 
 ## Key Findings
 

@@ -192,6 +192,7 @@ The application uses SSE for real-time streaming communication between frontend 
 - **Message Format**: JSON payloads with type field, proper [DONE] termination
 - **State Synchronization**: Agent state updates (reasoning, progress) streamed as data parts
 - **Required Header**: `x-vercel-ai-ui-message-stream: v1` for v5 compatibility
+- **Model Selection**: Uses `prepareSendMessagesRequest` with global metadata pattern (see `docs/model-selection-implementation.md`)
 
 ---
 
