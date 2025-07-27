@@ -38,13 +38,13 @@ export default function ChatSidebarSection(_props: ChatSidebarProps) {
           const isCurrentChat = currentChatId === id;
 
           return (
-            <SidebarMenuItem key={id} className="ml-6 group-data-[collapsible=icon]:hidden">
-              <div className="flex items-center group">
+            <SidebarMenuItem key={id} className="ml-6 group-data-[collapsible=icon]:hidden group/chat-item">
+              <div className="flex items-center">
                 <SidebarMenuButton
                   onClick={() => selectChat(id)}
                   isActive={isCurrentChat}
                   size="sm"
-                  className="cursor-pointer hover:bg-accent/50 text-sm flex-1"
+                  className="cursor-pointer hover:bg-accent/50 text-sm flex-1 group/chat-button"
                 >
                   <EditableTitle
                     className="truncate"
