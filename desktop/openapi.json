@@ -682,6 +682,19 @@
         "type": "string",
         "enum": ["user", "assistant", "tool", "system", "unknown"]
       },
+      "ChatTitleUpdatedWebSocketPayload": {
+        "type": "object",
+        "required": ["chat_id", "title"],
+        "properties": {
+          "chat_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
       "ChatWithInteractions": {
         "type": "object",
         "required": ["id", "session_id", "title", "llm_provider", "created_at", "interactions"],
@@ -1219,6 +1232,23 @@
             "type": ["string", "null"]
           }
         }
+      },
+      "WebSocketMessage": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/ChatTitleUpdatedWebSocketPayload"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["chat-title-updated"]
+              }
+            }
+          }
+        ]
       }
     }
   },
@@ -1238,6 +1268,10 @@
     {
       "name": "mcp_server",
       "description": "MCP Server management API"
+    },
+    {
+      "name": "websocket",
+      "description": "WebSocket event types"
     }
   ]
 }

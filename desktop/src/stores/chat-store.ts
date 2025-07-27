@@ -1,4 +1,3 @@
-import { listen } from '@tauri-apps/api/event';
 import { Message as OllamaMessage, Tool as OllamaTool, ToolCall as OllamaToolCall } from 'ollama/browser';
 import { create } from 'zustand';
 
@@ -21,9 +20,9 @@ import {
 } from '@/lib/utils/chat';
 import { convertMCPServerToolsToOllamaTools } from '@/lib/utils/ollama';
 import { convertArchestraToolNameToServerAndToolName } from '@/lib/utils/tools';
+import { websocketService } from '@/lib/websocket';
 import {
   ChatInteractionStatus,
-  type ChatTitleUpdatedEvent,
   type ChatWithInteractions,
   type ToolCall,
   ToolCallStatus,
@@ -57,16 +56,17 @@ interface ChatActions {
   sendChatMessage: (message: string, selectedTools?: ToolWithMCPServerName[]) => Promise<void>;
   cancelStreaming: () => void;
   updateStreamingMessage: (messageId: string, content: string) => void;
-  initializeStore: () => void;
+  initializeStore: () => Promise<void>;
 }
 
 type ChatStore = ChatState & ChatActions;
 
 /**
- * Listen for chat title updates from the backend
+ * Listen for chat title updates from the backend via WebSocket
  */
 const listenForChatTitleUpdates = () => {
-  listen<ChatTitleUpdatedEvent>('chat-title-updated', ({ payload: { chat_id, title } }) => {
+  return websocketService.subscribe('chat-title-updated', (message) => {
+    const { chat_id, title } = message.payload;
     useChatStore.setState((state) => ({
       chats: state.chats.map((chat) => (chat.id === chat_id ? { ...chat, title } : chat)),
     }));
@@ -633,12 +633,18 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  initializeStore: () => {
+  initializeStore: async () => {
     /**
-     * Load chats on initialization and listen for chat title updates
+     * Load chats on initialization, establish WebSocket connection, and listen for chat title updates
      */
     get().loadChats();
-    listenForChatTitleUpdates();
+
+    try {
+      await websocketService.connect();
+      listenForChatTitleUpdates();
+    } catch (error) {
+      console.error('Failed to establish WebSocket connection:', error);
+    }
   },
 
   getStatus: () => {

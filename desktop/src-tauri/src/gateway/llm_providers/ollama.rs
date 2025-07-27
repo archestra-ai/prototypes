@@ -1,3 +1,4 @@
+use crate::gateway::websocket::{WebSocketMessage, ChatTitleUpdatedWebSocketPayload, Service as WebSocketService};
 use crate::models::chat::Model as Chat;
 use crate::models::chat_interactions::Model as ChatInteraction;
 use crate::ollama::client::OllamaClient;
@@ -18,7 +19,6 @@ use ollama_rs::{
 };
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{debug, error};
@@ -28,9 +28,9 @@ const MIN_INTERACTIONS_FOR_TITLE_GENERATION: u64 = 4;
 
 #[derive(Clone)]
 struct Service {
-    app_handle: AppHandle,
     db: Arc<DatabaseConnection>,
     ollama_client: OllamaClient,
+    ws_service: Arc<WebSocketService>,
 }
 
 // NOTE: the ideal way here would be that ChatMessageRequest would implement Deserialize and then we could just
@@ -124,11 +124,11 @@ fn convert_proxied_request_to_ollama_request(
 }
 
 impl Service {
-    pub fn new(app_handle: AppHandle, db: DatabaseConnection) -> Self {
+    pub fn new(db: DatabaseConnection, ws_service: Arc<WebSocketService>) -> Self {
         Self {
-            app_handle,
             db: Arc::new(db),
             ollama_client: OllamaClient::new(),
+            ws_service,
         }
     }
 
@@ -171,14 +171,12 @@ impl Service {
                     .await
                     .is_ok()
                 {
-                    // Emit event to frontend that the title has been updated
-                    let _ = self.app_handle.emit(
-                        "chat-title-updated",
-                        serde_json::json!({
-                            "chat_id": chat_id.clone(),
-                            "title": title
-                        }),
-                    );
+                    // Broadcast WebSocket message that the title has been updated
+                    let message = WebSocketMessage::ChatTitleUpdated(ChatTitleUpdatedWebSocketPayload {
+                        chat_id,
+                        title,
+                    });
+                    self.ws_service.broadcast(message).await;
                     Ok(())
                 } else {
                     Err("Failed to update chat title in database".to_string())
@@ -259,8 +257,8 @@ impl Service {
         let (tx, rx) = mpsc::channel::<Result<axum::body::Bytes, std::io::Error>>(100);
 
         let db = self.db.clone();
-        let app_handle = self.app_handle.clone();
         let ollama_client = self.ollama_client.clone();
+        let ws_service = self.ws_service.clone();
 
         // Spawn a task to handle the stream
         tokio::spawn(async move {
@@ -318,9 +316,9 @@ impl Service {
                             {
                                 if count == MIN_INTERACTIONS_FOR_TITLE_GENERATION {
                                     let service = Service {
-                                        app_handle: app_handle.clone(),
                                         db: db.clone(),
                                         ollama_client: ollama_client.clone(),
+                                        ws_service: ws_service.clone(),
                                     };
                                     let _ = service
                                         .generate_chat_title(
@@ -457,10 +455,10 @@ async fn proxy_handler(
     }
 }
 
-pub fn create_router(app_handle: AppHandle, db: DatabaseConnection) -> Router {
+pub fn create_router(db: DatabaseConnection, ws_service: Arc<WebSocketService>) -> Router {
     Router::new()
         .fallback(proxy_handler)
-        .with_state(Arc::new(Service::new(app_handle, db)))
+        .with_state(Arc::new(Service::new(db, ws_service)))
 }
 
 // #[cfg(test)]

@@ -9,6 +9,7 @@ use utoipauto::utoipauto;
         (name = "external_mcp_client", description = "External MCP Client management API"),
         (name = "mcp_request_log", description = "MCP Request logging and analytics API"),
         (name = "mcp_server", description = "MCP Server management API"),
+        (name = "websocket", description = "WebSocket event types"),
     ),
     info(
         title = "Archestra API",

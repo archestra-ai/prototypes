@@ -14,6 +14,11 @@ export type ChatMessage = {
 
 export type ChatMessageRole = 'user' | 'assistant' | 'tool' | 'system' | 'unknown';
 
+export type ChatTitleUpdatedWebSocketPayload = {
+  chat_id: number;
+  title: string;
+};
+
 export type ChatWithInteractions = {
   created_at: string;
   id: number;
@@ -191,6 +196,11 @@ export type ToolCallFunction = {
 
 export type UpdateChatRequest = {
   title?: string | null;
+};
+
+export type WebSocketMessage = {
+  payload: ChatTitleUpdatedWebSocketPayload;
+  type: 'chat-title-updated';
 };
 
 export type GetAllChatsData = {
