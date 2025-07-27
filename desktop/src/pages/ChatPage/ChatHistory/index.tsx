@@ -18,7 +18,6 @@ interface InteractionProps {
 }
 
 const Interaction = ({ interaction }: InteractionProps) => {
-  console.log('[ChatHistory] Interaction:', interaction);
   switch (interaction.role) {
     case 'user':
       return <UserInteraction interaction={interaction} />;
@@ -101,16 +100,6 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isStreaming = status === 'streaming';
 
-  // Debug logging
-  useEffect(() => {
-    console.log('[ChatHistory] Messages:', messages);
-    console.log('[ChatHistory] Messages length:', messages.length);
-    if (messages.length > 0) {
-      console.log('[ChatHistory] First message:', messages[0]);
-      console.log('[ChatHistory] Last message parts:', messages[messages.length - 1].parts);
-    }
-  }, [messages]);
-
   // Scroll to bottom when new messages are added or content changes
   const scrollToBottom = useCallback(() => {
     if (scrollAreaRef.current && shouldAutoScroll && !isScrollingRef.current) {
@@ -190,15 +179,6 @@ export default function ChatHistory(_props: ChatHistoryProps) {
           const toolCallsMap = new Map<string, ToolCall>();
 
           message.parts.forEach((part: any) => {
-            // Debug log all parts
-            console.log('[ChatHistory] Processing part:', {
-              type: part.type,
-              state: part.state,
-              toolCallId: part.toolCallId,
-              hasInput: !!part.input,
-              hasOutput: !!part.output,
-            });
-
             // Check if this is a tool-related part
             if (part.type && part.type.startsWith('tool-')) {
               const toolCallId = part.toolCallId || crypto.randomUUID();
@@ -266,11 +246,6 @@ export default function ChatHistory(_props: ChatHistoryProps) {
           toolCallsMap.forEach((toolCall) => {
             toolCalls.push(toolCall);
           });
-
-          // Debug logging for tool calls
-          if (toolCalls.length > 0) {
-            console.log('[ChatHistory] Tool calls found:', toolCalls);
-          }
 
           // Check if any tools are currently executing
           const hasExecutingTools = toolCalls.some((tc) => tc.status === ToolCallStatus.Executing);

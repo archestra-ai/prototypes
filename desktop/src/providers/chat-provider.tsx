@@ -1,6 +1,6 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { ReactNode, createContext, useContext, useEffect, useMemo } from 'react';
+import { ReactNode, createContext, useContext, useMemo } from 'react';
 
 import { ARCHESTRA_SERVER_API_URL } from '@/consts';
 import { useOllamaStore } from '@/stores/ollama-store';
@@ -25,7 +25,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const chatTransport = useMemo(() => {
     return new DefaultChatTransport({
       api: `${ARCHESTRA_SERVER_API_URL}/chat/stream`,
-      prepareSendMessagesRequest: ({ messages }) => {
+      prepareSendMessagesRequest: ({ messages }: { messages: any[] }) => {
         // Get the current model from Ollama store
         const { selectedModel } = useOllamaStore.getState();
 
@@ -40,8 +40,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
           agent_context: metadata.agent_context,
           stream: true,
         };
-
-        console.log('[ChatProvider] Sending request with body:', body);
 
         // Clear metadata after use to prevent stale data
         window.__CHAT_METADATA__ = undefined;
@@ -65,16 +63,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
       console.log('[ChatProvider] Data received:', data);
     },
   });
-
-  // Debug logging
-  useEffect(() => {
-    console.log('[ChatProvider] Messages:', chat.messages);
-    console.log('[ChatProvider] Status:', chat.status);
-    console.log('[ChatProvider] Messages length:', chat.messages.length);
-    if (chat.messages.length > 0) {
-      console.log('[ChatProvider] Last message:', chat.messages[chat.messages.length - 1]);
-    }
-  }, [chat.messages, chat.status]);
 
   return <ChatContext.Provider value={chat}>{children}</ChatContext.Provider>;
 }

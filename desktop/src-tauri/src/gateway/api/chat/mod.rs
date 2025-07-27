@@ -36,21 +36,21 @@ struct OllamaChatRequest {
 }
 
 /// Ollama tool format
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct OllamaTool {
     #[serde(rename = "type")]
     tool_type: String,
     function: OllamaToolFunction,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct OllamaToolFunction {
     name: String,
     description: String,
     parameters: serde_json::Value,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 struct OllamaMessage {
     role: String,
     content: String,
@@ -160,7 +160,7 @@ async fn handle_options() -> Result<Response, StatusCode> {
 }
 
 /// Request body for chat endpoint
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[allow(dead_code)]
 struct ChatRequest {
     messages: Vec<ChatMessage>,
@@ -334,11 +334,19 @@ async fn create_chat_stream(
                 )
             }
             SseMessage::DataPart { data_type, data } => {
-                // Custom data parts with data- prefix
+                // Custom data parts in Vercel AI SDK format
+                let mut data_obj = serde_json::json!({
+                    "type": data_type
+                });
+                if let Some(obj) = data.as_object() {
+                    for (k, v) in obj {
+                        data_obj[k] = v.clone();
+                    }
+                }
                 Event::default().data(
                     serde_json::to_string(&serde_json::json!({
-                        "type": format!("data-{}", data_type),
-                        "data": data
+                        "type": "data",
+                        "data": data_obj
                     }))
                     .unwrap(),
                 )
@@ -450,7 +458,7 @@ async fn execute_chat_stream(
     }
 
     // Convert messages to Ollama format
-    let ollama_messages: Vec<OllamaMessage> = messages
+    let mut ollama_messages: Vec<OllamaMessage> = messages
         .into_iter()
         .map(|msg| {
             let content = msg.get_content();
@@ -472,11 +480,16 @@ async fn execute_chat_stream(
     let selected_model = request.model.clone().unwrap_or_else(|| "llama3.2".to_string());
     eprintln!("[execute_chat_stream] Using model: {}", selected_model);
     
+    // Keep track of tool results for potential second LLM call
+    let mut tool_results: Vec<(String, String, serde_json::Value)> = Vec::new();
+    let mut had_tool_calls = false;
+
+    // Make the initial LLM call
     let ollama_request = OllamaChatRequest {
-        model: selected_model,
-        messages: ollama_messages,
+        model: selected_model.clone(),
+        messages: ollama_messages.clone(),
         stream: true,
-        tools,
+        tools: tools.clone(),
     };
 
     // Call Ollama API
@@ -531,6 +544,7 @@ async fn execute_chat_stream(
 
                     // Handle tool calls if present
                     if let Some(tool_calls) = chat_chunk.message.tool_calls {
+                        had_tool_calls = true;
                         for tool_call in tool_calls {
                             let tool_id = tool_call
                                 .id
@@ -560,6 +574,13 @@ async fn execute_chat_stream(
                             .await
                             {
                                 Ok(result) => {
+                                    // Store the result for later use
+                                    tool_results.push((
+                                        tool_id.clone(),
+                                        tool_name.clone(),
+                                        result.clone(),
+                                    ));
+                                    
                                     tx.send(SseMessage::ToolCallResult {
                                         tool_call_id: tool_id,
                                         tool_name,
@@ -568,12 +589,20 @@ async fn execute_chat_stream(
                                     .await?;
                                 }
                                 Err(e) => {
+                                    let error_result = serde_json::json!({
+                                        "error": format!("Tool execution failed: {}", e)
+                                    });
+                                    
+                                    tool_results.push((
+                                        tool_id.clone(),
+                                        tool_name.clone(),
+                                        error_result.clone(),
+                                    ));
+                                    
                                     tx.send(SseMessage::ToolCallResult {
                                         tool_call_id: tool_id,
                                         tool_name,
-                                        result: serde_json::json!({
-                                            "error": format!("Tool execution failed: {}", e)
-                                        }),
+                                        result: error_result,
                                     })
                                     .await?;
                                 }
@@ -591,26 +620,123 @@ async fn execute_chat_stream(
                             .await?;
                         }
 
-                        // Send completion with usage stats if available
-                        let usage = if let (Some(prompt_tokens), Some(completion_tokens)) =
-                            (chat_chunk.prompt_eval_count, chat_chunk.eval_count)
-                        {
-                            Some(UsageStats {
-                                prompt_tokens,
-                                completion_tokens,
-                                total_tokens: prompt_tokens + completion_tokens,
-                            })
+                        // If we had tool calls, make another LLM call with the results
+                        if had_tool_calls && !tool_results.is_empty() {
+                            // Add assistant message with content if any
+                            if !accumulated_content.is_empty() {
+                                ollama_messages.push(OllamaMessage {
+                                    role: "assistant".to_string(),
+                                    content: accumulated_content.clone(),
+                                });
+                            }
+                            
+                            // Add tool results as assistant messages
+                            for (tool_id, tool_name, result) in &tool_results {
+                                ollama_messages.push(OllamaMessage {
+                                    role: "assistant".to_string(),
+                                    content: format!(
+                                        "Tool {} (id: {}) returned: {}",
+                                        tool_name,
+                                        tool_id,
+                                        serde_json::to_string_pretty(result).unwrap_or_else(|_| result.to_string())
+                                    ),
+                                });
+                            }
+
+                            // Make another call to the LLM with the tool results
+                            let followup_request = OllamaChatRequest {
+                                model: selected_model.clone(),
+                                messages: ollama_messages.clone(),
+                                stream: true,
+                                tools: None, // No tools for the summary response
+                            };
+
+                            let followup_response = service
+                                .http_client
+                                .post(&ollama_url)
+                                .json(&followup_request)
+                                .send()
+                                .await?;
+
+                            if followup_response.status().is_success() {
+                                // Stream the final response
+                                let mut followup_stream = followup_response.bytes_stream();
+                                let final_text_id = format!("text-{}", uuid::Uuid::new_v4());
+                                let mut final_text_started = false;
+
+                                while let Some(chunk) = followup_stream.next().await {
+                                    let chunk = chunk?;
+                                    let text = String::from_utf8_lossy(&chunk);
+
+                                    for line in text.lines() {
+                                        if line.trim().is_empty() {
+                                            continue;
+                                        }
+
+                                        if let Ok(chat_chunk) = serde_json::from_str::<OllamaChatChunk>(line) {
+                                            if !chat_chunk.message.content.is_empty() {
+                                                if !final_text_started {
+                                                    tx.send(SseMessage::TextStart {
+                                                        id: final_text_id.clone(),
+                                                    })
+                                                    .await?;
+                                                    final_text_started = true;
+                                                }
+
+                                                tx.send(SseMessage::TextDelta {
+                                                    id: final_text_id.clone(),
+                                                    delta: chat_chunk.message.content,
+                                                })
+                                                .await?;
+                                            }
+
+                                            if chat_chunk.done {
+                                                if final_text_started {
+                                                    tx.send(SseMessage::TextEnd {
+                                                        id: final_text_id,
+                                                    })
+                                                    .await?;
+                                                }
+
+                                                // Send completion with usage stats if available
+                                                let usage = if let (Some(prompt_tokens), Some(completion_tokens)) =
+                                                    (chat_chunk.prompt_eval_count, chat_chunk.eval_count)
+                                                {
+                                                    Some(UsageStats {
+                                                        prompt_tokens,
+                                                        completion_tokens,
+                                                        total_tokens: prompt_tokens + completion_tokens,
+                                                    })
+                                                } else {
+                                                    None
+                                                };
+
+                                                tx.send(SseMessage::MessageComplete { usage }).await?;
+                                                tx.send(SseMessage::StreamEnd).await?;
+                                                return Ok(());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         } else {
-                            None
-                        };
+                            // No tool calls, send completion normally
+                            let usage = if let (Some(prompt_tokens), Some(completion_tokens)) =
+                                (chat_chunk.prompt_eval_count, chat_chunk.eval_count)
+                            {
+                                Some(UsageStats {
+                                    prompt_tokens,
+                                    completion_tokens,
+                                    total_tokens: prompt_tokens + completion_tokens,
+                                })
+                            } else {
+                                None
+                            };
 
-                        tx.send(SseMessage::MessageComplete { usage }).await?;
-
-                        // Send [DONE] marker
-                        tx.send(SseMessage::StreamEnd).await?;
-
-                        // Return early since streaming is complete
-                        return Ok(());
+                            tx.send(SseMessage::MessageComplete { usage }).await?;
+                            tx.send(SseMessage::StreamEnd).await?;
+                            return Ok(());
+                        }
                     }
                 }
                 Err(e) => {
@@ -823,6 +949,7 @@ mod tests {
                     agent_context: None,
                     model: Some("llama3.2".to_string()),
                     stream: Some(true),
+                    tools: None,
                 })
                 .unwrap(),
             ))
