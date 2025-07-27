@@ -145,7 +145,7 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
         temperature: 0.7,
         top_p: 0.95,
         top_k: 40,
-        num_predict: 32768,
+        num_predict: 15000,
       },
     });
   },

@@ -120,6 +120,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (!currentChat) return;
 
     try {
+      // Stop any active streaming before deleting
+      if (window.__CHAT_STOP_STREAMING__) {
+        console.log('[ChatStore] Stopping active streaming before chat deletion');
+        window.__CHAT_STOP_STREAMING__();
+      }
+
       await deleteChat({ path: { id: currentChat.id.toString() } });
 
       set((state) => {

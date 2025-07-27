@@ -1,9 +1,10 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { ReactNode, createContext, useContext, useMemo } from 'react';
+import { ReactNode, createContext, useContext, useEffect, useMemo, useRef } from 'react';
 
 import { ARCHESTRA_SERVER_API_URL } from '@/consts';
 import { useAgentStore } from '@/stores/agent-store';
+import { useChatStore } from '@/stores/chat-store';
 import { useOllamaStore } from '@/stores/ollama-store';
 
 // Use window object to share metadata between ChatInput and ChatProvider
@@ -12,6 +13,7 @@ import { useOllamaStore } from '@/stores/ollama-store';
 declare global {
   interface Window {
     __CHAT_METADATA__: any;
+    __CHAT_STOP_STREAMING__?: () => void;
   }
 }
 
@@ -22,6 +24,9 @@ interface ChatProviderProps {
 }
 
 export function ChatProvider({ children }: ChatProviderProps) {
+  const currentChatSessionId = useChatStore((state) => state.currentChatSessionId);
+  const prevChatSessionIdRef = useRef(currentChatSessionId);
+
   // Create transport with prepareSendMessagesRequest to add required metadata
   const chatTransport = useMemo(() => {
     return new DefaultChatTransport({
@@ -135,6 +140,31 @@ export function ChatProvider({ children }: ChatProviderProps) {
       }
     },
   });
+
+  // Clear messages when the current chat changes or is deleted
+  useEffect(() => {
+    // Only clear if the chat session actually changed
+    if (prevChatSessionIdRef.current !== currentChatSessionId) {
+      console.log('[ChatProvider] Chat session changed from', prevChatSessionIdRef.current, 'to', currentChatSessionId);
+      prevChatSessionIdRef.current = currentChatSessionId;
+      chat.setMessages([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentChatSessionId]); // Don't include chat in dependencies to avoid infinite loop
+
+  // Expose stop function globally for chat deletion
+  useEffect(() => {
+    window.__CHAT_STOP_STREAMING__ = () => {
+      if (chat.status === 'streaming') {
+        console.log('[ChatProvider] Stopping streaming for chat deletion');
+        chat.stop();
+      }
+    };
+
+    return () => {
+      window.__CHAT_STOP_STREAMING__ = undefined;
+    };
+  }, [chat]);
 
   return <ChatContext.Provider value={chat}>{children}</ChatContext.Provider>;
 }
