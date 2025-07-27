@@ -11,9 +11,9 @@ export function DebugChat() {
       messagesLength: chat.messages.length,
       status: chat.status,
       error: chat.error,
-      isLoading: chat.isLoading,
+      isLoading: chat.status === 'streaming' || chat.status === 'submitted',
     });
-  }, [chat.messages, chat.status, chat.error, chat.isLoading]);
+  }, [chat.messages, chat.status, chat.error]);
 
   return (
     <div

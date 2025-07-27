@@ -229,7 +229,7 @@ function ConfirmationTool({ part }: { part: ToolPart }) {
 - Updated ChatInput to use `setMessages([])` instead of `clearChatHistory()`
 - Removed chat store dependency from agent-store.ts
 - Removed chat history monitoring logic from agent store
-- Updated state-bridge.ts to remove chat store references
+- Removed state-bridge.ts as it's no longer needed with v5 useChat
 - Removed `useIsStreaming` export
 
 1. **Delete** `src/stores/chat-store.ts`

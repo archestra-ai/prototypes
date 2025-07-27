@@ -4,9 +4,7 @@ This document captures the key architectural and implementation decisions made d
 
 ## Overview
 
-The POC aimed to implement a proper AI SDK v5 architecture for the autonomous agent experience, replacing the hybrid v4/v5 implementation with a fully v5-native solution.
-
-**Historical Context**: The original v4 implementation used custom code due to legitimate constraints - no official Ollama provider, experimental MCP tools, and need for provider-specific features. See [AI SDK Evolution: From v4 to v5](./ai-sdk-evolution-v4-to-v5.md) for the full historical context.
+The POC aimed to implement a proper AI SDK v5 architecture for the autonomous agent experience.
 
 ## Key Decisions
 
@@ -19,58 +17,6 @@ The POC aimed to implement a proper AI SDK v5 architecture for the autonomous ag
 - Aligns with Archestra's focus on local, privacy-preserving AI
 - Simplifies the codebase by removing unused provider code
 - Reduces dependencies and potential security concerns
-
-**Implementation**:
-
-- Removed `OpenAIProvider` class from `model-provider.ts`
-- Removed `isOpenAIModel()` detection logic
-- Removed `@ai-sdk/openai` dependency
-- Consolidated on `OllamaProvider` as the sole model provider
-
-### 2. Custom Ollama Implementation for v5 Compatibility
-
-**Decision**: Use a custom Ollama implementation instead of the `ollama-ai-provider` package.
-
-**Rationale**:
-
-- The `ollama-ai-provider` package is not yet compatible with AI SDK v5
-- The package uses deprecated methods (`.embedding()` instead of `.textEmbeddingModel()`)
-- Our custom implementation properly implements the `LanguageModelV2` interface
-
-**Implementation**:
-
-```typescript
-// Instead of using ollama-ai-provider
-const ollama = createOllama({ baseURL });
-const model = ollama(modelName);
-
-// We use our custom implementation
-return this.createCustomOllamaModel(modelName);
-```
-
-**Benefits**:
-
-- Full AI SDK v5 compatibility
-- Direct control over streaming format and error handling
-- Proper implementation of v5 stream parts
-- Better integration with our proxy architecture
-
-### 3. Removal of AgentEventHandler
-
-**Decision**: Remove the custom `AgentEventHandler` class and rely on v5's built-in streaming capabilities.
-
-**Rationale**:
-
-- The custom event handler was a v4 pattern that added unnecessary complexity
-- AI SDK v5 provides native SSE streaming support
-- Reduces code maintenance and potential bugs
-
-**Implementation**:
-
-- Deleted `agent-event-handler.ts`
-- Removed manual streaming intervals from `agent-store.ts`
-- Updated imports and exports throughout the codebase
-- Simplified agent execution flow
 
 ### 4. V5 Message Architecture
 
@@ -116,9 +62,11 @@ return this.createCustomOllamaModel(modelName);
 
 **Implementation**:
 
-- Created `StateBridge` to synchronize between useChat and Zustand
-- Maintained existing Zustand stores for backward compatibility
-- Enhanced with v5 React hooks integration
+- Use useChat hook directly for message state management
+- Maintained existing Zustand stores for agent-specific UI state
+- Process SSE data parts to update agent state without a bridge
+
+**Update (2025-07-27)**: The StateBridge was removed as it was unnecessary. The v5 useChat hook handles all message state, and agent-specific updates happen directly via SSE data parts in the use-sse-chat.ts hook.
 
 ### 7. Tool Wrapper Enhancement
 
@@ -187,21 +135,11 @@ return this.createCustomOllamaModel(modelName);
 3. **Message Sanitization**: Validated all message parts before display
 4. **Schema Enforcement**: Strict validation for tool inputs/outputs
 
-## Migration Path
-
-For teams upgrading from v4 to v5:
-
-1. **Start with State Bridge**: Implement synchronization between existing state and v5
-2. **Migrate Components Gradually**: Use feature flags to toggle between implementations
-3. **Test Streaming First**: Ensure SSE streaming works before removing old code
-4. **Keep Fallbacks**: Maintain compatibility layers during transition
-
 ## Future Considerations
 
-1. **Official Ollama Provider**: When available, evaluate switching from custom implementation
-2. **Enhanced Streaming**: Explore v5's experimental features as they stabilize
-3. **Performance Monitoring**: Add telemetry to track v5 performance improvements
-4. **Type Generation**: Consider generating types from OpenAPI for better type safety
+1. **Enhanced Streaming**: Explore v5's experimental features as they stabilize
+2. **Performance Monitoring**: Add telemetry to track v5 performance improvements
+3. **Type Generation**: Consider generating types from OpenAPI for better type safety
 
 ## Conclusion
 

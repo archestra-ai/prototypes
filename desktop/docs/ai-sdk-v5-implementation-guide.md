@@ -214,40 +214,38 @@ const tool = createMCPToolV5(mcpTool, serverName, {
 
 ## State Management
 
-### State Bridge Pattern
+### Direct State Updates Pattern
+
+**Update (2025-07-27)**: The State Bridge pattern has been removed. Instead, use direct updates from SSE data parts:
 
 ```typescript
-class AgentStateBridge {
-  private unsubscribe: (() => void) | null = null;
+// In use-sse-chat.ts hook
+useEffect(() => {
+  if (chat.messages.length > 0) {
+    const lastMessage = chat.messages[chat.messages.length - 1];
+    if (lastMessage?.parts) {
+      lastMessage.parts.forEach((part: any) => {
+        if (part.type === 'data' && part.data) {
+          const { type: dataType, ...data } = part.data;
 
-  syncMessageToZustand(message: UIMessage): void {
-    const chatStore = useChatStore.getState();
-    const agentStore = useAgentStore.getState();
-
-    // Extract metadata and update agent state
-    if (message.metadata?.agentMode) {
-      agentStore.setAgentMode(message.metadata.agentMode);
+          if (dataType === 'agent-state') {
+            const agentStore = useAgentStore.getState();
+            if (data.mode) agentStore.setAgentMode(data.mode);
+            if (data.objective) agentStore.setObjective(data.objective);
+          } else if (dataType === 'reasoning') {
+            const agentStore = useAgentStore.getState();
+            agentStore.addReasoningEntry({
+              id: crypto.randomUUID(),
+              type: data.type || 'planning',
+              content: data.content || '',
+              timestamp: new Date(),
+            });
+          }
+        }
+      });
     }
-
-    // Extract reasoning from message parts
-    const reasoning = extractReasoningFromMessage(message);
-    reasoning.forEach((entry) => agentStore.addReasoningEntry(entry));
-
-    // Update chat history
-    chatStore.addMessage(convertUIMessageToChatMessage(message));
   }
-
-  syncAgentStateFromZustand(): AgentContext {
-    const agentStore = useAgentStore.getState();
-
-    return {
-      objective: agentStore.currentObjective,
-      mode: agentStore.mode,
-      workingMemory: agentStore.workingMemory,
-      // ... other context
-    };
-  }
-}
+}, [chat.messages]);
 ```
 
 ### Zustand Store Integration
@@ -385,17 +383,6 @@ If using a proxy for Ollama:
 3. **Error Handling**: Handle 404 errors gracefully when endpoints are missing
 
 ## Common Pitfalls
-
-### 1. Using Incompatible Providers
-
-```typescript
-// ❌ Wrong - ollama-ai-provider is not v5 compatible
-import { ollama } from 'ollama-ai-provider';
-const model = ollama('llama3.2');
-
-// ✅ Correct - Use custom implementation
-const model = createCustomOllamaModel('llama3.2');
-```
 
 ### 2. Direct State Mutation in Tests
 

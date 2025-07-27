@@ -16,12 +16,13 @@ interface UseSSEChatOptions {
  * Provides unified interface for both chat and agent modes
  */
 export function useSSEChat(options?: UseSSEChatOptions) {
-  // Use Vercel AI SDK's useChat with DefaultChatTransport
   const chat = useChat({
     // Use a consistent ID so multiple components share the same chat state
     id: 'main-chat',
-    api: `${ARCHESTRA_SERVER_API_URL}/chat`,
-    streamProtocol: 'data',
+    // Configure transport to use our backend endpoint
+    transport: new DefaultChatTransport({
+      api: `${ARCHESTRA_SERVER_API_URL}/chat`,
+    }),
     // Body should be passed when sending messages, not here
     onError: (error) => {
       console.error('[useSSEChat] Chat error:', error);

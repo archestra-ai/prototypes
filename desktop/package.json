@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "beta",
+    "@ai-sdk/provider-utils": "beta",
     "@ai-sdk/react": "beta",
     "@icons-pack/react-simple-icons": "^13.6.0",
     "@modelcontextprotocol/sdk": "^1.16.0",
@@ -49,7 +50,6 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.525.0",
     "ollama": "^0.5.16",
-    "ollama-ai-provider": "^1.2.0",
     "ollama-ai-provider-v2": "1.0.0-alpha.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -60,7 +60,7 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "3.25.76",
+    "zod": "4.0.10",
     "zustand": "^5.0.2"
   },
   "devDependencies": {

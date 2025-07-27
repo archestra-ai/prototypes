@@ -132,7 +132,6 @@ describe('Agent Store Lifecycle Tests', () => {
       streamingContent: undefined,
       streamingMessageId: null,
       useV5Implementation: true,
-      stateBridge: null,
       preferences: {
         autoApproveCategories: [],
         autoApproveServers: [],

@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 
 import { ToolCategory } from '../services/agent/mcp-tool-wrapper-ai-sdk';
-import { AgentStateBridge } from '../services/agent/state-bridge';
 import { AgentMode, AgentState, MemoryEntry, ReasoningEntry, TaskPlan, TaskProgress } from '../types/agent';
 
 // Memory search criteria
@@ -27,7 +26,6 @@ interface AgentStoreState extends AgentState {
   preferences: AgentPreferences;
   streamingMessageId: string | null;
   useV5Implementation: boolean;
-  stateBridge: AgentStateBridge | null;
 }
 
 interface AgentActions {
@@ -96,7 +94,6 @@ export const useAgentStore = create<AgentStore>()(
     agentInstance: null,
     streamingMessageId: null,
     useV5Implementation: true, // Enable v5 by default
-    stateBridge: null,
     preferences: {
       autoApproveCategories: [ToolCategory.FILE, ToolCategory.DATA] as ToolCategory[],
       autoApproveServers: [],
@@ -314,12 +311,6 @@ export const useAgentStore = create<AgentStore>()(
 
     clearAgent: () => {
       const currentPreferences = get().preferences;
-      const { stateBridge } = get();
-
-      // Clean up state bridge
-      if (stateBridge) {
-        stateBridge.cleanup();
-      }
 
       set({
         mode: 'idle',
@@ -339,7 +330,6 @@ export const useAgentStore = create<AgentStore>()(
         streamingContent: undefined,
         isAgentActive: false,
         agentInstance: null,
-        stateBridge: null,
         // Preserve preferences across sessions
         preferences: currentPreferences,
       });

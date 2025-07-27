@@ -36,7 +36,7 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
   // Use SSE chat hook with v5 API
   const { sendMessage, status, stop: cancelStreaming, setMessages } = useSSEChat();
 
-  const { isDeveloperMode, toggleDeveloperMode, systemPrompt } = useDeveloperModeStore();
+  const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const isStreaming = status === 'streaming' || status === 'submitted';
 
   const { installedModels, loadingInstalledModels, loadingInstalledModelsError, selectedModel, setSelectedModel } =
@@ -92,7 +92,7 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
       const body: any = {
         model: selectedModel,
         // Convert tools to tool names if any
-        tools: selectedTools?.map((tool) => `${tool.server}_${tool.tool}`) || [],
+        tools: selectedTools?.map((tool) => `${tool.serverName}_${tool.toolName}`) || [],
       };
 
       // Add agent context if this is an agent command
@@ -111,10 +111,10 @@ export default function ChatInput({ selectedTools = [], onToolRemove }: ChatInpu
         };
       }
 
-      // For v5, sendMessage expects text property and body
+      // For v5, sendMessage expects an object with text property
       const result = await sendMessage({
         text: trimmedInput,
-        body,
+        metadata: body,
       });
       console.log('[ChatInput] Message sent successfully, result:', result);
     } catch (error) {
