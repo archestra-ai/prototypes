@@ -9,18 +9,18 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(ChatInteractions::Table)
+                    .table(ChatMessages::Table)
                     .if_not_exists()
-                    .col(pk_auto(ChatInteractions::Id))
-                    .col(integer(ChatInteractions::ChatId))
+                    .col(pk_auto(ChatMessages::Id))
+                    .col(integer(ChatMessages::ChatId))
                     .col(
-                        timestamp_with_time_zone(ChatInteractions::CreatedAt)
+                        timestamp_with_time_zone(ChatMessages::CreatedAt)
                             .default(Expr::current_timestamp()),
                     )
-                    .col(json(ChatInteractions::Content))
+                    .col(json(ChatMessages::Content))
                     .foreign_key(
                         ForeignKey::create()
-                            .from(ChatInteractions::Table, ChatInteractions::ChatId)
+                            .from(ChatMessages::Table, ChatMessages::ChatId)
                             .to(Chats::Table, Chats::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
@@ -32,9 +32,9 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_chat_interactions_chat_id")
-                    .table(ChatInteractions::Table)
-                    .col(ChatInteractions::ChatId)
+                    .name("idx_chat_messages_chat_id")
+                    .table(ChatMessages::Table)
+                    .col(ChatMessages::ChatId)
                     .to_owned(),
             )
             .await
@@ -42,13 +42,13 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(ChatInteractions::Table).to_owned())
+            .drop_table(Table::drop().table(ChatMessages::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum ChatInteractions {
+enum ChatMessages {
     Table,
     Id,
     ChatId,

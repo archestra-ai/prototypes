@@ -2,7 +2,7 @@ use crate::gateway::websocket::{
     ChatTitleUpdatedWebSocketPayload, Service as WebSocketService, WebSocketMessage,
 };
 use crate::models::chat::Model as Chat;
-use crate::models::chat_interactions::Model as ChatInteraction;
+use crate::models::chat_messages::Model as ChatMessage;
 use crate::ollama::client::OllamaClient;
 use axum::{
     body::Body,
@@ -14,7 +14,7 @@ use axum::{
 use futures_util::StreamExt;
 use ollama_rs::{
     generation::{
-        chat::{request::ChatMessageRequest, ChatMessage},
+        chat::{request::ChatMessageRequest, ChatMessage as OllamaChatMessage},
         tools::ToolInfo,
     },
     models::ModelOptions,
@@ -26,7 +26,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::{debug, error};
 
 // Constants
-const MIN_INTERACTIONS_FOR_TITLE_GENERATION: u64 = 4;
+const MIN_MESSAGES_FOR_TITLE_GENERATION: u64 = 4;
 
 #[derive(Clone)]
 struct Service {
@@ -77,8 +77,8 @@ fn convert_proxied_request_to_ollama_request(
         None => return Err("Missing messages in request".to_string()),
     };
 
-    // Parse messages as ChatMessage objects
-    let messages: Vec<ChatMessage> = match serde_json::from_value(messages_value.clone()) {
+    // Parse messages as OllamaChatMessage objects
+    let messages: Vec<OllamaChatMessage> = match serde_json::from_value(messages_value.clone()) {
         Ok(msgs) => msgs,
         Err(e) => return Err(format!("Failed to parse messages: {e}")),
     };
@@ -144,12 +144,12 @@ impl Service {
             .map_err(|_| "Failed to load chat".to_string())?
             .ok_or_else(|| "Chat not found".to_string())?;
 
-        // Build context from chat interactions
+        // Build context from chat messages
         let mut full_chat_context = String::new();
-        for interaction in &chat.interactions {
-            // Deserialize the ChatMessage from the JSON content
+        for message in &chat.messages {
+            // Deserialize the OllamaChatMessage from the JSON content
             if let Ok(chat_message) =
-                serde_json::from_value::<ChatMessage>(interaction.content.clone())
+                serde_json::from_value::<OllamaChatMessage>(message.content.clone())
             {
                 full_chat_context.push_str(&format!(
                     "{:?}: {}\n\n",
@@ -231,12 +231,11 @@ impl Service {
         // Extract model name before moving ollama_request
         let model_name = ollama_request.model_name.clone();
 
-        // Persist the chat interaction
+        // Persist the chat message
         if let Some(last_msg) = ollama_request.messages.last() {
             let content_json = serde_json::json!(&last_msg);
 
-            if let Err(e) =
-                ChatInteraction::save(chat_session_id.clone(), content_json, &self.db).await
+            if let Err(e) = ChatMessage::save(chat_session_id.clone(), content_json, &self.db).await
             {
                 error!("Failed to save user message: {e}");
             }
@@ -288,12 +287,8 @@ impl Service {
 
                         // If this is the final message, save it
                         if chat_response.done && !accumulated_content.is_empty() {
-                            // info!("Final message received");
-                            // info!("Accumulated content: {}", accumulated_content);
-                            // info!("Chat response: {:?}", chat_response);
-
                             let chat_response_message = chat_response.message;
-                            let final_chat_message = ChatMessage {
+                            let final_chat_message = OllamaChatMessage {
                                 role: chat_response_message.role,
                                 content: accumulated_content.clone(),
                                 thinking: chat_response_message.thinking,
@@ -301,7 +296,7 @@ impl Service {
                                 images: chat_response_message.images,
                             };
 
-                            if let Err(e) = ChatInteraction::save(
+                            if let Err(e) = ChatMessage::save(
                                 chat_session_id.clone(),
                                 serde_json::json!(&final_chat_message),
                                 &db,
@@ -312,13 +307,10 @@ impl Service {
                             }
 
                             // Check if we need to generate a title
-                            if let Ok(count) = ChatInteraction::count_chat_interactions(
-                                chat_session_id.clone(),
-                                &db,
-                            )
-                            .await
+                            if let Ok(count) =
+                                ChatMessage::count_chat_messages(chat_session_id.clone(), &db).await
                             {
-                                if count == MIN_INTERACTIONS_FOR_TITLE_GENERATION
+                                if count == MIN_MESSAGES_FOR_TITLE_GENERATION
                                     && chat.title.is_none()
                                 {
                                     let service = Service {
@@ -670,14 +662,14 @@ mod tests {
         .await
         .unwrap();
 
-        // Add some interactions
+        // Add some messages
         for i in 0..4 {
             let role = if i % 2 == 0 { "user" } else { "assistant" };
             let content = json!({
                 "role": role,
                 "content": format!("Message {}", i)
             });
-            ChatInteraction::save(chat.session_id.clone(), content, &db)
+            ChatMessage::save(chat.session_id.clone(), content, &db)
                 .await
                 .unwrap();
         }

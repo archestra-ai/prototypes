@@ -1,5 +1,5 @@
 use crate::models::chat::{
-    ChatDefinition, ChatWithInteractions as ChatWithInteractionsModel, Model as Chat,
+    ChatDefinition, ChatWithMessages as ChatWithMessagesModel, Model as Chat,
 };
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -109,45 +109,46 @@ impl From<OllamaChatMessage> for ChatMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct ChatInteraction {
+#[schema(as = ChatMessage)]
+pub struct ArchestraChatMessage {
     pub created_at: DateTime<Utc>,
     #[serde(flatten)]
     pub content: ChatMessage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct ChatWithInteractions {
+pub struct ChatWithMessages {
     pub id: i32,
     pub session_id: String,
     pub title: String,
     pub llm_provider: String,
     pub created_at: DateTime<Utc>,
-    pub interactions: Vec<ChatInteraction>,
+    pub messages: Vec<ArchestraChatMessage>,
 }
 
-impl From<ChatWithInteractionsModel> for ChatWithInteractions {
-    fn from(chat_with_interactions: ChatWithInteractionsModel) -> Self {
-        let interactions = chat_with_interactions
-            .interactions
+impl From<ChatWithMessagesModel> for ChatWithMessages {
+    fn from(chat_with_messages: ChatWithMessagesModel) -> Self {
+        let messages = chat_with_messages
+            .messages
             .into_iter()
-            .filter_map(|interaction| {
+            .filter_map(|message| {
                 // Deserialize the content field from JSON to OllamaChatMessage
-                serde_json::from_value::<OllamaChatMessage>(interaction.content)
+                serde_json::from_value::<OllamaChatMessage>(message.content)
                     .ok()
-                    .map(|content| ChatInteraction {
-                        created_at: interaction.created_at,
+                    .map(|content| ArchestraChatMessage {
+                        created_at: message.created_at,
                         content: ChatMessage::from(content),
                     })
             })
             .collect();
 
         Self {
-            id: chat_with_interactions.chat.id,
-            session_id: chat_with_interactions.chat.session_id,
-            title: chat_with_interactions.chat.title.unwrap_or_default(),
-            llm_provider: chat_with_interactions.chat.llm_provider,
-            created_at: chat_with_interactions.chat.created_at,
-            interactions,
+            id: chat_with_messages.chat.id,
+            session_id: chat_with_messages.chat.session_id,
+            title: chat_with_messages.chat.title.unwrap_or_default(),
+            llm_provider: chat_with_messages.chat.llm_provider,
+            created_at: chat_with_messages.chat.created_at,
+            messages,
         }
     }
 }
@@ -161,20 +162,20 @@ impl Service {
         Self { db: Arc::new(db) }
     }
 
-    pub async fn get_all_chats(&self) -> Result<Vec<ChatWithInteractions>, sea_orm::DbErr> {
+    pub async fn get_all_chats(&self) -> Result<Vec<ChatWithMessages>, sea_orm::DbErr> {
         let chats = Chat::load_all(&self.db).await?;
-        Ok(chats.into_iter().map(ChatWithInteractions::from).collect())
+        Ok(chats.into_iter().map(ChatWithMessages::from).collect())
     }
 
     pub async fn create_chat(
         &self,
         request: CreateChatRequest,
-    ) -> Result<ChatWithInteractions, sea_orm::DbErr> {
+    ) -> Result<ChatWithMessages, sea_orm::DbErr> {
         let definition = ChatDefinition {
             llm_provider: request.llm_provider,
         };
         let chat = Chat::save(definition, &self.db).await?;
-        Ok(ChatWithInteractions::from(chat))
+        Ok(ChatWithMessages::from(chat))
     }
 
     pub async fn delete_chat(&self, id: String) -> Result<(), sea_orm::DbErr> {
@@ -188,7 +189,7 @@ impl Service {
         &self,
         id: String,
         request: UpdateChatRequest,
-    ) -> Result<ChatWithInteractions, sea_orm::DbErr> {
+    ) -> Result<ChatWithMessages, sea_orm::DbErr> {
         let id = id
             .parse::<i32>()
             .map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
@@ -197,11 +198,11 @@ impl Service {
             .ok_or_else(|| sea_orm::DbErr::RecordNotFound("Chat not found".to_string()))?;
 
         let updated_chat = chat.chat.update_title(request.title, &self.db).await?;
-        let updated_with_interactions = ChatWithInteractionsModel {
+        let updated_with_messages = ChatWithMessagesModel {
             chat: updated_chat,
-            interactions: chat.interactions,
+            messages: chat.messages,
         };
-        Ok(ChatWithInteractions::from(updated_with_interactions))
+        Ok(ChatWithMessages::from(updated_with_messages))
     }
 }
 
@@ -210,13 +211,13 @@ impl Service {
     path = "/api/chat",
     tag = "chat",
     responses(
-        (status = 200, description = "List all chats", body = Vec<ChatWithInteractions>),
+        (status = 200, description = "List all chats", body = Vec<ChatWithMessages>),
         (status = 500, description = "Internal server error")
     )
 )]
 pub async fn get_all_chats(
     State(service): State<Arc<Service>>,
-) -> Result<Json<Vec<ChatWithInteractions>>, StatusCode> {
+) -> Result<Json<Vec<ChatWithMessages>>, StatusCode> {
     service
         .get_all_chats()
         .await
@@ -230,14 +231,14 @@ pub async fn get_all_chats(
     tag = "chat",
     request_body = CreateChatRequest,
     responses(
-        (status = 201, description = "Chat created successfully", body = ChatWithInteractions),
+        (status = 201, description = "Chat created successfully", body = ChatWithMessages),
         (status = 500, description = "Internal server error")
     )
 )]
 pub async fn create_chat(
     State(service): State<Arc<Service>>,
     Json(request): Json<CreateChatRequest>,
-) -> Result<(StatusCode, Json<ChatWithInteractions>), StatusCode> {
+) -> Result<(StatusCode, Json<ChatWithMessages>), StatusCode> {
     service
         .create_chat(request)
         .await
@@ -277,7 +278,7 @@ pub async fn delete_chat(
     ),
     request_body = UpdateChatRequest,
     responses(
-        (status = 200, description = "Chat updated successfully", body = ChatWithInteractions),
+        (status = 200, description = "Chat updated successfully", body = ChatWithMessages),
         (status = 404, description = "Chat not found"),
         (status = 500, description = "Internal server error")
     )
@@ -286,7 +287,7 @@ pub async fn update_chat(
     State(service): State<Arc<Service>>,
     Path(id): Path<String>,
     Json(request): Json<UpdateChatRequest>,
-) -> Result<Json<ChatWithInteractions>, StatusCode> {
+) -> Result<Json<ChatWithMessages>, StatusCode> {
     match service.update_chat(id, request).await {
         Ok(chat) => Ok(Json(chat)),
         Err(sea_orm::DbErr::RecordNotFound(_)) => Err(StatusCode::NOT_FOUND),
@@ -339,7 +340,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::CREATED);
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let created_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
+        let created_chat: ChatWithMessages = serde_json::from_slice(&body).unwrap();
         assert_eq!(created_chat.title, "");
         assert_eq!(created_chat.llm_provider, "ollama");
         assert!(!created_chat.session_id.is_empty());
@@ -366,7 +367,7 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let chats: Vec<ChatWithInteractions> = serde_json::from_slice(&body).unwrap();
+        let chats: Vec<ChatWithMessages> = serde_json::from_slice(&body).unwrap();
         assert_eq!(chats.len(), 0);
 
         // Create some chats
@@ -404,7 +405,7 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let chats: Vec<ChatWithInteractions> = serde_json::from_slice(&body).unwrap();
+        let chats: Vec<ChatWithMessages> = serde_json::from_slice(&body).unwrap();
         assert_eq!(chats.len(), 3);
     }
 
@@ -432,7 +433,7 @@ mod tests {
             .unwrap();
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let created_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
+        let created_chat: ChatWithMessages = serde_json::from_slice(&body).unwrap();
 
         // Delete the chat
         let response = router
@@ -464,7 +465,7 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let chats: Vec<ChatWithInteractions> = serde_json::from_slice(&body).unwrap();
+        let chats: Vec<ChatWithMessages> = serde_json::from_slice(&body).unwrap();
         assert!(!chats.iter().any(|c| c.id == created_chat.id));
 
         // Deleting again should still return NO_CONTENT (idempotent)
@@ -508,7 +509,7 @@ mod tests {
             .unwrap();
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let created_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
+        let created_chat: ChatWithMessages = serde_json::from_slice(&body).unwrap();
 
         // Test updating title to a string
         let update_request = UpdateChatRequest {
@@ -531,7 +532,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let updated_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
+        let updated_chat: ChatWithMessages = serde_json::from_slice(&body).unwrap();
         assert_eq!(updated_chat.title, "My New Title");
 
         // Test updating title back to None
@@ -553,7 +554,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
-        let updated_chat: ChatWithInteractions = serde_json::from_slice(&body).unwrap();
+        let updated_chat: ChatWithMessages = serde_json::from_slice(&body).unwrap();
         assert_eq!(updated_chat.title, "");
     }
 
