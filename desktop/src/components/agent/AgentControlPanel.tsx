@@ -11,10 +11,10 @@ import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils/tailwind';
 import { useChatContext } from '@/providers/chat-provider';
-import { ToolCategory } from '@/services/agent/mcp-tool-wrapper-ai-sdk';
 import { useAgentStore } from '@/stores/agent-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
+import { ToolCategory } from '@/types/agent-ui';
 
 interface AgentControlPanelProps {
   className?: string;

@@ -113,9 +113,6 @@ importers:
       ollama:
         specifier: ^0.5.16
         version: 0.5.16
-      ollama-ai-provider-v2:
-        specifier: 1.0.0-alpha.3
-        version: 1.0.0-alpha.3(zod@4.0.10)
       react:
         specifier: ^19.1.0
         version: 19.1.0
@@ -221,12 +218,6 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4
-
-  '@ai-sdk/provider-utils@3.0.0-beta.2':
-    resolution: {integrity: sha512-H4K+4weOVgWqrDDeAbQWoA4U5mN4WrQPHQFdH7ynQYcnhj/pzctU9Q6mGlR5ESMWxaXxazxlOblSITlXo9bahA==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.49
 
   '@ai-sdk/provider-utils@3.0.0-beta.5':
     resolution: {integrity: sha512-4Dv/wiGZrvO6fI7P0yMLa4XZru0XW8LPibTObbkHBdweLUVGIze7aCfxxQeY44Uqcbl/h6/yBTkx2XmPtwf/Ow==}
@@ -2579,12 +2570,6 @@ packages:
   ohash@1.1.6:
     resolution: {integrity: sha512-TBu7PtV8YkAZn0tSxobKY2n2aAQva936lhRrj6957aDaCf9IEtqsKbgMzXE/F/sjqYOwmrukeORHNLe5glk7Cg==}
 
-  ollama-ai-provider-v2@1.0.0-alpha.3:
-    resolution: {integrity: sha512-91wtWFTIeTdrqgE/Ygm+t/S6LrcxKxjrwuJ/2/dvce6jCrZbXmp9WI/00/EdoT3mxihOcmL2FSQX4+EwJ26thA==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.49
-
   ollama@0.5.16:
     resolution: {integrity: sha512-OEbxxOIUZtdZgOaTPAULo051F5y+Z1vosxEYOoABPnQKeW7i4O8tJNlxCB+xioyoorVqgjkdj+TA1f1Hy2ug/w==}
 
@@ -3332,14 +3317,6 @@ snapshots:
       '@ai-sdk/provider': 2.0.0-beta.1
       '@ai-sdk/provider-utils': 3.0.0-beta.6(zod@4.0.10)
       zod: 4.0.10
-
-  '@ai-sdk/provider-utils@3.0.0-beta.2(zod@4.0.10)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0-beta.1
-      '@standard-schema/spec': 1.0.0
-      eventsource-parser: 3.0.3
-      zod: 4.0.10
-      zod-to-json-schema: 3.24.6(zod@4.0.10)
 
   '@ai-sdk/provider-utils@3.0.0-beta.5(zod@4.0.10)':
     dependencies:
@@ -5820,12 +5797,6 @@ snapshots:
   object-inspect@1.13.4: {}
 
   ohash@1.1.6: {}
-
-  ollama-ai-provider-v2@1.0.0-alpha.3(zod@4.0.10):
-    dependencies:
-      '@ai-sdk/provider': 2.0.0-beta.1
-      '@ai-sdk/provider-utils': 3.0.0-beta.2(zod@4.0.10)
-      zod: 4.0.10
 
   ollama@0.5.16:
     dependencies:

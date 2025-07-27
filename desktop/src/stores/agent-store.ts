@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 
-import { ToolCategory } from '../services/agent/mcp-tool-wrapper-ai-sdk';
+import { ToolCategory } from '@/types/agent-ui';
+
 import { AgentMode, AgentState, MemoryEntry, ReasoningEntry, TaskPlan, TaskProgress } from '../types/agent';
 
 // Memory search criteria
@@ -21,7 +22,7 @@ interface AgentPreferences {
 interface AgentStoreState extends AgentState {
   reasoningMode: 'verbose' | 'concise' | 'hidden';
   isAgentActive: boolean;
-  agentInstance: null;
+  // agentInstance removed - backend handles all agent execution
   currentObjective: string | null;
   preferences: AgentPreferences;
   streamingMessageId: string | null;
@@ -91,7 +92,7 @@ export const useAgentStore = create<AgentStore>()(
     streamingContent: undefined,
     reasoningMode: 'verbose',
     isAgentActive: false,
-    agentInstance: null,
+    // agentInstance removed - backend handles execution
     streamingMessageId: null,
     useV5Implementation: true, // Enable v5 by default
     preferences: {
@@ -329,7 +330,7 @@ export const useAgentStore = create<AgentStore>()(
         runState: undefined,
         streamingContent: undefined,
         isAgentActive: false,
-        agentInstance: null,
+        // agentInstance removed - backend handles execution
         // Preserve preferences across sessions
         preferences: currentPreferences,
       });

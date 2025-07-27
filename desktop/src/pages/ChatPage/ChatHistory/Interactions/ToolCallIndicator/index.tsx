@@ -11,7 +11,7 @@ interface ToolCallIndicatorProps {
 
 export default function ToolCallIndicator({ toolCalls, isExecuting }: ToolCallIndicatorProps) {
   const [dots, setDots] = useState('');
-  const [showResults, setShowResults] = useState(false);
+  // const [showResults, setShowResults] = useState(false); // TODO: Implement results toggle
 
   useEffect(() => {
     if (!isExecuting) return;
@@ -28,7 +28,7 @@ export default function ToolCallIndicator({ toolCalls, isExecuting }: ToolCallIn
   const pendingCalls = toolCalls.filter(
     (call) => call.status === ToolCallStatus.Pending || call.status === ToolCallStatus.Executing
   );
-  const completedCalls = toolCalls.filter((call) => call.status === ToolCallStatus.Completed);
+  // const completedCalls = toolCalls.filter((call) => call.status === ToolCallStatus.Completed); // TODO: Show completed calls
   const errorCalls = toolCalls.filter((call) => call.status === ToolCallStatus.Error);
 
   return (

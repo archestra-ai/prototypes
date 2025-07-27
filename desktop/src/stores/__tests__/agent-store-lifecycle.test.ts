@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { HumanInLoopHandler } from '@/services/agent/human-in-loop';
 import type { AgentMode } from '@/types/agent';
+import { HumanInLoopHandler } from '@/types/agent-ui';
 
 // Import after mocks
 import { useAgentStore } from '../agent-store';
@@ -124,7 +124,7 @@ describe('Agent Store Lifecycle Tests', () => {
     useAgentStore.setState({
       mode: 'idle',
       isAgentActive: false,
-      agentInstance: null,
+      // agentInstance removed
       currentObjective: null,
       plan: undefined,
       progress: { completed: 0, total: 0, currentStep: null },
@@ -235,7 +235,7 @@ describe('Agent Store Lifecycle Tests', () => {
       const state = useAgentStore.getState();
       expect(state.mode).toBe('idle');
       expect(state.isAgentActive).toBe(false);
-      expect(state.agentInstance).toBeNull();
+      // agentInstance removed
       expect(state.currentObjective).toBeNull();
     });
   });
@@ -412,8 +412,8 @@ describe('Agent Store Lifecycle Tests', () => {
       sendAgentMessage('Message without active agent');
 
       // Should not throw and not do anything
-      const state = useAgentStore.getState();
-      expect(state.agentInstance).toBeNull();
+      // const state = useAgentStore.getState(); // State check removed
+      // agentInstance removed - no agent instance created on frontend
     });
   });
 });

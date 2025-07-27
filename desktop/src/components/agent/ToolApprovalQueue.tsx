@@ -3,13 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils/tailwind';
-import {
-  HumanInLoopHandler,
-  ToolApprovalRequest,
-  ToolApprovalResult,
-  createUIApprovalHandler,
-} from '@/services/agent/human-in-loop';
 import { useAgentStore } from '@/stores/agent-store';
+import { HumanInLoopHandler, ToolApprovalRequest, ToolApprovalResult, createUIApprovalHandler } from '@/types/agent-ui';
 
 import { ToolApprovalDialog } from './ToolApprovalDialog';
 
@@ -48,10 +43,12 @@ export function ToolApprovalQueue({ className }: ToolApprovalQueueProps) {
     });
 
     // Apply preferences
-    handler.updateAutoApprovalSettings({
-      categories: preferences.autoApproveCategories,
-      servers: preferences.autoApproveServers,
-    });
+    if (handler.updateAutoApprovalSettings) {
+      handler.updateAutoApprovalSettings({
+        categories: preferences.autoApproveCategories,
+        servers: preferences.autoApproveServers,
+      });
+    }
 
     setApprovalHandler(handler);
 

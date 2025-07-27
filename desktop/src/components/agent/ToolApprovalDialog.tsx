@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils/tailwind';
-import { ToolApprovalRequest, ToolApprovalResult } from '@/services/agent/human-in-loop';
+import { ToolApprovalRequest, ToolApprovalResult } from '@/types/agent-ui';
 
 interface ToolApprovalDialogProps {
   request: ToolApprovalRequest | null;
