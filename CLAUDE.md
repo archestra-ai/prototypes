@@ -376,6 +376,7 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - PR title linting with conventional commits
 - **Automatic Rust formatting and fixes**: CI automatically applies `cargo fix` and `cargo fmt` changes and commits them back to the PR
 - Rust tests on Ubuntu, macOS (ARM64 & x86_64), and Windows
+  - **Improved job naming**: CI jobs now display human-friendly names (e.g., "Rust Linting and Tests (Ubuntu)") instead of technical platform identifiers (e.g., "Rust Linting and Tests (ubuntu-latest)")
 - Frontend formatting and tests
 - Frontend build verification
 - **Automatic OpenAPI schema updates**: CI automatically regenerates and commits OpenAPI schema and TypeScript client if they're outdated
