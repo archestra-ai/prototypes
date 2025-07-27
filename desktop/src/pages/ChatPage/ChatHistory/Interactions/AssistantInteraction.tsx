@@ -19,9 +19,18 @@ export default function AssistantInteraction({ interaction }: AssistantInteracti
     toolCalls,
   } = interaction;
 
+  // Debug logging
+  console.log('[AssistantInteraction] Rendering with:', {
+    hasContent: !!assistantContent,
+    hasThinking: !!thinkingContent,
+    toolCallsLength: toolCalls?.length || 0,
+    toolCalls: toolCalls,
+    isToolExecuting: isToolExecuting,
+  });
+
   return (
     <div className="relative">
-      {(isToolExecuting || toolCalls) && (
+      {(isToolExecuting || (toolCalls && toolCalls.length > 0)) && (
         <ToolCallIndicator toolCalls={toolCalls || []} isExecuting={!!isToolExecuting} />
       )}
 

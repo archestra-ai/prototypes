@@ -57,7 +57,6 @@ export default function ToolExecutionResult({
         </div>
       </div>
 
-      {/* Tool Arguments */}
       {Object.keys(toolArguments).length > 0 && (
         <Collapsible open={showArguments} onOpenChange={setShowArguments}>
           <CollapsibleTrigger asChild>
@@ -74,7 +73,6 @@ export default function ToolExecutionResult({
         </Collapsible>
       )}
 
-      {/* Result Content */}
       <div className="mt-2">
         {status === ToolCallStatus.Error && error ? (
           <div className="p-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-300">
@@ -86,7 +84,9 @@ export default function ToolExecutionResult({
               {result.length > 200 ? (
                 <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
                   <div>
-                    <p className="whitespace-pre-wrap">{isExpanded ? result : truncateResult(result)}</p>
+                    <p className="whitespace-pre-wrap text-xs text-muted-foreground">
+                      {isExpanded ? result : truncateResult(result)}
+                    </p>
                     <CollapsibleTrigger asChild>
                       <Button variant="ghost" className="h-6 p-0 mt-1 text-xs text-blue-600 hover:text-blue-800">
                         {isExpanded ? (
