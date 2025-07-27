@@ -103,14 +103,19 @@ export const generateNewMessageCreatedAt = () => crypto.randomUUID();
 export const initializeChat = (chat: ServerChatWithInteractions): ChatWithInteractions => {
   return {
     ...chat,
-    interactions: chat.interactions.map((interaction) => ({
-      ...interaction,
-      id: generateNewMessageId(),
-      toolCalls: initializeToolCalls(interaction.tool_calls),
-      thinkingContent: '',
-      isStreaming: false,
-      isToolExecuting: false,
-      isThinkingStreaming: false,
-    })),
+    interactions: chat.interactions.map((interaction) => {
+      const { thinking, response } = parseThinkingContent(interaction.content);
+
+      return {
+        ...interaction,
+        id: generateNewMessageId(),
+        toolCalls: initializeToolCalls(interaction.tool_calls),
+        content: response,
+        thinkingContent: thinking,
+        isStreaming: false,
+        isToolExecuting: false,
+        isThinkingStreaming: false,
+      };
+    }),
   };
 };

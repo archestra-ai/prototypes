@@ -41,10 +41,10 @@ export function DeleteChatConfirmation({ onDelete }: DeleteChatConfirmationProps
           <p className="text-sm font-medium">Delete this chat?</p>
           <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
           <div className="flex gap-2 pt-2">
-            <Button size="sm" variant="destructive" onClick={handleDelete}>
+            <Button size="sm" variant="destructive" className="cursor-pointer" onClick={handleDelete}>
               Delete
             </Button>
-            <Button size="sm" variant="ghost" onClick={handleCancel}>
+            <Button size="sm" variant="ghost" className="cursor-pointer" onClick={handleCancel}>
               Cancel
             </Button>
           </div>

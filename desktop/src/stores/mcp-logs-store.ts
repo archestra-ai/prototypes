@@ -116,7 +116,6 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage, isLoading: false });
-      console.error('Failed to fetch MCP logs:', error);
     }
   },
 
@@ -140,7 +139,6 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage });
-      console.error('Failed to fetch MCP log by ID:', error);
     }
   },
 
@@ -159,7 +157,6 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage });
-      console.error('Failed to fetch MCP log stats:', error);
     }
   },
 
@@ -178,7 +175,6 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage });
-      console.error('Failed to clear MCP logs:', error);
     }
   },
 

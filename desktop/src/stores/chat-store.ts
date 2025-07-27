@@ -66,11 +66,10 @@ type ChatStore = ChatState & ChatActions;
  * Listen for chat title updates from the backend
  */
 const listenForChatTitleUpdates = () => {
-  const { chats } = useChatStore.getState();
   listen<ChatTitleUpdatedEvent>('chat-title-updated', ({ payload: { chat_id, title } }) => {
-    useChatStore.setState({
-      chats: chats.map((chat) => (chat.id === chat_id ? { ...chat, title } : chat)),
-    });
+    useChatStore.setState((state) => ({
+      chats: state.chats.map((chat) => (chat.id === chat_id ? { ...chat, title } : chat)),
+    }));
   });
 };
 
@@ -161,7 +160,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         });
       }
     } catch (error) {
-      console.error('Failed to load chats:', error);
       set({ isLoadingChats: false });
     }
   },
@@ -182,7 +180,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       return initializedChat;
     } catch (error) {
-      console.error('Failed to create chat:', error);
       throw error;
     }
   },
@@ -219,9 +216,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           currentChat: newChats.length > 0 ? newChats[0] : null,
         };
       });
-    } catch (error) {
-      console.error('Failed to delete chat:', error);
-    }
+    } catch (error) {}
   },
 
   updateChat: async (chatId: number, title: string) => {
@@ -244,14 +239,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           chats: chats.map((chat) => (chat.id === chatId ? { ...chat, title } : chat)),
         }));
       }
-    } catch (error) {
-      console.error('Failed to update chat:', error);
-      throw error; // Re-throw to let the UI handle the error
-    }
+    } catch (error) {}
   },
 
   cancelStreaming: () => {
-    const { chats, getCurrentChat } = get();
+    const { getCurrentChat } = get();
     const currentChat = getCurrentChat();
     if (!currentChat) {
       return;
@@ -268,8 +260,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({ streamingMessageId: null });
 
       // Clear any stuck execution states from the currently streaming message
-      set({
-        chats: chats.map((chat) =>
+      set((state) => ({
+        chats: state.chats.map((chat) =>
           chat.session_id === currentChat.session_id
             ? {
                 ...chat,
@@ -286,14 +278,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               }
             : chat
         ),
-      });
+      }));
     } catch (error) {
       // Still reset state even if cancellation failed
       set({ streamingMessageId: null });
 
       const { streamingMessageId } = get();
-      set({
-        chats: chats.map((chat) =>
+      set((state) => ({
+        chats: state.chats.map((chat) =>
           chat.session_id === currentChat.session_id
             ? {
                 ...chat,
@@ -305,12 +297,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               }
             : chat
         ),
-      });
+      }));
     }
   },
 
   updateStreamingMessage: (messageId: string, content: string) => {
-    const { chats, getCurrentChat } = get();
+    const { getCurrentChat } = get();
     const currentChat = getCurrentChat();
     if (!currentChat) {
       return;
@@ -318,10 +310,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     const parsed = parseThinkingContent(content);
 
-    // console.log('yooo updateStreamingMessage', messageId, content, parsed);
-
-    set({
-      chats: chats.map((chat) =>
+    set((state) => ({
+      chats: state.chats.map((chat) =>
         chat.session_id === currentChat.session_id
           ? {
               ...chat,
@@ -338,14 +328,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             }
           : chat
       ),
-    });
+    }));
   },
 
   sendChatMessage: async (message: string) => {
     const { getAllAvailableTools, selectedTools } = useMCPServersStore.getState();
     const { chat, selectedModel } = useOllamaStore.getState();
     const { isDeveloperMode, systemPrompt } = useDeveloperModeStore.getState();
-    const { chats, getCurrentChat, createNewChat } = get();
+    const { getCurrentChat, createNewChat } = get();
     const allAvailableTools = getAllAvailableTools();
 
     let currentChat = getCurrentChat();
@@ -365,11 +355,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const aiMsgId = generateNewMessageId();
     const abortController = new AbortController();
 
-    set({
+    set((state) => ({
       streamingMessageId: aiMsgId,
       abortController,
-      chats: chats.map((chat) =>
-        chat.session_id === currentChat.session_id
+      chats: state.chats.map((chat) =>
+        chat.session_id === currentChatSessionId
           ? {
               ...chat,
               interactions: [
@@ -404,14 +394,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             }
           : chat
       ),
-    });
+    }));
 
     try {
       // Add warning if tools are available but model doesn't support them
       if (hasTools && !modelSupportsTools) {
-        set({
-          chats: chats.map((chat) =>
-            chat.session_id === currentChat.session_id
+        set((state) => ({
+          chats: state.chats.map((chat) =>
+            chat.session_id === currentChatSessionId
               ? {
                   ...chat,
                   interactions: [
@@ -433,7 +423,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 }
               : chat
           ),
-        });
+        }));
       }
 
       // Prepare chat history for Ollama SDK
@@ -473,8 +463,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
       }
 
-      console.log(currentChat.interactions, ollamaMessages, ollamaFormattedTools);
-
       const response = await chat(currentChatSessionId, ollamaMessages, ollamaFormattedTools);
 
       let accumulatedContent = '';
@@ -505,9 +493,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       // Handle tool calls if present and mark message as executing tools
       if (accumulatedToolCalls.length > 0) {
-        set({
-          chats: chats.map((chat) =>
-            chat.session_id === currentChat.session_id
+        set((state) => ({
+          chats: state.chats.map((chat) =>
+            chat.session_id === currentChatSessionId
               ? {
                   ...chat,
                   interactions: chat.interactions.map((interaction) =>
@@ -522,12 +510,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 }
               : chat
           ),
-        });
+        }));
 
         const toolResults = await executeToolsAndCollectResults(accumulatedToolCalls, ollamaMessages, finalMessage);
-        set({
-          chats: chats.map((chat) =>
-            chat.session_id === currentChat.session_id
+        set((state) => ({
+          chats: state.chats.map((chat) =>
+            chat.session_id === currentChatSessionId
               ? {
                   ...chat,
                   interactions: chat.interactions.map((interaction) =>
@@ -542,7 +530,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 }
               : chat
           ),
-        });
+        }));
 
         // Get final response from model after tool execution
         if (toolResults.some((tr) => tr.status === ToolCallStatus.Completed)) {
@@ -560,9 +548,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             }
 
             if (part.done) {
-              set({
-                chats: chats.map((chat) =>
-                  chat.session_id === currentChat.session_id
+              set((state) => ({
+                chats: state.chats.map((chat) =>
+                  chat.session_id === currentChatSessionId
                     ? {
                         ...chat,
                         interactions: chat.interactions.map((interaction) =>
@@ -578,16 +566,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                       }
                     : chat
                 ),
-              });
+              }));
               break;
             }
           }
         }
       } else {
         // No tool calls, just finalize the message
-        set({
-          chats: chats.map((chat) =>
-            chat.session_id === currentChat.session_id
+        set((state) => ({
+          chats: state.chats.map((chat) =>
+            chat.session_id === currentChatSessionId
               ? {
                   ...chat,
                   interactions: chat.interactions.map((interaction) =>
@@ -602,16 +590,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 }
               : chat
           ),
-        });
+        }));
       }
 
       set({ streamingMessageId: null, abortController: null });
     } catch (error: any) {
       // Handle abort specifically
       if (error.name === 'AbortError' || abortController?.signal.aborted) {
-        set({
-          chats: chats.map((chat) =>
-            chat.session_id === currentChat.session_id
+        set((state) => ({
+          chats: state.chats.map((chat) =>
+            chat.session_id === currentChatSessionId
               ? {
                   ...chat,
                   interactions: chat.interactions.map((interaction) =>
@@ -620,11 +608,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 }
               : chat
           ),
-        });
+        }));
       } else {
-        set({
-          chats: chats.map((chat) =>
-            chat.session_id === currentChat.session_id
+        set((state) => ({
+          chats: state.chats.map((chat) =>
+            chat.session_id === currentChatSessionId
               ? {
                   ...chat,
                   interactions: chat.interactions.map((interaction) =>
@@ -640,7 +628,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 }
               : chat
           ),
-        });
+        }));
       }
       set({ streamingMessageId: null, abortController: null });
     }
