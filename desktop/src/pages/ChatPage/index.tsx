@@ -6,8 +6,8 @@ interface ChatPageProps {}
 
 export default function ChatPage(_props: ChatPageProps) {
   return (
-    <div className="flex flex-col h-full gap-2">
-      <div className="flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-col h-full gap-2 max-w-full overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden max-w-full">
         <ChatHistory />
       </div>
       <SystemPrompt />
