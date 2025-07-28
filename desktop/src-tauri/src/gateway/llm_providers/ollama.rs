@@ -362,7 +362,12 @@ impl Service {
         let client = reqwest::Client::new();
 
         // Build the target URL for Ollama
-        let target_url = format!("{}{}", self.ollama_client.client.url(), path);
+        let mut target_host = self.ollama_client.client.url().to_string();
+        // Remove trailing slash
+        if target_host.ends_with('/') {
+            target_host.pop();
+        }
+        let target_url = format!("{target_host}{path}");
         debug!("Target URL: {}", target_url);
 
         // Convert axum request to reqwest
