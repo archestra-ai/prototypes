@@ -31,7 +31,7 @@ export interface ConnectedMCPServer extends BaseMcpServer {
   client: Client | null;
   tools: ToolWithMCPServerName[];
   status: MCPServerStatus;
-  error?: string;
+  error: string | null;
 }
 
 export enum ToolCallStatus {

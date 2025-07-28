@@ -33,7 +33,7 @@ pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
                     .and_then(|d| d.parse::<u64>().ok()),
             };
 
-            // Save MCP server with tokens in meta field
+            // TODO: save MCP server with template ID placeholders for tokens in necessary args fields
             let server_config = ServerConfig {
                 transport: "stdio".to_string(),
                 command: "npx".to_string(),
@@ -45,14 +45,9 @@ pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
                 env: std::collections::HashMap::new(),
             };
 
-            let meta = serde_json::json!({
-                "tokens": tokens
-            });
-
             let definition = MCPServerDefinition {
                 name: "Gmail".to_string(),
                 server_config,
-                meta: meta,
             };
 
             // Save to database (this will also start the server)

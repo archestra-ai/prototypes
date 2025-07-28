@@ -213,7 +213,6 @@ mod tests {
         let active_model = ActiveModel {
             name: Set(name.to_string()),
             server_config: Set(serde_json::to_value(&server_config).unwrap()),
-            meta: Set(serde_json::json!({})),
             created_at: Set(chrono::Utc::now()),
             ..Default::default()
         };

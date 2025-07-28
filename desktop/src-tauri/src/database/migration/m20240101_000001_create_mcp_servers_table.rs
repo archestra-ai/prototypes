@@ -25,7 +25,7 @@ impl MigrationTrait for Migration {
                             .unique_key(),
                     )
                     .col(ColumnDef::new(MCPServers::ServerConfig).text().not_null())
-                    .col(ColumnDef::new(MCPServers::Meta).text().not_null())
+                    .col(ColumnDef::new(MCPServers::Meta).text())
                     .col(
                         ColumnDef::new(MCPServers::CreatedAt)
                             .timestamp_with_time_zone()

@@ -10,9 +10,11 @@ interface ArchestraMCPServerProps {
   archestraMCPServer: ConnectedMCPServer;
 }
 
-export default function ArchestraMCPServer({ archestraMCPServer }: ArchestraMCPServerProps) {
+export default function ArchestraMCPServer({
+  archestraMCPServer: { status, tools, error, url },
+}: ArchestraMCPServerProps) {
   const getStatusBadge = () => {
-    switch (archestraMCPServer.status) {
+    switch (status) {
       case MCPServerStatus.Connected:
         return (
           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -50,7 +52,7 @@ export default function ArchestraMCPServer({ archestraMCPServer }: ArchestraMCPS
         <div className="space-y-2">
           <Label htmlFor="server-url">Server URL</Label>
           <div className="flex items-center gap-2">
-            <Input id="server-url" value={archestraMCPServer.url} readOnly className="font-mono text-sm" />
+            <Input id="server-url" value={url} readOnly className="font-mono text-sm" />
           </div>
           <p className="text-sm text-muted-foreground">Use this URL to connect to the Archestra MCP server.</p>
         </div>
@@ -61,22 +63,22 @@ export default function ArchestraMCPServer({ archestraMCPServer }: ArchestraMCPS
               <Zap className="h-4 w-4" />
               Available Tools
             </h4>
-            {archestraMCPServer.status === MCPServerStatus.Connecting ? (
+            {status === MCPServerStatus.Connecting ? (
               <div className="space-y-1 text-sm">
                 <div>Loading tools...</div>
               </div>
             ) : (
               <div className="space-y-1 text-sm">
-                {archestraMCPServer.tools.map((tool) => (
+                {tools.map((tool) => (
                   <div key={tool.name}>
-                    • {tool.name} - {tool.description}
+                    • {tool.name} - {tool.description || 'No description'}
                   </div>
                 ))}
               </div>
             )}
-            {archestraMCPServer.error && (
+            {error && (
               <div className="space-y-1 text-sm">
-                <div>Error loading tools: {archestraMCPServer.error}</div>
+                <div>Error loading tools: {error}</div>
               </div>
             )}
           </div>

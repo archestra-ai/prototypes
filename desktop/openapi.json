@@ -1040,7 +1040,7 @@
       },
       "MCPServer": {
         "type": "object",
-        "required": ["id", "name", "server_config", "meta", "created_at"],
+        "required": ["id", "name", "server_config", "created_at"],
         "properties": {
           "created_at": {
             "type": "string",
@@ -1050,7 +1050,6 @@
             "type": "integer",
             "format": "int32"
           },
-          "meta": {},
           "name": {
             "type": "string"
           },

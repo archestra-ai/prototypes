@@ -95,7 +95,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
           tools: [],
           url: constructProxiedMCPServerUrl(mcpServer.name),
           status: MCPServerStatus.Connecting,
-          error: undefined,
+          error: null,
           client: null,
         },
       ],
@@ -158,10 +158,12 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
           get().addMCPServerToInstalledMCPServers(server);
         }
       } else if ('error' in response) {
-        throw new Error(response.error as string);
+        const errorMessage = typeof response.error === 'string' ? response.error : JSON.stringify(response.error);
+        throw new Error(errorMessage);
       }
     } catch (error) {
-      set({ errorLoadingInstalledMCPServers: error as string });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      set({ errorLoadingInstalledMCPServers: errorMessage });
     } finally {
       set({ loadingInstalledMCPServers: false });
     }
@@ -181,7 +183,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
         if (client) {
           const tools = await initializeConnectedMCPServerTools(client, ARCHESTRA_MCP_SERVER_NAME);
           /**
-           * name, id, created_at, server_config and meta aren't needed for the Archestra MCP server, they're simply added
+           * name, id, created_at and server_config aren't needed for the Archestra MCP server, they're simply added
            * here to appease the ConnectedMCPServer type.
            */
           set({
@@ -195,12 +197,11 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
                 args: [],
                 env: {},
               },
-              meta: {},
               url: ARCHESTRA_SERVER_MCP_URL,
               client,
               tools,
               status: MCPServerStatus.Connected,
-              error: undefined,
+              error: null,
             },
           });
 
@@ -237,7 +238,6 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
           args: [],
           env: {},
         },
-        meta: {},
         url: ARCHESTRA_SERVER_MCP_URL,
         client: null,
         tools: [],
