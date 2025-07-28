@@ -266,7 +266,6 @@ mod tests {
         assert!(saved_model.id > 0);
     }
 
-
     #[rstest]
     #[tokio::test]
     async fn test_save_server_duplicate_name(#[future] database: DatabaseConnection) {
@@ -331,7 +330,7 @@ mod tests {
                     args: vec![format!("hello_{i}")],
                     env: HashMap::new(),
                 },
-                };
+            };
             Model::save_server_without_lifecycle(&db, &definition)
                 .await
                 .unwrap();
@@ -445,7 +444,7 @@ mod tests {
             args: vec!["hello".to_string()],
             env: HashMap::new(),
         };
-        
+
         let model = Model {
             id: 1,
             name: "test_server".to_string(),
@@ -459,8 +458,6 @@ mod tests {
         assert_eq!(definition.server_config.args, vec!["hello"]);
         assert!(definition.server_config.env.is_empty());
     }
-
-
 
     #[tokio::test]
     async fn test_get_mcp_connector_catalog() {
@@ -543,7 +540,8 @@ mod tests {
 
         // Access the server_config to verify
         let server_config_json = active_model.server_config.as_ref();
-        let parsed_config: ServerConfig = serde_json::from_value(server_config_json.clone()).unwrap();
+        let parsed_config: ServerConfig =
+            serde_json::from_value(server_config_json.clone()).unwrap();
         assert_eq!(parsed_config.command, "python");
         assert_eq!(parsed_config.args.len(), 2);
         assert_eq!(parsed_config.env.get("DEBUG"), Some(&"true".to_string()));
