@@ -144,6 +144,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `lib/`: Utility functions and helpers
   - `api/`: Generated TypeScript client from OpenAPI schema (DO NOT EDIT)
   - `api-client.ts`: Configured HTTP client instance
+  - `websocket.ts`: WebSocket client service for real-time event handling
 
 #### Backend (`desktop/src-tauri/`)
 
@@ -160,10 +161,12 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
   - `/llm/:provider`: Proxies requests to LLM providers
+  - `/ws`: WebSocket endpoint for real-time event broadcasting
 - `src/ollama/`: Ollama integration module
   - `client.rs`: HTTP client for Ollama API
   - `server.rs`: Ollama server management
   - `consts.rs`: Ollama-related constants
+- `src/gateway/websocket.rs`: WebSocket service for real-time event broadcasting
 - `src/openapi.rs`: OpenAPI schema configuration using utoipa
 - `binaries/`: Embedded Ollama binaries for different platforms
 - `sandbox-exec-profiles/`: macOS sandbox profiles for security
@@ -178,6 +181,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 6. **Chat Interface**: Full-featured chat UI with streaming responses and tool execution
 7. **Security**: Uses macOS sandbox profiles for MCP server execution
 8. **API Documentation**: Auto-generated OpenAPI schema with TypeScript client
+9. **Real-time Events**: WebSocket-based event broadcasting for UI updates
 
 ### Database Schema
 
@@ -200,6 +204,43 @@ The application uses SQLite with SeaORM for database management. Key tables incl
   - Index on `chat_id` for query performance
 
 The relationship ensures that deleting a chat automatically removes all associated messages via CASCADE delete.
+
+### WebSocket Architecture
+
+The application uses WebSockets for real-time event broadcasting between the backend and frontend, replacing Tauri-specific event system with a more flexible, standard protocol.
+
+#### Backend WebSocket Service (`src/gateway/websocket.rs`)
+
+- **Service Architecture**: Centralized `WebSocketService` manages connections and message broadcasting
+- **Connection Management**: Maintains active connections in thread-safe `Arc<Mutex<Vec<SplitSink>>>`
+- **Message Types**: Extensible enum-based system with `WebSocketMessage`:
+  ```rust
+  pub enum WebSocketMessage {
+      ChatTitleUpdated(ChatTitleUpdatedWebSocketPayload { chat_id: i32, title: String }),
+      // Future event types can be added here
+  }
+  ```
+- **Broadcasting**: Async broadcast method sends messages to all connected clients with automatic cleanup
+- **JSON Protocol**: Messages are serialized as `{type: string, payload: object}`
+
+#### Frontend WebSocket Client (`src/lib/websocket.ts`)
+
+- **Auto-Reconnection**: Uses `reconnecting-websocket` library with exponential backoff (1s-10s)
+- **Type-Safe Handlers**: Strongly typed message handlers with TypeScript
+- **Event Subscription**: Publisher-subscriber pattern for component event handling:
+  ```typescript
+  websocketService.subscribe('chat-title-updated', (message) => {
+    // Handle the event
+  });
+  ```
+- **Singleton Pattern**: Single WebSocket connection shared across the application
+
+#### Current WebSocket Events
+
+- **`chat-title-updated`**: Broadcasts when AI generates or updates a chat title
+  - Payload: `{chat_id: number, title: string}`
+  - Triggered after 4 chat interactions
+  - Frontend automatically updates UI without refresh
 
 ### Key Patterns
 
@@ -296,7 +337,7 @@ Response: 204 No Content
 - Triggers automatically after exactly 4 interactions (2 user + 2 assistant messages)
 - Uses the same LLM model as the chat to generate a concise 5-6 word title
 - Runs asynchronously in background using `tokio::spawn` with 30-second timeout
-- Emits `chat-title-updated` Tauri event with `{chat_id, title}` payload
+- Broadcasts `chat-title-updated` WebSocket message with `{chat_id, title}` payload
 - Frontend updates UI in real-time via event listener without page refresh
 
 **Frontend State Management**:
@@ -312,6 +353,7 @@ Response: 204 No Content
 - **Package Manager**: pnpm v10.13.1 (NEVER use npm or yarn)
 - **Node Version**: 24.4.1
 - **Gateway Port**: 54587 (configured in `desktop/src/consts.ts`)
+- **WebSocket Endpoint**: `ws://localhost:54587/ws` (configured in `desktop/src/consts.ts`)
 - **TypeScript Path Alias**: `@/` maps to `./src/`
 - **Prettier Config**: 120 character line width, single quotes, sorted imports
 - **Pre-commit Hooks**: Prettier formatting via Husky
@@ -321,6 +363,7 @@ Response: 204 No Content
 
 - **Frontend**:
   - `@radix-ui/react-popover`: For popover UI component (required by shadcn/ui)
+  - `reconnecting-websocket`: For WebSocket client with automatic reconnection support
 - **Backend**:
   - `tokio`: Enhanced with async runtime features for spawning background tasks
 
@@ -333,6 +376,7 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - PR title linting with conventional commits
 - **Automatic Rust formatting and fixes**: CI automatically applies `cargo fix` and `cargo fmt` changes and commits them back to the PR
 - Rust tests on Ubuntu, macOS (ARM64 & x86_64), and Windows
+  - **Improved job naming**: CI jobs now display human-friendly names (e.g., "Rust Linting and Tests (Ubuntu)") instead of technical platform identifiers (e.g., "Rust Linting and Tests (ubuntu-latest)")
 - Frontend formatting and tests
 - Frontend build verification
 - **Automatic OpenAPI schema updates**: CI automatically regenerates and commits OpenAPI schema and TypeScript client if they're outdated
@@ -359,12 +403,14 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
   - Generates a GitHub App installation token using `actions/create-github-app-token@v2`
   - Token is created from `ARCHESTRA_RELEASER_GITHUB_APP_ID` and `ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY` secrets
   - Generated token is used for both fetching existing releases and creating new ones via tauri-action
-- **Version Management**: When a desktop release is created:
-  - Automatically extracts version from release-please tag (format: `app-vX.Y.Z`)
-  - Updates version in three locations:
-    - `desktop/package.json` (using jq)
-    - `desktop/src-tauri/Cargo.toml` (using sed)
-    - `desktop/src-tauri/tauri.conf.json` (using jq)
+- **Version Management**: Release-please automatically manages version updates through `extra-files` configuration:
+  - **Configuration**: Located in `.github/release-please/release-please-config.json`
+  - **Extra Files**: Automatically updates version numbers in:
+    - `desktop/package.json` (JSON format, path: `$.version`)
+    - `desktop/src-tauri/Cargo.toml` (TOML format, path: `$.package.version`)
+    - `desktop/src-tauri/tauri.conf.json` (JSON format, path: `$.version`)
+  - **Process**: Version updates happen when release-please creates the release PR, not during the build
+  - **Format**: Versions are extracted from release-please tags (format: `app-vX.Y.Z`)
 - **Multi-platform desktop builds**: When a desktop release is created:
   - Builds Tauri desktop applications for Linux (ubuntu-latest) and Windows (windows-latest)
   - Uses matrix strategy with `fail-fast: false` to ensure all platforms build
@@ -403,4 +449,4 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - **Integration Tests**: Verify cascade deletes and foreign key constraints
 - **Frontend Tests**: Mock API responses for chat operations
 - **Streaming Tests**: Test message accumulation and persistence during streaming
-- **Event Tests**: Verify Tauri events are emitted correctly for UI updates
+- **Event Tests**: Verify WebSocket messages are broadcast correctly for UI updates

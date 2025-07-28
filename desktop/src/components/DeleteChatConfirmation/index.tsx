@@ -30,7 +30,7 @@ export function DeleteChatConfirmation({ onDelete }: DeleteChatConfirmationProps
             e.stopPropagation();
             setOpen(true);
           }}
-          className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 cursor-pointer"
+          className="opacity-0 group-hover/chat-item:opacity-100 transition-opacity ml-1 cursor-pointer"
         >
           <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
           <span className="sr-only">Delete chat</span>

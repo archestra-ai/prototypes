@@ -19,6 +19,10 @@ export function EditableTitle({ title, isAnimated, onSave, className = '' }: Edi
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    setEditedTitle(title);
+  }, [title]);
+
+  useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
@@ -76,7 +80,7 @@ export function EditableTitle({ title, isAnimated, onSave, className = '' }: Edi
       onClick={() => setIsEditing(true)}
     >
       <span className="truncate">{isAnimated ? <TypewriterText text={title} speed={20} /> : title}</span>
-      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+      <Pencil className="h-3 w-3 opacity-0 group-hover/chat-button:opacity-50" />
     </div>
   );
 }

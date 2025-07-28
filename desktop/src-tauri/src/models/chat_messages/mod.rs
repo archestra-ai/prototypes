@@ -7,7 +7,7 @@ use serde_json::Value as JsonValue;
 use crate::models::chat::Model as ChatModel;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "chat_interactions")]
+#[sea_orm(table_name = "chat_messages")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
@@ -36,7 +36,7 @@ impl Related<crate::models::chat::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatInteractionDefinition {
+pub struct ChatMessageDefinition {
     pub chat_id: i32,
     pub content: JsonValue,
 }
@@ -54,16 +54,16 @@ impl Model {
                 DbErr::RecordNotFound(format!("Chat not found with session_id: {chat_session_id}"))
             })?;
 
-        let new_chat_interaction = ActiveModel {
+        let new_chat_message = ActiveModel {
             chat_id: Set(chat.id),
             content: Set(content),
             ..Default::default()
         };
 
-        new_chat_interaction.insert(db).await
+        new_chat_message.insert(db).await
     }
 
-    pub async fn count_chat_interactions(
+    pub async fn count_chat_messages(
         session_id: String,
         db: &DatabaseConnection,
     ) -> Result<u64, DbErr> {
@@ -75,7 +75,7 @@ impl Model {
         let result = db
             .query_one(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
-                "SELECT COUNT(*) as count FROM chat_interactions WHERE chat_id = ?",
+                "SELECT COUNT(*) as count FROM chat_messages WHERE chat_id = ?",
                 vec![chat.id.into()],
             ))
             .await?
@@ -94,7 +94,7 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_save_chat_interaction(#[future] database: DatabaseConnection) {
+    async fn test_save_chat_message(#[future] database: DatabaseConnection) {
         let db = database.await;
 
         // Create a chat with session_id
@@ -108,17 +108,17 @@ mod tests {
         .await
         .unwrap();
 
-        // Save a chat interaction using session_id
+        // Save a chat message using session_id
         let content = serde_json::json!({
             "role": "user",
             "content": "Hello, world!"
         });
-        let interaction = Model::save("test-session-123".to_string(), content.clone(), &db)
+        let message = Model::save("test-session-123".to_string(), content.clone(), &db)
             .await
             .unwrap();
 
-        assert_eq!(interaction.chat_id, chat.id);
-        assert_eq!(interaction.content, content);
+        assert_eq!(message.chat_id, chat.id);
+        assert_eq!(message.content, content);
     }
 
     #[rstest]
@@ -143,7 +143,7 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_count_chat_interactions(#[future] database: DatabaseConnection) {
+    async fn test_count_chat_messages(#[future] database: DatabaseConnection) {
         let db = database.await;
 
         // Create a chat
@@ -158,12 +158,12 @@ mod tests {
         .unwrap();
 
         // Initially should be 0
-        let count = Model::count_chat_interactions("count-test-session".to_string(), &db)
+        let count = Model::count_chat_messages("count-test-session".to_string(), &db)
             .await
             .unwrap();
         assert_eq!(count, 0);
 
-        // Add some interactions
+        // Add some messages
         for i in 0..3 {
             let content = serde_json::json!({
                 "role": "user",
@@ -175,7 +175,7 @@ mod tests {
         }
 
         // Count should be 3
-        let count = Model::count_chat_interactions("count-test-session".to_string(), &db)
+        let count = Model::count_chat_messages("count-test-session".to_string(), &db)
             .await
             .unwrap();
         assert_eq!(count, 3);
@@ -186,7 +186,7 @@ mod tests {
     async fn test_count_with_invalid_session_id(#[future] database: DatabaseConnection) {
         let db = database.await;
 
-        let result = Model::count_chat_interactions("non-existent-session".to_string(), &db).await;
+        let result = Model::count_chat_messages("non-existent-session".to_string(), &db).await;
 
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Chat not found"));
@@ -218,7 +218,7 @@ mod tests {
         .await
         .unwrap();
 
-        // Add interactions to each chat
+        // Add messages to each chat
         Model::save(
             "session-1".to_string(),
             serde_json::json!({
@@ -251,10 +251,10 @@ mod tests {
         .unwrap();
 
         // Verify counts are isolated
-        let count1 = Model::count_chat_interactions("session-1".to_string(), &db)
+        let count1 = Model::count_chat_messages("session-1".to_string(), &db)
             .await
             .unwrap();
-        let count2 = Model::count_chat_interactions("session-2".to_string(), &db)
+        let count2 = Model::count_chat_messages("session-2".to_string(), &db)
             .await
             .unwrap();
 

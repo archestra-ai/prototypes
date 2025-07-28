@@ -23,7 +23,7 @@ import { useChatStore } from '@/stores/chat-store';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
-import { ChatInteractionStatus } from '@/types';
+import { ChatMessageStatus } from '@/types';
 
 interface ChatInputProps {}
 
@@ -35,7 +35,7 @@ export default function ChatInput(_props: ChatInputProps) {
     useOllamaStore();
 
   const status = getStatus();
-  const isStreaming = status === ChatInteractionStatus.Streaming;
+  const isStreaming = status === ChatMessageStatus.Streaming;
   const [message, setMessage] = useState('');
   const hasSelectedTools = Object.keys(selectedTools).length > 0;
 
@@ -45,7 +45,7 @@ export default function ChatInput(_props: ChatInputProps) {
         e.preventDefault();
       }
 
-      setStatus(ChatInteractionStatus.Submitted);
+      setStatus(ChatMessageStatus.Submitted);
 
       try {
         let finalMessage = message.trim();
@@ -58,10 +58,10 @@ export default function ChatInput(_props: ChatInputProps) {
 
         setMessage('');
         await sendChatMessage(finalMessage);
-        setStatus(ChatInteractionStatus.Ready);
+        setStatus(ChatMessageStatus.Ready);
       } catch (error) {
-        setStatus(ChatInteractionStatus.Error);
-        setTimeout(() => setStatus(ChatInteractionStatus.Ready), 2000);
+        setStatus(ChatMessageStatus.Error);
+        setTimeout(() => setStatus(ChatMessageStatus.Ready), 2000);
       }
     },
     [hasSelectedTools, message, sendChatMessage, selectedTools]

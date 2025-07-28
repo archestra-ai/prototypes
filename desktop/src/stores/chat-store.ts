@@ -1,10 +1,9 @@
-import { listen } from '@tauri-apps/api/event';
 import { Message as OllamaMessage, Tool as OllamaTool, ToolCall as OllamaToolCall } from 'ollama/browser';
 import { create } from 'zustand';
 
 import { DEFAULT_CHAT_TITLE } from '@/consts';
 import {
-  ChatWithInteractions as ServerChatWithInteractions,
+  ChatWithMessages as ServerChatWithMessages,
   createChat,
   deleteChat,
   getAllChats,
@@ -16,15 +15,15 @@ import {
   generateNewMessageId,
   generateNewToolCallId,
   initializeChat,
-  markChatInteractionAsCancelled,
+  markChatMessageAsCancelled,
   parseThinkingContent,
 } from '@/lib/utils/chat';
 import { convertMCPServerToolsToOllamaTools } from '@/lib/utils/ollama';
 import { convertArchestraToolNameToServerAndToolName } from '@/lib/utils/tools';
+import { websocketService } from '@/lib/websocket';
 import {
-  ChatInteractionStatus,
-  type ChatTitleUpdatedEvent,
-  type ChatWithInteractions,
+  ChatMessageStatus,
+  type ChatWithMessages,
   type ToolCall,
   ToolCallStatus,
   type ToolWithMCPServerName,
@@ -35,8 +34,8 @@ import { useMCPServersStore } from './mcp-servers-store';
 import { useOllamaStore } from './ollama-store';
 
 interface ChatState {
-  status: ChatInteractionStatus;
-  chats: ChatWithInteractions[];
+  status: ChatMessageStatus;
+  chats: ChatWithMessages[];
   currentChatSessionId: string | null;
   streamingMessageId: string | null;
   abortController: AbortController | null;
@@ -45,28 +44,29 @@ interface ChatState {
 }
 
 interface ChatActions {
-  getStatus: () => ChatInteractionStatus;
-  setStatus: (status: ChatInteractionStatus) => void;
+  getStatus: () => ChatMessageStatus;
+  setStatus: (status: ChatMessageStatus) => void;
   loadChats: () => Promise<void>;
-  createNewChat: () => Promise<ChatWithInteractions>;
+  createNewChat: () => Promise<ChatWithMessages>;
   selectChat: (chatId: number) => void;
-  getCurrentChat: () => ChatWithInteractions | null;
+  getCurrentChat: () => ChatWithMessages | null;
   getCurrentChatTitle: () => string;
   deleteCurrentChat: () => Promise<void>;
   updateChat: (chatId: number, title: string) => Promise<void>;
   sendChatMessage: (message: string, selectedTools?: ToolWithMCPServerName[]) => Promise<void>;
   cancelStreaming: () => void;
   updateStreamingMessage: (messageId: string, content: string) => void;
-  initializeStore: () => void;
+  initializeStore: () => Promise<void>;
 }
 
 type ChatStore = ChatState & ChatActions;
 
 /**
- * Listen for chat title updates from the backend
+ * Listen for chat title updates from the backend via WebSocket
  */
 const listenForChatTitleUpdates = () => {
-  listen<ChatTitleUpdatedEvent>('chat-title-updated', ({ payload: { chat_id, title } }) => {
+  return websocketService.subscribe('chat-title-updated', (message) => {
+    const { chat_id, title } = message.payload;
     useChatStore.setState((state) => ({
       chats: state.chats.map((chat) => (chat.id === chat_id ? { ...chat, title } : chat)),
     }));
@@ -136,7 +136,7 @@ const executeToolsAndCollectResults = async (
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   // State
-  status: ChatInteractionStatus.Ready,
+  status: ChatMessageStatus.Ready,
   chats: [],
   currentChatSessionId: null,
   streamingMessageId: null,
@@ -171,7 +171,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           llm_provider: 'ollama',
         },
       });
-      const initializedChat = initializeChat(response.data as ServerChatWithInteractions);
+      const initializedChat = initializeChat(response.data as ServerChatWithMessages);
 
       set((state) => ({
         chats: [initializedChat, ...state.chats],
@@ -213,7 +213,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const newChats = chats.filter((chat) => chat.id !== currentChat.id);
         return {
           chats: newChats,
-          currentChat: newChats.length > 0 ? newChats[0] : null,
+          currentChatSessionId: newChats.length > 0 ? newChats[0].session_id : null,
         };
       });
     } catch (error) {}
@@ -235,7 +235,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (data) {
         // Update the chat in the local state
         set(({ chats }) => ({
-          currentChat: currentChat.id === chatId ? { ...currentChat, title } : currentChat,
           chats: chats.map((chat) => (chat.id === chatId ? { ...chat, title } : chat)),
         }));
       }
@@ -265,15 +264,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           chat.session_id === currentChat.session_id
             ? {
                 ...chat,
-                interactions: chat.interactions?.map((interaction) =>
-                  interaction.id === streamingMessageId || interaction.isStreaming || interaction.isToolExecuting
+                messages: chat.messages?.map((message) =>
+                  message.id === streamingMessageId || message.isStreaming || message.isToolExecuting
                     ? {
-                        ...interaction,
+                        ...message,
                         isStreaming: false,
                         isToolExecuting: false,
                         isThinkingStreaming: false,
                       }
-                    : interaction
+                    : message
                 ),
               }
             : chat
@@ -289,10 +288,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           chat.session_id === currentChat.session_id
             ? {
                 ...chat,
-                interactions: chat.interactions?.map((interaction) =>
-                  interaction.id === streamingMessageId || interaction.isStreaming || interaction.isToolExecuting
-                    ? markChatInteractionAsCancelled(interaction)
-                    : interaction
+                messages: chat.messages?.map((message) =>
+                  message.id === streamingMessageId || message.isStreaming || message.isToolExecuting
+                    ? markChatMessageAsCancelled(message)
+                    : message
                 ),
               }
             : chat
@@ -315,15 +314,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         chat.session_id === currentChat.session_id
           ? {
               ...chat,
-              interactions: chat.interactions.map((interaction) =>
-                interaction.id === messageId && interaction.isStreaming
+              messages: chat.messages.map((message) =>
+                message.id === messageId && message.isStreaming
                   ? {
-                      ...interaction,
+                      ...message,
                       content: parsed.response,
                       thinkingContent: parsed.thinking,
                       isThinkingStreaming: parsed.isThinkingStreaming,
                     }
-                  : interaction
+                  : message
               ),
             }
           : chat
@@ -362,8 +361,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         chat.session_id === currentChatSessionId
           ? {
               ...chat,
-              interactions: [
-                ...chat.interactions,
+              messages: [
+                ...chat.messages,
                 {
                   id: generateNewMessageId(),
                   created_at: generateNewMessageCreatedAt(),
@@ -404,8 +403,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             chat.session_id === currentChatSessionId
               ? {
                   ...chat,
-                  interactions: [
-                    ...chat.interactions,
+                  messages: [
+                    ...chat.messages,
                     {
                       id: generateNewMessageId(),
                       created_at: generateNewMessageCreatedAt(),
@@ -427,7 +426,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
 
       // Prepare chat history for Ollama SDK
-      const chatHistory = currentChat.interactions.filter(({ role }) => role === 'user' || role === 'assistant');
+      const chatHistory = currentChat.messages.filter(({ role }) => role === 'user' || role === 'assistant');
       const ollamaMessages: OllamaMessage[] = [];
 
       // Add system prompt if developer mode is enabled and system prompt exists
@@ -437,12 +436,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       // Add chat history
       ollamaMessages.push(
-        ...chatHistory.map((interaction) => ({
-          role: interaction.role,
-          content: interaction.content,
-          thinking: interaction.thinking,
-          tool_calls: interaction.toolCalls as OllamaToolCall[],
-          images: interaction.images,
+        ...chatHistory.map((message) => ({
+          role: message.role,
+          content: message.content,
+          thinking: message.thinking,
+          tool_calls: message.toolCalls as OllamaToolCall[],
+          images: message.images,
         })),
         {
           role: 'user',
@@ -498,14 +497,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             chat.session_id === currentChatSessionId
               ? {
                   ...chat,
-                  interactions: chat.interactions.map((interaction) =>
-                    interaction.id === aiMsgId
+                  messages: chat.messages.map((message) =>
+                    message.id === aiMsgId
                       ? {
-                          ...interaction,
+                          ...message,
                           isToolExecuting: true,
                           content: accumulatedContent,
                         }
-                      : interaction
+                      : message
                   ),
                 }
               : chat
@@ -518,14 +517,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             chat.session_id === currentChatSessionId
               ? {
                   ...chat,
-                  interactions: chat.interactions.map((interaction) =>
-                    interaction.id === aiMsgId
+                  messages: chat.messages.map((message) =>
+                    message.id === aiMsgId
                       ? {
-                          ...interaction,
+                          ...message,
                           isToolExecuting: false,
                           toolCalls: toolResults,
                         }
-                      : interaction
+                      : message
                   ),
                 }
               : chat
@@ -553,15 +552,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                   chat.session_id === currentChatSessionId
                     ? {
                         ...chat,
-                        interactions: chat.interactions.map((interaction) =>
-                          interaction.id === aiMsgId
+                        messages: chat.messages.map((message) =>
+                          message.id === aiMsgId
                             ? {
-                                ...interaction,
+                                ...message,
                                 content: accumulatedContent + '\n\n' + finalContent,
                                 isStreaming: false,
                                 isThinkingStreaming: false,
                               }
-                            : interaction
+                            : message
                         ),
                       }
                     : chat
@@ -578,14 +577,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             chat.session_id === currentChatSessionId
               ? {
                   ...chat,
-                  interactions: chat.interactions.map((interaction) =>
-                    interaction.id === aiMsgId
+                  messages: chat.messages.map((message) =>
+                    message.id === aiMsgId
                       ? {
-                          ...interaction,
+                          ...message,
                           isStreaming: false,
                           isThinkingStreaming: false,
                         }
-                      : interaction
+                      : message
                   ),
                 }
               : chat
@@ -602,8 +601,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             chat.session_id === currentChatSessionId
               ? {
                   ...chat,
-                  interactions: chat.interactions.map((interaction) =>
-                    interaction.id === aiMsgId ? markChatInteractionAsCancelled(interaction) : interaction
+                  messages: chat.messages.map((message) =>
+                    message.id === aiMsgId ? markChatMessageAsCancelled(message) : message
                   ),
                 }
               : chat
@@ -615,15 +614,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             chat.session_id === currentChatSessionId
               ? {
                   ...chat,
-                  interactions: chat.interactions.map((interaction) =>
-                    interaction.id === aiMsgId
+                  messages: chat.messages.map((message) =>
+                    message.id === aiMsgId
                       ? {
-                          ...interaction,
+                          ...message,
                           content: `Error: ${error instanceof Error ? error.message : 'An unknown error occurred'}`,
                           isStreaming: false,
                           isThinkingStreaming: false,
                         }
-                      : interaction
+                      : message
                   ),
                 }
               : chat
@@ -634,23 +633,29 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  initializeStore: () => {
+  initializeStore: async () => {
     /**
-     * Load chats on initialization and listen for chat title updates
+     * Load chats on initialization, establish WebSocket connection, and listen for chat title updates
      */
     get().loadChats();
-    listenForChatTitleUpdates();
+
+    try {
+      await websocketService.connect();
+      listenForChatTitleUpdates();
+    } catch (error) {
+      console.error('Failed to establish WebSocket connection:', error);
+    }
   },
 
   getStatus: () => {
     const { streamingMessageId } = get();
     if (streamingMessageId) {
-      return ChatInteractionStatus.Streaming;
+      return ChatMessageStatus.Streaming;
     }
-    return ChatInteractionStatus.Ready;
+    return ChatMessageStatus.Ready;
   },
 
-  setStatus: (status: ChatInteractionStatus) => {
+  setStatus: (status: ChatMessageStatus) => {
     set({ status });
   },
 }));

@@ -3,8 +3,8 @@ import { Tool as BaseTool } from '@modelcontextprotocol/sdk/types.js';
 import { LucideIcon } from 'lucide-react';
 
 import type {
-  ChatInteraction as BaseChatInteraction,
-  ChatWithInteractions as BaseChatWithInteractions,
+  ChatMessage as BaseChatMessage,
+  ChatWithMessages as BaseChatWithMessages,
   ToolCall as BaseToolCall,
   McpServerDefinition,
 } from '@/lib/api-client';
@@ -54,7 +54,7 @@ export interface ToolCall extends BaseToolCall {
   endTime: Date | null;
 }
 
-export enum ChatInteractionStatus {
+export enum ChatMessageStatus {
   Submitted = 'submitted',
   Streaming = 'streaming',
   Ready = 'ready',
@@ -65,7 +65,7 @@ export enum ChatInteractionStatus {
  * NOTE: the following fields are not part of the backend API, they are only used on the UI side to
  * track the state of various things like streaming, thinking, tool execution, etc.
  */
-export interface ChatInteraction extends Omit<BaseChatInteraction, 'tool_calls'> {
+export interface ChatMessage extends Omit<BaseChatMessage, 'tool_calls'> {
   id: string;
   /**
    * toolCalls is a superset of the tool_calls field in the backend API
@@ -77,11 +77,11 @@ export interface ChatInteraction extends Omit<BaseChatInteraction, 'tool_calls'>
   isThinkingStreaming: boolean;
 }
 
-export interface ChatWithInteractions extends Omit<BaseChatWithInteractions, 'interactions'> {
+export interface ChatWithMessages extends Omit<BaseChatWithMessages, 'messages'> {
   /**
-   * interactions is a superset of the interactions field in the backend API
+   * messages is a superset of the messages field in the backend API
    */
-  interactions: ChatInteraction[];
+  messages: ChatMessage[];
 }
 
 export interface ChatTitleUpdatedEvent {

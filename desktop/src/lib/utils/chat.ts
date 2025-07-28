@@ -1,5 +1,5 @@
-import type { ChatWithInteractions as ServerChatWithInteractions, ToolCall as ServerToolCall } from '@/lib/api-client';
-import { type ChatInteraction, type ChatWithInteractions, type ToolCall, ToolCallStatus } from '@/types';
+import type { ChatWithMessages as ServerChatWithMessages, ToolCall as ServerToolCall } from '@/lib/api-client';
+import { type ChatMessage, type ChatWithMessages, type ToolCall, ToolCallStatus } from '@/types';
 
 import { convertArchestraToolNameToServerAndToolName } from './tools';
 
@@ -27,13 +27,13 @@ export function addCancellationText(content: string): string {
   return content.includes('[Cancelled]') ? content : content + ' [Cancelled]';
 }
 
-export function markChatInteractionAsCancelled(interaction: ChatInteraction): ChatInteraction {
+export function markChatMessageAsCancelled(message: ChatMessage): ChatMessage {
   return {
-    ...interaction,
+    ...message,
     isStreaming: false,
     isToolExecuting: false,
     isThinkingStreaming: false,
-    content: addCancellationText(interaction.content),
+    content: addCancellationText(message.content),
   };
 }
 
@@ -100,16 +100,16 @@ export const generateNewMessageId = () => crypto.randomUUID();
 
 export const generateNewMessageCreatedAt = () => crypto.randomUUID();
 
-export const initializeChat = (chat: ServerChatWithInteractions): ChatWithInteractions => {
+export const initializeChat = (chat: ServerChatWithMessages): ChatWithMessages => {
   return {
     ...chat,
-    interactions: chat.interactions.map((interaction) => {
-      const { thinking, response } = parseThinkingContent(interaction.content);
+    messages: chat.messages.map((message) => {
+      const { thinking, response } = parseThinkingContent(message.content);
 
       return {
-        ...interaction,
+        ...message,
         id: generateNewMessageId(),
-        toolCalls: initializeToolCalls(interaction.tool_calls),
+        toolCalls: initializeToolCalls(message.tool_calls),
         content: response,
         thinkingContent: thinking,
         isStreaming: false,

@@ -24,7 +24,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ChatWithInteractions"
+                    "$ref": "#/components/schemas/ChatWithMessages"
                   }
                 }
               }
@@ -54,7 +54,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChatWithInteractions"
+                  "$ref": "#/components/schemas/ChatWithMessages"
                 }
               }
             }
@@ -119,7 +119,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChatWithInteractions"
+                  "$ref": "#/components/schemas/ChatWithMessages"
                 }
               }
             }
@@ -634,23 +634,6 @@
   },
   "components": {
     "schemas": {
-      "ChatInteraction": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/ChatMessage"
-          },
-          {
-            "type": "object",
-            "required": ["created_at"],
-            "properties": {
-              "created_at": {
-                "type": "string",
-                "format": "date-time"
-              }
-            }
-          }
-        ]
-      },
       "ChatMessage": {
         "type": "object",
         "required": ["role", "content", "thinking", "tool_calls", "images"],
@@ -682,9 +665,22 @@
         "type": "string",
         "enum": ["user", "assistant", "tool", "system", "unknown"]
       },
-      "ChatWithInteractions": {
+      "ChatTitleUpdatedWebSocketPayload": {
         "type": "object",
-        "required": ["id", "session_id", "title", "llm_provider", "created_at", "interactions"],
+        "required": ["chat_id", "title"],
+        "properties": {
+          "chat_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "ChatWithMessages": {
+        "type": "object",
+        "required": ["id", "session_id", "title", "llm_provider", "created_at", "messages"],
         "properties": {
           "created_at": {
             "type": "string",
@@ -694,14 +690,14 @@
             "type": "integer",
             "format": "int32"
           },
-          "interactions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatInteraction"
-            }
-          },
           "llm_provider": {
             "type": "string"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            }
           },
           "session_id": {
             "type": "string"
@@ -1219,6 +1215,23 @@
             "type": ["string", "null"]
           }
         }
+      },
+      "WebSocketMessage": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/ChatTitleUpdatedWebSocketPayload"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["chat-title-updated"]
+              }
+            }
+          }
+        ]
       }
     }
   },
@@ -1238,6 +1251,10 @@
     {
       "name": "mcp_server",
       "description": "MCP Server management API"
+    },
+    {
+      "name": "websocket",
+      "description": "WebSocket event types"
     }
   ]
 }

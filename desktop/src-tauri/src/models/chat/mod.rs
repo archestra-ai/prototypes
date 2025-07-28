@@ -1,6 +1,4 @@
-use crate::models::chat_interactions::{
-    Entity as ChatInteractionEntity, Model as ChatInteractionModel,
-};
+use crate::models::chat_messages::{Entity as ChatMessageEntity, Model as ChatMessageModel};
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use sea_orm::{ActiveModelTrait, QueryOrder, Set};
@@ -21,13 +19,13 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "crate::models::chat_interactions::Entity")]
-    ChatInteractions,
+    #[sea_orm(has_many = "crate::models::chat_messages::Entity")]
+    ChatMessages,
 }
 
-impl Related<ChatInteractionEntity> for Entity {
+impl Related<ChatMessageEntity> for Entity {
     fn to() -> RelationDef {
-        Relation::ChatInteractions.def()
+        Relation::ChatMessages.def()
     }
 }
 
@@ -39,13 +37,13 @@ pub struct ChatDefinition {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatWithInteractions {
+pub struct ChatWithMessages {
     #[serde(flatten)]
     pub chat: Model,
-    pub interactions: Vec<ChatInteractionModel>,
+    pub messages: Vec<ChatMessageModel>,
 }
 
-impl Deref for ChatWithInteractions {
+impl Deref for ChatWithMessages {
     type Target = Model;
 
     fn deref(&self) -> &Self::Target {
@@ -57,29 +55,29 @@ impl Model {
     pub async fn save(
         definition: ChatDefinition,
         db: &DatabaseConnection,
-    ) -> Result<ChatWithInteractions, DbErr> {
+    ) -> Result<ChatWithMessages, DbErr> {
         let new_chat = ActiveModel {
             llm_provider: Set(definition.llm_provider),
             ..Default::default()
         };
         let chat = new_chat.insert(db).await?;
-        Ok(ChatWithInteractions {
+        Ok(ChatWithMessages {
             chat,
-            interactions: vec![],
+            messages: vec![],
         })
     }
 
     pub async fn load_by_id(
         id: i32,
         db: &DatabaseConnection,
-    ) -> Result<Option<ChatWithInteractions>, DbErr> {
+    ) -> Result<Option<ChatWithMessages>, DbErr> {
         let result = Entity::find_by_id(id)
-            .find_with_related(ChatInteractionEntity)
+            .find_with_related(ChatMessageEntity)
             .all(db)
             .await?;
 
         match result.into_iter().next() {
-            Some((chat, interactions)) => Ok(Some(ChatWithInteractions { chat, interactions })),
+            Some((chat, messages)) => Ok(Some(ChatWithMessages { chat, messages })),
             None => Ok(None),
         }
     }
@@ -87,29 +85,29 @@ impl Model {
     pub async fn load_by_session_id(
         session_id: String,
         db: &DatabaseConnection,
-    ) -> Result<Option<ChatWithInteractions>, DbErr> {
+    ) -> Result<Option<ChatWithMessages>, DbErr> {
         let result = Entity::find()
             .filter(Column::SessionId.eq(session_id))
-            .find_with_related(ChatInteractionEntity)
+            .find_with_related(ChatMessageEntity)
             .all(db)
             .await?;
 
         match result.into_iter().next() {
-            Some((chat, interactions)) => Ok(Some(ChatWithInteractions { chat, interactions })),
+            Some((chat, messages)) => Ok(Some(ChatWithMessages { chat, messages })),
             None => Ok(None),
         }
     }
 
-    pub async fn load_all(db: &DatabaseConnection) -> Result<Vec<ChatWithInteractions>, DbErr> {
+    pub async fn load_all(db: &DatabaseConnection) -> Result<Vec<ChatWithMessages>, DbErr> {
         let results = Entity::find()
             .order_by_desc(Column::CreatedAt)
-            .find_with_related(ChatInteractionEntity)
+            .find_with_related(ChatMessageEntity)
             .all(db)
             .await?;
 
         Ok(results
             .into_iter()
-            .map(|(chat, interactions)| ChatWithInteractions { chat, interactions })
+            .map(|(chat, messages)| ChatWithMessages { chat, messages })
             .collect())
     }
 
@@ -132,7 +130,7 @@ impl Model {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::chat_interactions::Model as ChatInteractionModel;
+    use crate::models::chat_messages::Model as ChatMessageModel;
     use crate::test_fixtures::database;
     use rstest::rstest;
 
@@ -239,7 +237,7 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_chat_delete_cascades_interactions(#[future] database: DatabaseConnection) {
+    async fn test_chat_delete_cascades_messages(#[future] database: DatabaseConnection) {
         let db = database.await;
 
         let chat = Model::save(
@@ -251,9 +249,9 @@ mod tests {
         .await
         .unwrap();
 
-        // Add interactions
+        // Add messages
         for i in 0..3 {
-            ChatInteractionModel::save(
+            ChatMessageModel::save(
                 chat.session_id.clone(),
                 serde_json::json!({
                     "role": "user",
@@ -265,8 +263,8 @@ mod tests {
             .unwrap();
         }
 
-        // Verify interactions exist
-        let count = ChatInteractionModel::count_chat_interactions(chat.session_id.clone(), &db)
+        // Verify messages exist
+        let count = ChatMessageModel::count_chat_messages(chat.session_id.clone(), &db)
             .await
             .unwrap();
         assert_eq!(count, 3);
@@ -278,8 +276,8 @@ mod tests {
         let deleted_chat = Model::load_by_id(chat.id, &db).await.unwrap();
         assert!(deleted_chat.is_none());
 
-        // Note: We can't check if interactions are deleted without a direct query
-        // since count_chat_interactions requires a valid chat session_id
+        // Note: We can't check if messages are deleted without a direct query
+        // since count_chat_messages requires a valid chat session_id
     }
 
     #[rstest]
@@ -310,7 +308,7 @@ mod tests {
     }
 
     #[test]
-    fn test_chat_with_interactions_serialization() {
+    fn test_chat_with_messages_serialization() {
         let chat = Model {
             id: 1,
             session_id: "test-session".to_string(),
@@ -319,19 +317,19 @@ mod tests {
             created_at: Utc::now(),
         };
 
-        let interaction = ChatInteractionModel {
+        let message = ChatMessageModel {
             id: 1,
             chat_id: 1,
             content: serde_json::json!({"role": "user", "content": "Hello"}),
             created_at: Utc::now(),
         };
 
-        let chat_with_interactions = ChatWithInteractions {
+        let chat_with_messages = ChatWithMessages {
             chat,
-            interactions: vec![interaction],
+            messages: vec![message],
         };
 
-        let json = serde_json::to_string_pretty(&chat_with_interactions).unwrap();
+        let json = serde_json::to_string_pretty(&chat_with_messages).unwrap();
 
         // Verify the JSON has flattened structure
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -340,12 +338,9 @@ mod tests {
         assert!(value.get("title").is_some());
         assert!(value.get("llm_provider").is_some());
         assert!(value.get("created_at").is_some());
-        assert!(value.get("interactions").is_some());
-        assert!(value.get("interactions").unwrap().is_array());
-        assert_eq!(
-            value.get("interactions").unwrap().as_array().unwrap().len(),
-            1
-        );
+        assert!(value.get("messages").is_some());
+        assert!(value.get("messages").unwrap().is_array());
+        assert_eq!(value.get("messages").unwrap().as_array().unwrap().len(), 1);
     }
 
     #[rstest]

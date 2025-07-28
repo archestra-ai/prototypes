@@ -26,6 +26,9 @@ impl OllamaClient {
         }
     }
 
+    // TODO: use same model for title generation (figure out what is a good one).
+    // another thing we'll need to consider here is that we'll need to ensure that the user already has the
+    // model installed. Maybe on initial download, we can check if the model is installed and if not, download it.
     pub async fn generate_title(
         &self,
         model: &str,

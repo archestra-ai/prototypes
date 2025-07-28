@@ -3,40 +3,40 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils/tailwind';
 import { useChatStore } from '@/stores/chat-store';
-import { ChatInteraction } from '@/types';
+import { ChatMessage } from '@/types';
 
-import { AssistantInteraction, OtherInteraction, ToolInteraction, UserInteraction } from './Interactions';
+import { AssistantMessage, OtherMessage, ToolMessage, UserMessage } from './Messages';
 
 const CHAT_SCROLL_AREA_ID = 'chat-scroll-area';
 const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-area-viewport]`;
 
 interface ChatHistoryProps {}
 
-interface InteractionProps {
-  interaction: ChatInteraction;
+interface MessageProps {
+  message: ChatMessage;
 }
 
-const Interaction = ({ interaction }: InteractionProps) => {
-  switch (interaction.role) {
+const Message = ({ message }: MessageProps) => {
+  switch (message.role) {
     case 'user':
-      return <UserInteraction interaction={interaction} />;
+      return <UserMessage message={message} />;
     case 'assistant':
-      return <AssistantInteraction interaction={interaction} />;
+      return <AssistantMessage message={message} />;
     case 'tool':
-      return <ToolInteraction interaction={interaction} />;
+      return <ToolMessage message={message} />;
     default:
-      return <OtherInteraction interaction={interaction} />;
+      return <OtherMessage message={message} />;
   }
 };
 
-const getInteractionClassName = (interaction: ChatInteraction) => {
-  switch (interaction.role) {
+const getMessageClassName = (message: ChatMessage) => {
+  switch (message.role) {
     case 'user':
       return 'bg-primary/10 border border-primary/20 ml-8';
     case 'assistant':
       return 'bg-secondary/50 border border-secondary mr-8';
     // NOTE: we can probably delete this.. this isn't a real role returned by ollama?
-    // case ChatInteractionRole.Error:
+    // case 'error:
     //   return 'bg-destructive/10 border border-destructive/20 text-destructive';
     case 'system':
       return 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-600';
@@ -115,14 +115,11 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   return (
     <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full border rounded-lg overflow-hidden">
       <div className="p-4 space-y-4 max-w-full overflow-hidden">
-        {currentChat?.interactions.map((interaction) => (
-          <div
-            key={interaction.id}
-            className={cn('p-3 rounded-lg overflow-hidden min-w-0', getInteractionClassName(interaction))}
-          >
-            <div className="text-xs font-medium mb-1 opacity-70 capitalize">{interaction.role}</div>
+        {currentChat?.messages.map((message) => (
+          <div key={message.id} className={cn('p-3 rounded-lg overflow-hidden min-w-0', getMessageClassName(message))}>
+            <div className="text-xs font-medium mb-1 opacity-70 capitalize">{message.role}</div>
             <div className="overflow-hidden min-w-0">
-              <Interaction interaction={interaction} />
+              <Message message={message} />
             </div>
           </div>
         ))}
