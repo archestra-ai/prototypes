@@ -67,11 +67,21 @@ export const extractStructuredContent = (part: any): ToolContent[] | undefined =
 // Helper function to process tool result part
 export const processToolResultPart = (part: any, toolCallId: string, toolCallsMap: Map<string, ToolCall>): void => {
   const existingCall = toolCallsMap.get(toolCallId);
-  if (!existingCall) return;
+  if (!existingCall) {
+    console.log('No existing call found for toolCallId:', toolCallId);
+    return;
+  }
 
   const resultText = extractToolResultText(part);
   const structuredContent = extractStructuredContent(part);
   const isError = part.state === 'output-error';
+
+  console.log('Processing tool result:', {
+    toolCallId,
+    hasStructuredContent: !!structuredContent,
+    structuredContentLength: structuredContent?.length,
+    resultText: resultText.substring(0, 100) + '...',
+  });
 
   toolCallsMap.set(toolCallId, {
     ...existingCall,
@@ -86,6 +96,7 @@ export const processToolResultPart = (part: any, toolCallId: string, toolCallsMa
 
 // Create a tool call from a tool part
 export const createToolCall = (part: any, toolCallId: string): ToolCall => {
+  // Extract tool name from type field (e.g., "tool-Everything_annotatedMessage" -> "Everything_annotatedMessage")
   const toolNameFromType = part?.type?.replace('tool-', '') || '';
   const toolName = part?.callProviderMetadata?.functionName || toolNameFromType || '';
   const [serverName, ...toolNameParts] = toolName.split('_');
@@ -178,8 +189,9 @@ export const processAssistantMessage = (
         } else if (part?.state === 'output-available' || part?.state === 'output-error') {
           const existingCall = toolCallsMap.get(toolCallId);
 
-          if (!existingCall && part?.input) {
-            // Complete tool call
+          if (!existingCall) {
+            // Create tool call if it doesn't exist (complete tool call with output)
+            console.log('Creating tool call from output-available part:', part.type);
             toolCallsMap.set(toolCallId, createToolCall(part, toolCallId));
           }
 
@@ -233,6 +245,15 @@ export const processAssistantMessage = (
 
     // Add tool calls as separate entries
     toolCallsMap.forEach((toolCall) => {
+      if (toolCall.structuredOutput) {
+        console.log('Adding tool call with structured output:', {
+          toolId: toolCall.id,
+          hasStructuredOutput: true,
+          contentCount: toolCall.structuredOutput.content.length,
+          contentTypes: toolCall.structuredOutput.content.map((c) => c.type),
+        });
+      }
+
       result.push({
         id: `${message.id}-tool-${toolCall.id}`,
         role: 'tool',
