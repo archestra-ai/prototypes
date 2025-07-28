@@ -5,8 +5,10 @@ use tracing::{debug, error, info};
 pub mod database;
 pub mod gateway;
 pub mod models;
+pub mod oauth;
 pub mod ollama;
 pub mod openapi;
+pub mod sandbox;
 pub mod utils;
 
 #[cfg(test)]
@@ -33,7 +35,7 @@ pub fn run() {
                     debug!("SINGLE INSTANCE: Found deep link in argv: {arg}");
                     let app_handle = app.clone();
                     tauri::async_runtime::spawn(async move {
-                        models::mcp_server::oauth::handle_oauth_callback(
+                        oauth::handle_oauth_callback(
                             app_handle,
                             arg.to_string(),
                         )
@@ -62,7 +64,7 @@ pub fn run() {
             // Start all persisted MCP servers
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = models::mcp_server::sandbox::start_all_mcp_servers(app_handle).await
+                if let Err(e) = sandbox::start_all_mcp_servers(app_handle).await
                 {
                     error!("Failed to start MCP servers: {e}");
                 }
@@ -110,7 +112,7 @@ pub fn run() {
                     debug!("DEEP LINK PLUGIN: Processing URL: {url}");
                     let app_handle = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
-                        models::mcp_server::oauth::handle_oauth_callback(
+                        oauth::handle_oauth_callback(
                             app_handle,
                             url.to_string(),
                         )

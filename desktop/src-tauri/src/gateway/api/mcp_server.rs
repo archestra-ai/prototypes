@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
 
-use crate::models::mcp_server::{oauth::AuthResponse, ConnectorCatalogEntry, Model as MCPServer};
+use crate::models::mcp_server::{ConnectorCatalogEntry, Model as MCPServer};
+use crate::oauth::AuthResponse;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[schema(as = InstallMCPServerRequest)]

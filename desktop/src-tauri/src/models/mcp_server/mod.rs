@@ -6,9 +6,6 @@ use std::collections::HashMap;
 use tracing::error;
 use utoipa::ToSchema;
 
-pub mod oauth;
-pub mod sandbox;
-
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize, ToSchema)]
 #[sea_orm(table_name = "mcp_servers")]
 #[schema(as = MCPServer)]
@@ -28,8 +25,7 @@ pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[schema(as = MCPServerDefinition)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MCPServerDefinition {
     pub name: String,
     pub server_config: ServerConfig,
@@ -116,7 +112,7 @@ impl Model {
 
         // If updating, stop the existing server first
         if is_update {
-            if let Err(e) = sandbox::stop_mcp_server(&definition.name).await {
+            if let Err(e) = crate::sandbox::stop_mcp_server(&definition.name).await {
                 error!("Warning: Failed to stop server before update: {e}");
             }
         }
@@ -125,7 +121,7 @@ impl Model {
         let result = Self::save_server_without_lifecycle(db, definition).await?;
 
         // Start the server after saving
-        if let Err(e) = sandbox::start_mcp_server(definition).await {
+        if let Err(e) = crate::sandbox::start_mcp_server(definition).await {
             error!("Warning: Failed to start server after save: {e}");
             // Don't fail the save operation, but log the error
         }
@@ -152,7 +148,7 @@ impl Model {
         // if there's an error stopping the server, that's fine (for now)
         let server_name_for_bg = server_name.to_string();
         tokio::spawn(async move {
-            let _ = sandbox::stop_mcp_server(&server_name_for_bg).await;
+            let _ = crate::sandbox::stop_mcp_server(&server_name_for_bg).await;
         });
 
         Entity::delete_many()

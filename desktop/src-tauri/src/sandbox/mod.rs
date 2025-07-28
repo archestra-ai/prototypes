@@ -1,6 +1,5 @@
-use super::{MCPServerDefinition, ServerConfig};
+use crate::models::mcp_server::{MCPServerDefinition, Model, ServerConfig};
 use crate::database::connection::get_database_connection_with_app;
-use crate::models::mcp_server::Model;
 use crate::utils::node;
 use rmcp::model::{Resource as MCPResource, Tool as MCPTool};
 use serde::{Deserialize, Serialize};
