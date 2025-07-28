@@ -41,12 +41,31 @@ export enum ToolCallStatus {
  * NOTE: the following fields are not part of the backend API, they are only used on the UI side to
  * track the state of tool execution in the UI
  */
+// Structured content types for tool outputs
+export interface ToolContentText {
+  type: 'text';
+  text: string;
+  annotations?: Record<string, any>;
+}
+
+export interface ToolContentImage {
+  type: 'image';
+  data: string; // base64
+  mimeType: string;
+  annotations?: Record<string, any>;
+}
+
+export type ToolContent = ToolContentText | ToolContentImage;
+
 export interface ToolCall extends BaseToolCall {
   id: string;
   serverName: string;
   name: string;
   arguments: Record<string, any>;
-  result: string;
+  result: string; // For backward compatibility - text representation
+  structuredOutput?: {
+    content: ToolContent[];
+  };
   error: string | null;
   status: ToolCallStatus;
   executionTime: number | null;

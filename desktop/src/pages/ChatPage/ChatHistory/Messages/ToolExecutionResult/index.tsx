@@ -11,7 +11,7 @@ interface ToolExecutionResultProps {
 }
 
 export default function ToolExecutionResult({
-  toolCall: { serverName, name, arguments: toolArguments, result, executionTime, status, error },
+  toolCall: { serverName, name, arguments: toolArguments, result, structuredOutput, executionTime, status, error },
 }: ToolExecutionResultProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showArguments, setShowArguments] = useState(false);
@@ -85,42 +85,87 @@ export default function ToolExecutionResult({
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="text-sm">
-              {result.length > 200 ? (
-                <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-                  <div className="overflow-hidden min-w-0">
-                    <p
-                      className="whitespace-pre-wrap break-all overflow-x-hidden max-w-full text-xs text-muted-foreground"
-                      style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}
-                    >
-                      {isExpanded ? result : truncateResult(result)}
-                    </p>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" className="h-6 p-0 mt-1 text-xs text-blue-600 hover:text-blue-800">
-                        {isExpanded ? (
-                          <>
-                            <ChevronDown className="h-3 w-3 mr-1" />
-                            Show less
-                          </>
-                        ) : (
-                          <>
-                            <ChevronRight className="h-3 w-3 mr-1" />
-                            Show more
-                          </>
+            {/* Render structured content if available */}
+            {structuredOutput?.content && structuredOutput.content.length > 0 ? (
+              <div className="space-y-2">
+                {structuredOutput.content.map((item, idx) => {
+                  if (item.type === 'text') {
+                    return (
+                      <div key={idx} className="text-sm">
+                        {item.annotations && (
+                          <div className="text-xs text-muted-foreground mb-1">
+                            {Object.entries(item.annotations).map(([key, value]) => (
+                              <span key={key} className="mr-2">
+                                {key}: {JSON.stringify(value)}
+                              </span>
+                            ))}
+                          </div>
                         )}
-                      </Button>
-                    </CollapsibleTrigger>
-                  </div>
-                </Collapsible>
-              ) : (
-                <p
-                  className="whitespace-pre-wrap break-all overflow-x-hidden max-w-full"
-                  style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}
-                >
-                  {result}
-                </p>
-              )}
-            </div>
+                        <p className="whitespace-pre-wrap break-all overflow-x-hidden max-w-full">{item.text}</p>
+                      </div>
+                    );
+                  } else if (item.type === 'image') {
+                    return (
+                      <div key={idx} className="space-y-1">
+                        {item.annotations && (
+                          <div className="text-xs text-muted-foreground">
+                            {Object.entries(item.annotations).map(([key, value]) => (
+                              <span key={key} className="mr-2">
+                                {key}: {JSON.stringify(value)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <img
+                          src={`data:${item.mimeType};base64,${item.data}`}
+                          alt="Tool output"
+                          className="max-w-full rounded border"
+                        />
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            ) : (
+              /* Fallback to text-only display */
+              <div className="text-sm">
+                {result.length > 200 ? (
+                  <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+                    <div className="overflow-hidden min-w-0">
+                      <p
+                        className="whitespace-pre-wrap break-all overflow-x-hidden max-w-full text-xs text-muted-foreground"
+                        style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}
+                      >
+                        {isExpanded ? result : truncateResult(result)}
+                      </p>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" className="h-6 p-0 mt-1 text-xs text-blue-600 hover:text-blue-800">
+                          {isExpanded ? (
+                            <>
+                              <ChevronDown className="h-3 w-3 mr-1" />
+                              Show less
+                            </>
+                          ) : (
+                            <>
+                              <ChevronRight className="h-3 w-3 mr-1" />
+                              Show more
+                            </>
+                          )}
+                        </Button>
+                      </CollapsibleTrigger>
+                    </div>
+                  </Collapsible>
+                ) : (
+                  <p
+                    className="whitespace-pre-wrap break-all overflow-x-hidden max-w-full"
+                    style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}
+                  >
+                    {result}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

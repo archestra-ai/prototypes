@@ -71,7 +71,7 @@ export default function Sidebar({ children }: SidebarProps) {
           </SidebarContent>
         </SidebarBase>
         <SidebarInset className="overflow-hidden">
-          <main className="flex-1 space-y-4 overflow-y-auto">{children}</main>
+          <main className="flex-1 space-y-4 overflow-y-auto p-3">{children}</main>
         </SidebarInset>
       </div>
     </SidebarProvider>

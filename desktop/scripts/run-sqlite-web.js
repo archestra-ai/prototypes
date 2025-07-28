@@ -16,7 +16,7 @@ function getDatabasePath() {
 
   if (platform === 'darwin') {
     // macOS: ~/Library/Application Support/com.archestra-ai.app/archestra.db
-    appDataDir = join(homedir(), 'Library', 'Application\ Support', 'com.archestra.ai');
+    appDataDir = join(homedir(), 'Library', 'Application Support', 'com.archestra.ai');
   } else if (platform === 'win32') {
     // Windows: %APPDATA%/com.archestra-ai.app/archestra.db
     appDataDir = join(process.env.APPDATA || '', 'com.archestra.ai');
@@ -109,12 +109,20 @@ async function main() {
   console.log('   Press Ctrl+C to stop');
   console.log('');
 
+  // Re-check how sqlite-web is available after potential installation
+  const currentSqliteWebAvailable = checkSqliteWeb();
+  console.log(`🔍 sqlite-web available via: ${currentSqliteWebAvailable || 'not found'}`);
+
+  // If it's not available directly, assume it was installed via uv
+  const useUv = currentSqliteWebAvailable === 'uv' || (!currentSqliteWebAvailable && !sqliteWebAvailable);
+
   // Use appropriate command based on how sqlite-web is available
-  const command = sqliteWebAvailable === 'uv' ? 'uv' : 'sqlite-web';
-  const args =
-    sqliteWebAvailable === 'uv'
-      ? ['tool', 'run', 'sqlite-web', dbPath, '--host', '0.0.0.0', '--port', '8080']
-      : [dbPath, '--host', '0.0.0.0', '--port', '8080'];
+  const command = useUv ? 'uv' : 'sqlite-web';
+  const args = useUv
+    ? ['tool', 'run', 'sqlite-web', dbPath, '--host', '0.0.0.0', '--port', '8080']
+    : [dbPath, '--host', '0.0.0.0', '--port', '8080'];
+
+  console.log(`📟 Running command: ${command} ${args.join(' ')}`);
 
   const child = spawn(command, args, {
     stdio: 'inherit',
