@@ -152,12 +152,13 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `src/models/`: Business logic and data models
   - `chat/`: Chat management with CRUD operations and automatic title generation
   - `chat_interactions/`: Message persistence and chat history management
-  - `mcp_server/`: MCP server models including OAuth support
+  - `mcp_server/`: MCP server models and definitions
   - `external_mcp_client/`: External MCP client configurations
   - `mcp_request_log/`: Request logging and analytics
 - `src/gateway/`: HTTP gateway exposing the following APIs:
   - `/api`: REST API for Archestra resources (OpenAPI documented)
     - `/api/chat`: Chat CRUD operations (create, read, update, delete chats)
+    - `oauth/`: OAuth authentication flows for MCP servers (e.g., Gmail)
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
   - `/llm/:provider`: Proxies requests to LLM providers
