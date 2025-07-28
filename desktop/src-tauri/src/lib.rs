@@ -56,6 +56,15 @@ pub fn run() {
                     .map_err(|e| format!("Database error: {e}"))
             })?;
 
+            // Initialize Podman container runtime
+            let app_handle_podman = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = initialize_podman_runtime(&app_handle_podman).await {
+                    error!("Failed to initialize Podman runtime: {e}");
+                    // Continue anyway - MCP servers might use HTTP mode
+                }
+            });
+
             // Start all persisted MCP servers
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -142,4 +151,78 @@ pub fn run() {
             info!("Cleanup completed");
         }
     });
+}
+
+/// Initialize the Podman container runtime
+async fn initialize_podman_runtime(app: &tauri::AppHandle) -> Result<(), String> {
+    use tokio::process::Command;
+    
+    info!("Initializing Podman runtime...");
+    
+    // Get the podman binary path
+    let podman_path = sandbox::get_podman_binary_path()?;
+    
+    // Check if podman is available
+    let version_output = Command::new(&podman_path)
+        .arg("--version")
+        .output()
+        .await
+        .map_err(|e| format!("Failed to check Podman version: {e}"))?;
+        
+    if !version_output.status.success() {
+        return Err("Podman is not available or not properly configured".to_string());
+    }
+    
+    let version = String::from_utf8_lossy(&version_output.stdout);
+    info!("Podman version: {}", version.trim());
+    
+    // TODO: Pull the MCP server sandbox image from GCR
+    // For now, we'll assume it's available locally
+    info!("Checking for MCP server sandbox image...");
+    
+    let image_check = Command::new(&podman_path)
+        .arg("image")
+        .arg("exists")
+        .arg("archestra/mcp-server-sandbox:latest")
+        .output()
+        .await
+        .map_err(|e| format!("Failed to check for image: {e}"))?;
+        
+    if !image_check.status.success() {
+        info!("MCP server sandbox image not found locally");
+        // TODO: Pull from GCR when available
+        // For now, try to build it locally if Dockerfile exists
+        let dockerfile_path = app
+            .path()
+            .resource_dir()
+            .map_err(|e| format!("Failed to get resource dir: {e}"))?
+            .join("Dockerfile.mcp-server-sandbox");
+            
+        if dockerfile_path.exists() {
+            info!("Building MCP server sandbox image locally...");
+            let build_output = Command::new(&podman_path)
+                .arg("build")
+                .arg("-t")
+                .arg("archestra/mcp-server-sandbox:latest")
+                .arg("-f")
+                .arg(&dockerfile_path)
+                .arg(".")
+                .output()
+                .await
+                .map_err(|e| format!("Failed to build image: {e}"))?;
+                
+            if !build_output.status.success() {
+                let stderr = String::from_utf8_lossy(&build_output.stderr);
+                return Err(format!("Failed to build MCP server sandbox image: {stderr}"));
+            }
+            info!("Successfully built MCP server sandbox image");
+        } else {
+            return Err("MCP server sandbox image not available and Dockerfile not found".to_string());
+        }
+    } else {
+        info!("MCP server sandbox image found");
+    }
+    
+    info!("Podman runtime initialized successfully");
+    Ok(())
 }

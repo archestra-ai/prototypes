@@ -1,0 +1,39 @@
+# MCP Server Sandbox Container
+# This Dockerfile creates a minimal container for running MCP servers
+# with necessary runtime dependencies and security restrictions
+
+FROM node:20-alpine
+
+# Install essential runtime dependencies
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    git \
+    curl \
+    bash \
+    ca-certificates \
+    openssl
+
+# Create a non-root user for running MCP servers
+RUN addgroup -g 1001 mcpuser && \
+    adduser -D -u 1001 -G mcpuser mcpuser
+
+# Create working directory
+WORKDIR /mcp
+
+# Set ownership to mcpuser
+RUN chown -R mcpuser:mcpuser /mcp
+
+# Switch to non-root user
+USER mcpuser
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV HOME=/home/mcpuser
+ENV PATH="/home/mcpuser/.local/bin:${PATH}"
+
+# Create necessary directories
+RUN mkdir -p /home/mcpuser/.npm /home/mcpuser/.cache
+
+# Default command (will be overridden by MCP server commands)
+CMD ["node"]
