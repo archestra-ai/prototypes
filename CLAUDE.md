@@ -130,10 +130,14 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
   - `ui/`: Base UI components (shadcn/ui style) - DO NOT MODIFY
     - `popover.tsx`: Added for UI interactions (installed via shadcn)
   - `kibo/`: AI-specific components (messages, code blocks, reasoning)
+    - `code-block.tsx`: Rich code display with syntax highlighting, file tabs, copy functionality, and theme support
   - `DeleteChatConfirmation.tsx`: Dialog for chat deletion confirmation
   - `TypewriterText.tsx`: Animated text display component
 - `pages/`: Main application pages
   - `ChatPage/`: AI chat interface with streaming responses
+    - `ChatHistory/`: Message display with auto-scroll behavior
+      - `Messages/`: Individual message components
+        - `ToolExecutionResult/`: Displays tool call results with timing, status, and collapsible sections
   - `ConnectorCatalogPage/`: MCP server catalog and management
   - `LLMProvidersPage/`: LLM model management
   - `SettingsPage/`: Application settings
@@ -145,6 +149,8 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
   - `api/`: Generated TypeScript client from OpenAPI schema (DO NOT EDIT)
   - `api-client.ts`: Configured HTTP client instance
   - `websocket.ts`: WebSocket client service for real-time event handling
+  - `utils/`:
+    - `ollama.ts`: Contains `convertMCPServerToolsToOllamaTools` for MCP tool integration
 
 #### Backend (`desktop/src-tauri/`)
 
@@ -153,6 +159,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
   - `chat/`: Chat management with CRUD operations and automatic title generation
   - `chat_interactions/`: Message persistence and chat history management
   - `mcp_server/`: MCP server models including OAuth support
+    - `catalog.json`: MCP server catalog with configurations for Context7, Filesystem, GitHub, Brave Search, PostgreSQL, Slack, Gmail, Fetch, and Everything servers
   - `external_mcp_client/`: External MCP client configurations
   - `mcp_request_log/`: Request logging and analytics
 - `src/gateway/`: HTTP gateway exposing the following APIs:
@@ -174,11 +181,14 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 ### Core Features
 
 1. **MCP Integration**: Supports MCP servers for extending AI capabilities with tools via rmcp library
+   - **Available MCP Servers**: Context7, Filesystem, GitHub, Brave Search, PostgreSQL, Slack, Gmail, Fetch (HTTP requests), and Everything (file search)
 2. **Local LLM Support**: Runs Ollama locally for privacy-focused AI interactions
 3. **Chat Persistence**: Full CRUD operations for chat conversations with SQLite database storage
 4. **Intelligent Chat Titles**: Automatic LLM-generated chat titles based on conversation content
 5. **OAuth Authentication**: Handles OAuth flows for services like Gmail
 6. **Chat Interface**: Full-featured chat UI with streaming responses and tool execution
+   - **Tool Execution Display**: Shows execution time, status indicators, and collapsible argument/result sections
+   - **Enhanced Code Blocks**: Syntax highlighting with Shiki, file tabs, copy functionality, and theme support
 7. **Security**: Uses macOS sandbox profiles for MCP server execution
 8. **API Documentation**: Auto-generated OpenAPI schema with TypeScript client
 9. **Real-time Events**: WebSocket-based event broadcasting for UI updates
