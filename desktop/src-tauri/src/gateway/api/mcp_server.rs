@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
 
-use crate::models::mcp_server::{oauth::AuthResponse, ConnectorCatalogEntry, Model as MCPServer};
+use crate::gateway::api::oauth::AuthResponse;
+use crate::models::mcp_server::{ConnectorCatalogEntry, Model as MCPServer};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[schema(as = InstallMCPServerRequest)]
@@ -138,7 +139,7 @@ pub async fn start_mcp_server_oauth(
     State(_service): State<Arc<Service>>,
     Json(payload): Json<StartOAuthRequest>,
 ) -> Result<Json<AuthResponse>, StatusCode> {
-    // TODO: finish setting this up with models::mcp_server::oauth::start_oauth_auth
+    // TODO: finish setting this up with gateway::api::oauth::start_oauth_auth
     // need to get the cloud run service's static URL and plug that in here
     let auth_response = AuthResponse {
         auth_url: format!(
