@@ -4,12 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useMCPServersStore } from '@/stores/mcp-servers-store';
-import { MCPServerStatus } from '@/types';
+import { ConnectedMCPServer, MCPServerStatus } from '@/types';
 
-export default function ArchestraMCPServer() {
-  const { archestraMCPServer } = useMCPServersStore();
+interface ArchestraMCPServerProps {
+  archestraMCPServer: ConnectedMCPServer;
+}
 
+export default function ArchestraMCPServer({ archestraMCPServer }: ArchestraMCPServerProps) {
   const getStatusBadge = () => {
     switch (archestraMCPServer.status) {
       case MCPServerStatus.Connected:

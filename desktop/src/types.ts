@@ -5,8 +5,8 @@ import { LucideIcon } from 'lucide-react';
 import type {
   ChatMessage as BaseChatMessage,
   ChatWithMessages as BaseChatWithMessages,
+  McpServer as BaseMcpServer,
   ToolCall as BaseToolCall,
-  McpServerDefinition,
 } from '@/lib/api-client';
 
 export interface ToolWithMCPServerName extends BaseTool {
@@ -22,7 +22,11 @@ export enum MCPServerStatus {
   Error = 'error',
 }
 
-export interface ConnectedMCPServer extends McpServerDefinition {
+/**
+ * The following fields are not part of the backend API, they are only used on the UI side to
+ * track the state of the MCP server, and store the MCP server's client, tools, and "status".
+ */
+export interface ConnectedMCPServer extends BaseMcpServer {
   url: string;
   client: Client | null;
   tools: ToolWithMCPServerName[];
