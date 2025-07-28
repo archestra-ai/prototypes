@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use tracing::error;
 use utoipa::ToSchema;
 
-pub mod oauth;
 pub mod sandbox;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize, ToSchema)]
@@ -28,8 +27,7 @@ pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[schema(as = MCPServerDefinition)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MCPServerDefinition {
     pub name: String,
     pub server_config: ServerConfig,

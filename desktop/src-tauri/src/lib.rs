@@ -33,7 +33,7 @@ pub fn run() {
                     debug!("SINGLE INSTANCE: Found deep link in argv: {arg}");
                     let app_handle = app.clone();
                     tauri::async_runtime::spawn(async move {
-                        models::mcp_server::oauth::handle_oauth_callback(
+                        gateway::api::oauth::handle_oauth_callback(
                             app_handle,
                             arg.to_string(),
                         )
@@ -110,7 +110,7 @@ pub fn run() {
                     debug!("DEEP LINK PLUGIN: Processing URL: {url}");
                     let app_handle = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
-                        models::mcp_server::oauth::handle_oauth_callback(
+                        gateway::api::oauth::handle_oauth_callback(
                             app_handle,
                             url.to_string(),
                         )
