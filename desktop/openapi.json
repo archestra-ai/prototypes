@@ -1050,14 +1050,12 @@
             "type": "integer",
             "format": "int32"
           },
-          "meta": {
-            "type": ["string", "null"]
-          },
+          "meta": {},
           "name": {
             "type": "string"
           },
           "server_config": {
-            "type": "string"
+            "$ref": "#/components/schemas/MCPServerConfig"
           }
         }
       },
@@ -1085,19 +1083,6 @@
           },
           "transport": {
             "type": "string"
-          }
-        }
-      },
-      "MCPServerDefinition": {
-        "type": "object",
-        "required": ["name", "server_config"],
-        "properties": {
-          "meta": {},
-          "name": {
-            "type": "string"
-          },
-          "server_config": {
-            "$ref": "#/components/schemas/MCPServerConfig"
           }
         }
       },
