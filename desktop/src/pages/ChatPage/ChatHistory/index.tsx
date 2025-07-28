@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { parseThinkingContent } from '@/lib/utils/chat';
@@ -157,37 +157,86 @@ export default function ChatHistory(_props: ChatHistoryProps) {
     return () => clearTimeout(timeoutId);
   }, [messages, scrollToBottom]);
 
-  return (
-    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full border rounded-lg">
-      <div className="p-4 space-y-4">
-        {messages.map((message, index) => {
-          // Extract text content from message parts
-          const rawContent = message.parts.find((part) => part.type === 'text')?.text || '';
+  // Process messages to split tool calls into separate entries
+  const processedMessages = useMemo(() => {
+    const result: Array<{
+      id: string;
+      role: 'user' | 'assistant' | 'system' | 'tool';
+      content: string;
+      thinking?: string;
+      toolCalls?: ToolCall[];
+      originalMessageId: string;
+      isToolOnly?: boolean;
+    }> = [];
 
-          // Parse thinking content if this is an assistant message
-          const { thinking, response, isThinkingStreaming } =
-            message.role === 'assistant'
-              ? parseThinkingContent(rawContent)
-              : { thinking: '', response: rawContent, isThinkingStreaming: false };
+    messages.forEach((message) => {
+      // Safety check for message parts
+      if (!message.parts || !Array.isArray(message.parts)) {
+        result.push({
+          id: message.id,
+          role: message.role as any,
+          content: '',
+          originalMessageId: message.id,
+        });
+        return;
+      }
 
-          // Check if this is the last message and we're streaming
-          const isLastMessage = index === messages.length - 1;
-          const isMessageStreaming = isLastMessage && isStreaming && message.role === 'assistant';
+      if (message.role === 'assistant') {
+        // For streaming messages, show content immediately
+        const isLastMessage = messages[messages.length - 1]?.id === message.id;
+        const isMessageStreaming = isLastMessage && isStreaming;
 
-          // Extract tool calls from message parts
-          const toolCalls: ToolCall[] = [];
+        // Group parts by text block ID to handle multiple text segments
+        const allParts = message.parts || [];
+        const textBlockMap = new Map<string, string>();
+        const toolParts: any[] = [];
+        const textBlockOrder: string[] = [];
+
+        // First pass: collect text blocks and tool parts
+        allParts.forEach((part: any) => {
+          if (part && part.type === 'text') {
+            // For parts without ID (legacy or simple messages), use a default ID
+            const partId = part.id || 'default';
+            const existingText = textBlockMap.get(partId) || '';
+            textBlockMap.set(partId, existingText + (part.text || ''));
+            if (!textBlockOrder.includes(partId)) {
+              textBlockOrder.push(partId);
+            }
+          } else if (part && part.type && part.type.startsWith('tool-')) {
+            toolParts.push(part);
+          }
+        });
+
+        // If we have multiple text blocks or tools, process them separately
+        if (textBlockOrder.length > 1 || (textBlockOrder.length > 0 && toolParts.length > 0)) {
+          let segmentIndex = 0;
           const toolCallsMap = new Map<string, ToolCall>();
 
-          message.parts.forEach((part: any) => {
-            // Check if this is a tool-related part
-            if (part.type && part.type.startsWith('tool-')) {
-              const toolCallId = part.toolCallId || crypto.randomUUID();
+          // Add first text block if it exists
+          if (textBlockOrder.length > 0) {
+            const firstBlockId = textBlockOrder[0];
+            const firstBlockContent = textBlockMap.get(firstBlockId) || '';
+            const { thinking, response } = parseThinkingContent(firstBlockContent);
 
-              if (part.state === 'input-streaming' || part.state === 'input-available') {
-                // This is a tool call
-                // Extract tool name from the type field (e.g., "tool-Everything_add" -> "Everything_add")
-                const toolNameFromType = part.type.replace('tool-', '');
-                const toolName = part.callProviderMetadata?.functionName || toolNameFromType || '';
+            if (thinking || response) {
+              result.push({
+                id: `${message.id}-segment-${segmentIndex++}`,
+                role: 'assistant',
+                content: response || (thinking ? '[Thinking...]' : ''),
+                thinking: thinking,
+                originalMessageId: message.id,
+              });
+            }
+          }
+
+          // Process tool calls
+          toolParts.forEach((part: any) => {
+            try {
+              const toolCallId = part?.toolCallId || crypto.randomUUID();
+
+              if (part?.state === 'input-streaming' || part?.state === 'input-available') {
+                const toolNameFromType = part?.type?.replace('tool-', '') || '';
+                const toolName = part?.callProviderMetadata?.functionName || toolNameFromType || '';
                 const [serverName, ...toolNameParts] = toolName.split('_');
                 const displayToolName = toolNameParts.join('_') || toolName;
 
@@ -207,14 +256,13 @@ export default function ChatHistory(_props: ChatHistoryProps) {
                   startTime: new Date(),
                   endTime: null,
                 });
-              } else if (part.state === 'output-available' || part.state === 'output-error') {
-                // This could be either just a result OR a complete tool call with both input and output
+              } else if (part?.state === 'output-available' || part?.state === 'output-error') {
                 const existingCall = toolCallsMap.get(toolCallId);
 
-                if (!existingCall && part.input) {
-                  // This is a complete tool call - create it first
-                  const toolNameFromType = part.type.replace('tool-', '');
-                  const toolName = part.callProviderMetadata?.functionName || toolNameFromType || '';
+                if (!existingCall && part?.input) {
+                  // Complete tool call
+                  const toolNameFromType = part?.type?.replace('tool-', '') || '';
+                  const toolName = part?.callProviderMetadata?.functionName || toolNameFromType || '';
                   const [serverName, ...toolNameParts] = toolName.split('_');
                   const displayToolName = toolNameParts.join('_') || toolName;
 
@@ -236,32 +284,94 @@ export default function ChatHistory(_props: ChatHistoryProps) {
                   });
                 }
 
-                // Now process the result
                 processToolResultPart(part, toolCallId, toolCallsMap);
               }
+            } catch (error) {
+              console.error('Error processing tool part:', error, part);
             }
           });
 
-          // Convert map to array
+          // Add tool calls as separate entries
           toolCallsMap.forEach((toolCall) => {
-            toolCalls.push(toolCall);
+            result.push({
+              id: `${message.id}-tool-${toolCall.id}`,
+              role: 'tool',
+              content: toolCall.result || toolCall.error || '',
+              toolCalls: [toolCall],
+              originalMessageId: message.id,
+              isToolOnly: true,
+            });
           });
 
-          // Check if any tools are currently executing
-          const hasExecutingTools = toolCalls.some((tc) => tc.status === ToolCallStatus.Executing);
+          // Add remaining text blocks (after tools)
+          for (let i = 1; i < textBlockOrder.length; i++) {
+            const blockId = textBlockOrder[i];
+            const blockContent = textBlockMap.get(blockId) || '';
+            const { thinking, response } = parseThinkingContent(blockContent);
 
-          // Convert UIMessage to ChatInteraction format
-          const interaction: ChatInteraction = {
+            if (thinking || response) {
+              result.push({
+                id: `${message.id}-segment-${segmentIndex++}`,
+                role: 'assistant',
+                content: response || (thinking ? '[Thinking...]' : ''),
+                thinking: thinking,
+                originalMessageId: message.id,
+              });
+            }
+          }
+        } else {
+          // Single text block with no tools - process normally (handles streaming)
+          const allTextContent = Array.from(textBlockMap.values()).join('');
+          const { thinking, response } = parseThinkingContent(allTextContent);
+
+          result.push({
             id: message.id,
             role: message.role,
-            content: response,
+            content: response || (thinking && !isMessageStreaming ? '[Thinking complete]' : ''),
             thinking: thinking,
-            toolCalls: toolCalls,
+            originalMessageId: message.id,
+          });
+        }
+      } else {
+        // Non-assistant messages stay as-is
+        const rawContent = message.parts
+          .filter((part) => part.type === 'text')
+          .map((part) => part.text || '')
+          .join('');
+
+        result.push({
+          id: message.id,
+          role: message.role,
+          content: rawContent,
+          originalMessageId: message.id,
+        });
+      }
+    });
+
+    return result;
+  }, [messages]);
+
+  return (
+    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full border rounded-lg">
+      <div className="p-4 space-y-4">
+        {processedMessages.map((message, index) => {
+          // Check if this is the last message and we're streaming
+          const isLastMessage = index === processedMessages.length - 1;
+          const isMessageStreaming = isLastMessage && isStreaming && message.role === 'assistant';
+
+          // Convert processed message to ChatInteraction format
+          const interaction: ChatInteraction = {
+            id: message.id,
+            role: message.role as any, // Cast to any since ChatInteraction expects a different type
+            content: message.content || '',
+            thinking: message.thinking || '',
+            toolCalls: message.toolCalls || [],
             images: [],
-            thinkingContent: thinking,
-            isStreaming: isMessageStreaming && !isThinkingStreaming && !hasExecutingTools,
-            isThinkingStreaming: isMessageStreaming && isThinkingStreaming,
-            isToolExecuting: isMessageStreaming && hasExecutingTools,
+            thinkingContent: message.thinking || '',
+            isStreaming: isMessageStreaming && !message.thinking && !message.isToolOnly,
+            isThinkingStreaming: isMessageStreaming && !!message.thinking,
+            isToolExecuting:
+              isMessageStreaming && (message.toolCalls?.some((tc) => tc.status === ToolCallStatus.Executing) || false),
             created_at: new Date().toISOString(),
           };
 

@@ -146,13 +146,23 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 
 The application uses SSE for real-time streaming communication:
 
-- **Streaming Endpoint**: `/api/chat/stream` handles SSE streaming for both regular chat and agent modes
+- **Streaming Endpoint**: `/api/chat/stream` handles SSE streaming with inherent agent capabilities
 - **CRUD Endpoints**: `/api/chat` provides REST operations for chat management (GET, POST, PATCH, DELETE)
 - **Frontend Integration**: Uses Vercel AI SDK v5's `useChat` hook with `DefaultChatTransport`
 - **Protocol**: Full Vercel AI SDK v5 protocol with data-only SSE events
-- **Tool Execution**: MCP tools executed server-side with streaming status updates
+- **Tool Execution**: MCP tools executed server-side with automatic result reflection
+- **Multi-Step Support**: Supports tool chaining with up to 10 rounds of execution
 - **Message Format**: JSON payloads with type field, proper [DONE] termination
 - **Model Selection**: Uses `prepareSendMessagesRequest` with global metadata pattern (see `docs/model-selection-implementation.md`)
+
+### Inherently Agentic Chat
+
+The chat system is now inherently agentic - no special commands needed:
+
+- **Automatic Tool Use**: When tools are selected, the LLM can use them automatically
+- **Multi-Step Workflows**: The LLM can chain multiple tool calls to complete complex tasks
+- **Result Reflection**: After each tool execution, the LLM analyzes the results before proceeding
+- **Natural Interaction**: Just type your request - no `/agent` command required
 
 ## Development Guidelines
 

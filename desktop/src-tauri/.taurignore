@@ -1,0 +1,2 @@
+# Ignore text files to prevent Tauri from restarting when MCP tools write files
+*.txt

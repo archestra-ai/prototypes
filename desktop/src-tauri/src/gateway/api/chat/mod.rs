@@ -303,15 +303,12 @@ async fn create_chat_stream(
                 tool_call_id,
                 tool_name,
             } => {
-                // Send as data event to avoid validation issues
+                // Tool input start event (Vercel AI SDK v5 format)
                 Event::default().data(
                     serde_json::to_string(&serde_json::json!({
-                        "type": "data-tool-call",
-                        "data": {
-                            "state": "start",
-                            "toolCallId": tool_call_id,
-                            "toolName": tool_name
-                        }
+                        "type": "tool-input-start",
+                        "toolCallId": tool_call_id,
+                        "toolName": tool_name
                     }))
                     .unwrap(),
                 )
@@ -320,15 +317,12 @@ async fn create_chat_stream(
                 tool_call_id,
                 args_delta,
             } => {
-                // Tool input delta
+                // Tool input delta event (Vercel AI SDK v5 format)
                 Event::default().data(
                     serde_json::to_string(&serde_json::json!({
-                        "type": "data-tool-call",
-                        "data": {
-                            "state": "args",
-                            "toolCallId": tool_call_id,
-                            "inputTextDelta": args_delta
-                        }
+                        "type": "tool-input-delta",
+                        "toolCallId": tool_call_id,
+                        "inputTextDelta": args_delta
                     }))
                     .unwrap(),
                 )
@@ -338,40 +332,64 @@ async fn create_chat_stream(
                 tool_name: _,
                 result,
             } => {
-                // Check if this is an error result
+                // Tool output available event (Vercel AI SDK v5 format)
                 if let Some(error_value) = result.get("error") {
-                    // Send as error event for tool failures
+                    // Send as tool output error
                     Event::default().data(
                         serde_json::to_string(&serde_json::json!({
-                            "type": "error",
+                            "type": "tool-output-error",
+                            "toolCallId": tool_call_id,
                             "errorText": error_value.as_str().unwrap_or("Tool execution failed")
                         }))
                         .unwrap(),
                     )
                 } else {
-                    // Send as data event for successful results
+                    // Send as tool output available
                     Event::default().data(
                         serde_json::to_string(&serde_json::json!({
-                            "type": "data-tool-call",
-                            "data": {
-                                "state": "result",
-                                "toolCallId": tool_call_id,
-                                "output": result
-                            }
+                            "type": "tool-output-available",
+                            "toolCallId": tool_call_id,
+                            "output": result
                         }))
                         .unwrap(),
                     )
                 }
             }
             SseMessage::DataPart { data_type, data } => {
-                // Custom data parts need data- prefix for Vercel AI SDK v5
-                Event::default().data(
-                    serde_json::to_string(&serde_json::json!({
-                        "type": format!("data-{}", data_type),
-                        "data": data
-                    }))
-                    .unwrap(),
-                )
+                // Handle special event types that don't need data- prefix
+                match data_type.as_str() {
+                    "start-step" | "finish-step" => {
+                        // These are standard Vercel AI SDK v5 events without data
+                        Event::default().data(
+                            serde_json::to_string(&serde_json::json!({
+                                "type": data_type,
+                            }))
+                            .unwrap(),
+                        )
+                    }
+                    "tool-input-available" => {
+                        // Tool input available needs to merge the data
+                        let mut event = serde_json::json!({
+                            "type": "tool-input-available"
+                        });
+                        if let serde_json::Value::Object(map) = data {
+                            if let serde_json::Value::Object(event_map) = &mut event {
+                                event_map.extend(map);
+                            }
+                        }
+                        Event::default().data(serde_json::to_string(&event).unwrap())
+                    }
+                    _ => {
+                        // Custom data parts need data- prefix for Vercel AI SDK v5
+                        Event::default().data(
+                            serde_json::to_string(&serde_json::json!({
+                                "type": format!("data-{}", data_type),
+                                "data": data
+                            }))
+                            .unwrap(),
+                        )
+                    }
+                }
             }
             SseMessage::MessageComplete { usage: _ } => {
                 // Finish message event
@@ -414,88 +432,8 @@ async fn execute_chat_stream(
     })
     .await?;
 
-    // Check if this is an agent activation or agent message
-    let mut messages = request.messages;
-    // Capture agent context for use in streaming closure
-    let is_agent_request = request
-        .agent_context
-        .as_ref()
-        .map(|ctx| ctx.mode.as_deref() == Some("autonomous"))
-        .unwrap_or(false);
-
-    if let Some(agent_context) = &request.agent_context {
-        if agent_context.mode.as_deref() == Some("autonomous") {
-            // Send agent state update
-            tx.send(SseMessage::DataPart {
-                data_type: "agent-state".to_string(),
-                data: serde_json::json!({
-                    "mode": "planning",
-                    "objective": agent_context.objective,
-                }),
-            })
-            .await?;
-
-            // If this is an activation, prepend system prompt
-            if agent_context.activate.unwrap_or(false) {
-                if let Some(objective) = &agent_context.objective {
-                    // Add system prompt for agent behavior
-                    messages.insert(
-                        0,
-                        ChatMessage {
-                            role: "system".to_string(),
-                            content: Some(format!(
-                                "You are an autonomous AI agent with this objective: {}\n\n\
-                            Guidelines:\n\
-                            - Be concise and action-oriented\n\
-                            - Use tools to complete tasks\n\
-                            - If a tool fails, explain the error and suggest alternatives\n\
-                            - Summarize results clearly\n\n\
-                            Start by analyzing what needs to be done.",
-                                objective
-                            )),
-                            parts: None,
-                        },
-                    );
-
-                    // Send initial reasoning
-                    tx.send(SseMessage::DataPart {
-                        data_type: "reasoning".to_string(),
-                        data: serde_json::json!({
-                            "type": "planning",
-                            "content": "Planning approach...",
-                        }),
-                    })
-                    .await?;
-
-                    // Send initial task progress
-                    tx.send(SseMessage::DataPart {
-                        data_type: "task-progress".to_string(),
-                        data: serde_json::json!({
-                            "progress": {
-                                "completed": 0,
-                                "total": 1,
-                                "currentStep": "Planning tasks...",
-                                "percentComplete": 0
-                            }
-                        }),
-                    })
-                    .await?;
-                }
-            }
-        } else if agent_context.mode.as_deref() == Some("stop") {
-            // Handle stop command - just send state update
-            tx.send(SseMessage::DataPart {
-                data_type: "agent-state".to_string(),
-                data: serde_json::json!({
-                    "mode": "idle"
-                }),
-            })
-            .await?;
-            tx.send(SseMessage::MessageComplete { usage: None }).await?;
-            tx.send(SseMessage::StreamEnd).await?;
-            return Ok(());
-        }
-    }
+    // Use the messages directly
+    let messages = request.messages;
 
     // Convert messages to Ollama format
     let mut ollama_messages: Vec<OllamaMessage> = messages
@@ -523,31 +461,46 @@ async fn execute_chat_stream(
         .unwrap_or_else(|| "llama3.2".to_string());
     eprintln!("[execute_chat_stream] Using model: {}", selected_model);
 
-    // Keep track of tool results for potential second LLM call
-    let mut tool_results: Vec<(String, String, serde_json::Value)> = Vec::new();
-    let mut had_tool_calls = false;
-    let mut completed_tools = 0;
+    // Keep track of the maximum number of tool rounds to prevent infinite loops
+    const MAX_TOOL_ROUNDS: usize = 10;
+    let mut tool_round = 0;
+    let mut had_tool_calls_in_previous_round = false;
+    
+    // Continue making LLM calls until no more tools are called or we hit the limit
+    loop {
+        tool_round += 1;
+        if tool_round > MAX_TOOL_ROUNDS {
+            eprintln!("[execute_chat_stream] Reached maximum tool rounds ({})", MAX_TOOL_ROUNDS);
+            break;
+        }
 
-    // Make the initial LLM call
-    let ollama_request = OllamaChatRequest {
-        model: selected_model.clone(),
-        messages: ollama_messages.clone(),
-        stream: true,
-        tools: tools.clone(),
-    };
+        // We don't need step events here - they should wrap tool execution phases
 
-    // Call Ollama API
-    let ollama_url = format!("http://localhost:{}/api/chat", get_ollama_server_port());
-    let response = service
-        .http_client
-        .post(&ollama_url)
-        .json(&ollama_request)
-        .send()
-        .await?;
+        // Keep track of tool results for this round
+        let mut tool_results: Vec<(String, String, serde_json::Value)> = Vec::new();
+        let mut had_tool_calls = false;
+        let mut completed_tools = 0;
 
-    if !response.status().is_success() {
-        return Err(format!("Ollama API error: {}", response.status()).into());
-    }
+        // Make LLM call with current message history
+        let ollama_request = OllamaChatRequest {
+            model: selected_model.clone(),
+            messages: ollama_messages.clone(),
+            stream: true,
+            tools: tools.clone(),
+        };
+
+        // Call Ollama API
+        let ollama_url = format!("http://localhost:{}/api/chat", get_ollama_server_port());
+        let response = service
+            .http_client
+            .post(&ollama_url)
+            .json(&ollama_request)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(format!("Ollama API error: {}", response.status()).into());
+        }
 
     // Stream response chunks
     let mut stream = response.bytes_stream();
@@ -588,18 +541,18 @@ async fn execute_chat_stream(
 
                     // Handle tool calls if present
                     if let Some(tool_calls) = chat_chunk.message.tool_calls {
-                        had_tool_calls = true;
                         let total_tools = tool_calls.len();
 
-                        // Send agent state update to executing
-                        if is_agent_request {
+                        // Tool execution starting
+                        
+                        // Send start-step event before executing tools (only once per round)
+                        if !had_tool_calls {
                             tx.send(SseMessage::DataPart {
-                                data_type: "agent-state".to_string(),
-                                data: serde_json::json!({
-                                    "mode": "executing"
-                                }),
+                                data_type: "start-step".to_string(),
+                                data: serde_json::json!({}),
                             })
                             .await?;
+                            had_tool_calls = true;
                         }
 
                         for tool_call in tool_calls {
@@ -619,6 +572,17 @@ async fn execute_chat_stream(
                             tx.send(SseMessage::ToolCallDelta {
                                 tool_call_id: tool_id.clone(),
                                 args_delta: tool_call.function.arguments.to_string(),
+                            })
+                            .await?;
+
+                            // Send tool input available event
+                            tx.send(SseMessage::DataPart {
+                                data_type: "tool-input-available".to_string(),
+                                data: serde_json::json!({
+                                    "toolCallId": tool_id.clone(),
+                                    "toolName": tool_name.clone(),
+                                    "input": tool_call.function.arguments.clone()
+                                }),
                             })
                             .await?;
 
@@ -692,7 +656,7 @@ async fn execute_chat_stream(
                             .await?;
                         }
 
-                        // If we had tool calls (successful or failed), make another LLM call with the results
+                        // If we had tool calls, update message history and continue loop
                         if had_tool_calls && !tool_results.is_empty() {
                             // Add assistant message with content if any
                             if !accumulated_content.is_empty() {
@@ -716,107 +680,24 @@ async fn execute_chat_stream(
                                 });
                             }
 
-                            // Add a user message prompting for summary/response
+                            // Add a system message to guide the LLM to reflect on tool results
                             ollama_messages.push(OllamaMessage {
-                                role: "user".to_string(),
-                                content: "Based on the tool results above, provide a clear summary of what happened and any next steps if needed.".to_string(),
+                                role: "system".to_string(),
+                                content: "The tools have been executed. Please analyze the results and provide a helpful response to the user based on what the tools returned. If there were any errors, suggest alternatives. Always aim to be helpful and actionable.".to_string(),
                             });
 
-                            // Make another call to the LLM with the tool results
-                            let followup_request = OllamaChatRequest {
-                                model: selected_model.clone(),
-                                messages: ollama_messages.clone(),
-                                stream: true,
-                                tools: None, // No tools for the summary response
-                            };
+                            // Send finish-step to close the tool execution phase
+                            tx.send(SseMessage::DataPart {
+                                data_type: "finish-step".to_string(),
+                                data: serde_json::json!({}),
+                            })
+                            .await?;
 
-                            let followup_response = service
-                                .http_client
-                                .post(&ollama_url)
-                                .json(&followup_request)
-                                .send()
-                                .await?;
+                            // Track that we had tool calls for the next round
+                            had_tool_calls_in_previous_round = true;
 
-                            if followup_response.status().is_success() {
-                                // Stream the final response
-                                let mut followup_stream = followup_response.bytes_stream();
-                                let final_text_id = format!("text-{}", uuid::Uuid::new_v4());
-                                let mut final_text_started = false;
-
-                                while let Some(chunk) = followup_stream.next().await {
-                                    let chunk = chunk?;
-                                    let text = String::from_utf8_lossy(&chunk);
-
-                                    for line in text.lines() {
-                                        if line.trim().is_empty() {
-                                            continue;
-                                        }
-
-                                        if let Ok(chat_chunk) =
-                                            serde_json::from_str::<OllamaChatChunk>(line)
-                                        {
-                                            if !chat_chunk.message.content.is_empty() {
-                                                if !final_text_started {
-                                                    tx.send(SseMessage::TextStart {
-                                                        id: final_text_id.clone(),
-                                                    })
-                                                    .await?;
-                                                    final_text_started = true;
-                                                }
-
-                                                tx.send(SseMessage::TextDelta {
-                                                    id: final_text_id.clone(),
-                                                    delta: chat_chunk.message.content,
-                                                })
-                                                .await?;
-                                            }
-
-                                            if chat_chunk.done {
-                                                if final_text_started {
-                                                    tx.send(SseMessage::TextEnd {
-                                                        id: final_text_id,
-                                                    })
-                                                    .await?;
-                                                }
-
-                                                // Send completion with usage stats if available
-                                                let usage = if let (
-                                                    Some(prompt_tokens),
-                                                    Some(completion_tokens),
-                                                ) = (
-                                                    chat_chunk.prompt_eval_count,
-                                                    chat_chunk.eval_count,
-                                                ) {
-                                                    Some(UsageStats {
-                                                        prompt_tokens,
-                                                        completion_tokens,
-                                                        total_tokens: prompt_tokens
-                                                            + completion_tokens,
-                                                    })
-                                                } else {
-                                                    None
-                                                };
-
-                                                // Send agent completion state if this was an agent request
-                                                if is_agent_request {
-                                                    tx.send(SseMessage::DataPart {
-                                                        data_type: "agent-state".to_string(),
-                                                        data: serde_json::json!({
-                                                            "mode": "completed"
-                                                        }),
-                                                    })
-                                                    .await?;
-                                                }
-
-                                                tx.send(SseMessage::MessageComplete { usage })
-                                                    .await?;
-                                                tx.send(SseMessage::StreamEnd).await?;
-                                                return Ok(());
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            // Break out of the streaming loop to continue with next tool round
+                            break;
                         } else {
                             // No tool calls, send completion normally
                             let usage = if let (Some(prompt_tokens), Some(completion_tokens)) =
@@ -831,16 +712,9 @@ async fn execute_chat_stream(
                                 None
                             };
 
-                            // Send agent completion state if this was an agent request
-                            if is_agent_request {
-                                tx.send(SseMessage::DataPart {
-                                    data_type: "agent-state".to_string(),
-                                    data: serde_json::json!({
-                                        "mode": "completed"
-                                    }),
-                                })
-                                .await?;
-                            }
+
+
+                            // Completion handled
 
                             tx.send(SseMessage::MessageComplete { usage }).await?;
                             tx.send(SseMessage::StreamEnd).await?;
@@ -854,15 +728,34 @@ async fn execute_chat_stream(
             }
         }
     }
+    
+    // End of streaming for this round
+    }  // End of loop
+    
+    // If we get here, we've either completed normally or hit the max rounds
+    // Send a final completion message if we haven't already
+    if tool_round > MAX_TOOL_ROUNDS {
+        // Send a message explaining we hit the limit
+        let final_text_id = format!("text-{}", uuid::Uuid::new_v4());
+        tx.send(SseMessage::TextStart {
+            id: final_text_id.clone(),
+        })
+        .await?;
+        
+        tx.send(SseMessage::TextDelta {
+            id: final_text_id.clone(),
+            delta: "
 
-    if text_started {
+[Note: Reached maximum number of tool iterations. Process stopped to prevent infinite loops.]".to_string(),
+        })
+        .await?;
+        
         tx.send(SseMessage::TextEnd {
-            id: text_block_id.clone(),
+            id: final_text_id,
         })
         .await?;
 
         tx.send(SseMessage::MessageComplete { usage: None }).await?;
-
         tx.send(SseMessage::StreamEnd).await?;
     }
 

@@ -21,7 +21,6 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils/tailwind';
 import { useChatContext } from '@/providers/chat-provider';
-import { useAgentStore } from '@/stores/agent-store';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
@@ -78,11 +77,9 @@ export default function ChatInput(_props: ChatInputProps) {
   const { installedModels, loadingInstalledModels, loadingInstalledModelsError, selectedModel, setSelectedModel } =
     useOllamaStore();
 
-  const { isAgentActive, mode: agentMode, stopAgent } = useAgentStore();
-
-  const disabled = isStreaming || (isAgentActive && agentMode === 'initializing');
+  const disabled = isStreaming;
   const canSend = !disabled && input.trim().length > 0 && selectedModel !== null;
-  const canStop = isStreaming || (isAgentActive && (agentMode === 'planning' || agentMode === 'executing'));
+  const canStop = isStreaming;
 
   // Fetch installed models when component mounts
   useEffect(() => {
@@ -101,27 +98,7 @@ export default function ChatInput(_props: ChatInputProps) {
     // Handle special commands
     const trimmedInput = input.trim();
 
-    // Handle agent commands
-    if (trimmedInput.startsWith('/agent')) {
-      const objective = trimmedInput.substring(6).trim();
-
-      if (!objective) {
-        // Send the message as-is, let backend handle the error
-        await sendMessage({ text: trimmedInput });
-        setInput('');
-        return;
-      }
-
-      // Activate agent state locally
-      const { activateAgent } = useAgentStore.getState();
-      await activateAgent(objective);
-    } else if (trimmedInput === '/stop' && isAgentActive) {
-      // Stop agent locally
-      const { stopAgent } = useAgentStore.getState();
-      stopAgent();
-    }
-
-    // For all messages (including agent commands), send through SSE
+    // For all messages, send through SSE
     // The backend will handle the actual processing
     console.log('[ChatInput] Sending message:', trimmedInput);
     try {
@@ -131,22 +108,6 @@ export default function ChatInput(_props: ChatInputProps) {
         // Convert tools to tool names if any
         tools: selectedTools?.map((tool) => `${tool.serverName}_${tool.name}`) || [],
       };
-
-      // Add agent context if this is an agent command
-      if (trimmedInput.startsWith('/agent')) {
-        const objective = trimmedInput.substring(6).trim();
-        if (objective) {
-          metadata.agent_context = {
-            mode: 'autonomous',
-            objective: objective,
-            activate: true,
-          };
-        }
-      } else if (trimmedInput === '/stop' && isAgentActive) {
-        metadata.agent_context = {
-          mode: 'stop',
-        };
-      }
 
       // Update global metadata in ChatProvider before sending
       // We need to access the globalMetadata variable from ChatProvider
@@ -213,13 +174,7 @@ export default function ChatInput(_props: ChatInputProps) {
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder={
-              disabled
-                ? isStreaming
-                  ? 'Waiting for response...'
-                  : 'Agent is initializing...'
-                : 'What would you like to know?'
-            }
+            placeholder={disabled ? 'Waiting for response...' : 'What would you like to know?'}
             disabled={disabled}
             minHeight={48}
             maxHeight={164}
@@ -268,24 +223,9 @@ export default function ChatInput(_props: ChatInputProps) {
               status={canStop ? ChatInteractionStatus.Streaming : ChatInteractionStatus.Ready}
               onClick={
                 canStop
-                  ? async () => {
+                  ? () => {
                       if (isStreaming) {
                         cancelStreaming();
-                      }
-                      if (isAgentActive && (agentMode === 'planning' || agentMode === 'executing')) {
-                        // Send stop command to backend
-                        (window as any).__CHAT_METADATA__ = {
-                          model: selectedModel,
-                          agent_context: {
-                            mode: 'stop',
-                          },
-                        };
-
-                        // Send the stop message
-                        await sendMessage({ text: '/stop' });
-
-                        // Stop agent locally
-                        stopAgent();
                       }
                     }
                   : undefined
