@@ -221,18 +221,13 @@ The relationship ensures that deleting a chat automatically removes all associat
   - `server_config` (JSON): Server configuration stored as `serde_json::Value`
     - Contains: `command`, `args`, `env`, and `transport` fields
     - Serialized/deserialized automatically via SeaORM
-  - `meta` (Optional JSON): Additional metadata stored as `serde_json::Value`
-    - Allows extensible metadata without schema changes
-    - Nullable field for backward compatibility
   - `created_at`: Timestamp with timezone
-  - `updated_at`: Timestamp with timezone
 
 The `MCPServerDefinition` struct used throughout the codebase:
 ```rust
 pub struct MCPServerDefinition {
     pub name: String,
     pub server_config: ServerConfig,
-    pub meta: Option<serde_json::Value>, // Optional metadata field
 }
 ```
 
@@ -240,7 +235,6 @@ pub struct MCPServerDefinition {
 - Database storage: Fields are stored as `serde_json::Value` with proper error handling
 - API layer: OpenAPI schema correctly represents `server_config` as `ServerConfig` type
 - Serialization: Handled automatically by SeaORM with descriptive error messages
-- Frontend: TypeScript types include optional `meta?: unknown` field
 
 ### WebSocket Architecture
 
