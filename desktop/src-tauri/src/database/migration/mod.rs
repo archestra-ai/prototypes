@@ -4,7 +4,8 @@ mod m20240101_000001_create_mcp_servers_table;
 mod m20240101_000002_create_external_mcp_clients_table;
 mod m20240101_000003_create_mcp_request_logs_table;
 mod m20250124_000004_create_chats_table;
-mod m20250124_000005_create_chat_interactions_table;
+mod m20250124_000005_create_chat_messages_table;
+mod m20250128_000006_drop_mcp_servers_meta_column;
 
 pub struct Migrator;
 
@@ -16,7 +17,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20240101_000002_create_external_mcp_clients_table::Migration),
             Box::new(m20240101_000003_create_mcp_request_logs_table::Migration),
             Box::new(m20250124_000004_create_chats_table::Migration),
-            Box::new(m20250124_000005_create_chat_interactions_table::Migration),
+            Box::new(m20250124_000005_create_chat_messages_table::Migration),
+            Box::new(m20250128_000006_drop_mcp_servers_meta_column::Migration),
         ]
     }
 }

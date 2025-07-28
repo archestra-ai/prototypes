@@ -134,9 +134,8 @@ export type McpRequestLogStats = {
 export type McpServer = {
   created_at: string;
   id: number;
-  meta?: string | null;
   name: string;
-  server_config: string;
+  server_config: McpServerConfig;
 };
 
 export type McpServerConfig = {
@@ -146,12 +145,6 @@ export type McpServerConfig = {
     [key: string]: string;
   };
   transport: string;
-};
-
-export type McpServerDefinition = {
-  meta?: unknown;
-  name: string;
-  server_config: McpServerConfig;
 };
 
 export type PaginatedMcpRequestLogResponseMcpRequestLog = {

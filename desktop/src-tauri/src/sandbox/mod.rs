@@ -531,7 +531,7 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
     for server in &installed_mcp_servers {
         let server_name = server.name.clone();
 
-        let config: ServerConfig = serde_json::from_str(&server.server_config)
+        let config: ServerConfig = serde_json::from_value(server.server_config.clone())
             .map_err(|e| format!("Failed to parse server config for {server_name}: {e}"))?;
 
         debug!(

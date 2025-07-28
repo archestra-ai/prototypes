@@ -12,6 +12,9 @@ interface MCPServersProps {}
 export default function MCPServers(_props: MCPServersProps) {
   const { installedMCPServers, loadingInstalledMCPServers, errorLoadingInstalledMCPServers } = useMCPServersStore();
 
+  const totalNumberOfMCPTools = installedMCPServers.reduce((acc, server) => acc + server.tools.length, 0);
+  const hasErrorLoadingInstalledMCPServers = errorLoadingInstalledMCPServers !== null;
+
   const getStatusIcon = (status: ConnectedMCPServer['status']) => {
     switch (status) {
       case MCPServerStatus.Connecting:
@@ -46,8 +49,6 @@ export default function MCPServers(_props: MCPServersProps) {
     }
   };
 
-  const totalNumberOfMCPTools = installedMCPServers.reduce((acc, server) => acc + server.tools.length, 0);
-
   return (
     <Collapsible defaultOpen>
       <Card>
@@ -68,7 +69,7 @@ export default function MCPServers(_props: MCPServersProps) {
 
         <CollapsibleContent>
           <CardContent className="space-y-4">
-            {errorLoadingInstalledMCPServers && (
+            {hasErrorLoadingInstalledMCPServers && (
               <div className="text-center py-4 text-muted-foreground">
                 <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>Error loading MCP servers: {errorLoadingInstalledMCPServers}</p>
@@ -80,7 +81,7 @@ export default function MCPServers(_props: MCPServersProps) {
                 <p>Loading MCP servers...</p>
               </div>
             )}
-            {installedMCPServers.length === 0 && !loadingInstalledMCPServers && !errorLoadingInstalledMCPServers ? (
+            {installedMCPServers.length === 0 && !loadingInstalledMCPServers && !hasErrorLoadingInstalledMCPServers ? (
               <div className="text-center py-4 text-muted-foreground">
                 <Server className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p>No MCP servers configured</p>
