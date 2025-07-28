@@ -52,7 +52,7 @@ pub async fn handle_gmail_oauth_callback(app: tauri::AppHandle, url: String) {
             let definition = MCPServerDefinition {
                 name: "Gmail".to_string(),
                 server_config,
-                meta: Some(meta),
+                meta: meta,
             };
 
             // Save to database (this will also start the server)

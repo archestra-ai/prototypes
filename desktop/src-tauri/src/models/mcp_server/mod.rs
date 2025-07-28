@@ -20,8 +20,8 @@ pub struct Model {
     #[schema(value_type = ServerConfig)]
     pub server_config: serde_json::Value,
     #[sea_orm(column_type = "Json")]
-    #[schema(value_type = Option<serde_json::Value>)]
-    pub meta: Option<serde_json::Value>,
+    #[schema(value_type = serde_json::Value)]
+    pub meta: serde_json::Value,
     #[schema(value_type = String, format = DateTime)]
     pub created_at: DateTimeUtc,
 }
@@ -35,7 +35,7 @@ impl ActiveModelBehavior for ActiveModel {}
 pub struct MCPServerDefinition {
     pub name: String,
     pub server_config: ServerConfig,
-    pub meta: Option<serde_json::Value>,
+    pub meta: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -206,7 +206,7 @@ impl Model {
         let definition = MCPServerDefinition {
             name: connector.title.clone(),
             server_config: connector.server_config.clone(),
-            meta: None,
+            meta: serde_json::json!({}),
         };
 
         let result = Model::save_server(db, &definition)
@@ -265,7 +265,7 @@ mod tests {
         let definition = MCPServerDefinition {
             name: "test_server".to_string(),
             server_config,
-            meta: None,
+            meta: serde_json::json!({}),
         };
 
         let result = Model::save_server_without_lifecycle(&db, &definition).await;
@@ -296,14 +296,14 @@ mod tests {
         let definition = MCPServerDefinition {
             name: "test_server_with_meta".to_string(),
             server_config,
-            meta: Some(meta),
+            meta: meta,
         };
 
         let result = Model::save_server_without_lifecycle(&db, &definition).await;
         assert!(result.is_ok());
 
         let saved_model = result.unwrap();
-        assert!(saved_model.meta.is_some());
+        assert!(!saved_model.meta.is_null());
     }
 
     #[rstest]
@@ -321,7 +321,7 @@ mod tests {
         let definition = MCPServerDefinition {
             name: "duplicate_server".to_string(),
             server_config: server_config.clone(),
-            meta: None,
+            meta: serde_json::json!({}),
         };
 
         // Save first time - should succeed
@@ -371,7 +371,7 @@ mod tests {
                     args: vec![format!("hello_{i}")],
                     env: HashMap::new(),
                 },
-                meta: None,
+                meta: serde_json::json!({}),
             };
             Model::save_server_without_lifecycle(&db, &definition)
                 .await
@@ -397,7 +397,7 @@ mod tests {
                 args: vec!["hello".to_string()],
                 env: HashMap::new(),
             },
-            meta: None,
+            meta: serde_json::json!({}),
         };
 
         // Save the server first
@@ -450,7 +450,7 @@ mod tests {
                 args: vec!["hello".to_string()],
                 env: HashMap::new(),
             },
-            meta: Some(serde_json::json!({"test": true})),
+            meta: serde_json::json!({"test": true}),
         };
 
         // Save the server
@@ -468,7 +468,7 @@ mod tests {
         let def = found_def.unwrap();
         assert_eq!(def.name, "findable_server");
         assert_eq!(def.server_config.command, "echo");
-        assert!(def.meta.is_some());
+        assert!(!def.meta.is_null());
     }
 
     #[rstest]
@@ -494,7 +494,7 @@ mod tests {
             id: 1,
             name: "test_server".to_string(),
             server_config: serde_json::to_value(&server_config).unwrap(),
-            meta: None,
+            meta: serde_json::json!({}),
             created_at: chrono::Utc::now(),
         };
 
@@ -523,14 +523,14 @@ mod tests {
             id: 1,
             name: "test_server".to_string(),
             server_config: serde_json::to_value(&server_config).unwrap(),
-            meta: Some(meta),
+            meta: meta,
             created_at: chrono::Utc::now(),
         };
 
         let definition = model.to_definition().unwrap();
-        assert!(definition.meta.is_some());
+        assert!(!definition.meta.is_null());
 
-        let meta = definition.meta.unwrap();
+        let meta = &definition.meta;
         assert_eq!(meta["description"], "Test server");
         assert_eq!(meta["version"], "1.0.0");
     }
@@ -559,7 +559,7 @@ mod tests {
                 args: vec!["hello".to_string()],
                 env: HashMap::new(),
             },
-            meta: None,
+            meta: serde_json::json!({}),
         };
 
         // Save the initial server
@@ -576,7 +576,7 @@ mod tests {
                 args: vec!["server.js".to_string()],
                 env: HashMap::new(),
             },
-            meta: Some(serde_json::json!({"updated": true})),
+            meta: serde_json::json!({"updated": true}),
         };
 
         // save_server should handle the update
@@ -590,7 +590,7 @@ mod tests {
             .unwrap();
         assert_eq!(found.server_config.transport, "http");
         assert_eq!(found.server_config.command, "node");
-        assert!(found.meta.is_some());
+        assert!(!found.meta.is_null());
     }
 
     #[rstest]
@@ -611,10 +611,10 @@ mod tests {
         let definition = MCPServerDefinition {
             name: "python_server".to_string(),
             server_config,
-            meta: Some(serde_json::json!({
+            meta: serde_json::json!({
                 "author": "test",
                 "license": "MIT"
-            })),
+            }),
         };
 
         let active_model: ActiveModel = definition.clone().into();

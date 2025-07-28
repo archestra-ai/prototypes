@@ -134,7 +134,7 @@ export type McpRequestLogStats = {
 export type McpServer = {
   created_at: string;
   id: number;
-  meta?: unknown;
+  meta: unknown;
   name: string;
   server_config: McpServerConfig;
 };
