@@ -213,6 +213,30 @@ The application uses SQLite with SeaORM for database management. Key tables incl
 
 The relationship ensures that deleting a chat automatically removes all associated messages via CASCADE delete.
 
+#### MCP Server Management Tables
+
+- **mcp_servers**: Stores MCP server configurations
+
+  - `id` (Primary Key): Auto-incrementing integer
+  - `name` (Unique): Server identifier name
+  - `server_config` (JSON): Server configuration stored as `serde_json::Value`
+    - Contains: `command`, `args`, `env`, and `transport` fields
+    - Serialized/deserialized automatically via SeaORM
+  - `created_at`: Timestamp with timezone
+
+The `MCPServerDefinition` struct used throughout the codebase:
+```rust
+pub struct MCPServerDefinition {
+    pub name: String,
+    pub server_config: ServerConfig,
+}
+```
+
+**JSON Handling Pattern**:
+- Database storage: Fields are stored as `serde_json::Value` with proper error handling
+- API layer: OpenAPI schema correctly represents `server_config` as `ServerConfig` type
+- Serialization: Handled automatically by SeaORM with descriptive error messages
+
 ### WebSocket Architecture
 
 The application uses WebSockets for real-time event broadcasting between the backend and frontend, replacing Tauri-specific event system with a more flexible, standard protocol.

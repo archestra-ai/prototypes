@@ -148,7 +148,6 @@ impl Service {
                                 "command": definition.server_config.command,
                                 "args": definition.server_config.args,
                                 "env_count": definition.server_config.env.len(),
-                                "has_meta": definition.meta.is_some()
                             })),
                             Err(e) => {
                                 error!("Failed to convert model to definition: {e}");

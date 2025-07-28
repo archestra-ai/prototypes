@@ -16,8 +16,9 @@ pub struct Model {
     pub id: i32,
     #[sea_orm(unique)]
     pub name: String,
-    pub server_config: String, // JSON string containing ServerConfig
-    pub meta: Option<String>,  // JSON string containing additional metadata
+    #[sea_orm(column_type = "Json")]
+    #[schema(value_type = ServerConfig)]
+    pub server_config: serde_json::Value,
     #[schema(value_type = String, format = DateTime)]
     pub created_at: DateTimeUtc,
 }
@@ -27,12 +28,10 @@ pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[schema(as = MCPServerDefinition)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MCPServerDefinition {
     pub name: String,
     pub server_config: ServerConfig,
-    pub meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -74,22 +73,12 @@ impl Model {
         db: &DatabaseConnection,
         definition: &MCPServerDefinition,
     ) -> Result<Model, DbErr> {
-        let server_config_json = serde_json::to_string(&definition.server_config)
+        let server_config_json = serde_json::to_value(&definition.server_config)
             .map_err(|e| DbErr::Custom(format!("Failed to serialize server_config: {e}")))?;
-
-        let meta_json = if let Some(meta) = &definition.meta {
-            Some(
-                serde_json::to_string(meta)
-                    .map_err(|e| DbErr::Custom(format!("Failed to serialize meta: {e}")))?,
-            )
-        } else {
-            None
-        };
 
         let active_model = ActiveModel {
             name: Set(definition.name.clone()),
             server_config: Set(server_config_json),
-            meta: Set(meta_json),
             ..Default::default()
         };
 
@@ -97,7 +86,7 @@ impl Model {
         Entity::insert(active_model)
             .on_conflict(
                 sea_orm::sea_query::OnConflict::column(Column::Name)
-                    .update_columns([Column::ServerConfig, Column::Meta])
+                    .update_columns([Column::ServerConfig])
                     .to_owned(),
             )
             .exec_with_returning(db)
@@ -178,22 +167,12 @@ impl Model {
             .await?;
 
         if let Some(model) = model {
-            let server_config: ServerConfig = serde_json::from_str(&model.server_config)
+            let server_config: ServerConfig = serde_json::from_value(model.server_config)
                 .map_err(|e| DbErr::Custom(format!("Failed to parse server_config: {e}")))?;
-
-            let meta = if let Some(meta_json) = &model.meta {
-                Some(
-                    serde_json::from_str(meta_json)
-                        .map_err(|e| DbErr::Custom(format!("Failed to parse meta: {e}")))?,
-                )
-            } else {
-                None
-            };
 
             Ok(Some(MCPServerDefinition {
                 name: model.name,
                 server_config,
-                meta,
             }))
         } else {
             Ok(None)
@@ -221,7 +200,6 @@ impl Model {
         let definition = MCPServerDefinition {
             name: connector.title.clone(),
             server_config: connector.server_config.clone(),
-            meta: None,
         };
 
         let result = Model::save_server(db, &definition)
@@ -233,36 +211,24 @@ impl Model {
 
     /// Convert a Model to MCPServerDefinition
     pub fn to_definition(self) -> Result<MCPServerDefinition, String> {
-        let server_config: ServerConfig = serde_json::from_str(&self.server_config)
+        let server_config: ServerConfig = serde_json::from_value(self.server_config)
             .map_err(|e| format!("Failed to parse server_config: {e}"))?;
-
-        let meta = if let Some(meta_json) = &self.meta {
-            Some(
-                serde_json::from_str(meta_json)
-                    .map_err(|e| format!("Failed to parse meta: {e}"))?,
-            )
-        } else {
-            None
-        };
 
         Ok(MCPServerDefinition {
             name: self.name,
             server_config,
-            meta,
         })
     }
 }
 
 impl From<MCPServerDefinition> for ActiveModel {
     fn from(definition: MCPServerDefinition) -> Self {
-        let meta_json = definition
-            .meta
-            .map(|meta| serde_json::to_string(&meta).unwrap_or_default());
+        let server_config_json = serde_json::to_value(&definition.server_config)
+            .unwrap_or_else(|_| serde_json::json!({}));
 
         ActiveModel {
             name: Set(definition.name),
-            server_config: Set(serde_json::to_string(&definition.server_config).unwrap_or_default()),
-            meta: Set(meta_json),
+            server_config: Set(server_config_json),
             ..Default::default()
         }
     }
@@ -290,7 +256,6 @@ mod tests {
         let definition = MCPServerDefinition {
             name: "test_server".to_string(),
             server_config,
-            meta: None,
         };
 
         let result = Model::save_server_without_lifecycle(&db, &definition).await;
@@ -299,36 +264,6 @@ mod tests {
         let saved_model = result.unwrap();
         assert_eq!(saved_model.name, "test_server");
         assert!(saved_model.id > 0);
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_save_server_with_meta(#[future] database: DatabaseConnection) {
-        let db = database.await;
-
-        let server_config = ServerConfig {
-            transport: "stdio".to_string(),
-            command: "node".to_string(),
-            args: vec!["index.js".to_string()],
-            env: HashMap::new(),
-        };
-
-        let meta = serde_json::json!({
-            "description": "Test server with metadata",
-            "version": "1.0.0"
-        });
-
-        let definition = MCPServerDefinition {
-            name: "test_server_with_meta".to_string(),
-            server_config,
-            meta: Some(meta),
-        };
-
-        let result = Model::save_server_without_lifecycle(&db, &definition).await;
-        assert!(result.is_ok());
-
-        let saved_model = result.unwrap();
-        assert!(saved_model.meta.is_some());
     }
 
     #[rstest]
@@ -346,7 +281,6 @@ mod tests {
         let definition = MCPServerDefinition {
             name: "duplicate_server".to_string(),
             server_config: server_config.clone(),
-            meta: None,
         };
 
         // Save first time - should succeed
@@ -396,7 +330,6 @@ mod tests {
                     args: vec![format!("hello_{i}")],
                     env: HashMap::new(),
                 },
-                meta: None,
             };
             Model::save_server_without_lifecycle(&db, &definition)
                 .await
@@ -422,7 +355,6 @@ mod tests {
                 args: vec!["hello".to_string()],
                 env: HashMap::new(),
             },
-            meta: None,
         };
 
         // Save the server first
@@ -475,7 +407,6 @@ mod tests {
                 args: vec!["hello".to_string()],
                 env: HashMap::new(),
             },
-            meta: Some(serde_json::json!({"test": true})),
         };
 
         // Save the server
@@ -493,7 +424,6 @@ mod tests {
         let def = found_def.unwrap();
         assert_eq!(def.name, "findable_server");
         assert_eq!(def.server_config.command, "echo");
-        assert!(def.meta.is_some());
     }
 
     #[rstest]
@@ -508,13 +438,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_to_definition() {
-        let server_config_json =
-            r#"{"transport":"stdio","command":"echo","args":["hello"],"env":{}}"#;
+        let server_config = ServerConfig {
+            transport: "stdio".to_string(),
+            command: "echo".to_string(),
+            args: vec!["hello".to_string()],
+            env: HashMap::new(),
+        };
+
         let model = Model {
             id: 1,
             name: "test_server".to_string(),
-            server_config: server_config_json.to_string(),
-            meta: None,
+            server_config: serde_json::to_value(&server_config).unwrap(),
             created_at: chrono::Utc::now(),
         };
 
@@ -523,42 +457,6 @@ mod tests {
         assert_eq!(definition.server_config.command, "echo");
         assert_eq!(definition.server_config.args, vec!["hello"]);
         assert!(definition.server_config.env.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_to_definition_with_meta() {
-        let server_config_json =
-            r#"{"transport":"stdio","command":"echo","args":["hello"],"env":{}}"#;
-        let meta_json = r#"{"description":"Test server","version":"1.0.0"}"#;
-
-        let model = Model {
-            id: 1,
-            name: "test_server".to_string(),
-            server_config: server_config_json.to_string(),
-            meta: Some(meta_json.to_string()),
-            created_at: chrono::Utc::now(),
-        };
-
-        let definition = model.to_definition().unwrap();
-        assert!(definition.meta.is_some());
-
-        let meta = definition.meta.unwrap();
-        assert_eq!(meta["description"], "Test server");
-        assert_eq!(meta["version"], "1.0.0");
-    }
-
-    #[tokio::test]
-    async fn test_to_definition_invalid_json() {
-        let model = Model {
-            id: 1,
-            name: "test_server".to_string(),
-            server_config: "invalid json".to_string(),
-            meta: None,
-            created_at: chrono::Utc::now(),
-        };
-
-        let result = model.to_definition();
-        assert!(result.is_err());
     }
 
     #[tokio::test]
@@ -584,7 +482,6 @@ mod tests {
                 args: vec!["hello".to_string()],
                 env: HashMap::new(),
             },
-            meta: None,
         };
 
         // Save the initial server
@@ -601,7 +498,6 @@ mod tests {
                 args: vec!["server.js".to_string()],
                 env: HashMap::new(),
             },
-            meta: Some(serde_json::json!({"updated": true})),
         };
 
         // save_server should handle the update
@@ -615,7 +511,6 @@ mod tests {
             .unwrap();
         assert_eq!(found.server_config.transport, "http");
         assert_eq!(found.server_config.command, "node");
-        assert!(found.meta.is_some());
     }
 
     #[rstest]
@@ -636,10 +531,6 @@ mod tests {
         let definition = MCPServerDefinition {
             name: "python_server".to_string(),
             server_config,
-            meta: Some(serde_json::json!({
-                "author": "test",
-                "license": "MIT"
-            })),
         };
 
         let active_model: ActiveModel = definition.clone().into();
@@ -647,9 +538,10 @@ mod tests {
         // Verify the conversion
         assert_eq!(active_model.name.as_ref(), "python_server");
 
-        // Parse back the server_config to verify
+        // Access the server_config to verify
         let server_config_json = active_model.server_config.as_ref();
-        let parsed_config: ServerConfig = serde_json::from_str(server_config_json).unwrap();
+        let parsed_config: ServerConfig =
+            serde_json::from_value(server_config_json.clone()).unwrap();
         assert_eq!(parsed_config.command, "python");
         assert_eq!(parsed_config.args.len(), 2);
         assert_eq!(parsed_config.env.get("DEBUG"), Some(&"true".to_string()));
