@@ -117,6 +117,16 @@ export const processAssistantMessage = (
   const result: ProcessedMessage[] = [];
   const allParts = message.parts || [];
 
+  // Debug logging
+  if (allParts.some((p: any) => p?.type?.includes('tool'))) {
+    console.log('Tool parts found in message:', message.id, allParts);
+  }
+
+  // Also check experimental_toolInvocations
+  if (message.experimental_toolInvocations) {
+    console.log('Experimental tool invocations:', message.experimental_toolInvocations);
+  }
+
   // Group parts by text block ID to handle multiple text segments
   const textBlockMap = new Map<string, string>();
   const toolParts: any[] = [];
@@ -158,7 +168,7 @@ export const processAssistantMessage = (
       }
     }
 
-    // Process tool calls
+    // Process tool calls from parts
     toolParts.forEach((part: any) => {
       try {
         const toolCallId = part?.toolCallId || crypto.randomUUID();
@@ -179,6 +189,47 @@ export const processAssistantMessage = (
         console.error('Error processing tool part:', error, part);
       }
     });
+
+    // Also check experimental_toolInvocations from Vercel AI SDK
+    if (message.experimental_toolInvocations && Array.isArray(message.experimental_toolInvocations)) {
+      message.experimental_toolInvocations.forEach((invocation: any) => {
+        const toolCallId = invocation.toolCallId || crypto.randomUUID();
+        const toolName = invocation.toolName || '';
+        const [serverName, ...toolNameParts] = toolName.split('_');
+        const displayToolName = toolNameParts.join('_') || toolName;
+
+        const toolCall: ToolCall = {
+          id: toolCallId,
+          serverName: serverName || '',
+          name: displayToolName,
+          function: {
+            name: toolName,
+            arguments: invocation.args || {},
+          },
+          arguments: invocation.args || {},
+          result: '',
+          structuredOutput: undefined,
+          error: null,
+          status: ToolCallStatus.Completed,
+          executionTime: null,
+          startTime: null,
+          endTime: null,
+        };
+
+        // Check if the result has structured content
+        if (invocation.result?.content && Array.isArray(invocation.result.content)) {
+          const structuredContent = extractStructuredContent(invocation.result);
+          toolCall.structuredOutput = structuredContent ? { content: structuredContent } : undefined;
+          toolCall.result = extractToolResultText(invocation.result);
+        } else if (typeof invocation.result === 'string') {
+          toolCall.result = invocation.result;
+        } else if (invocation.result) {
+          toolCall.result = JSON.stringify(invocation.result, null, 2);
+        }
+
+        toolCallsMap.set(toolCallId, toolCall);
+      });
+    }
 
     // Add tool calls as separate entries
     toolCallsMap.forEach((toolCall) => {
