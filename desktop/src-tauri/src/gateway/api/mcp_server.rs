@@ -139,7 +139,7 @@ pub async fn start_mcp_server_oauth(
     State(_service): State<Arc<Service>>,
     Json(payload): Json<StartOAuthRequest>,
 ) -> Result<Json<AuthResponse>, StatusCode> {
-    // TODO: finish setting this up with models::mcp_server::oauth::start_oauth_auth
+    // TODO: finish setting this up with gateway::api::oauth::start_oauth_auth
     // need to get the cloud run service's static URL and plug that in here
     let auth_response = AuthResponse {
         auth_url: format!(
