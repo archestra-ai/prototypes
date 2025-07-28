@@ -1,6 +1,17 @@
 import { parseThinkingContent } from '@/lib/utils/chat';
 import { ToolCall, ToolCallStatus, ToolContent, ToolContentImage, ToolContentText } from '@/types';
 
+
+
+
+
+// Extend window for debug logging
+declare global {
+  interface Window {
+    _processedMessageIds?: Set<string>;
+  }
+}
+
 export interface ProcessedMessage {
   id: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -68,20 +79,12 @@ export const extractStructuredContent = (part: any): ToolContent[] | undefined =
 export const processToolResultPart = (part: any, toolCallId: string, toolCallsMap: Map<string, ToolCall>): void => {
   const existingCall = toolCallsMap.get(toolCallId);
   if (!existingCall) {
-    console.log('No existing call found for toolCallId:', toolCallId);
     return;
   }
 
   const resultText = extractToolResultText(part);
   const structuredContent = extractStructuredContent(part);
   const isError = part.state === 'output-error';
-
-  console.log('Processing tool result:', {
-    toolCallId,
-    hasStructuredContent: !!structuredContent,
-    structuredContentLength: structuredContent?.length,
-    resultText: resultText.substring(0, 100) + '...',
-  });
 
   toolCallsMap.set(toolCallId, {
     ...existingCall,
@@ -127,16 +130,6 @@ export const processAssistantMessage = (
 ): ProcessedMessage[] => {
   const result: ProcessedMessage[] = [];
   const allParts = message.parts || [];
-
-  // Debug logging
-  if (allParts.some((p: any) => p?.type?.includes('tool'))) {
-    console.log('Tool parts found in message:', message.id, allParts);
-  }
-
-  // Also check experimental_toolInvocations
-  if (message.experimental_toolInvocations) {
-    console.log('Experimental tool invocations:', message.experimental_toolInvocations);
-  }
 
   // Group parts by text block ID to handle multiple text segments
   const textBlockMap = new Map<string, string>();
@@ -190,8 +183,6 @@ export const processAssistantMessage = (
           const existingCall = toolCallsMap.get(toolCallId);
 
           if (!existingCall) {
-            // Create tool call if it doesn't exist (complete tool call with output)
-            console.log('Creating tool call from output-available part:', part.type);
             toolCallsMap.set(toolCallId, createToolCall(part, toolCallId));
           }
 
@@ -245,15 +236,6 @@ export const processAssistantMessage = (
 
     // Add tool calls as separate entries
     toolCallsMap.forEach((toolCall) => {
-      if (toolCall.structuredOutput) {
-        console.log('Adding tool call with structured output:', {
-          toolId: toolCall.id,
-          hasStructuredOutput: true,
-          contentCount: toolCall.structuredOutput.content.length,
-          contentTypes: toolCall.structuredOutput.content.map((c) => c.type),
-        });
-      }
-
       result.push({
         id: `${message.id}-tool-${toolCall.id}`,
         role: 'tool',
