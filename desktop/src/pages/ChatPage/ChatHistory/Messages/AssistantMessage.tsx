@@ -1,15 +1,15 @@
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
 import { AIResponse } from '@/components/kibo/ai-response';
-import { ChatInteraction } from '@/types';
+import { ChatMessage } from '@/types';
 
 import ToolCallIndicator from './ToolCallIndicator';
 import ToolExecutionResult from './ToolExecutionResult';
 
-interface AssistantInteractionProps {
-  interaction: ChatInteraction;
+interface AssistantMessageProps {
+  message: ChatMessage;
 }
 
-export default function AssistantInteraction({ interaction }: AssistantInteractionProps) {
+export default function AssistantMessage({ message }: AssistantMessageProps) {
   const {
     content: assistantContent,
     isToolExecuting,
@@ -17,7 +17,7 @@ export default function AssistantInteraction({ interaction }: AssistantInteracti
     isStreaming,
     thinkingContent,
     toolCalls,
-  } = interaction;
+  } = message;
 
   return (
     <div className="relative">

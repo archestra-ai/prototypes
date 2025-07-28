@@ -31,7 +31,7 @@ export default function ToolExecutionResult({
   };
 
   return (
-    <div className="border rounded-lg p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 dark:border-blue-800">
+    <div className="border rounded-lg p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 dark:border-blue-800 overflow-hidden min-w-0">
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2">
           {status === ToolCallStatus.Completed ? (
@@ -66,8 +66,13 @@ export default function ToolExecutionResult({
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="mt-2 p-2 bg-muted/50 rounded text-xs font-mono">
-              <pre className="whitespace-pre-wrap">{formatArguments(toolArguments)}</pre>
+            <div className="mt-2 p-2 bg-muted/50 rounded text-xs font-mono overflow-hidden">
+              <pre
+                className="whitespace-pre-wrap break-all overflow-x-hidden max-w-full"
+                style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}
+              >
+                {formatArguments(toolArguments)}
+              </pre>
             </div>
           </CollapsibleContent>
         </Collapsible>
@@ -83,8 +88,11 @@ export default function ToolExecutionResult({
             <div className="text-sm">
               {result.length > 200 ? (
                 <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-                  <div>
-                    <p className="whitespace-pre-wrap text-xs text-muted-foreground">
+                  <div className="overflow-hidden min-w-0">
+                    <p
+                      className="whitespace-pre-wrap break-all overflow-x-hidden max-w-full text-xs text-muted-foreground"
+                      style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}
+                    >
                       {isExpanded ? result : truncateResult(result)}
                     </p>
                     <CollapsibleTrigger asChild>
@@ -105,7 +113,12 @@ export default function ToolExecutionResult({
                   </div>
                 </Collapsible>
               ) : (
-                <p className="whitespace-pre-wrap">{result}</p>
+                <p
+                  className="whitespace-pre-wrap break-all overflow-x-hidden max-w-full"
+                  style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}
+                >
+                  {result}
+                </p>
               )}
             </div>
           </div>

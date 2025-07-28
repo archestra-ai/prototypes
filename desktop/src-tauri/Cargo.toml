@@ -47,7 +47,7 @@ chrono = { version = "0.4", features = ["serde"] }
 sea-orm = { version = "1.0", features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros", "with-chrono"] }
 sea-orm-migration = { version = "1.0", features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
 rmcp = { version = "0.3.0", features = ["server", "macros", "transport-streamable-http-server", "transport-worker"] }
-axum = { version = "0.8.4", features = ["macros"] }
+axum = { version = "0.8.4", features = ["macros", "ws"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 tauri-plugin-http = "2"
 utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono", "macros"] }

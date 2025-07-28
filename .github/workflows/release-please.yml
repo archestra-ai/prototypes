@@ -13,7 +13,7 @@ concurrency:
   # Cancel any running workflow for the same branch when new commits are pushed.
   # We group both by ref_name (available when CI is triggered by a push to a branch/tag)
   # and head_ref (available when CI is triggered by a PR).
-  group: "${{ github.ref_name }}-${{ github.head_ref }}"
+  group: "release-please-${{ github.ref_name }}-${{ github.head_ref }}"
   cancel-in-progress: true
 
 jobs:
@@ -49,9 +49,9 @@ jobs:
           echo "$OUTPUTS"
 
   build-desktop-application-and-create-github-release:
-    name: Build desktop application and create GitHub release
+    name: Build ${{ matrix.platform }} desktop application and create GitHub release
     runs-on: ${{ matrix.platform }}
-    # if: needs.release-please.outputs.desktop_release_created
+    if: needs.release-please.outputs.desktop_release_created
     needs:
       - release-please
     strategy:
@@ -67,41 +67,16 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-          
+
       - name: Generate a token
         id: generate-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
         with:
           app-id: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_ID }}
           private-key: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY }}
 
-      - name: Update version from release-please tag
-        if: needs.release-please.outputs.desktop_release_created
-        env:
-          TAG_NAME: ${{ needs.release-please.outputs['desktop--tag_name'] }}
-        run: |
-          VERSION="${TAG_NAME#app-v}"
-          echo "Updating version to $VERSION from tag $TAG_NAME"
-          
-          # Update package.json
-          jq --arg version "$VERSION" '.version = $version' desktop/package.json > desktop/package.json.tmp && mv desktop/package.json.tmp desktop/package.json
-          
-          # Update Cargo.toml
-          sed -i.bak "s/^version = .*/version = \"$VERSION\"/" desktop/src-tauri/Cargo.toml && rm desktop/src-tauri/Cargo.toml.bak
-          
-          # Update tauri.conf.json
-          jq --arg version "$VERSION" '.version = $version' desktop/src-tauri/tauri.conf.json > desktop/src-tauri/tauri.conf.json.tmp && mv desktop/src-tauri/tauri.conf.json.tmp desktop/src-tauri/tauri.conf.json
-
-      - name: setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-          run_install: true
+      - name: Setup frontend dependencies
+        uses: ./.github/actions/setup-frontend
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -119,6 +94,3 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
-
-      - run: |
-          echo "placeholder to build and publish desktop application"

@@ -1,7 +1,7 @@
-use super::{MCPServerDefinition, ServerConfig};
+pub mod node;
+
 use crate::database::connection::get_database_connection_with_app;
-use crate::models::mcp_server::Model;
-use crate::utils::node;
+use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel, ServerConfig};
 use rmcp::model::{Resource as MCPResource, Tool as MCPTool};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -515,7 +515,7 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
         .await
         .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
-    let installed_mcp_servers = Model::load_installed_mcp_servers(&db)
+    let installed_mcp_servers = MCPServerModel::load_installed_mcp_servers(&db)
         .await
         .map_err(|e| format!("Failed to load MCP servers: {e}"))?;
 

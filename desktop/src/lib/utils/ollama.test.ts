@@ -55,7 +55,7 @@ describe('ollama utility functions', () => {
       expect(result).toHaveLength(3);
       expect(result).toEqual([
         {
-          type: 'function',
+          type: 'Function',
           function: {
             name: 'Slack_channel_get_history',
             description: 'Get channel history',
@@ -69,7 +69,7 @@ describe('ollama utility functions', () => {
           },
         },
         {
-          type: 'function',
+          type: 'Function',
           function: {
             name: 'Slack_send_message',
             description: 'Send a message to a channel',
@@ -83,7 +83,7 @@ describe('ollama utility functions', () => {
           },
         },
         {
-          type: 'function',
+          type: 'Function',
           function: {
             name: 'Gmail_send_email',
             description: 'Send an email',
@@ -118,7 +118,7 @@ describe('ollama utility functions', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
-        type: 'function',
+        type: 'Function',
         function: {
           name: 'TestServer_test_tool',
           description: 'Tool from TestServer',

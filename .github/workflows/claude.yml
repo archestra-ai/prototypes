@@ -10,12 +10,6 @@ on:
   pull_request_review:
     types: [submitted]
 
-concurrency:
-  # Group by issue/PR number to prevent multiple Claude runs on the same issue/PR
-  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
-  # Cancel any in-progress runs when a new one is triggered
-  cancel-in-progress: true
-
 jobs:
   claude:
     if: |

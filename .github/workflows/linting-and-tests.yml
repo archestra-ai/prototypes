@@ -27,19 +27,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "ubuntu-latest"
+          - name: "Ubuntu"
+            platform: "ubuntu-latest"
             args: ""
-          - platform: "macos-latest" # for Arm based macs (M1 and above).
+          - name: "macOS (Arm)"
+            platform: "macos-latest" # for Arm based macs (M1 and above).
             args: "--target aarch64-apple-darwin"
-          - platform: "macos-latest" # for Intel based macs.
+          - name: "macOS (Intel)"
+            platform: "macos-latest" # for Intel based macs.
             args: "--target x86_64-apple-darwin"
-          - platform: "windows-latest"
+          - name: "Windows"
+            platform: "windows-latest"
             args: ""
     runs-on: ${{ matrix.platform }}
     defaults:
       run:
         working-directory: ./desktop/src-tauri
-    name: Rust Linting and Tests (${{ matrix.platform }})
+    name: Rust Linting and Tests (${{ matrix.name }})
     steps:
       - name: Checkout project
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

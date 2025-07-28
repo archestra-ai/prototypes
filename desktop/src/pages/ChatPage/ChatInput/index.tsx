@@ -24,7 +24,7 @@ import { useChatContext } from '@/providers/chat-provider';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
-import { ChatInteractionStatus } from '@/types';
+import { ChatMessageStatus } from '@/types';
 
 // Define ToolContext interface
 interface ToolContext {
@@ -227,7 +227,7 @@ export default function ChatInput(_props: ChatInputProps) {
               </Tooltip>
             </AIInputTools>
             <AIInputSubmit
-              status={canStop ? ChatInteractionStatus.Streaming : ChatInteractionStatus.Ready}
+              status={canStop ? ChatMessageStatus.Streaming : ChatMessageStatus.Ready}
               onClick={
                 canStop
                   ? () => {

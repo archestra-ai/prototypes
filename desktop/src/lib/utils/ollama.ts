@@ -6,7 +6,7 @@ import { convertServerAndToolNameToArchestraToolName } from './tools';
 
 export const convertMCPServerToolsToOllamaTools = (tools: ToolWithMCPServerName[]): OllamaTool[] => {
   return tools.map(({ serverName, name, description, inputSchema }) => ({
-    type: 'function',
+    type: 'Function',
     function: {
       name: convertServerAndToolNameToArchestraToolName(serverName, name),
       description: description || `Tool from ${serverName}`,

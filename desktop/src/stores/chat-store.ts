@@ -3,29 +3,29 @@ import { create } from 'zustand';
 
 import { DEFAULT_CHAT_TITLE } from '@/consts';
 import {
-  ChatWithInteractions as ServerChatWithInteractions,
+  ChatWithMessages as ServerChatWithMessages,
   createChat,
   deleteChat,
   getAllChats,
   updateChat,
 } from '@/lib/api-client';
 import { initializeChat } from '@/lib/utils/chat';
-import { ChatInteractionStatus, type ChatTitleUpdatedEvent, type ChatWithInteractions } from '@/types';
+import { ChatMessageStatus, type ChatTitleUpdatedEvent, type ChatWithMessages } from '@/types';
 
 interface ChatState {
-  status: ChatInteractionStatus;
-  chats: ChatWithInteractions[];
+  status: ChatMessageStatus;
+  chats: ChatWithMessages[];
   currentChatSessionId: string | null;
   isLoadingChats: boolean;
 }
 
 interface ChatActions {
-  getStatus: () => ChatInteractionStatus;
-  setStatus: (status: ChatInteractionStatus) => void;
+  getStatus: () => ChatMessageStatus;
+  setStatus: (status: ChatMessageStatus) => void;
   loadChats: () => Promise<void>;
-  createNewChat: () => Promise<ChatWithInteractions>;
+  createNewChat: () => Promise<ChatWithMessages>;
   selectChat: (chatId: number) => void;
-  getCurrentChat: () => ChatWithInteractions | null;
+  getCurrentChat: () => ChatWithMessages | null;
   getCurrentChatTitle: () => string;
   deleteCurrentChat: () => Promise<void>;
   updateChat: (chatId: number, title: string) => Promise<void>;
@@ -35,10 +35,12 @@ interface ChatActions {
 type ChatStore = ChatState & ChatActions;
 
 /**
- * Listen for chat title updates from the backend
+ * Listen for chat title updates from the backend via WebSocket
  */
-const listenForChatTitleUpdates = () => {
-  listen<ChatTitleUpdatedEvent>('chat-title-updated', ({ payload: { chat_id, title } }) => {
+const listenForChatTitleUpdates = async () => {
+  // Listen for chat title updates from the backend via Tauri events
+  await listen<ChatTitleUpdatedEvent>('chat-title-updated', (event) => {
+    const { chat_id, title } = event.payload;
     useChatStore.setState((state) => ({
       chats: state.chats.map((chat) => (chat.id === chat_id ? { ...chat, title } : chat)),
     }));
@@ -47,7 +49,7 @@ const listenForChatTitleUpdates = () => {
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   // State
-  status: ChatInteractionStatus.Ready,
+  status: ChatMessageStatus.Ready,
   chats: [],
   currentChatSessionId: null,
   isLoadingChats: false,
@@ -84,7 +86,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           llm_provider: 'ollama',
         },
       });
-      const initializedChat = initializeChat(response.data as ServerChatWithInteractions);
+      const initializedChat = initializeChat(response.data as ServerChatWithMessages);
 
       set((state) => ({
         chats: [initializedChat, ...state.chats],

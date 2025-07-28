@@ -468,7 +468,7 @@ async fn execute_chat_stream(
     // Keep track of the maximum number of tool rounds to prevent infinite loops
     const MAX_TOOL_ROUNDS: usize = 10;
     let mut tool_round = 0;
-    let mut had_tool_calls_in_previous_round = false;
+    let mut _had_tool_calls_in_previous_round = false;
     
     // Continue making LLM calls until no more tools are called or we hit the limit
     loop {
@@ -699,7 +699,7 @@ async fn execute_chat_stream(
                             .await?;
 
                             // Track that we had tool calls for the next round
-                            had_tool_calls_in_previous_round = true;
+                            _had_tool_calls_in_previous_round = true;
 
                             // Break out of the streaming loop to continue with next tool round
                             break;
@@ -806,7 +806,7 @@ async fn convert_tools_to_ollama_format(
             "params": {}
         });
 
-        match crate::models::mcp_server::sandbox::forward_raw_request(
+        match crate::sandbox::forward_raw_request(
             &server_name,
             serde_json::to_string(&list_tools_request)?,
         )

@@ -4,40 +4,40 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { parseThinkingContent } from '@/lib/utils/chat';
 import { cn } from '@/lib/utils/tailwind';
 import { useChatContext } from '@/providers/chat-provider';
-import { ChatInteraction, ToolCall, ToolCallStatus } from '@/types';
+import { ChatMessage, ToolCall, ToolCallStatus } from '@/types';
 
-import { AssistantInteraction, OtherInteraction, ToolInteraction, UserInteraction } from './Interactions';
+import { AssistantMessage, OtherMessage, ToolMessage, UserMessage } from './Messages';
 
 const CHAT_SCROLL_AREA_ID = 'chat-scroll-area';
 const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-area-viewport]`;
 
 interface ChatHistoryProps {}
 
-interface InteractionProps {
-  interaction: ChatInteraction;
+interface MessageProps {
+  message: ChatMessage;
 }
 
-const Interaction = ({ interaction }: InteractionProps) => {
-  switch (interaction.role) {
+const Message = ({ message }: MessageProps) => {
+  switch (message.role) {
     case 'user':
-      return <UserInteraction interaction={interaction} />;
+      return <UserMessage message={message} />;
     case 'assistant':
-      return <AssistantInteraction interaction={interaction} />;
+      return <AssistantMessage message={message} />;
     case 'tool':
-      return <ToolInteraction interaction={interaction} />;
+      return <ToolMessage message={message} />;
     default:
-      return <OtherInteraction interaction={interaction} />;
+      return <OtherMessage message={message} />;
   }
 };
 
-const getInteractionClassName = (interaction: ChatInteraction) => {
-  switch (interaction.role) {
+const getMessageClassName = (message: ChatMessage) => {
+  switch (message.role) {
     case 'user':
       return 'bg-primary/10 border border-primary/20 ml-8';
     case 'assistant':
       return 'bg-secondary/50 border border-secondary mr-8';
     // NOTE: we can probably delete this.. this isn't a real role returned by ollama?
-    // case ChatInteractionRole.Error:
+    // case 'error:
     //   return 'bg-destructive/10 border border-destructive/20 text-destructive';
     case 'system':
       return 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-600';
@@ -352,17 +352,17 @@ export default function ChatHistory(_props: ChatHistoryProps) {
   }, [messages]);
 
   return (
-    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full border rounded-lg">
-      <div className="p-4 space-y-4">
+    <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full border rounded-lg overflow-hidden">
+      <div className="p-4 space-y-4 max-w-full overflow-hidden">
         {processedMessages.map((message, index) => {
           // Check if this is the last message and we're streaming
           const isLastMessage = index === processedMessages.length - 1;
           const isMessageStreaming = isLastMessage && isStreaming && message.role === 'assistant';
 
-          // Convert processed message to ChatInteraction format
-          const interaction: ChatInteraction = {
+          // Convert processed message to ChatMessage format
+          const chatMessage: ChatMessage = {
             id: message.id,
-            role: message.role as any, // Cast to any since ChatInteraction expects a different type
+            role: message.role as any,
             content: message.content || '',
             thinking: message.thinking || '',
             toolCalls: message.toolCalls || [],
@@ -372,13 +372,17 @@ export default function ChatHistory(_props: ChatHistoryProps) {
             isThinkingStreaming: isMessageStreaming && !!message.thinking,
             isToolExecuting:
               isMessageStreaming && (message.toolCalls?.some((tc) => tc.status === ToolCallStatus.Executing) || false),
-            created_at: new Date().toISOString(),
           };
 
           return (
-            <div key={message.id} className={cn('p-3 rounded-lg', getInteractionClassName(interaction))}>
+            <div
+              key={message.id}
+              className={cn('p-3 rounded-lg overflow-hidden min-w-0', getMessageClassName(chatMessage))}
+            >
               <div className="text-xs font-medium mb-1 opacity-70 capitalize">{message.role}</div>
-              <Interaction interaction={interaction} />
+              <div className="overflow-hidden min-w-0">
+                <Message message={chatMessage} />
+              </div>
             </div>
           );
         })}

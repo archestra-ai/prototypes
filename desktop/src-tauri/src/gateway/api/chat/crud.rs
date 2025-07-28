@@ -1,4 +1,4 @@
-use crate::models::chat::{ChatDefinition, ChatWithInteractions, Model as Chat};
+use crate::models::chat::{ChatDefinition, ChatWithMessages, Model as Chat};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
@@ -28,14 +28,14 @@ impl Service {
         Self { db: Arc::new(db) }
     }
 
-    pub async fn get_all_chats(&self) -> Result<Vec<ChatWithInteractions>, sea_orm::DbErr> {
+    pub async fn get_all_chats(&self) -> Result<Vec<ChatWithMessages>, sea_orm::DbErr> {
         Chat::load_all(&self.db).await
     }
 
     pub async fn create_chat(
         &self,
         request: CreateChatRequest,
-    ) -> Result<ChatWithInteractions, sea_orm::DbErr> {
+    ) -> Result<ChatWithMessages, sea_orm::DbErr> {
         let definition = ChatDefinition {
             llm_provider: request.llm_provider,
         };
@@ -53,7 +53,7 @@ impl Service {
         &self,
         id: String,
         request: UpdateChatRequest,
-    ) -> Result<ChatWithInteractions, sea_orm::DbErr> {
+    ) -> Result<ChatWithMessages, sea_orm::DbErr> {
         let id = id
             .parse::<i32>()
             .map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
@@ -62,9 +62,9 @@ impl Service {
             .ok_or_else(|| sea_orm::DbErr::RecordNotFound("Chat not found".to_string()))?;
 
         let updated_chat = chat.chat.update_title(request.title, &self.db).await?;
-        Ok(ChatWithInteractions {
+        Ok(ChatWithMessages {
             chat: updated_chat,
-            interactions: chat.interactions,
+            messages: chat.messages,
         })
     }
 }
@@ -74,13 +74,13 @@ impl Service {
     path = "/api/chat",
     tag = "chat",
     responses(
-        (status = 200, description = "List all chats", body = Vec<ChatWithInteractions>),
+        (status = 200, description = "List all chats", body = Vec<ChatWithMessages>),
         (status = 500, description = "Internal server error")
     )
 )]
 pub async fn get_all_chats(
     State(service): State<Arc<Service>>,
-) -> Result<Json<Vec<ChatWithInteractions>>, StatusCode> {
+) -> Result<Json<Vec<ChatWithMessages>>, StatusCode> {
     service
         .get_all_chats()
         .await
@@ -94,14 +94,14 @@ pub async fn get_all_chats(
     tag = "chat",
     request_body = CreateChatRequest,
     responses(
-        (status = 201, description = "Chat created successfully", body = ChatWithInteractions),
+        (status = 201, description = "Chat created successfully", body = ChatWithMessages),
         (status = 500, description = "Internal server error")
     )
 )]
 pub async fn create_chat(
     State(service): State<Arc<Service>>,
     Json(request): Json<CreateChatRequest>,
-) -> Result<Json<ChatWithInteractions>, StatusCode> {
+) -> Result<Json<ChatWithMessages>, StatusCode> {
     service
         .create_chat(request)
         .await
@@ -145,7 +145,7 @@ pub async fn delete_chat(
     ),
     request_body = UpdateChatRequest,
     responses(
-        (status = 200, description = "Chat updated successfully", body = ChatWithInteractions),
+        (status = 200, description = "Chat updated successfully", body = ChatWithMessages),
         (status = 404, description = "Chat not found"),
         (status = 500, description = "Internal server error")
     )
@@ -154,7 +154,7 @@ pub async fn update_chat(
     State(service): State<Arc<Service>>,
     Path(id): Path<String>,
     Json(request): Json<UpdateChatRequest>,
-) -> Result<Json<ChatWithInteractions>, StatusCode> {
+) -> Result<Json<ChatWithMessages>, StatusCode> {
     service
         .update_chat(id, request)
         .await

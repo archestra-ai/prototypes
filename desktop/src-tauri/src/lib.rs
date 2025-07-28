@@ -7,7 +7,7 @@ pub mod gateway;
 pub mod models;
 pub mod ollama;
 pub mod openapi;
-pub mod utils;
+pub mod sandbox;
 
 #[cfg(test)]
 pub mod test_fixtures;
@@ -41,11 +41,8 @@ pub fn run() {
                     debug!("SINGLE INSTANCE: Found deep link in argv: {arg}");
                     let app_handle = app.clone();
                     tauri::async_runtime::spawn(async move {
-                        models::mcp_server::oauth::handle_oauth_callback(
-                            app_handle,
-                            arg.to_string(),
-                        )
-                        .await;
+                        gateway::api::oauth::handle_oauth_callback(app_handle, arg.to_string())
+                            .await;
                     });
                 }
             }
@@ -71,8 +68,7 @@ pub fn run() {
             // Start all persisted MCP servers
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = models::mcp_server::sandbox::start_all_mcp_servers(app_handle).await
-                {
+                if let Err(e) = sandbox::start_all_mcp_servers(app_handle).await {
                     error!("Failed to start MCP servers: {e}");
                 }
             });
@@ -88,9 +84,8 @@ pub fn run() {
             // Start the archestra gateway server
             let user_id = "archestra_user".to_string();
             let db_for_mcp = db.clone();
-            let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = gateway::start_gateway(user_id, app_handle, db_for_mcp).await {
+                if let Err(e) = gateway::start_gateway(user_id, db_for_mcp).await {
                     error!("Failed to start gateway: {e}");
                 }
             });
@@ -120,11 +115,8 @@ pub fn run() {
                     debug!("DEEP LINK PLUGIN: Processing URL: {url}");
                     let app_handle = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
-                        models::mcp_server::oauth::handle_oauth_callback(
-                            app_handle,
-                            url.to_string(),
-                        )
-                        .await;
+                        gateway::api::oauth::handle_oauth_callback(app_handle, url.to_string())
+                            .await;
                     });
                 }
             });

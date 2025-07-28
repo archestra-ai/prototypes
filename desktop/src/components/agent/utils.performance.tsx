@@ -3,7 +3,7 @@ import React, { memo } from 'react';
 
 import { AIReasoning, AIReasoningContent, AIReasoningTrigger } from '@/components/kibo/ai-reasoning';
 import { cn } from '@/lib/utils/tailwind';
-import ToolCallIndicator from '@/pages/ChatPage/ChatHistory/Interactions/ToolCallIndicator';
+import ToolCallIndicator from '@/pages/ChatPage/ChatHistory/Messages/ToolCallIndicator';
 import { ReasoningDataPart, TaskProgressDataPart } from '@/types/agent';
 
 /**
