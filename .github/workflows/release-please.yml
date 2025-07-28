@@ -49,7 +49,7 @@ jobs:
           echo "$OUTPUTS"
 
   build-desktop-application-and-create-github-release:
-    name: Build desktop application and create GitHub release
+    name: Build ${{ matrix.platform }} desktop application and create GitHub release
     runs-on: ${{ matrix.platform }}
     if: needs.release-please.outputs.desktop_release_created
     needs:

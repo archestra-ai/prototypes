@@ -5,6 +5,8 @@ on:
     types:
       - opened
       - synchronize
+    branches-ignore:
+      - release-please--branches--main
 
 concurrency:
   # Cancel any running workflow for the same branch when new commits are pushed.
