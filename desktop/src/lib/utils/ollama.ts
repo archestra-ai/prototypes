@@ -4,15 +4,13 @@ import { ToolWithMCPServerName } from '@/types';
 
 import { convertServerAndToolNameToArchestraToolName } from './tools';
 
-// Converts MCP tools to format compatible with ollama_rs crate's ToolInfo struct
-// Which is used by Archestra Proxy
-export const convertMCPServerToolsToOllamaTools = (tools: ToolWithMCPServerName[]): any[] => {
+export const convertMCPServerToolsToOllamaTools = (tools: ToolWithMCPServerName[]): OllamaTool[] => {
   return tools.map(({ serverName, name, description, inputSchema }) => ({
     type: 'Function',
     function: {
       name: convertServerAndToolNameToArchestraToolName(serverName, name),
       description: description || `Tool from ${serverName}`,
-      parameters: inputSchema,
+      parameters: inputSchema as OllamaTool['function']['parameters'],
     },
   }));
 };
