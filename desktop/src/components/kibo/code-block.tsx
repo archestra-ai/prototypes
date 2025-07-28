@@ -219,14 +219,19 @@ const wordHighlightClassNames = cn('[&_.highlighted-word]:bg-blue-50', 'dark:[&_
 const codeBlockClassName = cn(
   'mt-0 bg-background text-sm',
   '[&_pre]:py-4',
+  '[&_pre]:overflow-x-auto',
+  '[&_pre]:max-w-full',
   '[&_.shiki]:!bg-[var(--shiki-bg)]',
   '[&_code]:w-full',
   '[&_code]:grid',
-  '[&_code]:overflow-x-auto',
   '[&_code]:bg-transparent',
+  '[&_code]:max-w-full',
   '[&_.line]:px-4',
-  '[&_.line]:w-full',
-  '[&_.line]:relative'
+  '[&_.line]:min-w-0',
+  '[&_.line]:relative',
+  '[&_.line]:whitespace-pre-wrap',
+  '[&_.line]:break-all',
+  '[&_.line]:word-break-break-all'
 );
 
 const highlight = (html: string, language?: BundledLanguage, themes?: CodeOptionsMultipleThemes['themes']) =>
@@ -409,13 +414,13 @@ export const CodeBlockCopyButton = ({
 type CodeBlockFallbackProps = HTMLAttributes<HTMLDivElement>;
 const CodeBlockFallback = ({ children, ...props }: CodeBlockFallbackProps) => (
   <div {...props}>
-    <pre className="w-full">
+    <pre className="w-full max-w-full">
       <code>
         {children
           ?.toString()
           .split('\n')
           .map((line, i) => (
-            <span className="line" key={i}>
+            <span className="line whitespace-pre-wrap break-all word-break-break-all min-w-0" key={i}>
               {line}
             </span>
           ))}
