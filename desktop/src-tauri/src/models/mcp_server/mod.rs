@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use tracing::error;
 use utoipa::ToSchema;
 
-pub mod sandbox;
+use crate::sandbox;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize, ToSchema)]
 #[sea_orm(table_name = "mcp_servers")]

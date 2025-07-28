@@ -1,6 +1,6 @@
 use crate::models::mcp_request_log::ClientInfo;
 use crate::models::mcp_request_log::{CreateLogRequest, Model as MCPRequestLog};
-use crate::models::mcp_server::sandbox::forward_raw_request;
+use crate::sandbox;
 use axum::{
     body::Body,
     extract::{Path, State},
@@ -189,7 +189,7 @@ impl Service {
 
         debug!("🔄 Forwarding request to forward_raw_request function...");
         // Forward the raw JSON-RPC request to the MCPServerManager
-        match forward_raw_request(&server_name, request_body.clone()).await {
+        match sandbox::forward_raw_request(&server_name, request_body.clone()).await {
             Ok(raw_response) => {
                 info!("✅ Successfully received response from server '{server_name}'");
 

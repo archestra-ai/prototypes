@@ -7,7 +7,7 @@ pub mod gateway;
 pub mod models;
 pub mod ollama;
 pub mod openapi;
-pub mod utils;
+pub mod sandbox;
 
 #[cfg(test)]
 pub mod test_fixtures;
@@ -33,11 +33,8 @@ pub fn run() {
                     debug!("SINGLE INSTANCE: Found deep link in argv: {arg}");
                     let app_handle = app.clone();
                     tauri::async_runtime::spawn(async move {
-                        gateway::api::oauth::handle_oauth_callback(
-                            app_handle,
-                            arg.to_string(),
-                        )
-                        .await;
+                        gateway::api::oauth::handle_oauth_callback(app_handle, arg.to_string())
+                            .await;
                     });
                 }
             }
@@ -110,11 +107,8 @@ pub fn run() {
                     debug!("DEEP LINK PLUGIN: Processing URL: {url}");
                     let app_handle = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
-                        gateway::api::oauth::handle_oauth_callback(
-                            app_handle,
-                            url.to_string(),
-                        )
-                        .await;
+                        gateway::api::oauth::handle_oauth_callback(app_handle, url.to_string())
+                            .await;
                     });
                 }
             });
