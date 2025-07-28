@@ -107,6 +107,13 @@ export default function ChatInput(_props: ChatInputProps) {
         model: selectedModel,
         // Convert tools to tool names if any
         tools: selectedTools?.map((tool) => `${tool.serverName}_${tool.name}`) || [],
+        // Add options from ollama-store to control verbosity
+        options: {
+          temperature: 0.7,
+          top_p: 0.95,
+          top_k: 40,
+          num_predict: 2048, // Reduced from 15000 to make responses less verbose
+        },
       };
 
       // Update global metadata in ChatProvider before sending

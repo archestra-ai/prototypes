@@ -33,6 +33,8 @@ struct OllamaChatRequest {
     stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     tools: Option<Vec<OllamaTool>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    options: Option<serde_json::Value>,
 }
 
 /// Ollama tool format
@@ -178,6 +180,8 @@ struct ChatRequest {
     stream: Option<bool>,
     #[serde(default)]
     tools: Option<Vec<String>>,
+    #[serde(default)]
+    options: Option<serde_json::Value>,
 }
 
 /// Handle chat requests with SSE streaming
@@ -487,6 +491,7 @@ async fn execute_chat_stream(
             messages: ollama_messages.clone(),
             stream: true,
             tools: tools.clone(),
+            options: request.options.clone(),
         };
 
         // Call Ollama API

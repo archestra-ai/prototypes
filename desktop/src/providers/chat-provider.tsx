@@ -45,6 +45,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
           tools: metadata.tools,
           agent_context: metadata.agent_context,
           stream: true,
+          options: metadata.options,
         };
 
         // Clear metadata after use to prevent stale data
