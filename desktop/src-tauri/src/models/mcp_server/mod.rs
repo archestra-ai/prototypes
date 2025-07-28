@@ -27,7 +27,8 @@ pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[schema(as = MCPServerDefinition)]
 pub struct MCPServerDefinition {
     pub name: String,
     pub server_config: ServerConfig,

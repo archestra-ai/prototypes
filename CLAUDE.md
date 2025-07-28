@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **NEVER modify shadcn/ui components**: Do not edit, update, or modify any files in `desktop/src/components/ui/`. These are third-party components that should remain untouched. Components in this folder should only be installed using `pnpm dlx shadcn@latest add <component-name>`. If UI changes are needed, create custom components or extend them in other directories.
 - **Always use pnpm**: This project uses pnpm v10.13.1 as the package manager. Never use npm or yarn.
-- **API Changes**: After modifying any API endpoints in Rust, you MUST regenerate the OpenAPI schema and TypeScript client by running both `cd desktop/src-tauri && cargo run --bin dump_openapi` and `pnpm codegen`.
+- **API Changes**: After modifying any API endpoints in Rust, you MUST regenerate the OpenAPI schema and TypeScript client by running `cargo run --bin codegen`.
 
 ## Common Development Commands
 
@@ -76,13 +76,9 @@ cd desktop/src-tauri && cargo clippy --all-targets --all-features -- -D warnings
 ### OpenAPI Schema Management
 
 ```bash
-# Generate OpenAPI schema from Rust code
-cd desktop/src-tauri && cargo run --bin dump_openapi
-
-# Generate TypeScript client from OpenAPI schema
-pnpm codegen
-
-# Both commands MUST be run after modifying API endpoints
+# Generate OpenAPI schema from Rust code + generate TypeScript client from OpenAPI schema
+cd desktop/src-tauri && cargo run --bin codegen
+# This command MUST be run after modifying API endpoints
 ```
 
 ### Database Inspection
@@ -190,6 +186,7 @@ The application uses SQLite with SeaORM for database management. Key tables incl
 #### Chat Management Tables
 
 - **chats**: Stores chat sessions with metadata
+
   - `id` (Primary Key): Auto-incrementing integer
   - `session_id` (Unique): UUID-v4 generated automatically via SQLite expression
   - `title` (Optional): Chat title (auto-generated after 4 messages or user-defined)
@@ -214,12 +211,14 @@ The application uses WebSockets for real-time event broadcasting between the bac
 - **Service Architecture**: Centralized `WebSocketService` manages connections and message broadcasting
 - **Connection Management**: Maintains active connections in thread-safe `Arc<Mutex<Vec<SplitSink>>>`
 - **Message Types**: Extensible enum-based system with `WebSocketMessage`:
+
   ```rust
   pub enum WebSocketMessage {
       ChatTitleUpdated(ChatTitleUpdatedWebSocketPayload { chat_id: i32, title: String }),
       // Future event types can be added here
   }
   ```
+
 - **Broadcasting**: Async broadcast method sends messages to all connected clients with automatic cleanup
 - **JSON Protocol**: Messages are serialized as `{type: string, payload: object}`
 
@@ -228,11 +227,13 @@ The application uses WebSockets for real-time event broadcasting between the bac
 - **Auto-Reconnection**: Uses `reconnecting-websocket` library with exponential backoff (1s-10s)
 - **Type-Safe Handlers**: Strongly typed message handlers with TypeScript
 - **Event Subscription**: Publisher-subscriber pattern for component event handling:
+
   ```typescript
-  websocketService.subscribe('chat-title-updated', (message) => {
+  websocketService.subscribe("chat-title-updated", (message) => {
     // Handle the event
   });
   ```
+
 - **Singleton Pattern**: Single WebSocket connection shared across the application
 
 #### Current WebSocket Events

@@ -1,7 +1,7 @@
 pub mod node;
 
 use crate::database::connection::get_database_connection_with_app;
-use crate::models::mcp_server::{MCPServerDefinition, ServerConfig, Model as MCPServerModel};
+use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel, ServerConfig};
 use rmcp::model::{Resource as MCPResource, Tool as MCPTool};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};

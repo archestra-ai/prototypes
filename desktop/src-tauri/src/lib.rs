@@ -59,8 +59,7 @@ pub fn run() {
             // Start all persisted MCP servers
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = sandbox::start_all_mcp_servers(app_handle).await
-                {
+                if let Err(e) = sandbox::start_all_mcp_servers(app_handle).await {
                     error!("Failed to start MCP servers: {e}");
                 }
             });
