@@ -4,7 +4,7 @@ import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/t
 import { create } from 'zustand';
 
 import { ARCHESTRA_SERVER_MCP_PROXY_URL, ARCHESTRA_SERVER_MCP_URL } from '@/consts';
-import { type McpServer, type McpServerDefinition, getInstalledMcpServers } from '@/lib/api-client';
+import { type McpServer, getInstalledMcpServers } from '@/lib/api-client';
 import { getToolsGroupedByServer } from '@/lib/utils/mcp-server';
 import { formatToolName } from '@/lib/utils/tools';
 import { ConnectedMCPServer, MCPServerStatus, MCPServerToolsMap, ToolWithMCPServerName } from '@/types';
@@ -12,7 +12,7 @@ import { ConnectedMCPServer, MCPServerStatus, MCPServerToolsMap, ToolWithMCPServ
 const ARCHESTRA_MCP_SERVER_NAME = 'archestra';
 
 interface MCPServersState {
-  archestraMCPServer: ConnectedMCPServer;
+  archestraMCPServer: ConnectedMCPServer | null;
   installedMCPServers: ConnectedMCPServer[];
   loadingInstalledMCPServers: boolean;
   errorLoadingInstalledMCPServers: string | null;
@@ -21,7 +21,7 @@ interface MCPServersState {
 }
 
 interface MCPServersActions {
-  addMCPServerToInstalledMCPServers: (mcpServer: McpServerDefinition) => void;
+  addMCPServerToInstalledMCPServers: (mcpServer: McpServer) => void;
   removeMCPServerFromInstalledMCPServers: (mcpServerName: string) => void;
   executeTool: (serverName: string, request: CallToolRequest['params']) => Promise<any>;
   loadInstalledMCPServers: () => Promise<void>;
@@ -78,25 +78,7 @@ const initializeConnectedMCPServerTools = async (
 
 export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
   // State
-  archestraMCPServer: {
-    name: 'Archestra',
-    /**
-     * server_config and meta aren't needed for the Archestra MCP server, they're simply added
-     * here to appease the ConnectedMCPServer type.
-     */
-    server_config: {
-      transport: 'http',
-      command: '',
-      args: [],
-      env: {},
-    },
-    meta: undefined,
-    url: ARCHESTRA_SERVER_MCP_URL,
-    client: null,
-    tools: [],
-    status: MCPServerStatus.Connecting,
-    error: undefined,
-  },
+  archestraMCPServer: null,
   installedMCPServers: [],
   loadingInstalledMCPServers: false,
   errorLoadingInstalledMCPServers: null,
@@ -104,7 +86,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
   toolSearchQuery: '',
 
   // Actions
-  addMCPServerToInstalledMCPServers: (mcpServer: McpServerDefinition) => {
+  addMCPServerToInstalledMCPServers: (mcpServer: McpServer) => {
     set((state) => ({
       installedMCPServers: [
         ...state.installedMCPServers,
@@ -142,7 +124,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
     const { archestraMCPServer, installedMCPServers } = get();
 
     let client: Client | null = null;
-    if (serverName === ARCHESTRA_MCP_SERVER_NAME) {
+    if (serverName === ARCHESTRA_MCP_SERVER_NAME && archestraMCPServer) {
       client = archestraMCPServer.client;
     } else {
       const server = installedMCPServers.find((s) => s.name === serverName);
@@ -171,17 +153,8 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
       const response = await getInstalledMcpServers();
 
       if ('data' in response && response.data) {
-        // Convert from generated type to internal McpServerDefinition type
-        const installedMCPServers = response.data.map(
-          (server: McpServer): McpServerDefinition => ({
-            name: server.name,
-            server_config: JSON.parse(server.server_config),
-            meta: server.meta ? JSON.parse(server.meta) : undefined,
-          })
-        );
-
         // Add servers and connect to them
-        for (const server of installedMCPServers) {
+        for (const server of response.data) {
           get().addMCPServerToInstalledMCPServers(server);
         }
       } else if ('error' in response) {
@@ -207,16 +180,29 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
 
         if (client) {
           const tools = await initializeConnectedMCPServerTools(client, ARCHESTRA_MCP_SERVER_NAME);
-
-          set((state) => ({
+          /**
+           * name, id, created_at, server_config and meta aren't needed for the Archestra MCP server, they're simply added
+           * here to appease the ConnectedMCPServer type.
+           */
+          set({
             archestraMCPServer: {
-              ...state.archestraMCPServer,
+              name: ARCHESTRA_MCP_SERVER_NAME,
+              id: 0,
+              created_at: new Date().toISOString(),
+              server_config: {
+                transport: 'http',
+                command: '',
+                args: [],
+                env: {},
+              },
+              meta: {},
+              url: ARCHESTRA_SERVER_MCP_URL,
               client,
               tools,
               status: MCPServerStatus.Connected,
               error: undefined,
             },
-          }));
+          });
 
           return true;
         }
@@ -240,13 +226,25 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
     }
 
     // If we've exhausted all retries, set error state
-    set((state) => ({
+    set({
       archestraMCPServer: {
-        ...state.archestraMCPServer,
+        name: ARCHESTRA_MCP_SERVER_NAME,
+        id: 0,
+        created_at: new Date().toISOString(),
+        server_config: {
+          transport: 'http',
+          command: '',
+          args: [],
+          env: {},
+        },
+        meta: {},
+        url: ARCHESTRA_SERVER_MCP_URL,
+        client: null,
+        tools: [],
         status: MCPServerStatus.Error,
         error: 'Failed to connect after maximum retries',
       },
-    }));
+    });
   },
 
   connectToMCPServer: async (serverName: string, url: string) => {
@@ -377,7 +375,7 @@ useMCPServersStore.getState().loadInstalledMCPServers();
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     const store = useMCPServersStore.getState();
-    store.archestraMCPServer.client?.close();
+    store.archestraMCPServer?.client?.close();
     store.installedMCPServers.forEach((server) => server.client?.close());
   });
 }
