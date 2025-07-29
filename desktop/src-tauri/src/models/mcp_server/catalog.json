@@ -116,24 +116,20 @@
     }
   },
   {
-    "id": "gmail",
-    "title": "Gmail",
+    "id": "google",
+    "title": "Google Workspace",
     "description": "Access and manage your Gmail messages with AI. Read, search, and organize your email communications.",
     "image": null,
     "category": "communication",
-    "tags": ["gmail", "email", "google", "messaging", "oauth"],
-    "author": "gongrzhe",
+    "tags": ["google", "email", "google", "messaging", "oauth"],
+    "author": "taylorwilsdon",
     "version": "1.0.0",
-    "homepage": "https://github.com/gongrzhe/server-gmail-autoauth-mcp",
-    "repository": "https://github.com/gongrzhe/server-gmail-autoauth-mcp",
-    "oauth": {
-      "provider": "gmail",
-      "required": true
-    },
+    "homepage": "https://workspacemcp.com/",
+    "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
     "server_config": {
       "transport": "stdio",
-      "command": "npx",
-      "args": ["@gongrzhe/server-gmail-autoauth-mcp"],
+      "command": "uvx",
+      "args": ["workspace-mcp"],
       "env": {}
     }
   },
