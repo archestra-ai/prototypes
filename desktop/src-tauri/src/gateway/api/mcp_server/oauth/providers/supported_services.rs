@@ -1,4 +1,4 @@
-use strum_macros::{Display, EnumString};
+use strum::{Display, EnumString};
 
 #[derive(Debug, Clone, PartialEq, Eq, Display, EnumString)]
 #[strum(serialize_all = "kebab-case")]

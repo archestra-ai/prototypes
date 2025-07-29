@@ -18,7 +18,7 @@ pub fn get_oauth_credentials_file_path(
     let mcp_servers_dir = app_dir.join("mcp_servers");
 
     // Use a consistent naming pattern for the credential files
-    let file_name = format!("oauth-credentials-{}.json", mcp_server_catalog_id);
+    let file_name = format!("oauth-credentials-{mcp_server_catalog_id}.json");
     Ok(mcp_servers_dir.join(file_name))
 }
 
@@ -45,8 +45,7 @@ pub fn write_oauth_credentials_file<T: Serialize>(
     // Return the templated path that will be used in catalog.json
     // This format will be replaced by MCPServerManager::start_server
     Ok(format!(
-        "{{{{ .app_data_dir }}}}/mcp_servers/oauth-credentials-{}.json",
-        mcp_server_catalog_id
+        "{{{{ .app_data_dir }}}}/mcp_servers/oauth-credentials-{mcp_server_catalog_id}.json"
     ))
 }
 

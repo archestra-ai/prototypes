@@ -80,7 +80,7 @@ pub async fn handle_google_oauth_callback(
     let connector = catalog
         .iter()
         .find(|c| c.id == mcp_server_catalog_id)
-        .ok_or_else(|| format!("Connector '{}' not found in catalog", mcp_server_catalog_id))?;
+        .ok_or_else(|| format!("Connector '{mcp_server_catalog_id}' not found in catalog"))?;
 
     // Update the server config with the credential file path
     let mut server_config = connector.server_config.clone();

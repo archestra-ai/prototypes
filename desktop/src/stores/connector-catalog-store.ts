@@ -15,7 +15,7 @@ interface ConnectorCatalogState {
   loadingConnectorCatalog: boolean;
   errorFetchingConnectorCatalog: string | null;
   installingMCPServerName: string | null;
-  errorInstallingMCPServer: string | null;
+  errorInstallingMCPServer: { error: string; mcpServerCatalogId: string } | null;
   uninstallingMCPServerName: string | null;
   errorUninstallingMCPServer: string | null;
 }
@@ -86,7 +86,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
       // Refresh the MCP servers list
       await useMCPServersStore.getState().loadInstalledMCPServers();
     } catch (error) {
-      set({ errorInstallingMCPServer: error as string });
+      set({ errorInstallingMCPServer: { error: String(error), mcpServerCatalogId: id } });
     } finally {
       set({ installingMCPServerName: null });
     }
@@ -128,8 +128,8 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
     });
 
     // Subscribe to OAuth success events
-    websocketService.subscribe('oauth-success', (message) => {
-      console.log('OAuth success for MCP server:', message.payload.mcp_server_catalog_id);
+    websocketService.subscribe('oauth-success', ({ payload: { mcp_server_catalog_id } }) => {
+      console.log('OAuth success for MCP server:', mcp_server_catalog_id);
 
       // Reload installed MCP servers to reflect the newly authenticated server
       useMCPServersStore.getState().loadInstalledMCPServers();
@@ -142,12 +142,15 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
     });
 
     // Subscribe to OAuth error events
-    websocketService.subscribe('oauth-error', (message) => {
-      console.error('OAuth error for MCP server:', message.payload.mcp_server_catalog_id, message.payload.error);
+    websocketService.subscribe('oauth-error', ({ payload: { mcp_server_catalog_id, error } }) => {
+      console.error('OAuth error for MCP server:', mcp_server_catalog_id, error);
 
       // Set the error in the store
       set({
-        errorInstallingMCPServer: `OAuth authentication failed: ${message.payload.error}`,
+        errorInstallingMCPServer: {
+          error: `OAuth authentication failed: ${error}`,
+          mcpServerCatalogId: mcp_server_catalog_id,
+        },
         installingMCPServerName: null,
       });
     });

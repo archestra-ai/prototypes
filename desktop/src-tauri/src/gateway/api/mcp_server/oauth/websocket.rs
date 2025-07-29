@@ -22,7 +22,7 @@ pub async fn emit_oauth_error(
 ) {
     let message = WebSocketMessage::OAuthError(OAuthErrorWebSocketPayload {
         mcp_server_catalog_id,
-        error: error,
+        error,
     });
     websocket_service.broadcast(message).await;
 }

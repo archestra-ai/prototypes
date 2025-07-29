@@ -57,8 +57,7 @@ tower-http = { version = "0.6", features = ["cors", "trace"] }
 ollama-rs = { version = "0.3.2", features = ["stream"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-strum = "0.27.2"
-strum_macros = "0.27.2"
+strum = { version = "0.27.2", features = ["derive"] }
 
 [dev-dependencies]
 tempfile = "3.8"
