@@ -25,16 +25,18 @@ jobs:
   deploy:
     name: Deploy to Cloud Run (${{ inputs.environment }})
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout project
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Set environment-specific variables
         id: env-vars
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
         run: |
-          if [ "${{ inputs.environment }}" == "prod" ]; then
+          if [ "$ENVIRONMENT" == "prod" ]; then
             echo "service_name=oauth-proxy" >> $GITHUB_OUTPUT
             echo "region=us-central1" >> $GITHUB_OUTPUT
             echo "memory=512Mi" >> $GITHUB_OUTPUT
@@ -53,7 +55,7 @@ jobs:
           fi
 
       - name: Build and push Docker image to GCR
-        uses: RafikFarhad/push-to-gcr-github-action@v5
+        uses: RafikFarhad/push-to-gcr-github-action@241707854fb71f655ec4e2a98bb16505f218bcc2 # v4.1.0
         with:
           registry: gcr.io
           project_id: ${{ secrets.GCP_PROJECT_ID }}
@@ -65,19 +67,23 @@ jobs:
 
       - name: Set image output
         id: docker-build
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          SERVICE_NAME: ${{ steps.env-vars.outputs.service_name }}
+          VERSION: ${{ inputs.version }}
         run: |
-          echo "image=gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ steps.env-vars.outputs.service_name }}:${{ inputs.version }}" >> $GITHUB_OUTPUT
+          echo "image=gcr.io/${PROJECT_ID}/${SERVICE_NAME}:${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@140bb5113ffb6b65a7e9b937a81fa96cf5064462 # v2.1.11
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@6a7c903a70c8625ed6700fa299f5ddb4ca6022e9 # v2.1.5
 
       - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@147732842f8a61ce9bd3b3f8e9f6597fe991ad65 # v2.7.4
         with:
           service: ${{ steps.env-vars.outputs.service_name }}
           image: ${{ steps.docker-build.outputs.image }}
@@ -98,20 +104,25 @@ jobs:
             LOG_LEVEL=info
 
       - name: Get service URL
+        id: service-url
+        env:
+          SERVICE_NAME: ${{ steps.env-vars.outputs.service_name }}
+          REGION: ${{ steps.env-vars.outputs.region }}
         run: |
-          SERVICE_URL=$(gcloud run services describe ${{ steps.env-vars.outputs.service_name }} \
+          SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" \
             --platform managed \
-            --region ${{ steps.env-vars.outputs.region }} \
+            --region "$REGION" \
             --format 'value(status.url)')
           echo "Service deployed to: $SERVICE_URL"
           echo "service_url=$SERVICE_URL" >> $GITHUB_OUTPUT
-        id: service-url
 
       - name: Verify deployment
+        env:
+          SERVICE_URL: ${{ steps.service-url.outputs.service_url }}
         run: |
           # Wait for service to be ready
           sleep 10
-          
+
           # Check health endpoint
-          curl -f "${{ steps.service-url.outputs.service_url }}/health" || exit 1
+          curl -f "${SERVICE_URL}/health" || exit 1
           echo "Health check passed!"

@@ -133,6 +133,19 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+
+      - name: Build Docker image
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
+        with:
+          context: ./oauth-proxy
+          file: ./oauth-proxy/Dockerfile
+          push: false
+          tags: oauth-proxy:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   verify-openapi-schema-is-up-to-date:
     name: Verify Open API schema is up to date
     runs-on: ubuntu-latest

@@ -18,6 +18,8 @@ jobs:
   deploy-oauth-proxy-to-dev:
     name: Deploy OAuth Proxy to Dev
     uses: ./.github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml
+    permissions:
+      contents: read
     with:
       environment: dev
       version: ${{ github.sha }}
