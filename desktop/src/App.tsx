@@ -22,8 +22,6 @@ export default function App() {
     }
   };
 
-  // Removed unused overflowClassName variable
-
   return (
     <div className="[--header-height:2.25rem] h-screen flex flex-col">
       <Sidebar>{renderContent()}</Sidebar>

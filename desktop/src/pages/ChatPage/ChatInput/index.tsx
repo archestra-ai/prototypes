@@ -24,15 +24,12 @@ import { useChatContext } from '@/providers/chat-provider';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
 import { useOllamaStore } from '@/stores/ollama-store';
-import { ChatMessageStatus } from '@/types';
+import { ChatMessageStatus, ToolWithMCPServerName } from '@/types';
 
-// Define ToolContext interface
-interface ToolContext {
-  serverName: string;
-  toolName: string;
-  enabled: boolean;
-  description?: string;
-}
+// Use a type alias for tool context that maps to our existing types
+type ToolContext = Pick<ToolWithMCPServerName, 'serverName' | 'enabled' | 'description'> & {
+  toolName: string; // maps to 'name' in ToolWithMCPServerName
+};
 
 interface ChatInputProps {}
 

@@ -4,7 +4,7 @@ import type { AgentMode } from '@/types/agent';
 import { HumanInLoopHandler } from '@/types/agent-ui';
 
 // Import after mocks
-import { useAgentStore } from '../agent-store';
+import { useAgentStore } from './agent-store';
 
 // Mock dependencies
 vi.mock('@/stores/chat-store', () => ({
@@ -322,8 +322,8 @@ describe('Agent Store Lifecycle Tests', () => {
 
       // Track mode changes
       const unsubscribe = useAgentStore.subscribe(
-        (state) => state.mode,
-        (mode) => modeHistory.push(mode)
+        (state: ReturnType<typeof useAgentStore.getState>) => state.mode,
+        (mode: AgentMode) => modeHistory.push(mode)
       );
 
       await activateAgent('Test state sync');

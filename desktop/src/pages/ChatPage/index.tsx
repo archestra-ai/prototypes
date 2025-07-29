@@ -19,7 +19,7 @@ export default function ChatPage(_props: ChatPageProps) {
 
   return (
     <ChatProvider>
-      <div className="flex flex-col h-full gap-2 max-w-full overflow-hidden">
+      <div className="flex flex-col h-full gap-2 max-w-full overflow-hidden p-4">
         <div className="flex-1 min-h-0 overflow-hidden max-w-full">
           <ChatHistory />
         </div>

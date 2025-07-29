@@ -72,27 +72,6 @@ export interface HumanInLoopHandler {
 }
 
 /**
- * Creates a UI approval handler (stub for compatibility)
- */
-export function createUIApprovalHandler(callback: ApprovalRequestCallback): HumanInLoopHandler {
-  return {
-    requiresApproval: async () => false, // Backend decides
-    requestApproval: async (toolName, serverName, args) => {
-      const request: ToolApprovalRequest = {
-        id: crypto.randomUUID(),
-        toolName,
-        serverName,
-        arguments: args,
-        category: ToolCategory.OTHER,
-        isSensitive: false,
-        timestamp: new Date(),
-      };
-      return callback(request);
-    },
-  };
-}
-
-/**
  * Agent UI state (keep only UI-related types)
  */
 export interface AgentUIState {

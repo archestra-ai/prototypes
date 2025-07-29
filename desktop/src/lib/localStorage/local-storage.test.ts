@@ -1,4 +1,3 @@
-/// <reference types="vitest/globals" />
 import { OllamaLocalStorage } from './';
 
 describe('OllamaLocalStorage', () => {
