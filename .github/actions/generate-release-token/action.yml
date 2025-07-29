@@ -1,0 +1,22 @@
+name: Generate Release Token
+description: Generate a GitHub App token for release operations
+inputs:
+  app-id:
+    description: The GitHub App ID
+    required: true
+  private-key:
+    description: The GitHub App private key
+    required: true
+outputs:
+  token:
+    description: The generated GitHub App token
+    value: ${{ steps.generate-token.outputs.token }}
+runs:
+  using: composite
+  steps:
+    - name: Generate a token
+      id: generate-token
+      uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}

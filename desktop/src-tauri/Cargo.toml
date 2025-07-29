@@ -27,7 +27,7 @@ tauri-build = { version = "2", features = [] }
 tauri-plugin-single-instance = { version = "2.3.2", features = ["deep-link"] }
 
 [dependencies]
-tokio = { version = "1.37", features = ["process", "io-util", "macros", "rt-multi-thread", "io-std"] }
+tokio = { version = "1.47", features = ["process", "io-util", "macros", "rt-multi-thread", "io-std"] }
 tokio-util = "0.7"
 tokio-stream = "0.1.17"
 tauri = { version = "2", features = ["test"] }
@@ -61,7 +61,7 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 [dev-dependencies]
 tempfile = "3.8"
-rstest = "0.26.0"
+rstest = "0.26.1"
 rstest_reuse = "0.7.0"
 sea-orm-cli = "1.1.14"
 tower = { version = "0.5", features = ["util"] }
