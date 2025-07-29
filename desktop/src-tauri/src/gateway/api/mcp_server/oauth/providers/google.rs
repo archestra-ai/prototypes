@@ -1,12 +1,11 @@
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{debug};
+use tracing::debug;
 use url::Url;
 
 use crate::gateway::api::mcp_server::oauth::utils::write_oauth_credentials_file;
 use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel};
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GoogleCredentials {
@@ -25,9 +24,9 @@ pub async fn handle_google_oauth_callback(
 ) -> Result<(), String> {
     debug!("Received Google OAuth callback: {url}");
 
-    let parsed_url = Url::parse(&url)
-        .map_err(|e| format!("Invalid Google OAuth callback URL: {e}"))?;
-    
+    let parsed_url =
+        Url::parse(&url).map_err(|e| format!("Invalid Google OAuth callback URL: {e}"))?;
+
     let query_params: HashMap<String, String> = parsed_url
         .query_pairs()
         .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -38,22 +37,22 @@ pub async fn handle_google_oauth_callback(
         .get("service")
         .ok_or("Missing service parameter")?
         .clone();
-    
+
     let refresh_token = query_params
         .get("refresh_token")
         .ok_or("Missing refresh_token parameter")?
         .clone();
-    
+
     let token_uri = query_params
         .get("token_uri")
         .ok_or("Missing token_uri parameter")?
         .clone();
-    
+
     let client_id = query_params
         .get("client_id")
         .ok_or("Missing client_id parameter")?
         .clone();
-    
+
     let client_secret = query_params
         .get("client_secret")
         .ok_or("Missing client_secret parameter")?
@@ -69,17 +68,14 @@ pub async fn handle_google_oauth_callback(
     };
 
     // Write credentials to file
-    let credential_path = write_oauth_credentials_file(
-        &app_handle,
-        &mcp_server_catalog_id,
-        &credentials,
-    )?;
+    let credential_path =
+        write_oauth_credentials_file(&app_handle, &mcp_server_catalog_id, &credentials)?;
 
     // Load the catalog to get the server definition
     let catalog = MCPServerModel::get_mcp_connector_catalog()
         .await
         .map_err(|e| format!("Failed to load MCP connector catalog: {e}"))?;
-    
+
     // Find the connector by ID
     let connector = catalog
         .iter()
@@ -88,10 +84,9 @@ pub async fn handle_google_oauth_callback(
 
     // Update the server config with the credential file path
     let mut server_config = connector.server_config.clone();
-    server_config.env.insert(
-        "GOOGLE_CLIENT_SECRET_PATH".to_string(),
-        credential_path,
-    );
+    server_config
+        .env
+        .insert("GOOGLE_CLIENT_SECRET_PATH".to_string(), credential_path);
 
     let definition = MCPServerDefinition {
         name: connector.title.clone(),

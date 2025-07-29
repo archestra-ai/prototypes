@@ -195,7 +195,9 @@ impl Model {
         let connector = catalog
             .iter()
             .find(|c| c.id == mcp_server_catalog_id)
-            .ok_or_else(|| format!("Connector with ID '{mcp_server_catalog_id}' not found in catalog"))?;
+            .ok_or_else(|| {
+                format!("Connector with ID '{mcp_server_catalog_id}' not found in catalog")
+            })?;
 
         let definition = MCPServerDefinition {
             name: connector.title.clone(),

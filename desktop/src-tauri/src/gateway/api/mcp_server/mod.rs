@@ -27,7 +27,6 @@ pub struct StartOAuthRequest {
     mcp_server_catalog_id: String,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct OAuthProxyResponse {
     pub auth_url: String,
@@ -96,7 +95,8 @@ impl Service {
             .map_err(|e| format!("Failed to parse auth response: {e}"))?;
 
         // Open the auth URL in the system browser
-        self.app_handle.opener()
+        self.app_handle
+            .opener()
             .open_url(auth_data.auth_url.as_str(), None::<&str>)
             .map_err(|e| format!("Failed to open auth URL: {e}"))?;
 
@@ -179,7 +179,8 @@ pub async fn start_mcp_server_oauth(
 ) -> Result<String, StatusCode> {
     let mcp_server_catalog_id = payload.mcp_server_catalog_id;
 
-    service.start_oauth_auth(mcp_server_catalog_id.clone())
+    service
+        .start_oauth_auth(mcp_server_catalog_id.clone())
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -209,16 +210,16 @@ pub async fn uninstall_mcp_server(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub fn create_router(
-    app_handle: tauri::AppHandle,
-    db: DatabaseConnection,
-) -> Router {
+pub fn create_router(app_handle: tauri::AppHandle, db: DatabaseConnection) -> Router {
     let service = Arc::new(Service::new(app_handle, db));
     Router::new()
         .route("/", get(get_installed_mcp_servers))
         .route("/catalog", get(get_mcp_connector_catalog))
         .route("/catalog/install", post(install_mcp_server_from_catalog))
-        .route("/catalog/install/{mcp_server_catalog_id}/start_oauth", post(start_mcp_server_oauth))
+        .route(
+            "/catalog/install/{mcp_server_catalog_id}/start_oauth",
+            post(start_mcp_server_oauth),
+        )
         .route("/{mcp_server_name}", delete(uninstall_mcp_server))
         .with_state(service)
 }

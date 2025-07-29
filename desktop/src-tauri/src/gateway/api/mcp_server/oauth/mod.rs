@@ -25,7 +25,12 @@ pub async fn handle_oauth_callback(
         Err(e) => {
             let error_message = format!("Invalid OAuth callback URL: {e}");
             error!(error_message);
-            let _ = websocket::emit_oauth_error(websocket_service, "unknown".to_string(), error_message).await;
+            let _ = websocket::emit_oauth_error(
+                websocket_service,
+                "unknown".to_string(),
+                error_message,
+            )
+            .await;
             return;
         }
     };
@@ -45,7 +50,9 @@ pub async fn handle_oauth_callback(
     if let Some(error) = query_params.get("error") {
         let error_message = format!("OAuth error for {mcp_server_catalog_id}: {error}");
         error!(error_message);
-        let _ = websocket::emit_oauth_error(websocket_service, mcp_server_catalog_id, error_message).await;
+        let _ =
+            websocket::emit_oauth_error(websocket_service, mcp_server_catalog_id, error_message)
+                .await;
         return;
     }
 
@@ -61,18 +68,26 @@ pub async fn handle_oauth_callback(
             {
                 Ok(()) => {
                     debug!("OAuth success for {mcp_server_catalog_id}");
-                    let _ = websocket::emit_oauth_success(websocket_service, mcp_server_catalog_id).await;
+                    let _ = websocket::emit_oauth_success(websocket_service, mcp_server_catalog_id)
+                        .await;
                 }
                 Err(e) => {
                     error!("OAuth error for {mcp_server_catalog_id}: {e}");
-                    let _ = websocket::emit_oauth_error(websocket_service, mcp_server_catalog_id, e).await;
+                    let _ =
+                        websocket::emit_oauth_error(websocket_service, mcp_server_catalog_id, e)
+                            .await;
                 }
             }
         }
         _ => {
             let error_message = format!("Unsupported OAuth service: {mcp_server_catalog_id}");
             error!(error_message);
-            let _ = websocket::emit_oauth_error(websocket_service, mcp_server_catalog_id, error_message).await;
+            let _ = websocket::emit_oauth_error(
+                websocket_service,
+                mcp_server_catalog_id,
+                error_message,
+            )
+            .await;
         }
     }
 }

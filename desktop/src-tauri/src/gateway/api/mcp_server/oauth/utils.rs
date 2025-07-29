@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use serde::Serialize;
+use std::path::PathBuf;
 use tauri::Manager;
 
 /// Get the file path for OAuth credentials for a given MCP server
@@ -13,10 +13,10 @@ pub fn get_oauth_credentials_file_path(
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data directory: {e}"))?;
-    
+
     // Create the mcp_servers subdirectory
     let mcp_servers_dir = app_dir.join("mcp_servers");
-    
+
     // Use a consistent naming pattern for the credential files
     let file_name = format!("oauth-credentials-{}.json", mcp_server_catalog_id);
     Ok(mcp_servers_dir.join(file_name))
@@ -30,19 +30,18 @@ pub fn write_oauth_credentials_file<T: Serialize>(
     credentials: &T,
 ) -> Result<String, String> {
     let file_path = get_oauth_credentials_file_path(app_handle, mcp_server_catalog_id)?;
-    
+
     // Create parent directory if it doesn't exist
     if let Some(parent) = file_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create directory: {e}"))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {e}"))?;
     }
-    
+
     let file_content = serde_json::to_string_pretty(&credentials)
         .map_err(|e| format!("Failed to serialize credentials: {e}"))?;
-    
+
     std::fs::write(&file_path, file_content)
         .map_err(|e| format!("Failed to write credentials to file: {e}"))?;
-    
+
     // Return the templated path that will be used in catalog.json
     // This format will be replaced by MCPServerManager::start_server
     Ok(format!(
@@ -61,10 +60,10 @@ pub fn resolve_templated_path(
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data directory: {e}"))?;
-    
+
     let app_dir_str = app_dir
         .to_str()
         .ok_or("Failed to convert app directory path to string")?;
-    
+
     Ok(templated_path.replace("{{ .app_data_dir }}", app_dir_str))
 }

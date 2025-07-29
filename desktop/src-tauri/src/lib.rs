@@ -23,37 +23,46 @@ pub fn run() {
     {
         debug!("Setting up single instance plugin...");
         let websocket_service_for_single_instance = websocket_service.clone();
-        builder = builder.plugin(tauri_plugin_single_instance::init(move |app, argv, _cwd| {
-            debug!("SINGLE INSTANCE CALLBACK: a new app instance was opened with {argv:?}");
+        builder = builder.plugin(tauri_plugin_single_instance::init(
+            move |app, argv, _cwd| {
+                debug!("SINGLE INSTANCE CALLBACK: a new app instance was opened with {argv:?}");
 
-            // HANDLER 1: Single Instance Deep Link Handler
-            // This handles deep links when the app is ALREADY RUNNING and user clicks a deep link
-            // Scenario: App is open → User clicks archestra-ai://foo-bar → This prevents opening
-            // a second instance and processes the deep link in the existing app
-            for arg in argv {
-                if arg.starts_with("archestra-ai://") {
-                    debug!("SINGLE INSTANCE: Found deep link in argv: {arg}");
-                    let app_handle = app.clone();
-                    let websocket_service_clone = websocket_service_for_single_instance.clone();
+                // HANDLER 1: Single Instance Deep Link Handler
+                // This handles deep links when the app is ALREADY RUNNING and user clicks a deep link
+                // Scenario: App is open → User clicks archestra-ai://foo-bar → This prevents opening
+                // a second instance and processes the deep link in the existing app
+                for arg in argv {
+                    if arg.starts_with("archestra-ai://") {
+                        debug!("SINGLE INSTANCE: Found deep link in argv: {arg}");
+                        let app_handle = app.clone();
+                        let websocket_service_clone = websocket_service_for_single_instance.clone();
 
-                    tauri::async_runtime::spawn(async move {
-                        match database::connection::get_database_connection_with_app(&app_handle).await {
-                            Ok(db) => {
-                                gateway::api::mcp_server::oauth::handle_oauth_callback(
-                                    app_handle,
-                                    std::sync::Arc::new(db),
-                                    websocket_service_clone,
-                                    arg.to_string()
-                                ).await;
+                        tauri::async_runtime::spawn(async move {
+                            match database::connection::get_database_connection_with_app(
+                                &app_handle,
+                            )
+                            .await
+                            {
+                                Ok(db) => {
+                                    gateway::api::mcp_server::oauth::handle_oauth_callback(
+                                        app_handle,
+                                        std::sync::Arc::new(db),
+                                        websocket_service_clone,
+                                        arg.to_string(),
+                                    )
+                                    .await;
+                                }
+                                Err(e) => {
+                                    error!(
+                                        "Failed to get database connection for OAuth callback: {e}"
+                                    );
+                                }
                             }
-                            Err(e) => {
-                                error!("Failed to get database connection for OAuth callback: {e}");
-                            }
-                        }
-                    });
+                        });
+                    }
                 }
-            }
-        }));
+            },
+        ));
         debug!("Single instance plugin set up successfully");
     }
 
@@ -93,7 +102,14 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let websocket_service_for_gateway = websocket_service.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = gateway::start_gateway(app_handle, websocket_service_for_gateway, user_id, db_for_mcp).await {
+                if let Err(e) = gateway::start_gateway(
+                    app_handle,
+                    websocket_service_for_gateway,
+                    user_id,
+                    db_for_mcp,
+                )
+                .await
+                {
                     error!("Failed to start gateway: {e}");
                 }
             });
@@ -102,8 +118,10 @@ pub fn run() {
             let db_for_sync = db.clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) =
-                    models::external_mcp_client::Model::sync_all_connected_external_mcp_clients(&db_for_sync)
-                        .await
+                    models::external_mcp_client::Model::sync_all_connected_external_mcp_clients(
+                        &db_for_sync,
+                    )
+                    .await
                 {
                     error!("Failed to sync all connected external MCP clients: {e}");
                 }
@@ -128,11 +146,12 @@ pub fn run() {
 
                     tauri::async_runtime::spawn(async move {
                         gateway::api::mcp_server::oauth::handle_oauth_callback(
-                            app_handle, 
-                            std::sync::Arc::new(db), 
-                            websocket_service_clone, 
-                            url.to_string()
-                        ).await;
+                            app_handle,
+                            std::sync::Arc::new(db),
+                            websocket_service_clone,
+                            url.to_string(),
+                        )
+                        .await;
                     });
                 }
             });

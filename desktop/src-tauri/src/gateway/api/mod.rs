@@ -6,10 +6,7 @@ pub mod external_mcp_client;
 pub mod mcp_request_log;
 pub mod mcp_server;
 
-pub fn create_router(
-    app_handle: tauri::AppHandle,
-    db: DatabaseConnection,
-) -> Router {
+pub fn create_router(app_handle: tauri::AppHandle, db: DatabaseConnection) -> Router {
     Router::new()
         .nest(
             "/external_mcp_client",

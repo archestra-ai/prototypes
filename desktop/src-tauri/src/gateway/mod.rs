@@ -1,11 +1,11 @@
 use axum::Router;
 use sea_orm::DatabaseConnection;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
-use std::sync::Arc;
 
 pub mod api;
 pub mod llm_providers;
