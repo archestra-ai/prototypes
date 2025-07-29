@@ -103,16 +103,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
         errorInstallingMCPServer: null,
       });
 
-      // First install the MCP server
-      const installResponse = await installMcpServerFromCatalog({
-        body: { mcp_server_catalog_id: id },
-      });
-
-      if ('error' in installResponse) {
-        throw new Error(installResponse.error as string);
-      }
-
-      // Then start the OAuth flow
+      // Start the OAuth flow
       const oauthResponse = await startMcpServerOauth({
         body: { mcp_server_catalog_id: id },
       });

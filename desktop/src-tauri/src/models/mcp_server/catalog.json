@@ -116,6 +116,42 @@
     }
   },
   {
+    "id": "fetch",
+    "title": "Fetch",
+    "description": "Fetch and retrieve content from web URLs. Download web pages, APIs, and other web resources with customizable headers and request options.",
+    "image": null,
+    "category": "web",
+    "tags": ["web", "fetch", "http", "api", "download"],
+    "author": "ModelContextProtocol",
+    "version": "1.0.0",
+    "homepage": "https://github.com/modelcontextprotocol/servers",
+    "repository": "https://github.com/modelcontextprotocol/servers",
+    "server_config": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "env": {}
+    }
+  },
+  {
+    "id": "everything",
+    "title": "Everything",
+    "description": "This MCP server attempts to exercise all the features of the MCP protocol. It is not intended to be a useful server, but rather a test server for builders of MCP clients. It implements prompts, tools, resources, sampling, and more to showcase MCP capabilities.",
+    "image": null,
+    "category": "system",
+    "tags": ["files", "local", "read", "write"],
+    "author": "ModelContextProtocol",
+    "version": "1.0.0",
+    "homepage": "https://github.com/modelcontextprotocol/servers",
+    "repository": "https://github.com/modelcontextprotocol/servers",
+    "server_config": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everything"],
+      "env": {}
+    }
+  },
+  {
     "id": "gmail",
     "title": "Gmail",
     "description": "Access and manage your Gmail messages with AI. Read, search, and organize your email communications.",
@@ -158,9 +194,7 @@
       "transport": "stdio",
       "command": "uvx",
       "args": ["workspace-mcp", "--tools", "drive"],
-      "env": {
-        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/drive-client-secret.json"
-      }
+      "env": {}
     }
   },
   {
@@ -182,44 +216,6 @@
       "transport": "stdio",
       "command": "uvx",
       "args": ["workspace-mcp", "--tools", "calendar"],
-      "env": {
-        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/calendar-client-secret.json"
-      }
-    }
-  },
-  {
-    "id": "fetch",
-    "title": "Fetch",
-    "description": "Fetch and retrieve content from web URLs. Download web pages, APIs, and other web resources with customizable headers and request options.",
-    "image": null,
-    "category": "web",
-    "tags": ["web", "fetch", "http", "api", "download"],
-    "author": "ModelContextProtocol",
-    "version": "1.0.0",
-    "homepage": "https://github.com/modelcontextprotocol/servers",
-    "repository": "https://github.com/modelcontextprotocol/servers",
-    "server_config": {
-      "transport": "stdio",
-      "command": "uvx",
-      "args": ["mcp-server-fetch"],
-      "env": {}
-    }
-  },
-  {
-    "id": "everything",
-    "title": "Everything",
-    "description": "This MCP server attempts to exercise all the features of the MCP protocol. It is not intended to be a useful server, but rather a test server for builders of MCP clients. It implements prompts, tools, resources, sampling, and more to showcase MCP capabilities.",
-    "image": null,
-    "category": "system",
-    "tags": ["files", "local", "read", "write"],
-    "author": "ModelContextProtocol",
-    "version": "1.0.0",
-    "homepage": "https://github.com/modelcontextprotocol/servers",
-    "repository": "https://github.com/modelcontextprotocol/servers",
-    "server_config": {
-      "transport": "stdio",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-everything"],
       "env": {}
     }
   },
@@ -242,9 +238,7 @@
       "transport": "stdio",
       "command": "uvx",
       "args": ["workspace-mcp", "--tools", "docs"],
-      "env": {
-        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/docs-client-secret.json"
-      }
+      "env": {}
     }
   },
   {
@@ -266,9 +260,7 @@
       "transport": "stdio",
       "command": "uvx",
       "args": ["workspace-mcp", "--tools", "sheets"],
-      "env": {
-        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/sheets-client-secret.json"
-      }
+      "env": {}
     }
   },
   {
@@ -290,9 +282,7 @@
       "transport": "stdio",
       "command": "uvx",
       "args": ["workspace-mcp", "--tools", "slides"],
-      "env": {
-        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/slides-client-secret.json"
-      }
+      "env": {}
     }
   },
   {
@@ -314,9 +304,7 @@
       "transport": "stdio",
       "command": "uvx",
       "args": ["workspace-mcp", "--tools", "forms"],
-      "env": {
-        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/forms-client-secret.json"
-      }
+      "env": {}
     }
   },
   {
@@ -338,9 +326,7 @@
       "transport": "stdio",
       "command": "uvx",
       "args": ["workspace-mcp", "--tools", "tasks"],
-      "env": {
-        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/tasks-client-secret.json"
-      }
+      "env": {}
     }
   },
   {
@@ -362,9 +348,7 @@
       "transport": "stdio",
       "command": "uvx",
       "args": ["workspace-mcp", "--tools", "chat"],
-      "env": {
-        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/chat-client-secret.json"
-      }
+      "env": {}
     }
   }
 ]
