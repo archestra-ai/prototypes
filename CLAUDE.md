@@ -97,10 +97,18 @@ pnpm dbstudio
 ### OAuth Proxy Service
 
 ```bash
-cd backend/oauth-proxy
-npm install
-npm run dev  # Development mode with nodemon
-npm start    # Production mode
+cd oauth-proxy
+pnpm install
+pnpm run dev  # Development mode with Vite
+pnpm run build  # Build for production
+pnpm run preview  # Preview production build
+```
+
+#### Testing OAuth proxy
+
+```bash
+cd oauth-proxy
+pnpm test  # Run unit tests with Vitest
 ```
 
 ## High-Level Architecture
@@ -114,7 +122,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - **Routing**: Tanstack React Router
 - **Backend**: Rust with Tauri v2 framework, Axum web framework, SeaORM for SQLite database
 - **API Layer**: HTTP gateway on port 54587 with OpenAPI schema generation using utoipa
-- **Services**: Node.js OAuth proxy for handling OAuth flows
+- **Services**: Node.js OAuth proxy for handling OAuth flows (TypeScript + Express + Vite)
 - **AI Integration**: Ollama for local LLM support, MCP (Model Context Protocol) for tool integration
 - **Testing**: Vitest + React Testing Library (frontend), Rust built-in test framework with rstest (backend)
 
@@ -160,7 +168,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `src/gateway/`: HTTP gateway exposing the following APIs:
   - `/api`: REST API for Archestra resources (OpenAPI documented)
     - `/api/chat`: Chat CRUD operations (create, read, update, delete chats)
-    - `oauth/`: OAuth authentication flows for MCP servers (e.g., Gmail)
+    - `/api/mcp_server/oauth/callback`: OAuth callback endpoint for deep links from proxy service
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
   - `/llm/:provider`: Proxies requests to LLM providers
@@ -174,14 +182,33 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `binaries/`: Embedded Ollama binaries for different platforms
 - `sandbox-exec-profiles/`: macOS sandbox profiles for security
 
+#### OAuth Proxy Service (`oauth-proxy/`)
+
+- `src/`: TypeScript source code
+  - `server.ts`: Express server setup with middleware
+  - `google.ts`: Google OAuth implementation using googleapis
+  - `v1/handlers.ts`: OAuth flow handlers with CSRF protection
+  - `types.ts`: TypeScript type definitions
+  - `logger.ts`: Structured logging with Pino
+- `public/`: Static files served by Express
+  - `index.html`: Landing page
+  - `oauth-callback.html`: OAuth callback page that redirects to desktop app
+- Built with TypeScript, Express, and Vite for modern development
+- Deployed to Google Cloud Run with auto-scaling
+
 ### Core Features
 
 1. **MCP Integration**: Supports MCP servers for extending AI capabilities with tools via rmcp library
-   - **Available MCP Servers**: Context7, Filesystem, GitHub, Brave Search, PostgreSQL, Slack, Gmail, Fetch (HTTP requests), and Everything (file search)
+   - **Available MCP Servers**: Context7, Filesystem, GitHub, Brave Search, PostgreSQL, Slack, Fetch (HTTP requests), Everything (file search)
+   - **Google Workspace MCP Servers**: Gmail, Google Drive, Calendar, Docs, Sheets, Slides, Forms, Tasks, and Chat (requires OAuth authentication)
 2. **Local LLM Support**: Runs Ollama locally for privacy-focused AI interactions
 3. **Chat Persistence**: Full CRUD operations for chat conversations with SQLite database storage
 4. **Intelligent Chat Titles**: Automatic LLM-generated chat titles based on conversation content
-5. **OAuth Authentication**: Handles OAuth flows for services like Gmail
+5. **OAuth Authentication**: Secure OAuth flow for Google Workspace services with external proxy:
+   - **OAuth Proxy Service**: Deployed to Google Cloud Run at oauth.archestra.ai (prod) and oauth.dev.archestra.ai (dev)
+   - **Deep Link Integration**: Uses `archestra-ai://oauth/callback` URLs to pass tokens to desktop app
+   - **Credential Management**: Stores OAuth credentials securely in app data directory
+   - **Supported Services**: Gmail, Google Drive, Calendar, Docs, Sheets, Slides, Forms, Tasks, and Chat
 6. **Chat Interface**: Full-featured chat UI with streaming responses and tool execution
    - **Tool Execution Display**: Shows execution time, status indicators, and collapsible argument/result sections
    - **Enhanced Code Blocks**: Syntax highlighting with Shiki, file tabs, copy functionality, and theme support
@@ -276,6 +303,35 @@ The application uses WebSockets for real-time event broadcasting between the bac
   - Payload: `{chat_id: number, title: string}`
   - Triggered after 4 chat interactions
   - Frontend automatically updates UI without refresh
+- **`oauth-success`**: Broadcasts when OAuth authentication completes successfully
+  - Payload: `{mcp_server_catalog_id: string}`
+  - Triggered after successful OAuth callback processing
+- **`oauth-error`**: Broadcasts when OAuth authentication fails
+  - Payload: `{mcp_server_catalog_id: string, error: string}`
+  - Triggered on OAuth flow errors or invalid callbacks
+
+### OAuth Authentication Flow
+
+The application implements a secure OAuth flow for Google Workspace services:
+
+1. **User initiates OAuth**: Frontend requests OAuth URL from desktop API
+2. **Desktop contacts proxy**: Desktop API calls OAuth proxy service with service name
+3. **Proxy generates auth URL**: OAuth proxy creates Google OAuth URL with appropriate scopes
+4. **User authenticates**: Browser opens Google OAuth consent page
+5. **Google redirects to proxy**: After consent, Google redirects to proxy callback URL
+6. **Proxy exchanges code**: OAuth proxy exchanges authorization code for tokens
+7. **Proxy redirects to desktop**: Proxy redirects to `archestra-ai://oauth/callback` with tokens
+8. **Desktop handles deep link**: App receives tokens via deep link handler
+9. **Desktop saves credentials**: Credentials are written to secure app data directory
+10. **MCP server configured**: Server is saved to DB with credential file path
+11. **WebSocket notification**: Success/error event broadcast to frontend
+
+**Security Features**:
+- CSRF protection via state parameter validation
+- Tokens never stored on proxy server
+- Credentials stored securely in app data directory
+- Client secrets managed as environment variables
+- HTTPS required in production
 
 ### Key Patterns
 
@@ -452,6 +508,22 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
   - Creates draft GitHub releases with platform-specific binaries using the generated GitHub App token
   - Tags releases with format `app-v__VERSION__`
 
+#### OAuth Proxy Deployment Workflows
+
+##### Development Deployment (`.github/workflows/on-commits-to-main.yml`)
+- Triggers on pushes to `main` branch that modify `oauth-proxy/` files
+- Automatically deploys to `oauth.dev.archestra.ai` environment
+- Uses commit SHA as version tag
+- Minimal resource allocation (256Mi memory, 0-10 instances)
+- Includes health check verification after deployment
+
+##### Production Deployment (via Release Please)
+- Triggers when release-please creates an OAuth proxy release
+- Deploys to `oauth.archestra.ai` production environment
+- Uses semantic version tag (e.g., `v1.2.3`)
+- Production resources (512Mi memory, 1-100 instances)
+- Requires successful dev deployment and testing
+
 #### Interactive Claude Workflow (`.github/workflows/claude.yml`)
 
 - Triggers on `@claude` mentions in issues, PR comments, and reviews
@@ -470,9 +542,12 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 ### Development Notes
 
 - Single instance enforcement prevents multiple app instances
-- The app supports deep linking with `archestra-ai://` protocol
+- The app supports deep linking with `archestra-ai://` protocol for OAuth callbacks
 - MCP servers are sandboxed for security on macOS
-- OAuth proxy runs as a separate service on a configured port
+- OAuth proxy runs as a separate service deployed to Google Cloud Run:
+  - Development: https://oauth.dev.archestra.ai
+  - Production: https://oauth.archestra.ai
+- OAuth credentials are stored in `~/Library/Application Support/com.archestra-ai.app/mcp_servers/` on macOS
 - OpenAPI schema must be regenerated after API changes (CI will catch if forgotten)
 - Frontend API calls should use the generated client, not Tauri commands
 - Database migrations should be created for schema changes using SeaORM
