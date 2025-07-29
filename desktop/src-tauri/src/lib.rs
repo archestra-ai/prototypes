@@ -2,6 +2,7 @@ use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
 use tracing::{debug, error, info};
 
+pub mod credibility;
 pub mod database;
 pub mod gateway;
 pub mod models;
@@ -69,6 +70,11 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = ollama_service.start_server_on_startup().await {
                     error!("Failed to start Ollama server: {e}");
+                } else {
+                    // Ensure required models are downloaded after server starts
+                    if let Err(e) = ollama_service.ensure_required_models_are_downloaded().await {
+                        error!("Failed to ensure required models are downloaded: {e}");
+                    }
                 }
             });
 

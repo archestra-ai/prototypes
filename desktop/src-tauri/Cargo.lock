@@ -150,6 +150,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "chrono",
+ "futures 0.3.31",
  "futures-util",
  "http-body-util",
  "lazy_static",

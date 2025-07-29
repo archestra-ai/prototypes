@@ -1,3 +1,4 @@
+use crate::credibility::ToolCredibilityService;
 use crate::models::mcp_request_log::ClientInfo;
 use crate::models::mcp_request_log::{CreateLogRequest, Model as MCPRequestLog};
 use crate::sandbox;
@@ -186,6 +187,76 @@ impl Service {
 
         // Extract method from request body
         let method = Self::extract_method_from_request(&request_body);
+
+        // Check tool call credibility
+        let tool_service = ToolCredibilityService::new();
+        match tool_service
+            .evaluate_tool_call_credibility(request_body.clone())
+            .await
+        {
+            Ok(Some(evaluation)) => {
+                if !evaluation.credible {
+                    // Return a JSON-RPC error response
+                    let error_response = serde_json::json!({
+                        "jsonrpc": "2.0",
+                        "id": null,
+                        "error": {
+                            "code": -32600,
+                            "message": format!("Tool call was flagged as potentially non-credible: {}", evaluation.reason)
+                        }
+                    });
+
+                    let error_response_str = serde_json::to_string(&error_response).unwrap();
+
+                    // Log the failed request
+                    let mut response_headers = HashMap::new();
+                    response_headers
+                        .insert("Content-Type".to_string(), "application/json".to_string());
+
+                    let log_data = CreateLogRequest {
+                        request_id,
+                        session_id: Some(session_id),
+                        mcp_session_id,
+                        server_name,
+                        client_info: Some(client_info),
+                        method,
+                        request_headers: Some(request_headers),
+                        request_body: Some(request_body),
+                        response_body: Some(error_response_str.clone()),
+                        response_headers: Some(response_headers),
+                        status_code: 400,
+                        error_message: Some(format!(
+                            "Tool credibility check failed: {}",
+                            evaluation.reason
+                        )),
+                        duration_ms: Some(start_time.elapsed().as_millis() as i32),
+                    };
+
+                    // Log asynchronously
+                    let db_clone = Arc::clone(&self.db);
+                    tokio::spawn(async move {
+                        if let Err(e) = MCPRequestLog::create_request_log(&db_clone, log_data).await
+                        {
+                            error!("Failed to log request: {e}");
+                        }
+                    });
+
+                    return axum::http::Response::builder()
+                        .status(axum::http::StatusCode::BAD_REQUEST)
+                        .header("Content-Type", "application/json")
+                        .body(Body::from(error_response_str))
+                        .unwrap();
+                }
+            }
+            Ok(None) => {
+                // Guard model not available, continue processing
+                debug!("Tool credibility check skipped - guard model not available");
+            }
+            Err(e) => {
+                // Log error but continue processing
+                error!("Failed to evaluate tool call credibility: {e}");
+            }
+        }
 
         debug!("🔄 Forwarding request to forward_raw_request function...");
         // Forward the raw JSON-RPC request to the MCPServerManager

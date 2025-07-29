@@ -38,6 +38,7 @@ tauri-plugin-shell = "2"
 tauri-plugin-fs = "2"
 uuid = { version = "1.0", features = ["v4"] }
 reqwest = { version = "0.12", features = ["json", "stream", "blocking"] }
+futures = "0.3"
 futures-util = "0.3"
 tauri-plugin-deep-link = "2.4.1"
 url = "2.5"
