@@ -33,6 +33,7 @@ use tracing::{debug, error};
 // Constants
 const MIN_MESSAGES_FOR_TITLE_GENERATION: u64 = 4;
 const MAX_REQUEST_SIZE: usize = 10 * 1024 * 1024; // 10 MB
+const MAX_ACCUMULATED_CONTENT: usize = 10 * 1024 * 1024; // 10 MB max for accumulated chat content
 const TOOL_EXECUTION_TIMEOUT: Duration = Duration::from_secs(30); // 30 seconds timeout for tool execution
 
 // JSON-RPC constants
@@ -64,9 +65,20 @@ struct ToolIdentifier {
 impl ToolIdentifier {
     /// Parse a tool identifier from the format "serverName_toolName"
     fn parse(tool_str: &str) -> Result<Self, String> {
+        // Validate input length
+        if tool_str.len() > 256 {
+            return Err("Tool identifier too long (max 256 characters)".to_string());
+        }
+        
+        // Only allow alphanumeric, dash, and underscore
+        let valid_chars = tool_str.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_');
+        if !valid_chars {
+            return Err("Tool identifier contains invalid characters (only alphanumeric, dash, and underscore allowed)".to_string());
+        }
+        
         let parts: Vec<&str> = tool_str.splitn(2, '_').collect();
         if parts.len() != 2 {
-            return Err(format!("Invalid tool identifier format: '{}'", tool_str));
+            return Err(format!("Invalid tool identifier format: '{}' (expected format: serverName_toolName)", tool_str));
         }
         
         let server_name = parts[0].trim();
@@ -74,6 +86,19 @@ impl ToolIdentifier {
         
         if server_name.is_empty() || tool_name.is_empty() {
             return Err(format!("Tool identifier components cannot be empty: '{}'", tool_str));
+        }
+        
+        // Additional validation for known injection patterns
+        let dangerous_patterns = ["../", "\\", "<script", "javascript:", "file://", "--", "/*", "*/", "';", "';--"];
+        for pattern in dangerous_patterns {
+            if server_name.contains(pattern) || tool_name.contains(pattern) {
+                return Err(format!("Tool identifier contains dangerous pattern: '{}'", pattern));
+            }
+        }
+        
+        // Validate server name and tool name lengths
+        if server_name.len() > 128 || tool_name.len() > 128 {
+            return Err("Server name or tool name too long (max 128 characters each)".to_string());
         }
         
         Ok(Self {
@@ -558,7 +583,17 @@ impl Service {
             while let Some(response) = stream.next().await {
                 match response {
                     Ok(chat_response) => {
-                        // Accumulate content
+                        // Accumulate content with size limit
+                        if accumulated_content.len() + chat_response.message.content.len() > MAX_ACCUMULATED_CONTENT {
+                            error!("Accumulated content exceeds maximum size limit of {} bytes", MAX_ACCUMULATED_CONTENT);
+                            let error_json = serde_json::json!({
+                                "error": "Response too large: exceeded maximum content size limit"
+                            });
+                            let mut error_bytes = serde_json::to_vec(&error_json).unwrap_or_default();
+                            error_bytes.push(b'\n');
+                            let _ = tx.send(Ok(axum::body::Bytes::from(error_bytes)));
+                            break;
+                        }
                         accumulated_content.push_str(&chat_response.message.content);
 
                         // Convert to JSON and send with newline for NDJSON format
@@ -643,6 +678,46 @@ impl Service {
             .unwrap())
     }
 
+    /// Validate proxy target URL for security
+    fn validate_proxy_target(url: &str) -> Result<(), String> {
+        // Parse the URL
+        let parsed_url = url.parse::<url::Url>()
+            .map_err(|_| "Invalid URL format")?;
+        
+        // Only allow specific schemes
+        match parsed_url.scheme() {
+            "http" | "https" => {},
+            scheme => return Err(format!("Disallowed URL scheme: {}", scheme)),
+        }
+        
+        // Extract host
+        let host = parsed_url.host_str()
+            .ok_or("No host in URL")?;
+        
+        // Only allow localhost and loopback addresses
+        let allowed_hosts = ["localhost", "127.0.0.1", "::1", "[::1]"];
+        if !allowed_hosts.contains(&host) {
+            return Err(format!("Host not allowed: {}. Only localhost connections are permitted.", host));
+        }
+        
+        // Only allow specific ports (Ollama port)
+        if let Some(port) = parsed_url.port() {
+            let allowed_ports = [54588, // Ollama port from FALLBACK_OLLAMA_SERVER_PORT
+                                crate::ollama::server::get_ollama_server_port()];
+            if !allowed_ports.contains(&port) {
+                return Err(format!("Port not allowed: {}. Only Ollama ports are permitted.", port));
+            }
+        }
+        
+        // Validate path doesn't contain directory traversal
+        let path = parsed_url.path();
+        if path.contains("..") || path.contains("\\") {
+            return Err("Path contains directory traversal patterns".to_string());
+        }
+        
+        Ok(())
+    }
+
     async fn proxy_other_request(
         &self,
         method: axum::http::Method,
@@ -660,6 +735,9 @@ impl Service {
         }
         let target_url = format!("{target_host}{path}");
         debug!("Target URL: {}", target_url);
+        
+        // Validate the target URL for security
+        Self::validate_proxy_target(&target_url)?;
 
         // Convert axum request to reqwest
         let mut reqwest_builder = client.request(
@@ -1056,6 +1134,8 @@ async fn execute_chat_stream(
 
     // Keep track of the maximum number of tool rounds to prevent infinite loops
     const MAX_TOOL_ROUNDS: usize = 10;
+    const MAX_OLLAMA_MESSAGES: usize = 100; // Maximum number of messages to keep in history
+    const MAX_MESSAGE_SIZE: usize = 1024 * 1024; // 1MB per message
     let mut tool_round = 0;
     let mut _had_tool_calls_in_previous_round = false;
     
@@ -1064,6 +1144,15 @@ async fn execute_chat_stream(
     
     // Continue making LLM calls until no more tools are called or we hit the limit
     loop {
+        // Trim message history if it gets too long
+        if ollama_messages.len() > MAX_OLLAMA_MESSAGES {
+            // Keep the first message (usually system prompt) and the most recent messages
+            let start_index = ollama_messages.len().saturating_sub(MAX_OLLAMA_MESSAGES - 1);
+            let mut trimmed_messages = vec![ollama_messages[0].clone()];
+            trimmed_messages.extend_from_slice(&ollama_messages[start_index..]);
+            ollama_messages = trimmed_messages;
+            debug!("Trimmed message history to {} messages", ollama_messages.len());
+        }
         tool_round += 1;
         if tool_round > MAX_TOOL_ROUNDS {
             eprintln!("[execute_chat_stream] Reached maximum tool rounds ({})", MAX_TOOL_ROUNDS);
@@ -1126,6 +1215,14 @@ async fn execute_chat_stream(
                             text_started = true;
                         }
 
+                        // Check size limit before accumulating
+                        if accumulated_content.len() + chat_chunk.message.content.len() > MAX_ACCUMULATED_CONTENT {
+                            error!("Accumulated content exceeds maximum size limit of {} bytes", MAX_ACCUMULATED_CONTENT);
+                            tx.send(SseMessage::Error {
+                                error: "Response too large: exceeded maximum content size limit".to_string(),
+                            })?;
+                            return Err("Content size limit exceeded".into());
+                        }
                         accumulated_content.push_str(&chat_chunk.message.content);
                         tx.send(SseMessage::TextDelta {
                             id: text_block_id.clone(),
@@ -1474,6 +1571,58 @@ async fn convert_tools_to_ollama_format(
     Ok(ollama_tools)
 }
 
+/// Validate tool arguments for security
+fn validate_tool_arguments(arguments: &serde_json::Value) -> Result<(), String> {
+    // Convert to string for pattern checking
+    let args_str = arguments.to_string();
+    
+    // Size check (1MB limit)
+    if args_str.len() > 1024 * 1024 {
+        return Err("Tool arguments too large (max 1MB)".to_string());
+    }
+    
+    // Check for command injection patterns
+    let dangerous_patterns = [
+        "$(", "${", "`", "&&", "||", ";", "|", ">", "<",
+        ">>", "<<", "file://", "javascript:", "../", "\\x", "\\u",
+        "\n", "\r", "\t", "\0", "exec(", "eval(", "system(",
+        "__import__", "subprocess", "os.system", "shell_exec"
+    ];
+    
+    for pattern in dangerous_patterns {
+        if args_str.contains(pattern) {
+            return Err(format!("Tool arguments contain dangerous pattern: '{}'", pattern));
+        }
+    }
+    
+    // Additional validation for deeply nested structures (prevent DoS)
+    let max_depth = calculate_json_depth(arguments);
+    if max_depth > 10 {
+        return Err("Tool arguments are too deeply nested (max depth: 10)".to_string());
+    }
+    
+    Ok(())
+}
+
+/// Calculate the maximum depth of a JSON value
+fn calculate_json_depth(value: &serde_json::Value) -> usize {
+    match value {
+        serde_json::Value::Object(map) => {
+            1 + map.values()
+                .map(calculate_json_depth)
+                .max()
+                .unwrap_or(0)
+        }
+        serde_json::Value::Array(arr) => {
+            1 + arr.iter()
+                .map(calculate_json_depth)
+                .max()
+                .unwrap_or(0)
+        }
+        _ => 0,
+    }
+}
+
 /// Execute an MCP tool through the proxy
 async fn execute_mcp_tool(
     _db: &DatabaseConnection,
@@ -1486,6 +1635,10 @@ async fn execute_mcp_tool(
 
     let server_name = &tool_id.server_name;
     let tool_name_only = &tool_id.tool_name;
+    
+    // Validate tool arguments for security
+    validate_tool_arguments(arguments)
+        .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)) as Box<dyn std::error::Error + Send + Sync>)?;
 
     // Create JSON-RPC request for MCP proxy
     let mcp_request = serde_json::json!({
