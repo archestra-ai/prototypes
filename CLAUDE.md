@@ -460,6 +460,12 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - Uses Claude Opus 4 model for complex development tasks
 - Concurrency control prevents multiple Claude runs on the same issue/PR
 - Pre-configured with allowed tools for pnpm, cargo, and project-specific commands
+- **Custom Instructions**: Provides structured PR context to Claude including:
+  - Repository name and PR number
+  - Changed files list
+  - PR title and description
+  - All PR comments
+  - This additional context enhances Claude's understanding of the PR being discussed
 
 ### Development Notes
 
