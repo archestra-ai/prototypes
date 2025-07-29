@@ -48,37 +48,23 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
         with:
           platform: ${{ matrix.platform }}
 
-      - name: Apply Rust fixes and formatting
-        shell: bash
+      - name: cargo formatting and linting
         run: |
-          cargo fix --allow-dirty --allow-staged
-          cargo fmt
+          cargo fmt --verbose --all --check
+          cargo check --verbose --workspace --all-targets --all-features --frozen
 
-          if ! git diff --exit-code; then
-            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
-            git add .
-            git commit -m "fix: apply cargo fix and formatting changes"
-            git push --no-verify
-          fi
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets --all-features --frozen -- -D warnings
 
       - name: Run tests
-        run: cargo test
-
-      - name: Run Clippy Linting
-        working-directory: desktop/src-tauri
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-
-      - name: Run tests
-        working-directory: desktop/src-tauri
-        run: cargo test
+        run: cargo test --workspace --all-features --all-targets --frozen
 
   frontend-linting-and-tests:
     name: Frontend Linting and Tests
