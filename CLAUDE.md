@@ -103,6 +103,17 @@ npm run dev  # Development mode with nodemon
 npm start    # Production mode
 ```
 
+### MCP Server Sandbox Management
+
+```bash
+# Build the MCP server sandbox Docker image locally
+cd desktop/src-tauri
+podman build -f Dockerfile.mcp-server-sandbox -t mcp-server-sandbox:latest .
+
+# The image is automatically built and loaded on app startup if not present
+# Podman v5.5.2 binaries must be downloaded and placed in desktop/src-tauri/binaries/
+```
+
 ## High-Level Architecture
 
 This is a **Tauri desktop application** that integrates AI/LLM capabilities with MCP (Model Context Protocol) support for a privacy-focused AI assistant with extensible tool support.
@@ -171,8 +182,9 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
   - `consts.rs`: Ollama-related constants
 - `src/gateway/websocket.rs`: WebSocket service for real-time event broadcasting
 - `src/openapi.rs`: OpenAPI schema configuration using utoipa
-- `binaries/`: Embedded Ollama binaries for different platforms
-- `sandbox-exec-profiles/`: macOS sandbox profiles for security
+- `src/sandbox/`: MCP server sandboxing implementation using Podman containers
+- `binaries/`: Embedded binaries for Ollama and Podman runtime
+- `Dockerfile.mcp-server-sandbox`: Container image definition for MCP server sandboxing
 
 ### Core Features
 
@@ -185,7 +197,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 6. **Chat Interface**: Full-featured chat UI with streaming responses and tool execution
    - **Tool Execution Display**: Shows execution time, status indicators, and collapsible argument/result sections
    - **Enhanced Code Blocks**: Syntax highlighting with Shiki, file tabs, copy functionality, and theme support
-7. **Security**: Uses macOS sandbox profiles for MCP server execution
+7. **Security**: Uses Podman containers for cross-platform MCP server sandboxing
 8. **API Documentation**: Auto-generated OpenAPI schema with TypeScript client
 9. **Real-time Events**: WebSocket-based event broadcasting for UI updates
 
@@ -402,6 +414,11 @@ Response: 204 No Content
 - **Backend**:
   - `tokio`: Enhanced with async runtime features for spawning background tasks
 
+### External Binary Dependencies
+
+- **Podman v5.5.2**: Container runtime for MCP server sandboxing (must be placed in `desktop/src-tauri/binaries/`)
+- **Ollama**: Local LLM runtime (automatically managed)
+
 ### CI/CD Workflow
 
 The GitHub Actions CI/CD pipeline consists of several workflows with concurrency controls to optimize resource usage:
@@ -461,12 +478,23 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - Concurrency control prevents multiple Claude runs on the same issue/PR
 - Pre-configured with allowed tools for pnpm, cargo, and project-specific commands
 
+#### MCP Server Sandbox Docker Image Workflow (`build-mcp-server-sandbox-docker-image.yml`)
+
+- **Note**: Currently stored as a template file, needs to be moved to `.github/workflows/` when GCR is configured
+- Builds and pushes the MCP server sandbox Docker image to Google Container Registry (GCR)
+- **Triggers**: Manual dispatch and on changes to `Dockerfile.mcp-server-sandbox`
+- **Multi-architecture builds**: Supports both amd64 and arm64 platforms
+- **Caching**: Uses Docker layer caching for faster builds
+- **Security**: Requires GCR authentication via service account key
+- **Tagging Strategy**: Uses commit SHA and 'latest' tags for versioning
+
 ### Development Notes
 
 - Single instance enforcement prevents multiple app instances
 - The app supports deep linking with `archestra-ai://` protocol
-- MCP servers are sandboxed for security on macOS
+- MCP servers are sandboxed using Podman containers for cross-platform security isolation
 - OAuth proxy runs as a separate service on a configured port
+- Podman runtime initializes on app startup, automatically building the MCP server sandbox image if not present
 - OpenAPI schema must be regenerated after API changes (CI will catch if forgotten)
 - Frontend API calls should use the generated client, not Tauri commands
 - Database migrations should be created for schema changes using SeaORM
