@@ -3,8 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAutoScroll } from './use-auto-scroll';
 
-type TestProps = { deps: any[] };
-
 describe('useAutoScroll', () => {
   let mockScrollArea: HTMLElement;
 
@@ -91,7 +89,9 @@ describe('useAutoScroll', () => {
   });
 
   it('disables auto-scroll when user scrolls away from bottom', () => {
-    const { rerender } = renderHook((props: TestProps) => useAutoScroll(props.deps), { initialProps: { deps: [] } });
+    const { rerender } = renderHook(({ deps }) => useAutoScroll(deps), {
+      initialProps: { deps: [] as any[] },
+    });
 
     // Wait for initial mount
     act(() => {
@@ -199,7 +199,9 @@ describe('useAutoScroll', () => {
   });
 
   it('debounces scroll events correctly', () => {
-    const { rerender } = renderHook((props: TestProps) => useAutoScroll(props.deps), { initialProps: { deps: [] } });
+    const { rerender } = renderHook(({ deps }) => useAutoScroll(deps), {
+      initialProps: { deps: [] as any[] },
+    });
 
     // Wait for initial mount
     act(() => {
