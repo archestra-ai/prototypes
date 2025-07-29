@@ -9,6 +9,7 @@ use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri_plugin_opener::OpenerExt;
+use tracing::{debug, error, info};
 use utoipa::ToSchema;
 
 use crate::models::mcp_server::{ConnectorCatalogEntry, Model as MCPServer};
@@ -78,28 +79,48 @@ impl Service {
     }
 
     pub async fn start_oauth_auth(&self, mcp_server_catalog_id: String) -> Result<(), String> {
+        info!(
+            "Starting OAuth auth flow for MCP server: {}",
+            mcp_server_catalog_id
+        );
+
         // TODO: read this from an environment variable
         let auth_url = format!("https://oauth.dev.archestra.ai/v1/auth/{mcp_server_catalog_id}");
+        debug!("OAuth proxy URL: {}", auth_url);
 
         // Call the cloud OAuth proxy service with dynamic "service" parameter
         let client = reqwest::Client::new();
-        let response = client
-            .get(auth_url)
-            .send()
-            .await
-            .map_err(|e| format!("Failed to connect to OAuth proxy: {e}"))?;
+        let response = client.get(&auth_url).send().await.map_err(|e| {
+            error!("Failed to connect to OAuth proxy at {}: {}", auth_url, e);
+            format!("Failed to connect to OAuth proxy: {e}")
+        })?;
 
-        let auth_data: OAuthProxyResponse = response
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse auth response: {e}"))?;
+        let status = response.status();
+        debug!("OAuth proxy response status: {}", status);
+
+        if !status.is_success() {
+            error!("OAuth proxy returned error status: {}", status);
+            return Err(format!("OAuth proxy returned error status: {status}"));
+        }
+
+        let auth_data: OAuthProxyResponse = response.json().await.map_err(|e| {
+            error!("Failed to parse OAuth proxy response: {}", e);
+            format!("Failed to parse auth response: {e}")
+        })?;
+
+        info!("Received auth URL from OAuth proxy, opening browser");
+        debug!("Auth URL: {}", auth_data.auth_url);
 
         // Open the auth URL in the system browser
         self.app_handle
             .opener()
             .open_url(auth_data.auth_url.as_str(), None::<&str>)
-            .map_err(|e| format!("Failed to open auth URL: {e}"))?;
+            .map_err(|e| {
+                error!("Failed to open browser for auth URL: {}", e);
+                format!("Failed to open auth URL: {e}")
+            })?;
 
+        info!("Successfully opened browser for OAuth authentication");
         Ok(())
     }
 }

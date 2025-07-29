@@ -46,6 +46,9 @@ pub async fn handle_oauth_callback(
         .unwrap_or(&"unknown".to_string())
         .clone();
 
+    debug!("OAuth callback for service: {}", mcp_server_catalog_id);
+    debug!("Query parameters: {:?}", query_params);
+
     // Check for error parameter
     if let Some(error) = query_params.get("error") {
         let error_message = format!("OAuth error for {mcp_server_catalog_id}: {error}");
