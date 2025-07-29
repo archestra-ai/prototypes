@@ -60,7 +60,7 @@ export default defineConfig(async () => ({
     globals: true,
     setupFiles: './src/setup-tests.ts',
     typecheck: {
-      exclude: ['**/*.e2e-spec.ts', '**/*.integration-spec.ts'],
+      exclude: ['**/*.test.tsx', '**/*.test.ts'],
     },
   },
 }));

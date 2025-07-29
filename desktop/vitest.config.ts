@@ -16,7 +16,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/setup-tests.ts',
     typecheck: {
-      exclude: ['**/*.e2e-spec.ts', '**/*.integration-spec.ts'],
+      exclude: ['**/*.test.tsx'],
     },
   },
 });
