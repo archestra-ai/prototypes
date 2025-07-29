@@ -105,7 +105,7 @@ npm start    # Production mode
 
 ## High-Level Architecture
 
-This is a **Tauri desktop application** that integrates AI/LLM capabilities with MCP (Model Context Protocol) support for a privacy-focused AI assistant with extensible tool support.
+This is a **Tauri desktop application** that integrates AI/LLM capabilities with MCP (Model Context Protocol) support for a privacy-focused AI assistant with autonomous agent capabilities and extensible tool support.
 
 ### Tech Stack
 
@@ -114,7 +114,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - **Routing**: Tanstack React Router
 - **Backend**: Rust with Tauri v2 framework, Axum web framework, SeaORM for SQLite database
 - **API Layer**: HTTP gateway on port 54587 with OpenAPI schema generation using utoipa
-- **AI Integration**: Ollama for local LLM support, MCP (Model Context Protocol) for tool integration
+- **AI Integration**: Ollama for local LLM support, MCP (Model Context Protocol) for tool integration, Vercel AI SDK v5 for streaming
 - **Testing**: Vitest + React Testing Library (frontend), Rust built-in test framework with rstest (backend)
 
 ### Key Directories
@@ -126,6 +126,15 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
     - `popover.tsx`: Added for UI interactions (installed via shadcn)
   - `kibo/`: AI-specific components (messages, code blocks, reasoning)
     - `code-block.tsx`: Rich code display with syntax highlighting, file tabs, copy functionality, and theme support
+    - `tool-part.tsx`: Tool execution display with collapsible results
+  - `agent/`: Autonomous agent components
+    - `AgentControlPanel.tsx`: Complete agent control interface with activation, pause/resume, and stop functionality
+    - `AgentModeIndicator.tsx`: Real-time visual indicators for agent state and progress
+    - `ReasoningPanel.tsx`: Configurable reasoning display with verbose/concise/hidden modes
+    - `TaskProgress.tsx`: Task execution progress tracking and visualization
+  - `chat/`: Chat-specific components
+    - `ChatMessage.tsx`: Message rendering with agent metadata support
+    - `MessageContent.tsx`: Message content display with agent enhancements
   - `DeleteChatConfirmation.tsx`: Dialog for chat deletion confirmation
   - `TypewriterText.tsx`: Animated text display component
 - `pages/`: Main application pages
@@ -137,15 +146,23 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
   - `LLMProvidersPage/`: LLM model management
   - `SettingsPage/`: Application settings
 - `stores/`: Zustand stores for state management
-  - `chat-store.ts`: Chat state management with persistence integration
+  - `chat-store.ts`: Chat state management with streaming integration
+  - `agent-store.ts`: Agent state management with task planning and execution tracking
 - `hooks/`: Custom React hooks including MCP client hooks
   - `use-typewriter.ts`: Hook for typewriter text animation
+  - `use-sse-chat.ts`: SSE chat streaming integration with Vercel AI SDK v5
 - `lib/`: Utility functions and helpers
   - `api/`: Generated TypeScript client from OpenAPI schema (DO NOT EDIT)
   - `api-client.ts`: Configured HTTP client instance
   - `websocket.ts`: WebSocket client service for real-time event handling
   - `utils/`:
     - `ollama.ts`: Contains `convertMCPServerToolsToOllamaTools` for MCP tool integration
+    - `agent.ts`: Agent utility functions and helpers
+- `providers/`: React context providers
+  - `chat-provider/`: Centralized chat state provider with SSE streaming support
+- `types/`: TypeScript type definitions
+  - `agent.ts`: Comprehensive agent types for task planning and execution
+  - `agent-ui.ts`: UI-specific agent type definitions
 
 #### Backend (`desktop/src-tauri/`)
 
@@ -159,7 +176,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `src/gateway/`: HTTP gateway exposing the following APIs:
   - `/api`: REST API for Archestra resources (OpenAPI documented)
     - `/api/chat`: Chat CRUD operations (create, read, update, delete chats)
-    - `/api/chat/stream`: SSE streaming endpoint for Vercel AI SDK v5
+    - `/api/chat/stream`: SSE streaming endpoint for Vercel AI SDK v5 with agent support
     - `oauth/`: OAuth authentication flows for MCP servers (e.g., Gmail)
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
@@ -177,18 +194,28 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 
 ### Core Features
 
-1. **MCP Integration**: Supports MCP servers for extending AI capabilities with tools via rmcp library
+1. **Autonomous Agent System**: Complete agent implementation with task planning and execution
+   - **Agent Modes**: Multiple execution modes (idle, planning, executing, paused, completed)
+   - **Task Planning**: Structured task breakdown with dependencies and progress tracking
+   - **Working Memory**: Context management with relevance scoring and TTL
+   - **Reasoning System**: Structured reasoning with confidence scoring and alternatives
+2. **MCP Integration**: Supports MCP servers for extending AI capabilities with tools via rmcp library
    - **Available MCP Servers**: Context7, Filesystem, GitHub, Brave Search, PostgreSQL, Slack, Gmail, Fetch (HTTP requests), and Everything (file search)
-2. **Local LLM Support**: Runs Ollama locally for privacy-focused AI interactions
-3. **Chat Persistence**: Full CRUD operations for chat conversations with SQLite database storage
-4. **Intelligent Chat Titles**: Automatic LLM-generated chat titles based on conversation content
-5. **OAuth Authentication**: Handles OAuth flows for services like Gmail
-6. **Chat Interface**: Full-featured chat UI with streaming responses and tool execution
+   - **Tool Approval System**: Human-in-the-loop approval for sensitive operations
+   - **Tool Selection**: Intelligent tool selection based on capabilities and constraints
+3. **Local LLM Support**: Runs Ollama locally for privacy-focused AI interactions
+4. **Chat Persistence**: Full CRUD operations for chat conversations with SQLite database storage
+5. **Intelligent Chat Titles**: Automatic LLM-generated chat titles based on conversation content
+6. **OAuth Authentication**: Handles OAuth flows for services like Gmail
+7. **Enhanced Chat Interface**: Full-featured chat UI with streaming responses and agent integration
+   - **SSE Streaming**: Real-time streaming with Vercel AI SDK v5
+   - **Agent Controls**: Activation, pause/resume, and stop functionality
    - **Tool Execution Display**: Shows execution time, status indicators, and collapsible argument/result sections
    - **Enhanced Code Blocks**: Syntax highlighting with Shiki, file tabs, copy functionality, and theme support
-7. **Security**: Uses macOS sandbox profiles for MCP server execution
-8. **API Documentation**: Auto-generated OpenAPI schema with TypeScript client
-9. **Real-time Events**: WebSocket-based event broadcasting for UI updates
+   - **Reasoning Display**: Configurable verbosity for agent reasoning
+8. **Security**: Uses macOS sandbox profiles for MCP server execution
+9. **API Documentation**: Auto-generated OpenAPI schema with TypeScript client
+10. **Real-time Events**: WebSocket-based event broadcasting for UI updates and agent state changes
 
 ### Database Schema
 
@@ -366,6 +393,14 @@ Response: 204 No Content
 3. Messages are persisted during streaming via the Ollama proxy interceptor
 4. Backend maintains chat session through automatic title generation after 4 messages
 5. Frontend can manage chats via REST endpoints: GET, POST, PATCH, DELETE at `/api/chat`
+6. Agent metadata (plan IDs, step IDs, reasoning) is persisted with messages when agent mode is active
+
+**Agent-Enhanced Streaming**:
+
+- SSE events support agent-specific data parts: reasoning entries, task progress, state updates
+- Backend accepts `agent_context` with tools, instructions, and mode configuration
+- Real-time streaming of agent planning, execution, and completion states
+- Tool approval requests streamed to frontend for user interaction
 
 **Chat Title Generation**:
 
@@ -377,10 +412,17 @@ Response: 204 No Content
 
 **Frontend State Management**:
 
-- Uses Zustand store (`chat-store.ts`) for centralized chat state
-- Handles streaming messages with `streamingMessageId` tracking
-- Supports request cancellation via `AbortController`
-- Event listeners automatically sync backend changes to UI
+- **Chat State**: Zustand store (`chat-store.ts`) for streaming chat management
+  - Handles streaming messages with Vercel AI SDK v5 integration
+  - Supports request cancellation via `AbortController`
+  - Event listeners automatically sync backend changes to UI
+- **Agent State**: Dedicated agent store (`agent-store.ts`) for agent lifecycle
+  - Tracks agent mode, current plan, task progress, and execution state
+  - Manages working memory and reasoning history
+  - Handles tool approval workflows and error recovery
+- **Centralized Provider**: `ChatProvider` context for shared streaming state
+  - Integrates chat and agent stores for unified experience
+  - Manages SSE event handling and state synchronization
 - All API calls use generated TypeScript client for type safety
 
 ### Important Configuration
@@ -394,13 +436,17 @@ Response: 204 No Content
 - **Pre-commit Hooks**: Prettier formatting via Husky
 - **OpenAPI Generation**: Clean output directory, Prettier formatting
 
-### Key Dependencies Added for Chat Persistence
+### Key Dependencies
 
 - **Frontend**:
+  - `ai`: Vercel AI SDK v5 (5.0.0-beta.3) for SSE streaming chat integration
   - `@radix-ui/react-popover`: For popover UI component (required by shadcn/ui)
+  - `@radix-ui/react-progress`: For progress indicators in agent task execution
   - `reconnecting-websocket`: For WebSocket client with automatic reconnection support
 - **Backend**:
   - `tokio`: Enhanced with async runtime features for spawning background tasks
+  - `futures`: For stream processing in SSE responses
+  - Additional async utilities for agent execution management
 
 ### CI/CD Workflow
 
@@ -481,6 +527,38 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - CI automatically formats Rust code and regenerates OpenAPI schemas, committing changes back to PRs
 - CI uses GitHub Actions bot credentials for automated commits
 
+### Agent System Architecture
+
+The agent system provides autonomous task planning and execution capabilities:
+
+#### Agent Lifecycle
+
+1. **Initialization**: Agent activates with specific mode and configuration
+2. **Planning**: Breaks down user requests into structured task plans
+3. **Execution**: Executes tasks with tool selection and error handling
+4. **Monitoring**: Real-time progress tracking and state updates
+5. **Completion**: Graceful completion with summary and metrics
+
+#### Agent Components
+
+- **Agent Store**: Centralized state management for agent lifecycle
+- **Task Planner**: Intelligent task breakdown with dependency analysis
+- **Tool Selector**: Capability-based tool selection with constraints
+- **Memory Manager**: Working memory with relevance scoring
+- **Error Handler**: Recovery strategies and user guidance
+
+#### Agent Configuration
+
+```typescript
+interface AgentConfig {
+  model: string;              // LLM model for agent reasoning
+  temperature: number;        // Creativity level (0-1)
+  maxSteps: number;          // Maximum execution steps
+  memoryLimit: number;       // Working memory size limit
+  autoApproveTools: string[]; // Pre-approved tool list
+}
+```
+
 ### Testing Patterns
 
 #### Chat Feature Testing
@@ -491,3 +569,12 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - **Frontend Tests**: Mock API responses for chat operations
 - **Streaming Tests**: Test message accumulation and persistence during streaming
 - **Event Tests**: Verify WebSocket messages are broadcast correctly for UI updates
+
+#### Agent System Testing
+
+- **Agent Store Tests**: Comprehensive state management and lifecycle testing
+- **Task Planning Tests**: Verify task breakdown and dependency management
+- **Tool Approval Tests**: Test human-in-the-loop approval workflows
+- **Memory Management Tests**: Test working memory with TTL and relevance
+- **Error Recovery Tests**: Verify agent error handling and recovery strategies
+- **Integration Tests**: End-to-end agent execution with mock tools
