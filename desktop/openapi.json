@@ -892,13 +892,13 @@
       },
       "MCPConnectorCatalogEntryOAuth": {
         "type": "object",
-        "required": ["provider", "required"],
+        "required": ["service", "required"],
         "properties": {
-          "provider": {
-            "type": "string"
-          },
           "required": {
             "type": "boolean"
+          },
+          "service": {
+            "type": "string"
           }
         }
       },

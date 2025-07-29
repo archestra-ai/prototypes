@@ -37,7 +37,7 @@ pub struct MCPServerDefinition {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[schema(as = MCPConnectorCatalogEntryOAuth)]
 pub struct ConnectorCatalogEntryOauth {
-    pub provider: String,
+    pub service: String,
     pub required: bool,
 }
 
@@ -464,6 +464,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_mcp_connector_catalog() {
         let result = Model::get_mcp_connector_catalog().await;
+
         assert!(result.is_ok());
 
         let catalog = result.unwrap();

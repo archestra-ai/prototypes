@@ -39,7 +39,14 @@ fn main() {
 
     println!("Running prettier...");
     let prettier_result = Command::new("pnpm")
-        .args(["prettier", "--write"])
+        .args([
+            "prettier",
+            "--write",
+            "--ignore-path",
+            "../.prettierignore",
+            "--config",
+            "../.prettierrc",
+        ])
         .current_dir("..")
         .output();
 

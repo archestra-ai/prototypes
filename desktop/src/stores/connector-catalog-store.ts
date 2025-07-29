@@ -4,6 +4,7 @@ import {
   type McpConnectorCatalogEntry,
   getMcpConnectorCatalog,
   installMcpServerFromCatalog,
+  startMcpServerOauth,
   uninstallMcpServer,
 } from '@/lib/api-client';
 import { websocketService } from '@/lib/websocket';
@@ -22,6 +23,7 @@ interface ConnectorCatalogState {
 
 interface ConnectorCatalogActions {
   installMCPServerFromConnectorCatalog: (mcpServer: McpConnectorCatalogEntry) => Promise<void>;
+  installOAuthMCPServerFromConnectorCatalog: (mcpServer: McpConnectorCatalogEntry) => Promise<void>;
   uninstallMCPServer: (mcpServerName: string) => Promise<void>;
   loadConnectorCatalog: () => Promise<void>;
   initialize: () => void;
@@ -85,6 +87,41 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
 
       // Refresh the MCP servers list
       await useMCPServersStore.getState().loadInstalledMCPServers();
+    } catch (error) {
+      set({ errorInstallingMCPServer: { error: String(error), mcpServerCatalogId: id } });
+    } finally {
+      set({ installingMCPServerName: null });
+    }
+  },
+
+  installOAuthMCPServerFromConnectorCatalog: async (mcpServer: McpConnectorCatalogEntry) => {
+    const { id } = mcpServer;
+
+    try {
+      set({
+        installingMCPServerName: mcpServer.title,
+        errorInstallingMCPServer: null,
+      });
+
+      // First install the MCP server
+      const installResponse = await installMcpServerFromCatalog({
+        body: { mcp_server_catalog_id: id },
+      });
+
+      if ('error' in installResponse) {
+        throw new Error(installResponse.error as string);
+      }
+
+      // Then start the OAuth flow
+      const oauthResponse = await startMcpServerOauth({
+        body: { mcp_server_catalog_id: id },
+      });
+
+      if ('error' in oauthResponse) {
+        throw new Error(oauthResponse.error as string);
+      }
+
+      // OAuth flow started successfully - the WebSocket events will handle the rest
     } catch (error) {
       set({ errorInstallingMCPServer: { error: String(error), mcpServerCatalogId: id } });
     } finally {

@@ -28,6 +28,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
     uninstallingMCPServerName,
     errorInstallingMCPServer,
     installMCPServerFromConnectorCatalog,
+    installOAuthMCPServerFromConnectorCatalog,
     uninstallMCPServer,
   } = useConnectorCatalogStore();
 
@@ -144,7 +145,11 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                           ) : (
                             <Button
                               size="sm"
-                              onClick={() => installMCPServerFromConnectorCatalog(mcpServer)}
+                              onClick={() =>
+                                requiresOAuthSetup
+                                  ? installOAuthMCPServerFromConnectorCatalog(mcpServer)
+                                  : installMCPServerFromConnectorCatalog(mcpServer)
+                              }
                               disabled={isInstalling}
                               className="flex items-center gap-2"
                             >

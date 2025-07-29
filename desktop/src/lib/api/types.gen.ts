@@ -85,8 +85,8 @@ export type McpConnectorCatalogEntry = {
 };
 
 export type McpConnectorCatalogEntryOAuth = {
-  provider: string;
   required: boolean;
+  service: string;
 };
 
 export type McpRequestLog = {
