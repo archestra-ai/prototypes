@@ -1,4 +1,4 @@
-export type GoogleService = 
+export type GoogleService =
   | 'gmail'
   | 'google-drive'
   | 'google-calendar'

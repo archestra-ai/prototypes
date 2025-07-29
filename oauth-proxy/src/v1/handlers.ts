@@ -1,8 +1,9 @@
-import path from 'path';
 import { Request, Response } from 'express';
-import { logger } from '@/logger';
+import path from 'path';
+
 import googleService from '@/google';
-import type { AuthState, OAuthService, ServiceHandler, GoogleService } from '@/types';
+import { logger } from '@/logger';
+import type { AuthState, GoogleService, OAuthService, ServiceHandler } from '@/types';
 
 // Store temporary auth states (in production, use Redis or database)
 const authStates = new Map<string, AuthState>();
@@ -35,11 +36,11 @@ function removeState(state: string): void {
 // Service routing function
 function getServiceHandler(service: string): ServiceHandler {
   const lowerService = service.toLowerCase();
-  
+
   if (isGoogleService(lowerService)) {
     return googleService;
   }
-  
+
   throw new Error(`Unsupported OAuth service: ${service}`);
 }
 
@@ -53,7 +54,7 @@ function isGoogleService(service: string): service is GoogleService {
     'google-slides',
     'google-forms',
     'google-tasks',
-    'google-chat'
+    'google-chat',
   ];
   return googleServices.includes(service as GoogleService);
 }
@@ -166,10 +167,10 @@ export const handlers = {
 
       res.json({ auth_url: authUrl, state });
     } catch (error) {
-      logger.error(`Error in /auth/${service}:`, { 
-        service, 
+      logger.error(`Error in /auth/${service}:`, {
+        service,
         error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
       res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
     }
@@ -199,9 +200,7 @@ export const handlers = {
 
     if (!storedState) {
       logger.warn('Invalid or expired state', { service, state });
-      res.redirect(
-        `/oauth-callback.html?service=${service}&error=${encodeURIComponent('Invalid or expired state')}`
-      );
+      res.redirect(`/oauth-callback.html?service=${service}&error=${encodeURIComponent('Invalid or expired state')}`);
       return;
     }
 

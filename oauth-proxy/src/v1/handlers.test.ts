@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+
 import handlers from '@/v1/handlers';
 
 // Mock the logger
@@ -94,9 +95,7 @@ describe('v1 handlers', () => {
     it('should send the index.html file', () => {
       handlers.getIndex(mockReq as Request, mockRes as Response);
 
-      expect(mockRes.sendFile).toHaveBeenCalledWith(
-        expect.stringContaining('index.html')
-      );
+      expect(mockRes.sendFile).toHaveBeenCalledWith(expect.stringContaining('index.html'));
     });
   });
 });

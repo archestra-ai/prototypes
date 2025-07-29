@@ -98,8 +98,8 @@ jobs:
       - name: Build
         run: pnpm build
 
-  oauth-proxy-tests:
-    name: OAuth Proxy TypeScript and Tests
+  oauth-proxy-linting-and-tests:
+    name: OAuth Proxy Linting and Tests
     runs-on: ubuntu-latest
     defaults:
       run:

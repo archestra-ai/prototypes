@@ -1,8 +1,8 @@
+import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
-import dotenv from 'dotenv';
-import { logger } from '@/logger';
 
+import { logger } from '@/logger';
 // Import v1 handlers
 import v1Handlers from '@/v1/handlers';
 
@@ -42,17 +42,27 @@ app.listen(PORT_LOCALHOST, () => {
   const baseUrl = process.env.REDIRECT_URL
     ? process.env.REDIRECT_URL.replace(/\/oauth-callback.*/, '')
     : `http://localhost:${PORT_LOCALHOST}`;
-  
+
   logger.info('OAuth proxy server started successfully', {
     port: PORT_LOCALHOST,
     baseUrl,
     environment: process.env.NODE_ENV || 'development',
     nodeVersion: process.version,
   });
-  
+
   logger.info('Service configuration', {
     healthCheckUrl: `${baseUrl}/health`,
-    supportedServices: ['gmail', 'google-drive', 'google-calendar', 'google-docs', 'google-sheets', 'google-slides', 'google-forms', 'google-tasks', 'google-chat'],
+    supportedServices: [
+      'gmail',
+      'google-drive',
+      'google-calendar',
+      'google-docs',
+      'google-sheets',
+      'google-slides',
+      'google-forms',
+      'google-tasks',
+      'google-chat',
+    ],
     authUrlPattern: `${baseUrl}/v1/auth/<service>`,
     callbackUrlPattern: `${baseUrl}/v1/oauth-callback/<service>`,
   });

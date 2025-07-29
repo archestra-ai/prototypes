@@ -1,3 +1,5 @@
+import { googleServiceHandler } from '@/google';
+
 // Mock logger
 vi.mock('@/logger', () => ({
   logger: {
@@ -27,8 +29,6 @@ vi.mock('googleapis', () => ({
     },
   },
 }));
-
-import { googleServiceHandler } from '@/google';
 
 describe('Google OAuth Service', () => {
   beforeEach(() => {

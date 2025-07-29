@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+
 import { logger } from '@/logger';
 import type { ServiceHandler, TokenResponse } from '@/types';
 
@@ -22,10 +23,10 @@ const oauth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_U
  * @returns Authorization URL
  */
 async function generateAuthUrl(state: string, scopes: string[]): Promise<string> {
-  logger.debug('Generating Google auth URL', { 
-    clientIdSet: !!CLIENT_ID, 
+  logger.debug('Generating Google auth URL', {
+    clientIdSet: !!CLIENT_ID,
     clientSecretSet: !!CLIENT_SECRET,
-    scopeCount: scopes.length 
+    scopeCount: scopes.length,
   });
 
   const authUrl = oauth2Client.generateAuthUrl({
