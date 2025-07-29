@@ -71,7 +71,8 @@ jobs:
             So I want you to do a few things to help with the current pull request:
             1. If the pull request description is missing, add one based on the changes.
             2. Update the CLAUDE.md file to reflect the changes made in this PR.
-            3. Please review this pull request and provide feedback on the below items, be constructive and helpful in
+            3. If changes affect the chat architecture, update the mermaid diagrams in chat-architecture.md to reflect the changes (specifically the High-Level Architecture, Chat Message Flow, and SSE Event Stream Protocol diagrams).
+            4. Please review this pull request and provide feedback on the below items, be constructive and helpful in
             your feedback:
               - Code quality and best practices
               - Potential bugs or issues
