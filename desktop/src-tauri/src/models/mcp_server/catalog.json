@@ -116,21 +116,75 @@
     }
   },
   {
-    "id": "google",
-    "title": "Google Workspace",
+    "id": "gmail",
+    "title": "Gmail",
     "description": "Access and manage your Gmail messages with AI. Read, search, and organize your email communications.",
     "image": null,
     "category": "communication",
-    "tags": ["google", "email", "google", "messaging", "oauth"],
+    "tags": ["gmail", "email", "google", "oauth"],
     "author": "taylorwilsdon",
     "version": "1.0.0",
     "homepage": "https://workspacemcp.com/",
     "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
+    "oauth": {
+      "service": "gmail",
+      "required": true
+    },
     "server_config": {
       "transport": "stdio",
       "command": "uvx",
-      "args": ["workspace-mcp"],
-      "env": {}
+      "args": ["workspace-mcp", "--tools", "gmail"],
+      "env": {
+        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/gmail-client-secret.json"
+      }
+    }
+  },
+  {
+    "id": "google-drive",
+    "title": "Google Drive",
+    "description": "Access and manage your Google Drive files with AI. Read, search, and organize your files.",
+    "image": null,
+    "category": "communication",
+    "tags": ["drive", "files", "google", "oauth"],
+    "author": "taylorwilsdon",
+    "version": "1.0.0",
+    "homepage": "https://workspacemcp.com/",
+    "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
+    "oauth": {
+      "service": "google-drive",
+      "required": true
+    },
+    "server_config": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["workspace-mcp", "--tools", "drive"],
+      "env": {
+        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/drive-client-secret.json"
+      }
+    }
+  },
+  {
+    "id": "google-calendar",
+    "title": "Google Calendar",
+    "description": "Access and manage your Google Calendar with AI. Read, search, and organize your calendar events.",
+    "image": null,
+    "category": "communication",
+    "tags": ["calendar", "events", "google", "oauth"],
+    "author": "taylorwilsdon",
+    "version": "1.0.0",
+    "homepage": "https://workspacemcp.com/",
+    "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
+    "oauth": {
+      "service": "google-calendar",
+      "required": true
+    },
+    "server_config": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["workspace-mcp", "--tools", "calendar"],
+      "env": {
+        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/calendar-client-secret.json"
+      }
     }
   },
   {
@@ -167,6 +221,150 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-everything"],
       "env": {}
+    }
+  },
+  {
+    "id": "google-docs",
+    "title": "Google Docs",
+    "description": "Access and manage your Google Docs with AI. Read, write, and organize your documents.",
+    "image": null,
+    "category": "communication",
+    "tags": ["docs", "documents", "google", "oauth"],
+    "author": "taylorwilsdon",
+    "version": "1.0.0",
+    "homepage": "https://workspacemcp.com/",
+    "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
+    "oauth": {
+      "service": "google-docs",
+      "required": true
+    },
+    "server_config": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["workspace-mcp", "--tools", "docs"],
+      "env": {
+        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/docs-client-secret.json"
+      }
+    }
+  },
+  {
+    "id": "google-sheets",
+    "title": "Google Sheets",
+    "description": "Access and manage your Google Sheets with AI. Read, write, and analyze spreadsheet data.",
+    "image": null,
+    "category": "communication",
+    "tags": ["sheets", "spreadsheets", "google", "oauth"],
+    "author": "taylorwilsdon",
+    "version": "1.0.0",
+    "homepage": "https://workspacemcp.com/",
+    "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
+    "oauth": {
+      "service": "google-sheets",
+      "required": true
+    },
+    "server_config": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["workspace-mcp", "--tools", "sheets"],
+      "env": {
+        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/sheets-client-secret.json"
+      }
+    }
+  },
+  {
+    "id": "google-slides",
+    "title": "Google Slides",
+    "description": "Access and manage your Google Slides presentations with AI. Read and create presentations.",
+    "image": null,
+    "category": "communication",
+    "tags": ["slides", "presentations", "google", "oauth"],
+    "author": "taylorwilsdon",
+    "version": "1.0.0",
+    "homepage": "https://workspacemcp.com/",
+    "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
+    "oauth": {
+      "service": "google-slides",
+      "required": true
+    },
+    "server_config": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["workspace-mcp", "--tools", "slides"],
+      "env": {
+        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/slides-client-secret.json"
+      }
+    }
+  },
+  {
+    "id": "google-forms",
+    "title": "Google Forms",
+    "description": "Access and manage your Google Forms with AI. Read form structures and analyze responses.",
+    "image": null,
+    "category": "communication",
+    "tags": ["forms", "surveys", "google", "oauth"],
+    "author": "taylorwilsdon",
+    "version": "1.0.0",
+    "homepage": "https://workspacemcp.com/",
+    "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
+    "oauth": {
+      "service": "google-forms",
+      "required": true
+    },
+    "server_config": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["workspace-mcp", "--tools", "forms"],
+      "env": {
+        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/forms-client-secret.json"
+      }
+    }
+  },
+  {
+    "id": "google-tasks",
+    "title": "Google Tasks",
+    "description": "Access and manage your Google Tasks with AI. Create, read, and organize your task lists.",
+    "image": null,
+    "category": "communication",
+    "tags": ["tasks", "todo", "google", "oauth"],
+    "author": "taylorwilsdon",
+    "version": "1.0.0",
+    "homepage": "https://workspacemcp.com/",
+    "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
+    "oauth": {
+      "service": "google-tasks",
+      "required": true
+    },
+    "server_config": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["workspace-mcp", "--tools", "tasks"],
+      "env": {
+        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/tasks-client-secret.json"
+      }
+    }
+  },
+  {
+    "id": "google-chat",
+    "title": "Google Chat",
+    "description": "Access and manage Google Chat messages and spaces with AI. Read and send messages in your workspace.",
+    "image": null,
+    "category": "communication",
+    "tags": ["chat", "messaging", "google", "oauth"],
+    "author": "taylorwilsdon",
+    "version": "1.0.0",
+    "homepage": "https://workspacemcp.com/",
+    "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
+    "oauth": {
+      "service": "google-chat",
+      "required": true
+    },
+    "server_config": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["workspace-mcp", "--tools", "chat"],
+      "env": {
+        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/chat-client-secret.json"
+      }
     }
   }
 ]

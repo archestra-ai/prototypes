@@ -4,17 +4,14 @@ import {
   type McpConnectorCatalogEntry,
   getMcpConnectorCatalog,
   installMcpServerFromCatalog,
-  startMcpServerOauth,
   uninstallMcpServer,
 } from '@/lib/api-client';
+import { websocketService } from '@/lib/websocket';
 
 import { useMCPServersStore } from './mcp-servers-store';
 
-// Use the generated types but maintain backwards compatibility
-type ConnectorCatalogEntry = McpConnectorCatalogEntry;
-
 interface ConnectorCatalogState {
-  connectorCatalog: ConnectorCatalogEntry[];
+  connectorCatalog: McpConnectorCatalogEntry[];
   loadingConnectorCatalog: boolean;
   errorFetchingConnectorCatalog: string | null;
   installingMCPServerName: string | null;
@@ -24,9 +21,10 @@ interface ConnectorCatalogState {
 }
 
 interface ConnectorCatalogActions {
-  installMCPServerFromConnectorCatalog: (mcpServer: ConnectorCatalogEntry) => Promise<void>;
+  installMCPServerFromConnectorCatalog: (mcpServer: McpConnectorCatalogEntry) => Promise<void>;
   uninstallMCPServer: (mcpServerName: string) => Promise<void>;
   loadConnectorCatalog: () => Promise<void>;
+  initialize: () => void;
 }
 
 type ConnectorCatalogStore = ConnectorCatalogState & ConnectorCatalogActions;
@@ -68,8 +66,8 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
     }
   },
 
-  installMCPServerFromConnectorCatalog: async (mcpServer: ConnectorCatalogEntry) => {
-    const { oauth, title, id } = mcpServer;
+  installMCPServerFromConnectorCatalog: async (mcpServer: McpConnectorCatalogEntry) => {
+    const { id } = mcpServer;
 
     try {
       set({
@@ -77,35 +75,16 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
         errorInstallingMCPServer: null,
       });
 
-      // Check if OAuth is required
-      if (oauth?.required) {
-        try {
-          // Start OAuth flow
-          const response = await startMcpServerOauth({
-            body: { mcp_connector_id: id },
-          });
+      const response = await installMcpServerFromCatalog({
+        body: { mcp_server_catalog_id: id },
+      });
 
-          if ('data' in response && response.data) {
-            // For OAuth connectors, the backend will handle the installation after successful auth
-            alert(`OAuth setup started for ${title}. Please complete the authentication in your browser.`);
-          } else if ('error' in response) {
-            throw new Error(response.error as string);
-          }
-        } catch (error) {
-          set({ errorInstallingMCPServer: error as string });
-        }
-      } else {
-        const response = await installMcpServerFromCatalog({
-          body: { mcp_connector_id: id },
-        });
-
-        if ('error' in response) {
-          throw new Error(response.error as string);
-        }
-
-        // Refresh the MCP servers list
-        await useMCPServersStore.getState().loadInstalledMCPServers();
+      if ('error' in response) {
+        throw new Error(response.error as string);
       }
+
+      // Refresh the MCP servers list
+      await useMCPServersStore.getState().loadInstalledMCPServers();
     } catch (error) {
       set({ errorInstallingMCPServer: error as string });
     } finally {
@@ -136,7 +115,44 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
       set({ uninstallingMCPServerName: null });
     }
   },
+
+  initialize: () => {
+    const state = useConnectorCatalogStore.getState();
+
+    // Load the connector catalog
+    state.loadConnectorCatalog();
+
+    // Connect to WebSocket
+    websocketService.connect().catch((error) => {
+      console.error('Failed to connect to WebSocket:', error);
+    });
+
+    // Subscribe to OAuth success events
+    websocketService.subscribe('oauth-success', (message) => {
+      console.log('OAuth success for MCP server:', message.payload.mcp_server_catalog_id);
+
+      // Reload installed MCP servers to reflect the newly authenticated server
+      useMCPServersStore.getState().loadInstalledMCPServers();
+
+      // Clear any installation error that might have been set
+      set({
+        errorInstallingMCPServer: null,
+        installingMCPServerName: null,
+      });
+    });
+
+    // Subscribe to OAuth error events
+    websocketService.subscribe('oauth-error', (message) => {
+      console.error('OAuth error for MCP server:', message.payload.mcp_server_catalog_id, message.payload.error);
+
+      // Set the error in the store
+      set({
+        errorInstallingMCPServer: `OAuth authentication failed: ${message.payload.error}`,
+        installingMCPServerName: null,
+      });
+    });
+  },
 }));
 
-// Initialize catalog on store creation
-useConnectorCatalogStore.getState().loadConnectorCatalog();
+// Initialize the store
+useConnectorCatalogStore.getState().initialize();

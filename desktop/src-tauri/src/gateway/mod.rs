@@ -5,6 +5,7 @@ use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
+use std::sync::Arc;
 
 pub mod api;
 pub mod llm_providers;
@@ -15,6 +16,8 @@ pub mod websocket;
 pub const GATEWAY_SERVER_PORT: u16 = 54587;
 
 pub async fn start_gateway(
+    app_handle: tauri::AppHandle,
+    websocket_service: Arc<websocket::Service>,
     user_id: String,
     db: DatabaseConnection,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -26,13 +29,11 @@ pub async fn start_gateway(
 
     info!("Starting gateway server...");
 
-    let ws_service = std::sync::Arc::new(websocket::Service::new());
     let mcp_service = mcp::create_streamable_http_service(user_id, db.clone()).await;
-
     let mcp_proxy_router = mcp_proxy::create_router(db.clone());
-    let api_router = api::create_router(db.clone());
-    let llm_providers_router = llm_providers::create_router(db.clone(), ws_service.clone());
-    let websocket_router = websocket::create_router(ws_service.clone());
+    let api_router = api::create_router(app_handle.clone(), db.clone());
+    let llm_providers_router = llm_providers::create_router(db.clone(), websocket_service.clone());
+    let websocket_router = websocket::create_router(websocket_service.clone());
 
     let cors = CorsLayer::new()
         .allow_origin(Any)

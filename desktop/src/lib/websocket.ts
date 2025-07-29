@@ -3,11 +3,17 @@ import ReconnectingWebSocket from 'reconnecting-websocket';
 import { ARCHESTRA_SERVER_WEBSOCKET_URL } from '@/consts';
 import { WebSocketMessage } from '@/lib/api';
 
-type MessageHandler = (message: WebSocketMessage) => void;
+type MessageHandler<T extends WebSocketMessage = WebSocketMessage> = (message: T) => void;
+
+type MessageTypeMap = {
+  'chat-title-updated': Extract<WebSocketMessage, { type: 'chat-title-updated' }>;
+  'oauth-success': Extract<WebSocketMessage, { type: 'oauth-success' }>;
+  'oauth-error': Extract<WebSocketMessage, { type: 'oauth-error' }>;
+};
 
 class WebSocketService {
   private ws: ReconnectingWebSocket | null = null;
-  private handlers: Map<WebSocketMessage['type'], Set<MessageHandler>> = new Map();
+  private handlers: Map<WebSocketMessage['type'], Set<MessageHandler<any>>> = new Map();
   private connectionPromise: Promise<void> | null = null;
 
   async connect(): Promise<void> {
@@ -63,18 +69,18 @@ class WebSocketService {
     }
   }
 
-  subscribe(type: WebSocketMessage['type'], handler: MessageHandler): () => void {
+  subscribe<T extends keyof MessageTypeMap>(type: T, handler: MessageHandler<MessageTypeMap[T]>): () => void {
     if (!this.handlers.has(type)) {
       this.handlers.set(type, new Set());
     }
 
-    this.handlers.get(type)!.add(handler);
+    this.handlers.get(type)!.add(handler as MessageHandler<any>);
 
     // Return unsubscribe function
     return () => {
       const handlers = this.handlers.get(type);
       if (handlers) {
-        handlers.delete(handler);
+        handlers.delete(handler as MessageHandler<any>);
         if (handlers.size === 0) {
           this.handlers.delete(type);
         }

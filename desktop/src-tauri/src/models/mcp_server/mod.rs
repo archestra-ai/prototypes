@@ -186,7 +186,7 @@ impl Model {
 
     pub async fn save_mcp_server_from_catalog(
         db: &DatabaseConnection,
-        connector_id: String,
+        mcp_server_catalog_id: String,
     ) -> Result<MCPServerDefinition, String> {
         // Load the catalog
         let catalog = Self::get_mcp_connector_catalog().await?;
@@ -194,8 +194,8 @@ impl Model {
         // Find the connector by ID
         let connector = catalog
             .iter()
-            .find(|c| c.id == connector_id)
-            .ok_or_else(|| format!("Connector with ID '{connector_id}' not found in catalog"))?;
+            .find(|c| c.id == mcp_server_catalog_id)
+            .ok_or_else(|| format!("Connector with ID '{mcp_server_catalog_id}' not found in catalog"))?;
 
         let definition = MCPServerDefinition {
             name: connector.title.clone(),

@@ -17,12 +17,27 @@ pub struct ChatTitleUpdatedWebSocketPayload {
     pub title: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct OAuthSuccessWebSocketPayload {
+    pub mcp_server_catalog_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct OAuthErrorWebSocketPayload {
+    pub mcp_server_catalog_id: String,
+    pub error: String,
+}
+
 // Enum for all possible WebSocket messages
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "payload")]
 pub enum WebSocketMessage {
     #[serde(rename = "chat-title-updated")]
     ChatTitleUpdated(ChatTitleUpdatedWebSocketPayload),
+    #[serde(rename = "oauth-success")]
+    OAuthSuccess(OAuthSuccessWebSocketPayload),
+    #[serde(rename = "oauth-error")]
+    OAuthError(OAuthErrorWebSocketPayload),
 }
 
 type Clients = Arc<Mutex<Vec<SplitSink<WebSocket, axum::extract::ws::Message>>>>;
@@ -200,6 +215,7 @@ mod tests {
                 assert_eq!(payload.chat_id, 456);
                 assert_eq!(payload.title, "Another Chat");
             }
+            _ => panic!("Expected ChatTitleUpdated message"),
         }
     }
 
@@ -339,6 +355,7 @@ mod tests {
             WebSocketMessage::ChatTitleUpdated(payload) => {
                 assert_eq!(payload.title, "Title with \"quotes\" and \nnewlines");
             }
+            _ => panic!("Expected ChatTitleUpdated message"),
         }
     }
 }

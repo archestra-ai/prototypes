@@ -575,7 +575,7 @@
         }
       }
     },
-    "/api/mcp_server/start_oauth": {
+    "/api/mcp_server/catalog/install/{mcp_server_catalog_id}/start_oauth": {
       "post": {
         "tags": ["mcp_server"],
         "operationId": "start_mcp_server_oauth",
@@ -591,14 +591,7 @@
         },
         "responses": {
           "200": {
-            "description": "OAuth authorization URL",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MCPOAuthResponse"
-                }
-              }
-            }
+            "description": "OAuth authorization URL"
           },
           "500": {
             "description": "Internal server error"
@@ -810,9 +803,9 @@
       },
       "InstallMCPServerRequest": {
         "type": "object",
-        "required": ["mcp_connector_id"],
+        "required": ["mcp_server_catalog_id"],
         "properties": {
-          "mcp_connector_id": {
+          "mcp_server_catalog_id": {
             "type": "string"
           }
         }
@@ -906,15 +899,6 @@
           },
           "required": {
             "type": "boolean"
-          }
-        }
-      },
-      "MCPOAuthResponse": {
-        "type": "object",
-        "required": ["auth_url"],
-        "properties": {
-          "auth_url": {
-            "type": "string"
           }
         }
       },
@@ -1085,6 +1069,27 @@
           }
         }
       },
+      "OAuthErrorWebSocketPayload": {
+        "type": "object",
+        "required": ["mcp_server_catalog_id", "error"],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "mcp_server_catalog_id": {
+            "type": "string"
+          }
+        }
+      },
+      "OAuthSuccessWebSocketPayload": {
+        "type": "object",
+        "required": ["mcp_server_catalog_id"],
+        "properties": {
+          "mcp_server_catalog_id": {
+            "type": "string"
+          }
+        }
+      },
       "PaginatedMCPRequestLogResponse_MCPRequestLog": {
         "type": "object",
         "required": ["data", "total", "page", "page_size"],
@@ -1166,9 +1171,9 @@
       },
       "StartMCPServerOAuthRequest": {
         "type": "object",
-        "required": ["mcp_connector_id"],
+        "required": ["mcp_server_catalog_id"],
         "properties": {
-          "mcp_connector_id": {
+          "mcp_server_catalog_id": {
             "type": "string"
           }
         }
@@ -1212,6 +1217,32 @@
               "type": {
                 "type": "string",
                 "enum": ["chat-title-updated"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/OAuthSuccessWebSocketPayload"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["oauth-success"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["payload", "type"],
+            "properties": {
+              "payload": {
+                "$ref": "#/components/schemas/OAuthErrorWebSocketPayload"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["oauth-error"]
               }
             }
           }

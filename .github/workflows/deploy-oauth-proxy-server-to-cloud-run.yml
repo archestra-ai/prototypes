@@ -1,0 +1,117 @@
+name: Deploy OAuth Proxy Server to Cloud Run
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "The environment to deploy to (dev or prod)"
+        required: true
+        type: string
+      version:
+        description: "The version to deploy (commit SHA for dev, release version for prod)"
+        required: true
+        type: string
+    secrets:
+      GCP_PROJECT_ID:
+        required: true
+      GCP_SA_KEY:
+        required: true
+      GOOGLE_CLIENT_ID:
+        required: true
+      GOOGLE_CLIENT_SECRET:
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy to Cloud Run (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment-specific variables
+        id: env-vars
+        run: |
+          if [ "${{ inputs.environment }}" == "prod" ]; then
+            echo "service_name=oauth-proxy" >> $GITHUB_OUTPUT
+            echo "region=us-central1" >> $GITHUB_OUTPUT
+            echo "memory=512Mi" >> $GITHUB_OUTPUT
+            echo "cpu=1" >> $GITHUB_OUTPUT
+            echo "min_instances=1" >> $GITHUB_OUTPUT
+            echo "max_instances=100" >> $GITHUB_OUTPUT
+            echo "redirect_url=https://oauth.archestra.ai" >> $GITHUB_OUTPUT
+          else
+            echo "service_name=oauth-proxy-dev" >> $GITHUB_OUTPUT
+            echo "region=us-central1" >> $GITHUB_OUTPUT
+            echo "memory=256Mi" >> $GITHUB_OUTPUT
+            echo "cpu=1" >> $GITHUB_OUTPUT
+            echo "min_instances=0" >> $GITHUB_OUTPUT
+            echo "max_instances=10" >> $GITHUB_OUTPUT
+            echo "redirect_url=https://oauth.dev.archestra.ai" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push Docker image to GCR
+        uses: RafikFarhad/push-to-gcr-github-action@v5
+        with:
+          registry: gcr.io
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          image_name: ${{ steps.env-vars.outputs.service_name }}
+          image_tag: ${{ inputs.version }}
+          dockerfile: ./oauth-proxy/Dockerfile
+          context: ./oauth-proxy
+          gcloud_service_key: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set image output
+        id: docker-build
+        run: |
+          echo "image=gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ steps.env-vars.outputs.service_name }}:${{ inputs.version }}" >> $GITHUB_OUTPUT
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ steps.env-vars.outputs.service_name }}
+          image: ${{ steps.docker-build.outputs.image }}
+          region: ${{ steps.env-vars.outputs.region }}
+          flags: |
+            --allow-unauthenticated
+            --memory=${{ steps.env-vars.outputs.memory }}
+            --cpu=${{ steps.env-vars.outputs.cpu }}
+            --min-instances=${{ steps.env-vars.outputs.min_instances }}
+            --max-instances=${{ steps.env-vars.outputs.max_instances }}
+            --port=3000
+          env_vars: |
+            NODE_ENV=${{ inputs.environment }}
+            PORT=3000
+            REDIRECT_URL=${{ steps.env-vars.outputs.redirect_url }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            LOG_LEVEL=info
+
+      - name: Get service URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ steps.env-vars.outputs.service_name }} \
+            --platform managed \
+            --region ${{ steps.env-vars.outputs.region }} \
+            --format 'value(status.url)')
+          echo "Service deployed to: $SERVICE_URL"
+          echo "service_url=$SERVICE_URL" >> $GITHUB_OUTPUT
+        id: service-url
+
+      - name: Verify deployment
+        run: |
+          # Wait for service to be ready
+          sleep 10
+          
+          # Check health endpoint
+          curl -f "${{ steps.service-url.outputs.service_url }}/health" || exit 1
+          echo "Health check passed!"

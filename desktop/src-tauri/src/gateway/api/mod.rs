@@ -5,9 +5,11 @@ pub mod chat;
 pub mod external_mcp_client;
 pub mod mcp_request_log;
 pub mod mcp_server;
-pub mod oauth;
 
-pub fn create_router(db: DatabaseConnection) -> Router {
+pub fn create_router(
+    app_handle: tauri::AppHandle,
+    db: DatabaseConnection,
+) -> Router {
     Router::new()
         .nest(
             "/external_mcp_client",
@@ -17,6 +19,9 @@ pub fn create_router(db: DatabaseConnection) -> Router {
             "/mcp_request_log",
             mcp_request_log::create_router(db.clone()),
         )
-        .nest("/mcp_server", mcp_server::create_router(db.clone()))
+        .nest(
+            "/mcp_server",
+            mcp_server::create_router(app_handle.clone(), db.clone()),
+        )
         .nest("/chat", chat::create_router(db))
 }

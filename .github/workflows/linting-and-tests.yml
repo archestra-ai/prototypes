@@ -104,6 +104,41 @@ jobs:
       - name: Build
         run: pnpm build
 
+  oauth-proxy-tests:
+    name: OAuth Proxy TypeScript and Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./oauth-proxy
+    # TODO: once we setup pnpm workspaces have this reuse the setup-frontend action instead
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 24.4.1
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.13.1 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript type check
+        run: pnpm typecheck
+
+      - name: Run tests
+        run: pnpm test:run
+
+      - name: Build
+        run: pnpm build
+
   verify-openapi-schema-is-up-to-date:
     name: Verify Open API schema is up to date
     runs-on: ubuntu-latest

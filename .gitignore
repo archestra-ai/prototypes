@@ -23,4 +23,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Serena and Claude files
+.serena/
+LOGGING_WORKFLOW.md
 .claude/settings.local.json

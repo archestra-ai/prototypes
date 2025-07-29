@@ -26,6 +26,8 @@ jobs:
       id-token: write
     outputs:
       desktop_release_created: ${{ steps.release-please.outputs['desktop--release_created'] }}
+      oauth_proxy_release_created: ${{ steps.release-please.outputs['oauth-proxy--release_created'] }}
+      oauth_proxy_version: ${{ steps.release-please.outputs['oauth-proxy--version'] }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -102,3 +104,18 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+  deploy-oauth-proxy-to-prod:
+    name: Deploy OAuth Proxy to Production
+    if: needs.release-please.outputs.oauth_proxy_release_created
+    needs:
+      - release-please
+    uses: ./.github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml
+    with:
+      environment: prod
+      version: v${{ needs.release-please.outputs.oauth_proxy_version }}
+    secrets:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}

@@ -72,6 +72,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
 
                 const isInstalled = installedMCPServers.some((server) => server.name === title);
                 const isInstalling = installingMCPServerName === title;
+                const requiresOAuthSetup = oauth?.required === true;
 
                 return (
                   <Card
@@ -145,7 +146,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                                   <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                                   Installing...
                                 </>
-                              ) : oauth?.required ? (
+                              ) : requiresOAuthSetup ? (
                                 <>
                                   <Settings className="h-4 w-4" />
                                   Setup OAuth

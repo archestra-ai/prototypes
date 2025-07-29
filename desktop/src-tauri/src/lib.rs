@@ -15,13 +15,15 @@ pub mod test_fixtures;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default().plugin(tauri_plugin_http::init());
+    let websocket_service = std::sync::Arc::new(gateway::websocket::Service::new());
 
     // Configure the single instance plugin which should always be the first plugin you register
     // https://v2.tauri.app/plugin/deep-linking/#desktop
     #[cfg(desktop)]
     {
         debug!("Setting up single instance plugin...");
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+        let websocket_service_for_single_instance = websocket_service.clone();
+        builder = builder.plugin(tauri_plugin_single_instance::init(move |app, argv, _cwd| {
             debug!("SINGLE INSTANCE CALLBACK: a new app instance was opened with {argv:?}");
 
             // HANDLER 1: Single Instance Deep Link Handler
@@ -32,9 +34,22 @@ pub fn run() {
                 if arg.starts_with("archestra-ai://") {
                     debug!("SINGLE INSTANCE: Found deep link in argv: {arg}");
                     let app_handle = app.clone();
+                    let websocket_service_clone = websocket_service_for_single_instance.clone();
+
                     tauri::async_runtime::spawn(async move {
-                        gateway::api::oauth::handle_oauth_callback(app_handle, arg.to_string())
-                            .await;
+                        match database::connection::get_database_connection_with_app(&app_handle).await {
+                            Ok(db) => {
+                                gateway::api::mcp_server::oauth::handle_oauth_callback(
+                                    app_handle,
+                                    std::sync::Arc::new(db),
+                                    websocket_service_clone,
+                                    arg.to_string()
+                                ).await;
+                            }
+                            Err(e) => {
+                                error!("Failed to get database connection for OAuth callback: {e}");
+                            }
+                        }
                     });
                 }
             }
@@ -47,7 +62,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_deep_link::init())
-        .setup(|app| {
+        .setup(move |app| {
             // Initialize database
             let app_handle = app.handle().clone();
             let db = tauri::async_runtime::block_on(async {
@@ -75,17 +90,19 @@ pub fn run() {
             // Start the archestra gateway server
             let user_id = "archestra_user".to_string();
             let db_for_mcp = db.clone();
+            let app_handle = app.handle().clone();
+            let websocket_service_for_gateway = websocket_service.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = gateway::start_gateway(user_id, db_for_mcp).await {
+                if let Err(e) = gateway::start_gateway(app_handle, websocket_service_for_gateway, user_id, db_for_mcp).await {
                     error!("Failed to start gateway: {e}");
                 }
             });
 
             // Sync all connected external MCP clients
-            let db = db.clone();
+            let db_for_sync = db.clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) =
-                    models::external_mcp_client::Model::sync_all_connected_external_mcp_clients(&db)
+                    models::external_mcp_client::Model::sync_all_connected_external_mcp_clients(&db_for_sync)
                         .await
                 {
                     error!("Failed to sync all connected external MCP clients: {e}");
@@ -99,15 +116,23 @@ pub fn run() {
             // https://v2.tauri.app/plugin/deep-linking/#listening-to-deep-links
             debug!("Setting up deep link handler...");
             let app_handle = app.handle().clone();
+            let websocket_service_for_deep_link = websocket_service.clone();
             app.deep_link().on_open_url(move |event| {
                 let urls = event.urls();
                 debug!("DEEP LINK PLUGIN: Received URLs: {urls:?}");
                 for url in urls {
                     debug!("DEEP LINK PLUGIN: Processing URL: {url}");
                     let app_handle = app_handle.clone();
+                    let db = db.clone();
+                    let websocket_service_clone = websocket_service_for_deep_link.clone();
+
                     tauri::async_runtime::spawn(async move {
-                        gateway::api::oauth::handle_oauth_callback(app_handle, url.to_string())
-                            .await;
+                        gateway::api::mcp_server::oauth::handle_oauth_callback(
+                            app_handle, 
+                            std::sync::Arc::new(db), 
+                            websocket_service_clone, 
+                            url.to_string()
+                        ).await;
                     });
                 }
             });

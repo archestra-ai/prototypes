@@ -31,7 +31,8 @@
       "allow": [
         "$HOME/.cursor/mcp.json",
         "$HOME/.vscode/mcp.json",
-        "$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+        "$HOME/Library/Application Support/Claude/claude_desktop_config.json",
+        "$APPDATA/**"
       ]
     },
     {
@@ -39,7 +40,8 @@
       "allow": [
         "$HOME/.cursor/mcp.json",
         "$HOME/.vscode/mcp.json",
-        "$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+        "$HOME/Library/Application Support/Claude/claude_desktop_config.json",
+        "$APPDATA/**"
       ]
     },
     {
@@ -50,12 +52,13 @@
         "$HOME/Library/Application Support/Claude/claude_desktop_config.json",
         "$HOME/.cursor",
         "$HOME/.vscode",
-        "$HOME/Library/Application Support/Claude"
+        "$HOME/Library/Application Support/Claude",
+        "$APPDATA/**"
       ]
     },
     {
       "identifier": "fs:allow-mkdir",
-      "allow": ["$HOME/.cursor", "$HOME/.vscode", "$HOME/Library/Application Support/Claude"]
+      "allow": ["$HOME/.cursor", "$HOME/.vscode", "$HOME/Library/Application Support/Claude", "$APPDATA/**"]
     },
     {
       "identifier": "http:default",

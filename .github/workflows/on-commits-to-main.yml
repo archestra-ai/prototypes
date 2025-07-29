@@ -1,0 +1,28 @@
+name: On commits to main
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      # To run this workflow on all commits to main, remove the paths filter below
+      - 'oauth-proxy/**'
+      - '.github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml'
+      - '.github/workflows/on-commits-to-main.yml'
+
+concurrency:
+  group: on-commits-to-main
+  cancel-in-progress: true
+
+jobs:
+  deploy-oauth-proxy-to-dev:
+    name: Deploy OAuth Proxy to Dev
+    uses: ./.github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml
+    with:
+      environment: dev
+      version: ${{ github.sha }}
+    secrets:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
