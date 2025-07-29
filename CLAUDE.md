@@ -114,6 +114,21 @@ podman build -f Dockerfile.mcp-server-sandbox -t mcp-server-sandbox:latest .
 # Podman v5.5.2 binaries must be downloaded and placed in desktop/src-tauri/binaries/
 ```
 
+**Podman Setup Requirements**:
+1. Download Podman v5.5.2 binaries from [official releases](https://github.com/containers/podman/releases/tag/v5.5.2)
+2. Place binaries in `desktop/src-tauri/binaries/` with platform-specific naming:
+   - macOS (Intel): `podman-darwin-x86_64`
+   - macOS (Apple Silicon): `podman-darwin-aarch64`
+   - Linux: `podman-linux-x86_64`
+   - Windows: `podman-windows-x86_64.exe`
+3. Ensure execute permissions on Unix platforms: `chmod +x podman-*`
+
+**Container Image Details**:
+- Base image: Node.js 20 Alpine Linux for minimal footprint
+- Includes Python 3, pip, git, curl for various MCP servers
+- Runs as non-root user (`mcpuser`, UID 1001) for security
+- Working directory: `/mcp` with proper permissions
+
 ## High-Level Architecture
 
 This is a **Tauri desktop application** that integrates AI/LLM capabilities with MCP (Model Context Protocol) support for a privacy-focused AI assistant with extensible tool support.
@@ -416,7 +431,13 @@ Response: 204 No Content
 
 ### External Binary Dependencies
 
-- **Podman v5.5.2**: Container runtime for MCP server sandboxing (must be placed in `desktop/src-tauri/binaries/`)
+- **Podman v5.5.2**: Container runtime for MCP server sandboxing
+  - Required for secure, cross-platform MCP server isolation
+  - Replaces macOS-specific sandbox-exec with universal container solution
+  - Binaries must be manually downloaded and placed in `desktop/src-tauri/binaries/`
+  - Platform-specific naming convention required (see MCP Server Sandbox Management section)
+  - Runtime initializes on app startup, builds sandbox image if not present
+  - Falls back gracefully if Podman unavailable (HTTP MCP servers still work)
 - **Ollama**: Local LLM runtime (automatically managed)
 
 ### CI/CD Workflow
@@ -500,7 +521,11 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - The app supports deep linking with `archestra-ai://` protocol
 - MCP servers are sandboxed using Podman containers for cross-platform security isolation
 - OAuth proxy runs as a separate service on a configured port
-- Podman runtime initializes on app startup, automatically building the MCP server sandbox image if not present
+- Podman runtime initializes on app startup:
+  - Validates Podman binary availability and version
+  - Checks for `mcp-server-sandbox:latest` image existence
+  - Automatically builds image from `Dockerfile.mcp-server-sandbox` if missing
+  - Graceful fallback if Podman unavailable (HTTP MCP servers continue to work)
 - OpenAPI schema must be regenerated after API changes (CI will catch if forgotten)
 - Frontend API calls should use the generated client, not Tauri commands
 - Database migrations should be created for schema changes using SeaORM
