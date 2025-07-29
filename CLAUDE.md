@@ -409,7 +409,7 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 #### Main Testing Workflow (`.github/workflows/linting-and-tests.yml`)
 
 - PR title linting with conventional commits
-- **Automatic Rust formatting and fixes**: CI automatically applies `cargo fix` and `cargo fmt` changes and commits them back to the PR
+- **Rust formatting and linting**: CI validates code formatting with `cargo fmt --check` and runs `cargo check` with comprehensive validation flags
 - Rust tests on Ubuntu, macOS (ARM64 & x86_64), and Windows
   - **Improved job naming**: CI jobs now display human-friendly names (e.g., "Rust Linting and Tests (Ubuntu)") instead of technical platform identifiers (e.g., "Rust Linting and Tests (ubuntu-latest)")
 - Frontend formatting and tests
@@ -472,7 +472,7 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - Database migrations should be created for schema changes using SeaORM
 - Use rstest fixtures from `test_fixtures` for Rust database tests
 - Mock external dependencies appropriately in tests
-- CI automatically formats Rust code and regenerates OpenAPI schemas, committing changes back to PRs
+- CI validates Rust code formatting and automatically regenerates OpenAPI schemas when needed, committing schema changes back to PRs
 - CI uses GitHub Actions bot credentials for automated commits
 
 ### Testing Patterns
