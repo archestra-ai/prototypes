@@ -117,7 +117,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
   - `mcp_server/`: MCP server models including OAuth support
 - `src/gateway/`: HTTP gateway exposing the following APIs:
   - `/api/chat`: CRUD operations for chat management
-  - `/llm/chat/stream`: SSE streaming endpoint for Vercel AI SDK v5
+  - `/llm/ollama/stream`: SSE streaming endpoint for Vercel AI SDK v5
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies to MCP servers
   - `/llm/ollama/*`: Proxies to embedded Ollama instance
@@ -146,7 +146,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 
 The application uses SSE for real-time streaming communication:
 
-- **Streaming Endpoint**: `/llm/chat/stream` handles SSE streaming with inherent agent capabilities
+- **Streaming Endpoint**: `/llm/ollama/stream` handles SSE streaming with inherent agent capabilities
 - **CRUD Endpoints**: `/api/chat` provides REST operations for chat management (GET, POST, PATCH, DELETE)
 - **Frontend Integration**: Uses Vercel AI SDK v5's `useChat` hook with `DefaultChatTransport`
 - **Protocol**: Full Vercel AI SDK v5 protocol with data-only SSE events

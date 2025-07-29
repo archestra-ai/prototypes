@@ -3,7 +3,7 @@ import { Bot, Download, MessageCircle, Settings } from 'lucide-react';
 import { NavigationItem, NavigationViewKey } from './types';
 
 const ARCHESTRA_SERVER_BASE_URL = 'localhost:54587';
-const ARCHESTRA_SERVER_BASE_HTTP_URL = `http://${ARCHESTRA_SERVER_BASE_URL}`;
+export const ARCHESTRA_SERVER_BASE_HTTP_URL = `http://${ARCHESTRA_SERVER_BASE_URL}`;
 const ARCHESTRA_SERVER_BASE_WEBSOCKET_URL = `ws://${ARCHESTRA_SERVER_BASE_URL}`;
 
 export const ARCHESTRA_SERVER_MCP_URL = `${ARCHESTRA_SERVER_BASE_HTTP_URL}/mcp`;

@@ -38,6 +38,7 @@ vi.mock('./chat-provider/event-handlers', () => ({
 
 vi.mock('@/consts', () => ({
   ARCHESTRA_SERVER_API_URL: 'http://localhost:54587/api',
+  ARCHESTRA_SERVER_BASE_HTTP_URL: 'http://localhost:54587',
 }));
 
 describe('ChatProvider', () => {

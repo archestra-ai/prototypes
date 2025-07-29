@@ -17,7 +17,7 @@ graph TB
 
     subgraph "Backend (Rust/Tauri)"
         GW[HTTP Gateway :54587]
-        CHAT["/api/chat/stream endpoint"]
+        CHAT["/llm/ollama/stream endpoint"]
         CRUD["/api/chat CRUD endpoints"]
         DB[(SQLite Database)]
         MCP[MCP Tool Executor]
@@ -60,7 +60,7 @@ sequenceDiagram
 
     User->>UI: Types message
     UI->>CP: sendMessage()
-    CP->>BE: POST /api/chat/stream
+    CP->>BE: POST /llm/ollama/stream
 
     BE->>DB: Create/Update chat session
     BE->>BE: Process message
@@ -167,7 +167,7 @@ export const ARCHESTRA_SERVER_OLLAMA_PROXY_URL = `${ARCHESTRA_SERVER_BASE_HTTP_U
 ### Chat Streaming
 
 ```
-POST /api/chat/stream
+POST /llm/ollama/stream
 Content-Type: application/json
 
 {

@@ -2,7 +2,7 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { ReactNode, createContext, useContext, useEffect, useMemo, useRef } from 'react';
 
-import { ARCHESTRA_SERVER_API_URL } from '@/consts';
+import { ARCHESTRA_SERVER_BASE_HTTP_URL } from '@/consts';
 import { useChatStore } from '@/stores/chat-store';
 import { useOllamaStore } from '@/stores/ollama-store';
 
@@ -31,7 +31,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
   // Create transport with prepareSendMessagesRequest to add required metadata
   const chatTransport = useMemo(() => {
     return new DefaultChatTransport({
-      api: `${ARCHESTRA_SERVER_API_URL}/chat/stream`,
+      api: `${ARCHESTRA_SERVER_BASE_HTTP_URL}/llm/ollama/stream`,
       prepareSendMessagesRequest: ({ messages }: { messages: any[] }) => {
         // Get the current model from Ollama store
         const { selectedModel } = useOllamaStore.getState();
