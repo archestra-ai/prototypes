@@ -7,14 +7,17 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
+# Copy tsconfig.base.json from parent directory
+COPY tsconfig.base.json ../tsconfig.base.json
+
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY oauth-proxy/package.json oauth-proxy/pnpm-lock.yaml ./
 
 # Install all dependencies (including dev dependencies for build)
 RUN pnpm install --frozen-lockfile
 
 # Copy the rest of the application code
-COPY . .
+COPY oauth-proxy/ .
 
 # Build TypeScript
 RUN pnpm build
@@ -29,7 +32,7 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY oauth-proxy/package.json oauth-proxy/pnpm-lock.yaml ./
 
 # Install only production dependencies
 RUN pnpm install --frozen-lockfile --prod
