@@ -273,9 +273,10 @@ describe('Agent Store Lifecycle Tests', () => {
       const result = await handleToolExecution({
         name: 'test-server_test_tool',
         arguments: { param: 'value' },
+        result: { success: true, data: 'test result' },
       });
 
-      expect(result).toBeDefined();
+      expect(result).toEqual({ success: true, data: 'test result' });
 
       delete (window as any).__toolApprovalHandler;
     });
