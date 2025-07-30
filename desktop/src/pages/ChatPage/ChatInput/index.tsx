@@ -94,10 +94,6 @@ export default function ChatInput(_props: ChatInputProps) {
 
     // Handle special commands
     const trimmedInput = input.trim();
-
-    // For all messages, send through SSE
-    // The backend will handle the actual processing
-    console.log('[ChatInput] Sending message:', trimmedInput);
     try {
       // Prepare the metadata for the backend
       const metadata: any = {

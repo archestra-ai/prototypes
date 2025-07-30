@@ -135,6 +135,7 @@ impl std::fmt::Display for ToolIdentifier {
 /// Request body for chat endpoint
 #[derive(Debug, Deserialize, Serialize)]
 struct ChatRequest {
+    session_id: String,
     messages: Vec<ChatMessageForStream>,
     #[serde(default)]
     agent_context: Option<AgentContext>,
@@ -1154,6 +1155,35 @@ async fn execute_chat_stream(
     request: ChatRequest,
     tx: mpsc::UnboundedSender<SseMessage>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // Load the chat by session_id
+    let chat = match ChatModel::load_by_session_id(request.session_id.clone(), &service.db).await {
+        Ok(Some(c)) => c,
+        Ok(None) => {
+            return Err(format!("Chat not found for session_id: {}", request.session_id).into());
+        }
+        Err(e) => {
+            return Err(format!("Failed to load chat: {e}").into());
+        }
+    };
+    let chat_session_id = chat.session_id.clone();
+    let model_name = request
+        .model
+        .clone()
+        .unwrap_or_else(|| "llama3.2".to_string());
+
+    // Save the user message (last message in the request)
+    if let Some(last_msg) = request.messages.last() {
+        let content_json = serde_json::json!({
+            "role": last_msg.role,
+            "content": last_msg.get_content()
+        });
+
+        if let Err(e) = ChatMessage::save(chat_session_id.clone(), content_json, &service.db).await
+        {
+            error!("Failed to save user message: {e}");
+        }
+    }
+
     // Start message
     let message_id = uuid::Uuid::new_v4().to_string();
     tx.send(SseMessage::MessageStart {
@@ -1456,6 +1486,51 @@ async fn execute_chat_stream(
                                 break;
                             } else {
                                 // No tool calls, send completion normally
+
+                                // Save the assistant message
+                                if !accumulated_content.is_empty() {
+                                    let assistant_message = serde_json::json!({
+                                        "role": ROLE_ASSISTANT,
+                                        "content": accumulated_content.clone()
+                                    });
+
+                                    if let Err(e) = ChatMessage::save(
+                                        chat_session_id.clone(),
+                                        assistant_message,
+                                        &service.db,
+                                    )
+                                    .await
+                                    {
+                                        error!("Failed to save assistant message: {e}");
+                                    }
+
+                                    // Check if we need to generate a title
+                                    if let Ok(count) = ChatMessage::count_chat_messages(
+                                        chat_session_id.clone(),
+                                        &service.db,
+                                    )
+                                    .await
+                                    {
+                                        if count == MIN_MESSAGES_FOR_TITLE_GENERATION
+                                            && chat.title.is_none()
+                                        {
+                                            let service_clone = Arc::clone(&service);
+                                            let chat_session_id_clone = chat_session_id.clone();
+                                            let model_name_clone = model_name.clone();
+
+                                            // Spawn title generation in background
+                                            tokio::spawn(async move {
+                                                let _ = service_clone
+                                                    .generate_chat_title(
+                                                        chat_session_id_clone,
+                                                        model_name_clone,
+                                                    )
+                                                    .await;
+                                            });
+                                        }
+                                    }
+                                }
+
                                 let usage = if let (Some(prompt_tokens), Some(completion_tokens)) =
                                     (chat_chunk.prompt_eval_count, chat_chunk.eval_count)
                                 {

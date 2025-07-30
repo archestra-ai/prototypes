@@ -39,8 +39,12 @@ export function ChatProvider({ children }: ChatProviderProps) {
         // Get metadata from window object (set by ChatInput)
         const metadata = window.__CHAT_METADATA__ || {};
 
+        // Get the current chat session ID
+        const currentChatSessionId = useChatStore.getState().currentChatSessionId;
+
         // Build the request body with required fields and metadata
         const body = {
+          session_id: currentChatSessionId,
           messages: messages,
           model: metadata.model || selectedModel || 'qwen3:4b',
           tools: metadata.tools,
@@ -73,13 +77,22 @@ export function ChatProvider({ children }: ChatProviderProps) {
     },
   });
 
-  // Clear messages when the current chat changes or is deleted
+  // Load messages when the current chat changes
   useEffect(() => {
-    // Only clear if the chat session actually changed
+    // Only update if the chat session actually changed
     if (prevChatSessionIdRef.current !== currentChatSessionId) {
       console.log('[ChatProvider] Chat session changed from', prevChatSessionIdRef.current, 'to', currentChatSessionId);
       prevChatSessionIdRef.current = currentChatSessionId;
-      chat.setMessages([]);
+
+      // Load messages from the selected chat
+      const currentChat = useChatStore.getState().getCurrentChat();
+      if (currentChat && currentChat.messages.length > 0) {
+        console.log('[ChatProvider] Loading messages from selected chat:', currentChat.messages.length);
+        chat.setMessages(currentChat.messages);
+      } else {
+        console.log('[ChatProvider] No messages to load, clearing messages');
+        chat.setMessages([]);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentChatSessionId]); // Don't include chat in dependencies to avoid infinite loop

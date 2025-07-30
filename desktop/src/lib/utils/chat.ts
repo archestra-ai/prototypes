@@ -108,12 +108,28 @@ export const initializeChat = (chat: ServerChatWithMessages): ChatWithMessages =
     llm_provider: chat.llm_provider,
     created_at: chat.created_at,
     messages: chat.messages.map((message: any) => {
-      const content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
+      let content: string;
+      let role: string;
+
+      // Handle different message content formats
+      if (typeof message.content === 'string') {
+        content = message.content;
+        role = message.role || 'user';
+      } else if (message.content && typeof message.content === 'object') {
+        // Extract content from JSON object
+        content = message.content.content || '';
+        role = message.content.role || message.role || 'user';
+      } else {
+        content = '';
+        role = message.role || 'user';
+      }
+
       const { thinking, response } = parseThinkingContent(content);
 
       return {
         ...message,
         id: generateNewMessageId(),
+        role,
         toolCalls: initializeToolCalls((message.content as any)?.tool_calls || []),
         content: response,
         thinkingContent: thinking,
