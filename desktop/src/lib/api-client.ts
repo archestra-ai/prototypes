@@ -13,3 +13,6 @@ export const apiClient = createClient({
 
 // Re-export everything from the generated API
 export * from './api';
+
+// Re-export custom types
+export type { Chat, ChatWithMessages, ToolCall, ChatMessage } from './api/custom-types';

@@ -90,7 +90,7 @@ export const initializeToolCalls = (toolCalls: ServerToolCall[]): ToolCall[] => 
       error: '',
       status: ToolCallStatus.Pending,
       executionTime: 0,
-      startTime: null,
+      startTime: undefined,
       endTime: null,
     };
   });
@@ -104,12 +104,13 @@ export const initializeChat = (chat: ServerChatWithMessages): ChatWithMessages =
   return {
     ...chat,
     messages: chat.messages.map((message) => {
-      const { thinking, response } = parseThinkingContent(message.content);
+      const content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
+      const { thinking, response } = parseThinkingContent(content);
 
       return {
         ...message,
         id: generateNewMessageId(),
-        toolCalls: initializeToolCalls(message.tool_calls),
+        toolCalls: initializeToolCalls((message.content as any)?.tool_calls || []),
         content: response,
         thinkingContent: thinking,
         isStreaming: false,

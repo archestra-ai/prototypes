@@ -16,7 +16,7 @@ pub mod test_fixtures;
 fn open_devtools(app: tauri::AppHandle) {
     #[cfg(debug_assertions)]
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.open_devtools();
+        window.open_devtools();
     }
 }
 

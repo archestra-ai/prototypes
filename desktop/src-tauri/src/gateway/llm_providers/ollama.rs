@@ -944,7 +944,7 @@ async fn create_chat_stream(
         if let Err(e) = execute_chat_stream(service, request, tx.clone()).await {
             // Send error event
             let _ = tx.send(SseMessage::Error {
-                error: format!("Chat execution failed: {}", e),
+                error: format!("Chat execution failed: {e}"),
             });
         }
     });
@@ -1188,7 +1188,7 @@ async fn execute_chat_stream(
         .model
         .clone()
         .unwrap_or_else(|| "llama3.2".to_string());
-    eprintln!("[execute_chat_stream] Using model: {}", selected_model);
+    eprintln!("[execute_chat_stream] Using model: {selected_model}");
 
     // Keep track of the maximum number of tool rounds to prevent infinite loops
     const MAX_TOOL_ROUNDS: usize = 10;
@@ -1753,14 +1753,14 @@ async fn execute_mcp_tool(
 
     if !response.status().is_success() {
         let error_text = response.text().await?;
-        return Err(format!("MCP proxy error: {}", error_text).into());
+        return Err(format!("MCP proxy error: {error_text}").into());
     }
 
     let result: serde_json::Value = response.json().await?;
 
     // Extract result from JSON-RPC response
     if let Some(error) = result.get("error") {
-        return Err(format!("MCP tool error: {}", error).into());
+        return Err(format!("MCP tool error: {error}").into());
     }
 
     Ok(result

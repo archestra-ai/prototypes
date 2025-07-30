@@ -2,12 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { Tool as BaseTool } from '@modelcontextprotocol/sdk/types.js';
 import { LucideIcon } from 'lucide-react';
 
-import type {
-  ChatMessage as BaseChatMessage,
-  ChatWithMessages as BaseChatWithMessages,
-  McpServer as BaseMcpServer,
-  ToolCall as BaseToolCall,
-} from '@/lib/api-client';
+import type { McpServer as BaseMcpServer } from '@/lib/api-client';
 
 export interface ToolWithMCPServerName extends BaseTool {
   serverName: string;
@@ -61,20 +56,24 @@ export interface ToolContentImage {
 
 export type ToolContent = ToolContentText | ToolContentImage;
 
-export interface ToolCall extends BaseToolCall {
+export interface ToolCall {
   id: string;
   serverName: string;
   name: string;
+  function: {
+    name: string;
+    arguments: any;
+  };
   arguments: Record<string, any>;
   result: string; // For backward compatibility - text representation
   structuredOutput?: {
     content: ToolContent[];
   };
   error: string | null;
-  status: ToolCallStatus;
-  executionTime: number | null;
-  startTime: Date | null;
-  endTime: Date | null;
+  status?: ToolCallStatus;
+  executionTime?: number | null;
+  startTime?: Date;
+  endTime?: Date | null;
 }
 
 export enum ChatMessageStatus {
@@ -88,8 +87,12 @@ export enum ChatMessageStatus {
  * NOTE: the following fields are not part of the backend API, they are only used on the UI side to
  * track the state of various things like streaming, thinking, tool execution, etc.
  */
-export interface ChatMessage extends Omit<BaseChatMessage, 'tool_calls'> {
+export interface ChatMessage {
   id: string;
+  chat_id?: number;
+  content?: any;
+  created_at?: string;
+  role?: string;
   /**
    * toolCalls is a superset of the tool_calls field in the backend API
    */
@@ -100,7 +103,12 @@ export interface ChatMessage extends Omit<BaseChatMessage, 'tool_calls'> {
   isThinkingStreaming: boolean;
 }
 
-export interface ChatWithMessages extends Omit<BaseChatWithMessages, 'messages'> {
+export interface ChatWithMessages {
+  id: number;
+  session_id: string;
+  title: string | null;
+  llm_provider: string;
+  created_at: string;
   /**
    * messages is a superset of the messages field in the backend API
    */

@@ -54,9 +54,9 @@ export default function ChatHistory(_props: ChatHistoryProps) {
             id: message.id,
             role: message.role as any,
             content: message.content || '',
-            thinking: message.thinking || '',
+
             toolCalls: message.toolCalls || [],
-            images: [],
+
             thinkingContent: message.thinking || '',
             isStreaming: isMessageStreaming && !message.thinking && !message.isToolOnly,
             isThinkingStreaming: isMessageStreaming && !!message.thinking,

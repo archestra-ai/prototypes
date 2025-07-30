@@ -65,7 +65,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const { data } = await getAllChats();
 
       if (data) {
-        const initializedChats = data.map(initializeChat);
+        const initializedChats = data.map((chat) => initializeChat(chat as unknown as ServerChatWithMessages));
 
         set({
           chats: initializedChats,
@@ -86,7 +86,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           llm_provider: 'ollama',
         },
       });
-      const initializedChat = initializeChat(response.data as ServerChatWithMessages);
+      const initializedChat = initializeChat(response.data as unknown as ServerChatWithMessages);
 
       set((state) => ({
         chats: [initializedChat, ...state.chats],
