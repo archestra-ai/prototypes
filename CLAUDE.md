@@ -99,16 +99,24 @@ pnpm dbstudio
 ```bash
 cd oauth-proxy
 pnpm install
-pnpm run dev  # Development mode with Vite
+pnpm run dev  # Development mode with Vite (runs on port 3000)
 pnpm run build  # Build for production
 pnpm run preview  # Preview production build
+pnpm run test  # Run unit tests with Vitest
+pnpm run test:ui  # Run tests with UI
+pnpm run test:coverage  # Generate test coverage report
 ```
 
-#### Testing OAuth proxy
+#### OAuth Proxy Environment Variables
 
 ```bash
-cd oauth-proxy
-pnpm test  # Run unit tests with Vitest
+# Required environment variables for OAuth proxy:
+GOOGLE_OAUTH_CLIENT_ID      # Google OAuth client ID
+GOOGLE_OAUTH_CLIENT_SECRET  # Google OAuth client secret
+REDIRECT_URL               # OAuth redirect URL (e.g., https://oauth.dev.archestra.ai)
+NODE_ENV                   # Environment (development/production)
+PORT                       # Server port (default: 3000)
+LOG_LEVEL                  # Logging level (default: info)
 ```
 
 ## High-Level Architecture
@@ -185,16 +193,28 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 #### OAuth Proxy Service (`oauth-proxy/`)
 
 - `src/`: TypeScript source code
-  - `server.ts`: Express server setup with middleware
-  - `google.ts`: Google OAuth implementation using googleapis
+  - `server.ts`: Express server with middleware configuration
+  - `google.ts`: Google OAuth implementation with googleapis library
   - `v1/handlers.ts`: OAuth flow handlers with CSRF protection
-  - `types.ts`: TypeScript type definitions
+    - `GET /v1/auth/:service`: Initiates OAuth flow
+    - `GET /v1/oauth-callback/:service`: Handles OAuth callbacks
+  - `types.ts`: TypeScript type definitions for OAuth flows
   - `logger.ts`: Structured logging with Pino
 - `public/`: Static files served by Express
-  - `index.html`: Landing page
-  - `oauth-callback.html`: OAuth callback page that redirects to desktop app
-- Built with TypeScript, Express, and Vite for modern development
-- Deployed to Google Cloud Run with auto-scaling
+  - `index.html`: Landing page with service information
+  - `oauth-callback.html`: OAuth callback page that:
+    - Extracts tokens from URL parameters
+    - Redirects to `archestra-ai://oauth/callback` deep link
+    - Shows error messages if authentication fails
+- Testing infrastructure:
+  - `src/**/*.test.ts`: Unit tests for all modules
+  - `setup-tests.ts`: Vitest configuration
+  - `vite.config.ts`: Build and test configuration
+- Deployment:
+  - `Dockerfile`: Multi-stage build for production
+  - Deployed to Google Cloud Run with auto-scaling
+  - Development: https://oauth.dev.archestra.ai
+  - Production: https://oauth.archestra.ai
 
 ### Core Features
 
@@ -205,10 +225,17 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 3. **Chat Persistence**: Full CRUD operations for chat conversations with SQLite database storage
 4. **Intelligent Chat Titles**: Automatic LLM-generated chat titles based on conversation content
 5. **OAuth Authentication**: Secure OAuth flow for Google Workspace services with external proxy:
-   - **OAuth Proxy Service**: Deployed to Google Cloud Run at oauth.archestra.ai (prod) and oauth.dev.archestra.ai (dev)
-   - **Deep Link Integration**: Uses `archestra-ai://oauth/callback` URLs to pass tokens to desktop app
-   - **Credential Management**: Stores OAuth credentials securely in app data directory
-   - **Supported Services**: Gmail, Google Drive, Calendar, Docs, Sheets, Slides, Forms, Tasks, and Chat
+   - **OAuth Proxy Service**: Node.js/TypeScript service deployed to Google Cloud Run
+     - Development: https://oauth.dev.archestra.ai (auto-deployed on main branch commits)
+     - Production: https://oauth.archestra.ai (deployed via release-please)
+   - **Deep Link Integration**: Uses `archestra-ai://oauth/callback` URLs to pass tokens securely to desktop app
+   - **Credential Management**: 
+     - Stores OAuth credentials as JSON files in app data directory
+     - Path template: `{{ .app_data_dir }}/mcp_servers/oauth-credentials-{service}.json`
+     - Credentials include: `client_id`, `client_secret`, `refresh_token`, `token_uri`
+   - **Supported Services**: 9 Google Workspace services
+     - Gmail, Google Drive, Calendar, Docs, Sheets, Slides, Forms, Tasks, and Chat
+     - Each service has appropriate OAuth scopes configured
 6. **Chat Interface**: Full-featured chat UI with streaming responses and tool execution
    - **Tool Execution Display**: Shows execution time, status indicators, and collapsible argument/result sections
    - **Enhanced Code Blocks**: Syntax highlighting with Shiki, file tabs, copy functionality, and theme support
@@ -511,18 +538,31 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 #### OAuth Proxy Deployment Workflows
 
 ##### Development Deployment (`.github/workflows/on-commits-to-main.yml`)
-- Triggers on pushes to `main` branch that modify `oauth-proxy/` files
-- Automatically deploys to `oauth.dev.archestra.ai` environment
-- Uses commit SHA as version tag
-- Minimal resource allocation (256Mi memory, 0-10 instances)
-- Includes health check verification after deployment
+- **Triggers**: Pushes to `main` branch that modify `oauth-proxy/` files
+- **Environment**: Automatically deploys to `oauth.dev.archestra.ai`
+- **Version**: Uses commit SHA as Docker image tag
+- **Resources**: 
+  - Memory: 512Mi
+  - CPU: 1 core with CPU boost
+  - Instances: 1-1 (fixed for dev)
+  - Timeout: 300 seconds
+- **Features**:
+  - Health check at `/health` endpoint
+  - Startup probe configuration
+  - Environment-specific secrets from Google Secret Manager
 
 ##### Production Deployment (via Release Please)
-- Triggers when release-please creates an OAuth proxy release
-- Deploys to `oauth.archestra.ai` production environment
-- Uses semantic version tag (e.g., `v1.2.3`)
-- Production resources (512Mi memory, 1-100 instances)
-- Requires successful dev deployment and testing
+- **Triggers**: When release-please creates an OAuth proxy release
+- **Environment**: Deploys to `oauth.archestra.ai`
+- **Version**: Uses semantic version tag (e.g., `v1.2.3`)
+- **Resources**: Production-grade allocation (configured in workflow)
+- **Note**: Currently commented out with TODO - uncomment when ready for production
+
+##### OAuth Proxy CI/CD Configuration
+- **Docker Build**: Multi-stage Dockerfile with Node.js 24 Alpine
+- **Registry**: Google Artifact Registry in `europe-west1`
+- **Authentication**: Workload Identity Federation for secure deployments
+- **Secrets Management**: Google Secret Manager for OAuth client credentials
 
 #### Interactive Claude Workflow (`.github/workflows/claude.yml`)
 
@@ -545,9 +585,18 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - The app supports deep linking with `archestra-ai://` protocol for OAuth callbacks
 - MCP servers are sandboxed for security on macOS
 - OAuth proxy runs as a separate service deployed to Google Cloud Run:
-  - Development: https://oauth.dev.archestra.ai
-  - Production: https://oauth.archestra.ai
-- OAuth credentials are stored in `~/Library/Application Support/com.archestra-ai.app/mcp_servers/` on macOS
+  - Development: https://oauth.dev.archestra.ai (auto-deployed from main)
+  - Production: https://oauth.archestra.ai (deployed via releases)
+  - Local development: Run with `pnpm run dev` in `oauth-proxy/` directory
+- OAuth credentials storage:
+  - macOS: `~/Library/Application Support/com.archestra-ai.app/mcp_servers/oauth-credentials-{service}.json`
+  - Windows: `%APPDATA%\com.archestra-ai.app\mcp_servers\oauth-credentials-{service}.json`
+  - Linux: `~/.config/com.archestra-ai.app/mcp_servers/oauth-credentials-{service}.json`
+- OAuth implementation notes:
+  - Credentials are never stored on the proxy server
+  - Each Google service has its own credential file
+  - Refresh tokens are stored for long-term authentication
+  - The `GOOGLE_CLIENT_SECRET_PATH` env var points to the credential file
 - OpenAPI schema must be regenerated after API changes (CI will catch if forgotten)
 - Frontend API calls should use the generated client, not Tauri commands
 - Database migrations should be created for schema changes using SeaORM
