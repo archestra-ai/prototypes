@@ -10,6 +10,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Common Development Commands
 
+### Environment Variables
+
+```bash
+# No special environment variables are required for basic development
+# The application uses embedded Ollama on port 54588
+# HTTP gateway runs on port 54587
+```
+
 ### Building and Running
 
 ```bash
@@ -113,8 +121,9 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - **State Management**: Zustand v5
 - **Routing**: Tanstack React Router
 - **Backend**: Rust with Tauri v2 framework, Axum web framework, SeaORM for SQLite database
-- **API Layer**: HTTP gateway on port 54587 with OpenAPI schema generation using utoipa, SSE streaming endpoint at `/api/chat/stream`
+- **API Layer**: HTTP gateway on port 54587 with OpenAPI schema generation using utoipa
 - **AI Integration**: Ollama for local LLM support, MCP (Model Context Protocol) for tool integration, Vercel AI SDK v5 for streaming chat and agent responses
+- **Streaming**: Server-Sent Events (SSE) for real-time chat streaming via `/llm/ollama/stream` endpoint
 - **Testing**: Vitest + React Testing Library (frontend), Rust built-in test framework with rstest (backend)
 
 ### Key Directories
@@ -146,8 +155,8 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
   - `LLMProvidersPage/`: LLM model management
   - `SettingsPage/`: Application settings
 - `stores/`: Zustand stores for state management
-  - `chat-store.ts`: Chat state management with streaming integration
-  - `agent-store.ts`: Agent state management with task planning and execution tracking
+  - `chat-store.ts`: Chat state management with streaming integration via Vercel AI SDK
+  - `agent-store.ts`: Agent state management with task planning and execution tracking (backend-driven)
 - `hooks/`: Custom React hooks including MCP client hooks
   - `use-typewriter.ts`: Hook for typewriter text animation
   - `use-sse-chat.ts`: SSE chat streaming integration with Vercel AI SDK v5
@@ -176,13 +185,13 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `src/gateway/`: HTTP gateway exposing the following APIs:
   - `/api`: REST API for Archestra resources (OpenAPI documented)
     - `/api/chat`: Chat CRUD operations (create, read, update, delete chats)
-    - `/api/chat/stream`: SSE streaming endpoint for Vercel AI SDK v5 with agent support (proxied through `/llm/ollama/stream`)
+    - `/api/chat/stream`: SSE streaming endpoint for Vercel AI SDK v5 with agent support
     - `oauth/`: OAuth authentication flows for MCP servers (e.g., Gmail)
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
   - `/llm/:provider`: Proxies requests to LLM providers
     - `/llm/ollama/*`: Proxies all requests to embedded Ollama instance
-    - `/llm/ollama/stream`: Enhanced streaming endpoint with chat persistence and agent support
+    - `/llm/ollama/stream`: Main SSE streaming endpoint with chat persistence, agent support, and tool execution
   - `/ws`: WebSocket endpoint for real-time event broadcasting
 - `src/ollama/`: Ollama integration module
   - `client.rs`: HTTP client for Ollama API
@@ -370,26 +379,25 @@ The application provides two types of chat endpoints:
 **1. SSE Streaming Endpoint (for chat interactions):**
 ```typescript
 // Stream chat responses with optional agent support
-POST /api/chat/stream
+POST /llm/ollama/stream
 Content-Type: application/json
 
 Body: {
   messages: Message[],
   model?: string,
   tools?: string[],
-  agent_context?: {
-    mode: AgentMode,
-    tools: string[],
-    instructions: string
-  },
+  stream?: boolean,  // Defaults to true
   options?: {
     temperature?: number,
     num_predict?: number
   }
+  // Agent context is added automatically by ChatProvider when agent is active
 }
 
 Response: Server-Sent Events stream (Vercel AI SDK v5 compatible)
 ```
+
+**Note**: The frontend uses a custom transport configuration in ChatProvider to properly format requests for the backend.
 
 **2. CRUD Endpoints (for chat management):**
 ```typescript
@@ -414,7 +422,7 @@ Response: 204 No Content
 
 **Chat Persistence Workflow**:
 
-1. Frontend uses `/api/chat/stream` endpoint via Vercel AI SDK v5's `useChat` hook
+1. Frontend uses `/llm/ollama/stream` endpoint via Vercel AI SDK v5's `useChat` hook with custom transport
 2. Chat is automatically created on first message via `/api/chat` CRUD endpoint
 3. Messages are persisted during streaming via the Ollama proxy interceptor
 4. Backend maintains chat session through automatic title generation after 4 messages
@@ -446,6 +454,7 @@ Response: 204 No Content
   - Tracks agent mode, current plan, task progress, and execution state
   - Manages working memory and reasoning history
   - Handles tool approval workflows and error recovery
+  - All agent execution happens server-side; frontend is display-only
 - **Centralized Provider**: `ChatProvider` context for shared streaming state
   - Integrates chat and agent stores for unified experience
   - Manages SSE event handling and state synchronization
@@ -465,7 +474,8 @@ Response: 204 No Content
 ### Key Dependencies
 
 - **Frontend**:
-  - `ai`: Vercel AI SDK v5 (5.0.0-beta.3) for SSE streaming chat integration
+  - `ai`: Vercel AI SDK v5 (5.0.0-canary.30) for SSE streaming chat integration
+  - `@ai-sdk/react`: React bindings for Vercel AI SDK v5
   - `@radix-ui/react-popover`: For popover UI component (required by shadcn/ui)
   - `@radix-ui/react-progress`: For progress indicators in agent task execution
   - `reconnecting-websocket`: For WebSocket client with automatic reconnection support
@@ -555,33 +565,51 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 
 ### Agent System Architecture
 
-The agent system provides autonomous task planning and execution capabilities:
+The agent system provides autonomous task planning and execution capabilities with all logic running server-side:
 
 #### Agent Lifecycle
 
 1. **Initialization**: Agent activates with specific mode and configuration
-2. **Planning**: Breaks down user requests into structured task plans
-3. **Execution**: Executes tasks with tool selection and error handling
-4. **Monitoring**: Real-time progress tracking and state updates
+2. **Planning**: Breaks down user requests into structured task plans (backend)
+3. **Execution**: Executes tasks with tool selection and error handling (backend)
+4. **Monitoring**: Real-time progress tracking via SSE events
 5. **Completion**: Graceful completion with summary and metrics
 
 #### Agent Components
 
-- **Agent Store**: Centralized state management for agent lifecycle
-- **Task Planner**: Intelligent task breakdown with dependency analysis
-- **Tool Selector**: Capability-based tool selection with constraints
-- **Memory Manager**: Working memory with relevance scoring
-- **Error Handler**: Recovery strategies and user guidance
+- **Agent Store**: Frontend state management for display and user interaction
+- **Backend Agent Executor**: Server-side agent logic in Rust
+- **SSE Event Stream**: Real-time updates for agent state, reasoning, and progress
+- **Tool Approval System**: Human-in-the-loop approval via SSE events
+- **Memory Manager**: Working memory with relevance scoring (backend)
+
+#### SSE Event Types for Agent
+
+The backend sends these additional SSE events during agent execution:
+
+```typescript
+// Agent-specific SSE events
+type AgentEvent =
+  | { type: 'agent-state-update', mode: AgentMode }
+  | { type: 'reasoning-entry', entry: ReasoningEntry }
+  | { type: 'task-progress', progress: TaskProgress }
+  | { type: 'tool-approval-request', tool: ToolInfo }
+  | { type: 'working-memory-update', memory: MemoryEntry }
+  | { type: 'agent-error', error: string }
+```
 
 #### Agent Configuration
 
+Agent configuration is managed through the chat request's metadata:
+
 ```typescript
-interface AgentConfig {
-  model: string;              // LLM model for agent reasoning
-  temperature: number;        // Creativity level (0-1)
-  maxSteps: number;          // Maximum execution steps
-  memoryLimit: number;       // Working memory size limit
-  autoApproveTools: string[]; // Pre-approved tool list
+// Agent context passed with chat messages
+interface AgentContext {
+  mode: AgentMode;
+  tools: string[];
+  instructions: string;
+  planId?: string;
+  stepId?: string;
 }
 ```
 
