@@ -68,44 +68,66 @@ impl ToolIdentifier {
         if tool_str.len() > 256 {
             return Err("Tool identifier too long (max 256 characters)".to_string());
         }
-        
+
         // Only allow alphanumeric, dash, and underscore
-        let valid_chars = tool_str.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_');
+        let valid_chars = tool_str
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_');
         if !valid_chars {
             return Err("Tool identifier contains invalid characters (only alphanumeric, dash, and underscore allowed)".to_string());
         }
-        
+
         let parts: Vec<&str> = tool_str.splitn(2, '_').collect();
         if parts.len() != 2 {
-            return Err(format!("Invalid tool identifier format: '{}' (expected format: serverName_toolName)", tool_str));
+            return Err(format!(
+                "Invalid tool identifier format: '{}' (expected format: serverName_toolName)",
+                tool_str
+            ));
         }
-        
+
         let server_name = parts[0].trim();
         let tool_name = parts[1].trim();
-        
+
         if server_name.is_empty() || tool_name.is_empty() {
-            return Err(format!("Tool identifier components cannot be empty: '{}'", tool_str));
+            return Err(format!(
+                "Tool identifier components cannot be empty: '{}'",
+                tool_str
+            ));
         }
-        
+
         // Additional validation for known injection patterns
-        let dangerous_patterns = ["../", "\\", "<script", "javascript:", "file://", "--", "/*", "*/", "';", "';--"];
+        let dangerous_patterns = [
+            "../",
+            "\\",
+            "<script",
+            "javascript:",
+            "file://",
+            "--",
+            "/*",
+            "*/",
+            "';",
+            "';--",
+        ];
         for pattern in dangerous_patterns {
             if server_name.contains(pattern) || tool_name.contains(pattern) {
-                return Err(format!("Tool identifier contains dangerous pattern: '{}'", pattern));
+                return Err(format!(
+                    "Tool identifier contains dangerous pattern: '{}'",
+                    pattern
+                ));
             }
         }
-        
+
         // Validate server name and tool name lengths
         if server_name.len() > 128 || tool_name.len() > 128 {
             return Err("Server name or tool name too long (max 128 characters each)".to_string());
         }
-        
+
         Ok(Self {
             server_name: server_name.to_string(),
             tool_name: tool_name.to_string(),
         })
     }
-    
+
     /// Convert back to string format
     fn to_string(&self) -> String {
         format!("{}_{}", self.server_name, self.tool_name)
@@ -135,7 +157,7 @@ impl ChatRequest {
         if self.messages.is_empty() {
             return Err("Messages array cannot be empty".to_string());
         }
-        
+
         // Validate model name if provided
         if let Some(model) = &self.model {
             if model.trim().is_empty() {
@@ -143,7 +165,7 @@ impl ChatRequest {
             }
             // Could add more specific model validation here
         }
-        
+
         // Validate tool names format (should be serverName_toolName)
         if let Some(tools) = &self.tools {
             for tool in tools {
@@ -153,7 +175,7 @@ impl ChatRequest {
                 }
             }
         }
-        
+
         // Validate options if provided
         if let Some(options) = &self.options {
             if let Some(obj) = options.as_object() {
@@ -168,7 +190,7 @@ impl ChatRequest {
                 // Add more option validations as needed
             }
         }
-        
+
         Ok(())
     }
 }
@@ -187,21 +209,21 @@ impl ChatMessageForStream {
         if let Some(content) = &self.content {
             return content.clone();
         }
-        
+
         if let Some(parts) = &self.parts {
             let mut content = String::new();
             for part in parts {
                 match part {
                     ContentPart::Text { text } => content.push_str(text),
                     ContentPart::Image { .. } => content.push_str("[Image]"),
-                    ContentPart::Reasoning { .. } => {}, // Skip reasoning parts
-                    ContentPart::TaskProgress { .. } => {}, // Skip task progress
-                    ContentPart::AgentState { .. } => {}, // Skip agent state
+                    ContentPart::Reasoning { .. } => {} // Skip reasoning parts
+                    ContentPart::TaskProgress { .. } => {} // Skip task progress
+                    ContentPart::AgentState { .. } => {} // Skip agent state
                 }
             }
             return content;
         }
-        
+
         String::new()
     }
 }
@@ -230,18 +252,47 @@ struct AgentContext {
 #[derive(Debug)]
 #[allow(dead_code)]
 enum SseMessage {
-    MessageStart { id: String, role: String },
-    TextStart { id: String },
-    TextDelta { id: String, delta: String },
-    TextEnd { id: String },
-    ContentDelta { delta: String },
+    MessageStart {
+        id: String,
+        role: String,
+    },
+    TextStart {
+        id: String,
+    },
+    TextDelta {
+        id: String,
+        delta: String,
+    },
+    TextEnd {
+        id: String,
+    },
+    ContentDelta {
+        delta: String,
+    },
     StreamEnd,
-    ToolCallStart { tool_call_id: String, tool_name: String },
-    ToolCallDelta { tool_call_id: String, args_delta: String },
-    ToolCallResult { tool_call_id: String, tool_name: String, result: serde_json::Value },
-    DataPart { data_type: String, data: serde_json::Value },
-    MessageComplete { usage: Option<UsageStats> },
-    Error { error: String },
+    ToolCallStart {
+        tool_call_id: String,
+        tool_name: String,
+    },
+    ToolCallDelta {
+        tool_call_id: String,
+        args_delta: String,
+    },
+    ToolCallResult {
+        tool_call_id: String,
+        tool_name: String,
+        result: serde_json::Value,
+    },
+    DataPart {
+        data_type: String,
+        data: serde_json::Value,
+    },
+    MessageComplete {
+        usage: Option<UsageStats>,
+    },
+    Error {
+        error: String,
+    },
     Ping,
 }
 
@@ -584,12 +635,18 @@ impl Service {
                 match response {
                     Ok(chat_response) => {
                         // Accumulate content with size limit
-                        if accumulated_content.len() + chat_response.message.content.len() > MAX_ACCUMULATED_CONTENT {
-                            error!("Accumulated content exceeds maximum size limit of {} bytes", MAX_ACCUMULATED_CONTENT);
+                        if accumulated_content.len() + chat_response.message.content.len()
+                            > MAX_ACCUMULATED_CONTENT
+                        {
+                            error!(
+                                "Accumulated content exceeds maximum size limit of {} bytes",
+                                MAX_ACCUMULATED_CONTENT
+                            );
                             let error_json = serde_json::json!({
                                 "error": "Response too large: exceeded maximum content size limit"
                             });
-                            let mut error_bytes = serde_json::to_vec(&error_json).unwrap_or_default();
+                            let mut error_bytes =
+                                serde_json::to_vec(&error_json).unwrap_or_default();
                             error_bytes.push(b'\n');
                             let _ = tx.send(Ok(axum::body::Bytes::from(error_bytes)));
                             break;
@@ -600,10 +657,7 @@ impl Service {
                         let mut json_response =
                             serde_json::to_vec(&chat_response).unwrap_or_default();
                         json_response.push(b'\n'); // Add newline for NDJSON
-                        if tx
-                            .send(Ok(axum::body::Bytes::from(json_response)))
-                            .is_err()
-                        {
+                        if tx.send(Ok(axum::body::Bytes::from(json_response))).is_err() {
                             break;
                         }
 
@@ -681,40 +735,46 @@ impl Service {
     /// Validate proxy target URL for security
     fn validate_proxy_target(url: &str) -> Result<(), String> {
         // Parse the URL
-        let parsed_url = url.parse::<url::Url>()
-            .map_err(|_| "Invalid URL format")?;
-        
+        let parsed_url = url.parse::<url::Url>().map_err(|_| "Invalid URL format")?;
+
         // Only allow specific schemes
         match parsed_url.scheme() {
-            "http" | "https" => {},
+            "http" | "https" => {}
             scheme => return Err(format!("Disallowed URL scheme: {}", scheme)),
         }
-        
+
         // Extract host
-        let host = parsed_url.host_str()
-            .ok_or("No host in URL")?;
-        
+        let host = parsed_url.host_str().ok_or("No host in URL")?;
+
         // Only allow localhost and loopback addresses
         let allowed_hosts = ["localhost", "127.0.0.1", "::1", "[::1]"];
         if !allowed_hosts.contains(&host) {
-            return Err(format!("Host not allowed: {}. Only localhost connections are permitted.", host));
+            return Err(format!(
+                "Host not allowed: {}. Only localhost connections are permitted.",
+                host
+            ));
         }
-        
+
         // Only allow specific ports (Ollama port)
         if let Some(port) = parsed_url.port() {
-            let allowed_ports = [54588, // Ollama port from FALLBACK_OLLAMA_SERVER_PORT
-                                crate::ollama::server::get_ollama_server_port()];
+            let allowed_ports = [
+                54588, // Ollama port from FALLBACK_OLLAMA_SERVER_PORT
+                crate::ollama::server::get_ollama_server_port(),
+            ];
             if !allowed_ports.contains(&port) {
-                return Err(format!("Port not allowed: {}. Only Ollama ports are permitted.", port));
+                return Err(format!(
+                    "Port not allowed: {}. Only Ollama ports are permitted.",
+                    port
+                ));
             }
         }
-        
+
         // Validate path doesn't contain directory traversal
         let path = parsed_url.path();
         if path.contains("..") || path.contains("\\") {
             return Err("Path contains directory traversal patterns".to_string());
         }
-        
+
         Ok(())
     }
 
@@ -735,7 +795,7 @@ impl Service {
         }
         let target_url = format!("{target_host}{path}");
         debug!("Target URL: {}", target_url);
-        
+
         // Validate the target URL for security
         Self::validate_proxy_target(&target_url)?;
 
@@ -833,7 +893,7 @@ async fn stream_handler(
         error!("Invalid chat request: {}", e);
         return Err(StatusCode::BAD_REQUEST);
     }
-    
+
     // Log the received request
     eprintln!(
         "[stream_handler] Received request with model: {:?}",
@@ -883,10 +943,9 @@ async fn create_chat_stream(
     tokio::spawn(async move {
         if let Err(e) = execute_chat_stream(service, request, tx.clone()).await {
             // Send error event
-            let _ = tx
-                .send(SseMessage::Error {
-                    error: format!("Chat execution failed: {}", e),
-                });
+            let _ = tx.send(SseMessage::Error {
+                error: format!("Chat execution failed: {}", e),
+            });
         }
     });
 
@@ -1100,8 +1159,7 @@ async fn execute_chat_stream(
     tx.send(SseMessage::MessageStart {
         id: message_id.clone(),
         role: ROLE_ASSISTANT.to_string(),
-    })
-    ?;
+    })?;
 
     // Use the messages directly
     let messages = request.messages;
@@ -1137,29 +1195,37 @@ async fn execute_chat_stream(
     const MAX_OLLAMA_MESSAGES: usize = 100; // Maximum number of messages to keep in history
     let mut tool_round = 0;
     let mut _had_tool_calls_in_previous_round = false;
-    
+
     // Pre-allocate tool results vector to reuse across iterations
     let mut tool_results: Vec<(String, String, serde_json::Value)> = Vec::with_capacity(10);
-    
+
     // Continue making LLM calls until no more tools are called or we hit the limit
     loop {
         // Trim message history if it gets too long
         if ollama_messages.len() > MAX_OLLAMA_MESSAGES {
             // Keep the first message (usually system prompt) and the most recent messages
-            let start_index = ollama_messages.len().saturating_sub(MAX_OLLAMA_MESSAGES - 1);
+            let start_index = ollama_messages
+                .len()
+                .saturating_sub(MAX_OLLAMA_MESSAGES - 1);
             let mut trimmed_messages = vec![ollama_messages[0].clone()];
             trimmed_messages.extend_from_slice(&ollama_messages[start_index..]);
             ollama_messages = trimmed_messages;
-            debug!("Trimmed message history to {} messages", ollama_messages.len());
+            debug!(
+                "Trimmed message history to {} messages",
+                ollama_messages.len()
+            );
         }
         tool_round += 1;
         if tool_round > MAX_TOOL_ROUNDS {
-            eprintln!("[execute_chat_stream] Reached maximum tool rounds ({})", MAX_TOOL_ROUNDS);
+            eprintln!(
+                "[execute_chat_stream] Reached maximum tool rounds ({})",
+                MAX_TOOL_ROUNDS
+            );
             break;
         }
 
         // We don't need step events here - they should wrap tool execution phases
-        
+
         // Clear tool results for this round
         tool_results.clear();
         let mut had_tool_calls = false;
@@ -1175,134 +1241,139 @@ async fn execute_chat_stream(
         };
 
         // Call Ollama API
-        let ollama_url = format!("http://localhost:{}/api/chat", crate::ollama::server::get_ollama_server_port());
-        let response = service.http_client
+        let ollama_url = format!(
+            "http://localhost:{}/api/chat",
+            crate::ollama::server::get_ollama_server_port()
+        );
+        let response = service
+            .http_client
             .post(&ollama_url)
             .json(&ollama_request)
-            .send().await?;
+            .send()
+            .await?;
 
         if !response.status().is_success() {
             return Err(format!("Ollama API error: {}", response.status()).into());
         }
 
-    // Stream response chunks
-    let mut stream = response.bytes_stream();
-    let mut accumulated_content = String::new();
-    let text_block_id = format!("text-{}", uuid::Uuid::new_v4());
-    let mut text_started = false;
+        // Stream response chunks
+        let mut stream = response.bytes_stream();
+        let mut accumulated_content = String::new();
+        let text_block_id = format!("text-{}", uuid::Uuid::new_v4());
+        let mut text_started = false;
 
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        let text = String::from_utf8_lossy(&chunk);
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk?;
+            let text = String::from_utf8_lossy(&chunk);
 
-        // Parse each line as a JSON object (Ollama sends newline-delimited JSON)
-        for line in text.lines() {
-            if line.trim().is_empty() {
-                continue;
-            }
+            // Parse each line as a JSON object (Ollama sends newline-delimited JSON)
+            for line in text.lines() {
+                if line.trim().is_empty() {
+                    continue;
+                }
 
-            match serde_json::from_str::<OllamaChatChunk>(line) {
-                Ok(chat_chunk) => {
-                    // Send content delta
-                    if !chat_chunk.message.content.is_empty() {
-                        // Send text-start if this is the first content
-                        if !text_started {
-                            tx.send(SseMessage::TextStart {
-                                id: text_block_id.clone(),
-                            })
-                            ?;
-                            text_started = true;
-                        }
+                match serde_json::from_str::<OllamaChatChunk>(line) {
+                    Ok(chat_chunk) => {
+                        // Send content delta
+                        if !chat_chunk.message.content.is_empty() {
+                            // Send text-start if this is the first content
+                            if !text_started {
+                                tx.send(SseMessage::TextStart {
+                                    id: text_block_id.clone(),
+                                })?;
+                                text_started = true;
+                            }
 
-                        // Check size limit before accumulating
-                        if accumulated_content.len() + chat_chunk.message.content.len() > MAX_ACCUMULATED_CONTENT {
-                            error!("Accumulated content exceeds maximum size limit of {} bytes", MAX_ACCUMULATED_CONTENT);
-                            tx.send(SseMessage::Error {
-                                error: "Response too large: exceeded maximum content size limit".to_string(),
-                            })?;
-                            return Err("Content size limit exceeded".into());
-                        }
-                        accumulated_content.push_str(&chat_chunk.message.content);
-                        tx.send(SseMessage::TextDelta {
-                            id: text_block_id.clone(),
-                            delta: chat_chunk.message.content.clone(),
-                        })
-                        ?;
-                    }
-
-                    // Handle tool calls if present
-                    if let Some(tool_calls) = chat_chunk.message.tool_calls {
-                        let total_tools = tool_calls.len();
-
-                        // Tool execution starting
-                        
-                        // Send start-step event before executing tools (only once per round)
-                        if !had_tool_calls {
-                            tx.send(SseMessage::DataPart {
-                                data_type: "start-step".to_string(),
-                                data: serde_json::json!({}),
-                            })
-                            ?;
-                            had_tool_calls = true;
-                        }
-
-                        for tool_call in tool_calls {
-                            let tool_id = tool_call
-                                .id
-                                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-                            let tool_name = tool_call.function.name.clone();
-
-                            // Send tool call start event
-                            tx.send(SseMessage::ToolCallStart {
-                                tool_call_id: tool_id.clone(),
-                                tool_name: tool_name.clone(),
-                            })
-                            ?;
-
-                            // Send tool arguments
-                            tx.send(SseMessage::ToolCallDelta {
-                                tool_call_id: tool_id.clone(),
-                                args_delta: tool_call.function.arguments.to_string(),
-                            })
-                            ?;
-
-                            // Send tool input available event
-                            tx.send(SseMessage::DataPart {
-                                data_type: "tool-input-available".to_string(),
-                                data: serde_json::json!({
-                                    "toolCallId": tool_id.clone(),
-                                    "toolName": tool_name.clone(),
-                                    "input": tool_call.function.arguments.clone()
-                                }),
-                            })
-                            ?;
-
-                            // Execute tool server-side
-                            match execute_mcp_tool(
-                                &service.db,
-                                &tool_name,
-                                &tool_call.function.arguments,
-                            )
-                            .await
+                            // Check size limit before accumulating
+                            if accumulated_content.len() + chat_chunk.message.content.len()
+                                > MAX_ACCUMULATED_CONTENT
                             {
-                                Ok(result) => {
-                                    // Store the result for later use
-                                    tool_results.push((
-                                        tool_id.clone(),
-                                        tool_name.clone(),
-                                        result.clone(),
-                                    ));
+                                error!(
+                                    "Accumulated content exceeds maximum size limit of {} bytes",
+                                    MAX_ACCUMULATED_CONTENT
+                                );
+                                tx.send(SseMessage::Error {
+                                    error:
+                                        "Response too large: exceeded maximum content size limit"
+                                            .to_string(),
+                                })?;
+                                return Err("Content size limit exceeded".into());
+                            }
+                            accumulated_content.push_str(&chat_chunk.message.content);
+                            tx.send(SseMessage::TextDelta {
+                                id: text_block_id.clone(),
+                                delta: chat_chunk.message.content.clone(),
+                            })?;
+                        }
 
-                                    tx.send(SseMessage::ToolCallResult {
-                                        tool_call_id: tool_id,
-                                        tool_name: tool_name.clone(),
-                                        result,
-                                    })
-                                    ?;
+                        // Handle tool calls if present
+                        if let Some(tool_calls) = chat_chunk.message.tool_calls {
+                            let total_tools = tool_calls.len();
 
-                                    // Update progress after successful tool execution
-                                    completed_tools += 1;
-                                    tx.send(SseMessage::DataPart {
+                            // Tool execution starting
+
+                            // Send start-step event before executing tools (only once per round)
+                            if !had_tool_calls {
+                                tx.send(SseMessage::DataPart {
+                                    data_type: "start-step".to_string(),
+                                    data: serde_json::json!({}),
+                                })?;
+                                had_tool_calls = true;
+                            }
+
+                            for tool_call in tool_calls {
+                                let tool_id = tool_call
+                                    .id
+                                    .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+                                let tool_name = tool_call.function.name.clone();
+
+                                // Send tool call start event
+                                tx.send(SseMessage::ToolCallStart {
+                                    tool_call_id: tool_id.clone(),
+                                    tool_name: tool_name.clone(),
+                                })?;
+
+                                // Send tool arguments
+                                tx.send(SseMessage::ToolCallDelta {
+                                    tool_call_id: tool_id.clone(),
+                                    args_delta: tool_call.function.arguments.to_string(),
+                                })?;
+
+                                // Send tool input available event
+                                tx.send(SseMessage::DataPart {
+                                    data_type: "tool-input-available".to_string(),
+                                    data: serde_json::json!({
+                                        "toolCallId": tool_id.clone(),
+                                        "toolName": tool_name.clone(),
+                                        "input": tool_call.function.arguments.clone()
+                                    }),
+                                })?;
+
+                                // Execute tool server-side
+                                match execute_mcp_tool(
+                                    &service.db,
+                                    &tool_name,
+                                    &tool_call.function.arguments,
+                                )
+                                .await
+                                {
+                                    Ok(result) => {
+                                        // Store the result for later use
+                                        tool_results.push((
+                                            tool_id.clone(),
+                                            tool_name.clone(),
+                                            result.clone(),
+                                        ));
+
+                                        tx.send(SseMessage::ToolCallResult {
+                                            tool_call_id: tool_id,
+                                            tool_name: tool_name.clone(),
+                                            result,
+                                        })?;
+
+                                        // Update progress after successful tool execution
+                                        completed_tools += 1;
+                                        tx.send(SseMessage::DataPart {
                                         data_type: "task-progress".to_string(),
                                         data: serde_json::json!({
                                             "progress": {
@@ -1314,115 +1385,110 @@ async fn execute_chat_stream(
                                         }),
                                     })
                                     ?;
+                                    }
+                                    Err(e) => {
+                                        let error_result = serde_json::json!({
+                                            "error": format!("Tool execution failed: {}", e)
+                                        });
+
+                                        tool_results.push((
+                                            tool_id.clone(),
+                                            tool_name.clone(),
+                                            error_result.clone(),
+                                        ));
+
+                                        tx.send(SseMessage::ToolCallResult {
+                                            tool_call_id: tool_id,
+                                            tool_name,
+                                            result: error_result,
+                                        })?;
+                                    }
                                 }
-                                Err(e) => {
-                                    let error_result = serde_json::json!({
-                                        "error": format!("Tool execution failed: {}", e)
+                            }
+                        }
+
+                        // If done, handle completion
+                        if chat_chunk.done {
+                            // Send text-end if we sent any text
+                            if text_started {
+                                tx.send(SseMessage::TextEnd {
+                                    id: text_block_id.clone(),
+                                })?;
+                            }
+
+                            // If we had tool calls, update message history and continue loop
+                            if had_tool_calls && !tool_results.is_empty() {
+                                // Add assistant message with content if any
+                                if !accumulated_content.is_empty() {
+                                    ollama_messages.push(OllamaStreamMessage {
+                                        role: ROLE_ASSISTANT.to_string(),
+                                        content: accumulated_content.clone(),
                                     });
-
-                                    tool_results.push((
-                                        tool_id.clone(),
-                                        tool_name.clone(),
-                                        error_result.clone(),
-                                    ));
-
-                                    tx.send(SseMessage::ToolCallResult {
-                                        tool_call_id: tool_id,
-                                        tool_name,
-                                        result: error_result,
-                                    })
-                                    ?;
                                 }
-                            }
-                        }
-                    }
 
-                    // If done, handle completion
-                    if chat_chunk.done {
-                        // Send text-end if we sent any text
-                        if text_started {
-                            tx.send(SseMessage::TextEnd {
-                                id: text_block_id.clone(),
-                            })
-                            ?;
-                        }
+                                // Add tool results as assistant messages
+                                for (tool_id, tool_name, result) in &tool_results {
+                                    ollama_messages.push(OllamaStreamMessage {
+                                        role: ROLE_ASSISTANT.to_string(),
+                                        content: format!(
+                                            "Tool {} (id: {}) returned: {}",
+                                            tool_name,
+                                            tool_id,
+                                            serde_json::to_string_pretty(result)
+                                                .unwrap_or_else(|_| result.to_string())
+                                        ),
+                                    });
+                                }
 
-                        // If we had tool calls, update message history and continue loop
-                        if had_tool_calls && !tool_results.is_empty() {
-                            // Add assistant message with content if any
-                            if !accumulated_content.is_empty() {
+                                // Add a system message to guide the LLM to reflect on tool results
                                 ollama_messages.push(OllamaStreamMessage {
-                                    role: ROLE_ASSISTANT.to_string(),
-                                    content: accumulated_content.clone(),
-                                });
-                            }
-
-                            // Add tool results as assistant messages
-                            for (tool_id, tool_name, result) in &tool_results {
-                                ollama_messages.push(OllamaStreamMessage {
-                                    role: ROLE_ASSISTANT.to_string(),
-                                    content: format!(
-                                        "Tool {} (id: {}) returned: {}",
-                                        tool_name,
-                                        tool_id,
-                                        serde_json::to_string_pretty(result)
-                                            .unwrap_or_else(|_| result.to_string())
-                                    ),
-                                });
-                            }
-
-                            // Add a system message to guide the LLM to reflect on tool results
-                            ollama_messages.push(OllamaStreamMessage {
                                 role: ROLE_SYSTEM.to_string(),
                                 content: "The tools have been executed. Please analyze the results and provide a helpful response to the user based on what the tools returned. If there were any errors, suggest alternatives. Always aim to be helpful and actionable.".to_string(),
                             });
 
-                            // Send finish-step to close the tool execution phase
-                            tx.send(SseMessage::DataPart {
-                                data_type: "finish-step".to_string(),
-                                data: serde_json::json!({}),
-                            })
-                            ?;
+                                // Send finish-step to close the tool execution phase
+                                tx.send(SseMessage::DataPart {
+                                    data_type: "finish-step".to_string(),
+                                    data: serde_json::json!({}),
+                                })?;
 
-                            // Track that we had tool calls for the next round
-                            _had_tool_calls_in_previous_round = true;
+                                // Track that we had tool calls for the next round
+                                _had_tool_calls_in_previous_round = true;
 
-                            // Break out of the streaming loop to continue with next tool round
-                            break;
-                        } else {
-                            // No tool calls, send completion normally
-                            let usage = if let (Some(prompt_tokens), Some(completion_tokens)) =
-                                (chat_chunk.prompt_eval_count, chat_chunk.eval_count)
-                            {
-                                Some(UsageStats {
-                                    prompt_tokens,
-                                    completion_tokens,
-                                    total_tokens: prompt_tokens + completion_tokens,
-                                })
+                                // Break out of the streaming loop to continue with next tool round
+                                break;
                             } else {
-                                None
-                            };
+                                // No tool calls, send completion normally
+                                let usage = if let (Some(prompt_tokens), Some(completion_tokens)) =
+                                    (chat_chunk.prompt_eval_count, chat_chunk.eval_count)
+                                {
+                                    Some(UsageStats {
+                                        prompt_tokens,
+                                        completion_tokens,
+                                        total_tokens: prompt_tokens + completion_tokens,
+                                    })
+                                } else {
+                                    None
+                                };
 
+                                // Completion handled
 
-
-                            // Completion handled
-
-                            tx.send(SseMessage::MessageComplete { usage })?;
-                            tx.send(SseMessage::StreamEnd)?;
-                            return Ok(());
+                                tx.send(SseMessage::MessageComplete { usage })?;
+                                tx.send(SseMessage::StreamEnd)?;
+                                return Ok(());
+                            }
                         }
                     }
-                }
-                Err(e) => {
-                    eprintln!("Failed to parse Ollama chunk: {}, line: {}", e, line);
+                    Err(e) => {
+                        eprintln!("Failed to parse Ollama chunk: {}, line: {}", e, line);
+                    }
                 }
             }
         }
-    }
-    
-    // End of streaming for this round
-    }  // End of loop
-    
+
+        // End of streaming for this round
+    } // End of loop
+
     // If we get here, we've either completed normally or hit the max rounds
     // Send a final completion message if we haven't already
     if tool_round > MAX_TOOL_ROUNDS {
@@ -1430,21 +1496,17 @@ async fn execute_chat_stream(
         let final_text_id = format!("text-{}", uuid::Uuid::new_v4());
         tx.send(SseMessage::TextStart {
             id: final_text_id.clone(),
-        })
-        ?;
-        
+        })?;
+
         tx.send(SseMessage::TextDelta {
             id: final_text_id.clone(),
             delta: "
 
-[Note: Reached maximum number of tool iterations. Process stopped to prevent infinite loops.]".to_string(),
-        })
-        ?;
-        
-        tx.send(SseMessage::TextEnd {
-            id: final_text_id,
-        })
-        ?;
+[Note: Reached maximum number of tool iterations. Process stopped to prevent infinite loops.]"
+                .to_string(),
+        })?;
+
+        tx.send(SseMessage::TextEnd { id: final_text_id })?;
 
         tx.send(SseMessage::MessageComplete { usage: None })?;
         tx.send(SseMessage::StreamEnd)?;
@@ -1529,9 +1591,10 @@ async fn convert_tools_to_ollama_format(
                                             tool_type: TOOL_TYPE_FUNCTION.to_string(),
                                             function: OllamaToolFunction {
                                                 name: ToolIdentifier {
-                                                server_name: server_name.to_string(),
-                                                tool_name: name.to_string(),
-                                            }.to_string(),
+                                                    server_name: server_name.to_string(),
+                                                    tool_name: name.to_string(),
+                                                }
+                                                .to_string(),
                                                 description,
                                                 parameters,
                                             },
@@ -1551,9 +1614,10 @@ async fn convert_tools_to_ollama_format(
                         tool_type: TOOL_TYPE_FUNCTION.to_string(),
                         function: OllamaToolFunction {
                             name: ToolIdentifier {
-                            server_name: server_name.clone(),
-                            tool_name: tool_name_only.clone(),
-                        }.to_string(),
+                                server_name: server_name.clone(),
+                                tool_name: tool_name_only.clone(),
+                            }
+                            .to_string(),
                             description: format!("MCP tool from server: {}", server_name),
                             parameters: serde_json::json!({
                                 "type": "object",
@@ -1574,32 +1638,58 @@ async fn convert_tools_to_ollama_format(
 fn validate_tool_arguments(arguments: &serde_json::Value) -> Result<(), String> {
     // Convert to string for pattern checking
     let args_str = arguments.to_string();
-    
+
     // Size check (1MB limit)
     if args_str.len() > 1024 * 1024 {
         return Err("Tool arguments too large (max 1MB)".to_string());
     }
-    
+
     // Check for command injection patterns
     let dangerous_patterns = [
-        "$(", "${", "`", "&&", "||", ";", "|", ">", "<",
-        ">>", "<<", "file://", "javascript:", "../", "\\x", "\\u",
-        "\n", "\r", "\t", "\0", "exec(", "eval(", "system(",
-        "__import__", "subprocess", "os.system", "shell_exec"
+        "$(",
+        "${",
+        "`",
+        "&&",
+        "||",
+        ";",
+        "|",
+        ">",
+        "<",
+        ">>",
+        "<<",
+        "file://",
+        "javascript:",
+        "../",
+        "\\x",
+        "\\u",
+        "\n",
+        "\r",
+        "\t",
+        "\0",
+        "exec(",
+        "eval(",
+        "system(",
+        "__import__",
+        "subprocess",
+        "os.system",
+        "shell_exec",
     ];
-    
+
     for pattern in dangerous_patterns {
         if args_str.contains(pattern) {
-            return Err(format!("Tool arguments contain dangerous pattern: '{}'", pattern));
+            return Err(format!(
+                "Tool arguments contain dangerous pattern: '{}'",
+                pattern
+            ));
         }
     }
-    
+
     // Additional validation for deeply nested structures (prevent DoS)
     let max_depth = calculate_json_depth(arguments);
     if max_depth > 10 {
         return Err("Tool arguments are too deeply nested (max depth: 10)".to_string());
     }
-    
+
     Ok(())
 }
 
@@ -1607,16 +1697,10 @@ fn validate_tool_arguments(arguments: &serde_json::Value) -> Result<(), String> 
 fn calculate_json_depth(value: &serde_json::Value) -> usize {
     match value {
         serde_json::Value::Object(map) => {
-            1 + map.values()
-                .map(calculate_json_depth)
-                .max()
-                .unwrap_or(0)
+            1 + map.values().map(calculate_json_depth).max().unwrap_or(0)
         }
         serde_json::Value::Array(arr) => {
-            1 + arr.iter()
-                .map(calculate_json_depth)
-                .max()
-                .unwrap_or(0)
+            1 + arr.iter().map(calculate_json_depth).max().unwrap_or(0)
         }
         _ => 0,
     }
@@ -1629,15 +1713,19 @@ async fn execute_mcp_tool(
     arguments: &serde_json::Value,
 ) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
     // Parse tool identifier
-    let tool_id = ToolIdentifier::parse(tool_name)
-        .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)) as Box<dyn std::error::Error + Send + Sync>)?;
+    let tool_id = ToolIdentifier::parse(tool_name).map_err(|e| {
+        Box::new(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+            as Box<dyn std::error::Error + Send + Sync>
+    })?;
 
     let server_name = &tool_id.server_name;
     let tool_name_only = &tool_id.tool_name;
-    
+
     // Validate tool arguments for security
-    validate_tool_arguments(arguments)
-        .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)) as Box<dyn std::error::Error + Send + Sync>)?;
+    validate_tool_arguments(arguments).map_err(|e| {
+        Box::new(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+            as Box<dyn std::error::Error + Send + Sync>
+    })?;
 
     // Create JSON-RPC request for MCP proxy
     let mcp_request = serde_json::json!({
@@ -1683,9 +1771,12 @@ async fn execute_mcp_tool(
 
 pub fn create_router(db: DatabaseConnection, ws_service: Arc<WebSocketService>) -> Router {
     let service = Arc::new(Service::new(db, ws_service));
-    
+
     Router::new()
-        .route("/stream", axum::routing::post(stream_handler).options(handle_stream_options))
+        .route(
+            "/stream",
+            axum::routing::post(stream_handler).options(handle_stream_options),
+        )
         .fallback(proxy_handler)
         .with_state(service)
 }

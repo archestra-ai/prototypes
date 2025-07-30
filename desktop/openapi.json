@@ -84,6 +84,9 @@
           "204": {
             "description": "Chat deleted successfully"
           },
+          "404": {
+            "description": "Chat not found"
+          },
           "500": {
             "description": "Internal server error"
           }
@@ -634,37 +637,6 @@
   },
   "components": {
     "schemas": {
-      "ChatMessage": {
-        "type": "object",
-        "required": ["role", "content", "thinking", "tool_calls", "images"],
-        "properties": {
-          "content": {
-            "type": "string"
-          },
-          "images": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "role": {
-            "$ref": "#/components/schemas/ChatMessageRole"
-          },
-          "thinking": {
-            "type": "string"
-          },
-          "tool_calls": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ToolCall"
-            }
-          }
-        }
-      },
-      "ChatMessageRole": {
-        "type": "string",
-        "enum": ["user", "assistant", "tool", "system", "unknown"]
-      },
       "ChatTitleUpdatedWebSocketPayload": {
         "type": "object",
         "required": ["chat_id", "title"],
@@ -679,33 +651,23 @@
         }
       },
       "ChatWithMessages": {
-        "type": "object",
-        "required": ["id", "session_id", "title", "llm_provider", "created_at", "messages"],
-        "properties": {
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Model"
           },
-          "id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "llm_provider": {
-            "type": "string"
-          },
-          "messages": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ChatMessage"
+          {
+            "type": "object",
+            "required": ["messages"],
+            "properties": {
+              "messages": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Model"
+                }
+              }
             }
-          },
-          "session_id": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
           }
-        }
+        ]
       },
       "ConnectExternalMCPClientRequest": {
         "type": "object",
@@ -1085,6 +1047,27 @@
           }
         }
       },
+      "Model": {
+        "type": "object",
+        "required": ["id", "chat_id", "created_at", "content"],
+        "properties": {
+          "chat_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "content": {
+            "$ref": "#/components/schemas/Value"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "PaginatedMCPRequestLogResponse_MCPRequestLog": {
         "type": "object",
         "required": ["data", "total", "page", "page_size"],
@@ -1173,25 +1156,6 @@
           }
         }
       },
-      "ToolCall": {
-        "type": "object",
-        "required": ["function"],
-        "properties": {
-          "function": {
-            "$ref": "#/components/schemas/ToolCallFunction"
-          }
-        }
-      },
-      "ToolCallFunction": {
-        "type": "object",
-        "required": ["name", "arguments"],
-        "properties": {
-          "arguments": {},
-          "name": {
-            "type": "string"
-          }
-        }
-      },
       "UpdateChatRequest": {
         "type": "object",
         "properties": {
@@ -1200,6 +1164,7 @@
           }
         }
       },
+      "Value": {},
       "WebSocketMessage": {
         "oneOf": [
           {
