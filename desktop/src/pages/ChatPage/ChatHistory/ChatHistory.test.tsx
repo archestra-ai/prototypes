@@ -64,13 +64,19 @@ vi.mock('@/providers/chat-provider', () => ({
 vi.mock('./Messages', () => ({
   UserMessage: ({ message }: any) => <div data-testid="user-message">{message.content}</div>,
   AssistantMessage: ({ message }: any) => <div data-testid="assistant-message">{message.content}</div>,
-  ToolMessage: ({ message }: any) => <div data-testid="tool-message">{message.content}</div>,
   OtherMessage: ({ message }: any) => <div data-testid="other-message">{message.content}</div>,
 }));
 
 // Mock the auto-scroll hook
 vi.mock('./hooks/use-auto-scroll', () => ({
   useAutoScroll: () => ({ scrollAreaId: 'chat-scroll-area' }),
+}));
+
+// Mock ToolExecutionResult component
+vi.mock('./Messages/ToolExecutionResult', () => ({
+  default: ({ toolCall }: any) => (
+    <div data-testid="tool-execution-result">{toolCall.result || toolCall.error || 'Tool executing'}</div>
+  ),
 }));
 
 describe('ChatHistory', () => {
@@ -153,7 +159,7 @@ describe('ChatHistory', () => {
 
     expect(messages).toHaveLength(2);
     expect(screen.getByTestId('assistant-message')).toBeInTheDocument();
-    expect(screen.getByTestId('tool-message')).toBeInTheDocument();
+    expect(screen.getByTestId('tool-execution-result')).toBeInTheDocument();
   });
 
   it('renders system messages correctly', () => {
@@ -242,7 +248,7 @@ describe('ChatHistory', () => {
       .filter((el) => el.classList.contains('p-3') && el.classList.contains('rounded-lg'));
     expect(messages).toHaveLength(2);
     expect(screen.getByTestId('assistant-message')).toBeInTheDocument();
-    expect(screen.getByTestId('tool-message')).toBeInTheDocument();
+    expect(screen.getByTestId('tool-execution-result')).toBeInTheDocument();
   });
 
   it('processes messages without parts array gracefully', () => {

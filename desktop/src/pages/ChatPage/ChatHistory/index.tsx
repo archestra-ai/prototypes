@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils/tailwind';
 import { useChatContext } from '@/providers/chat-provider';
 import { ChatMessage, ToolCallStatus } from '@/types';
 
-import { AssistantMessage, OtherMessage, ToolMessage, UserMessage } from './Messages';
+import { AssistantMessage, OtherMessage, UserMessage } from './Messages';
+import ToolExecutionResult from './Messages/ToolExecutionResult';
 import { useAutoScroll } from './hooks/use-auto-scroll';
 import { processMessages } from './utils/message-processing';
 import { getMessageClassName } from './utils/message-styles';
@@ -23,7 +24,18 @@ const Message = ({ message }: MessageProps) => {
     case 'assistant':
       return <AssistantMessage message={message} />;
     case 'tool':
-      return <ToolMessage message={message} />;
+      // Tool messages should have toolCalls array with the tool execution details
+      if (message.toolCalls && message.toolCalls.length > 0) {
+        return (
+          <div className="space-y-2">
+            {message.toolCalls.map((toolCall) => (
+              <ToolExecutionResult key={toolCall.id} toolCall={toolCall} />
+            ))}
+          </div>
+        );
+      }
+      // Fallback for tool messages without proper structure
+      return <OtherMessage message={message} />;
     default:
       return <OtherMessage message={message} />;
   }
