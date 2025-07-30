@@ -46,8 +46,11 @@ pnpm test
 # Run a single test file
 pnpm test path/to/test.tsx
 
-# Run frontend tests once (CI mode)
+# Run frontend tests once (CI mode)  
 pnpm test run
+
+# Run tests with coverage
+pnpm test:coverage
 
 # Rust tests (run from desktop/src-tauri)
 cd desktop/src-tauri && cargo test
@@ -172,6 +175,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `types/`: TypeScript type definitions
   - `agent.ts`: Comprehensive agent types for task planning and execution
   - `agent-ui.ts`: UI-specific agent type definitions
+  - `index.ts`: Type exports and re-exports
 
 #### Backend (`desktop/src-tauri/`)
 
@@ -426,7 +430,7 @@ Body: {
 Response: Server-Sent Events stream (Vercel AI SDK v5 compatible)
 ```
 
-**Note**: The frontend uses a custom transport configuration in ChatProvider to properly format requests for the backend.
+**Note**: The frontend uses a custom transport configuration in ChatProvider to properly format requests for the backend. The `/llm/ollama/stream` endpoint is specifically for LLM interactions, while `/api/chat` endpoints are purely for database CRUD operations.
 
 **2. CRUD Endpoints (for chat management):**
 ```typescript
@@ -510,7 +514,7 @@ Response: 204 No Content
 
 - **Frontend**:
   - `ai`: Vercel AI SDK v5 (5.0.0-canary.30) for SSE streaming chat integration
-  - `@ai-sdk/react`: React bindings for Vercel AI SDK v5
+  - `@ai-sdk/react`: React bindings for Vercel AI SDK v5 (5.0.0-canary.30)
   - `@radix-ui/react-popover`: For popover UI component (required by shadcn/ui)
   - `@radix-ui/react-progress`: For progress indicators in agent task execution
   - `reconnecting-websocket`: For WebSocket client with automatic reconnection support
