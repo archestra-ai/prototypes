@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ToolCall, ToolCallStatus } from '@/types';
 
+import StructuredToolOutput from './StructuredToolOutput';
+
 interface ToolExecutionResultProps {
   toolCall: ToolCall;
 }
@@ -48,7 +50,7 @@ export default function ToolExecutionResult({
           </span>
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          {executionTime && (
+          {!!executionTime && (
             <>
               <Clock className="h-3 w-3" />
               <span>{formatExecutionTime(executionTime)}</span>
@@ -87,46 +89,7 @@ export default function ToolExecutionResult({
           <div className="space-y-2">
             {/* Render structured content if available */}
             {structuredOutput?.content && structuredOutput.content.length > 0 ? (
-              <div className="space-y-2">
-                {structuredOutput.content.map((item, idx) => {
-                  if (item.type === 'text') {
-                    return (
-                      <div key={idx} className="text-sm">
-                        {item.annotations && (
-                          <div className="text-xs text-muted-foreground mb-1">
-                            {Object.entries(item.annotations).map(([key, value]) => (
-                              <span key={key} className="mr-2">
-                                {key}: {JSON.stringify(value)}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="whitespace-pre-wrap break-all overflow-x-hidden max-w-full">{item.text}</p>
-                      </div>
-                    );
-                  } else if (item.type === 'image') {
-                    return (
-                      <div key={idx} className="space-y-1">
-                        {item.annotations && (
-                          <div className="text-xs text-muted-foreground">
-                            {Object.entries(item.annotations).map(([key, value]) => (
-                              <span key={key} className="mr-2">
-                                {key}: {JSON.stringify(value)}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <img
-                          src={`data:${item.mimeType};base64,${item.data}`}
-                          alt="Tool output"
-                          className="max-w-full rounded border"
-                        />
-                      </div>
-                    );
-                  }
-                  return null;
-                })}
-              </div>
+              <StructuredToolOutput content={structuredOutput.content} />
             ) : (
               /* Fallback to text-only display */
               <div className="text-sm">
@@ -158,7 +121,7 @@ export default function ToolExecutionResult({
                   </Collapsible>
                 ) : (
                   <p
-                    className="whitespace-pre-wrap break-all overflow-x-hidden max-w-full"
+                    className="whitespace-pre-wrap bg-muted/50 break-all overflow-x-hidden max-w-full"
                     style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}
                   >
                     {result}
