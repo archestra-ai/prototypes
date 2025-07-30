@@ -1,4 +1,3 @@
-import { listen } from '@tauri-apps/api/event';
 import { create } from 'zustand';
 
 import { DEFAULT_CHAT_TITLE } from '@/consts';
@@ -10,7 +9,8 @@ import {
   updateChat,
 } from '@/lib/api-client';
 import { initializeChat } from '@/lib/utils/chat';
-import { ChatMessageStatus, type ChatTitleUpdatedEvent, type ChatWithMessages } from '@/types';
+import { websocketService } from '@/lib/websocket';
+import { ChatMessageStatus, type ChatWithMessages } from '@/types';
 
 interface ChatState {
   status: ChatMessageStatus;
@@ -37,10 +37,10 @@ type ChatStore = ChatState & ChatActions;
 /**
  * Listen for chat title updates from the backend via WebSocket
  */
-const listenForChatTitleUpdates = async () => {
-  // Listen for chat title updates from the backend via Tauri events
-  await listen<ChatTitleUpdatedEvent>('chat-title-updated', (event) => {
-    const { chat_id, title } = event.payload;
+const listenForChatTitleUpdates = () => {
+  // Listen for chat title updates from the backend via WebSocket
+  websocketService.subscribe('chat-title-updated', (message) => {
+    const { chat_id, title } = message.payload;
     useChatStore.setState((state) => ({
       chats: state.chats.map((chat) => (chat.id === chat_id ? { ...chat, title } : chat)),
     }));
@@ -160,8 +160,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   initializeStore: () => {
-    // Listen for chat title updates from the backend
-    listenForChatTitleUpdates();
+    // Connect to WebSocket and listen for chat title updates
+    websocketService
+      .connect()
+      .then(() => {
+        console.log('WebSocket connected, listening for chat title updates');
+        listenForChatTitleUpdates();
+      })
+      .catch((error) => {
+        console.error('Failed to connect to WebSocket:', error);
+      });
   },
 }));
 
