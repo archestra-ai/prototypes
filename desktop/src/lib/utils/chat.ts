@@ -103,7 +103,7 @@ export const generateNewMessageCreatedAt = () => crypto.randomUUID();
 export const initializeChat = (chat: ServerChatWithMessages): ChatWithMessages => {
   return {
     ...chat,
-    messages: chat.messages.map((message) => {
+    messages: chat.messages.map((message: any) => {
       const content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
       const { thinking, response } = parseThinkingContent(content);
 
