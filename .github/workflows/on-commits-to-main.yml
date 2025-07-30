@@ -21,6 +21,7 @@ jobs:
     uses: ./.github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml
     permissions:
       contents: read
+      id-token: write  # Required for Workload Identity Federation
     with:
       environment: development
       version: ${{ github.sha }}

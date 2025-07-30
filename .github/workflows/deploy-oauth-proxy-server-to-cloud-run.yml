@@ -27,11 +27,14 @@ jobs:
   deploy:
     name: Deploy to Cloud Run (${{ inputs.environment }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for Workload Identity Federation
     steps:
       - name: Checkout project
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          persist-credentials: true # needed for gcloud auth
+          persist-credentials: false
 
       # https://github.com/google-github-actions/auth
       - name: Authenticate to Google Cloud

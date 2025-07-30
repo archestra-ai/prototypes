@@ -112,6 +112,9 @@ jobs:
   #   needs:
   #     - release-please
   #   uses: ./.github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml
+  #   permissions:
+  #     contents: read
+  #     id-token: write  # Required for Workload Identity Federation
   #   with:
   #     environment: production
   #     version: v${{ needs.release-please.outputs.oauth_proxy_version }}
