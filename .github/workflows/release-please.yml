@@ -105,17 +105,17 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
-  deploy-oauth-proxy-to-prod:
-    name: Deploy OAuth Proxy to Production
-    if: needs.release-please.outputs.oauth_proxy_release_created
-    needs:
-      - release-please
-    uses: ./.github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml
-    with:
-      environment: prod
-      version: v${{ needs.release-please.outputs.oauth_proxy_version }}
-    secrets:
-      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+  # TODO: uncomment this out when we are ready to deploy the oauth proxy to production
+  # deploy-oauth-proxy-to-prod:
+  #   name: Deploy OAuth Proxy to Production
+  #   if: needs.release-please.outputs.oauth_proxy_release_created
+  #   needs:
+  #     - release-please
+  #   uses: ./.github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml
+  #   with:
+  #     environment: production
+  #     version: v${{ needs.release-please.outputs.oauth_proxy_version }}
+  #   secrets:
+  #     GCP_PROJECT_ID: ${{ secrets.PRODUCTION_GCP_PROJECT_ID }}
+  #     GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER: ${{ secrets.PRODUCTION_OAUTH_PROXY_RELEASER_GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER }}
+  #     GCP_SERVICE_ACCOUNT_NAME: ${{ secrets.PRODUCTION_OAUTH_PROXY_RELEASER_GCP_SERVICE_ACCOUNT_NAME }}

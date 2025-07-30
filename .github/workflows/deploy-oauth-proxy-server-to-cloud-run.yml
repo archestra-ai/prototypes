@@ -11,14 +11,16 @@ on:
         description: "The version to deploy (commit SHA for dev, release version for prod)"
         required: true
         type: string
+      redirect_uri:
+        description: "The redirect URI to use for the OAuth flow"
+        required: true
+        type: string
     secrets:
       GCP_PROJECT_ID:
         required: true
-      GCP_SA_KEY:
+      GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER:
         required: true
-      GOOGLE_CLIENT_ID:
-        required: true
-      GOOGLE_CLIENT_SECRET:
+      GCP_SERVICE_ACCOUNT_NAME:
         required: true
 
 jobs:
@@ -31,98 +33,62 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set environment-specific variables
-        id: env-vars
-        env:
-          ENVIRONMENT: ${{ inputs.environment }}
-        run: |
-          if [ "$ENVIRONMENT" == "prod" ]; then
-            echo "service_name=oauth-proxy" >> $GITHUB_OUTPUT
-            echo "region=us-central1" >> $GITHUB_OUTPUT
-            echo "memory=512Mi" >> $GITHUB_OUTPUT
-            echo "cpu=1" >> $GITHUB_OUTPUT
-            echo "min_instances=1" >> $GITHUB_OUTPUT
-            echo "max_instances=100" >> $GITHUB_OUTPUT
-            echo "redirect_url=https://oauth.archestra.ai" >> $GITHUB_OUTPUT
-          else
-            echo "service_name=oauth-proxy-dev" >> $GITHUB_OUTPUT
-            echo "region=us-central1" >> $GITHUB_OUTPUT
-            echo "memory=256Mi" >> $GITHUB_OUTPUT
-            echo "cpu=1" >> $GITHUB_OUTPUT
-            echo "min_instances=0" >> $GITHUB_OUTPUT
-            echo "max_instances=10" >> $GITHUB_OUTPUT
-            echo "redirect_url=https://oauth.dev.archestra.ai" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build and push Docker image to GCR
-        uses: RafikFarhad/push-to-gcr-github-action@241707854fb71f655ec4e2a98bb16505f218bcc2 # v4.1.0
-        with:
-          registry: gcr.io
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          image_name: ${{ steps.env-vars.outputs.service_name }}
-          image_tag: ${{ inputs.version }}
-          dockerfile: ./oauth-proxy/Dockerfile
-          context: .
-          gcloud_service_key: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Set image output
-        id: docker-build
-        env:
-          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          SERVICE_NAME: ${{ steps.env-vars.outputs.service_name }}
-          VERSION: ${{ inputs.version }}
-        run: |
-          echo "image=gcr.io/${PROJECT_ID}/${SERVICE_NAME}:${VERSION}" >> $GITHUB_OUTPUT
-
+      # https://github.com/google-github-actions/auth
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@140bb5113ffb6b65a7e9b937a81fa96cf5064462 # v2.1.11
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_NAME }}
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@6a7c903a70c8625ed6700fa299f5ddb4ca6022e9 # v2.1.5
+        uses: google-github-actions/setup-gcloud@f0990588f1e5b5af6827153b93673613abdc6ec7 # v2.1.1
+
+      - name: Configure Docker authentication
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+
+      - name: Docker image name
+        id: docker-image-name
+        env:
+          IMAGE_NAME: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/oauth-proxy/oauth-proxy:${{ inputs.version }}
+        run: |
+          echo "IMAGE_NAME=${{ env.IMAGE_NAME }}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        run: |
+          docker build -f ./oauth-proxy/Dockerfile -t ${{ env.IMAGE_NAME }} .
+          docker push ${{ env.IMAGE_NAME }}
 
       - name: Deploy to Cloud Run
+        # https://github.com/google-github-actions/deploy-cloudrun
+        id: cloud-run
         uses: google-github-actions/deploy-cloudrun@147732842f8a61ce9bd3b3f8e9f6597fe991ad65 # v2.7.4
         with:
-          service: ${{ steps.env-vars.outputs.service_name }}
-          image: ${{ steps.docker-build.outputs.image }}
-          region: ${{ steps.env-vars.outputs.region }}
+          service: oauth-proxy
+          image: ${{ env.IMAGE_NAME }}
+          region: europe-west1
+          env_vars_update_strategy: overwrite
+          # https://cloud.google.com/sdk/gcloud/reference/run/deploy#FLAGS
+          # https://cloud.google.com/sdk/gcloud/reference/run/deploy#--startup-probe
+          # https://cloud.google.com/run/docs/reference/rest/v1/Container#Probe
+          # https://cloud.google.com/run/docs/reference/rest/v1/Container#HTTPGetAction
           flags: |
             --allow-unauthenticated
-            --memory=${{ steps.env-vars.outputs.memory }}
-            --cpu=${{ steps.env-vars.outputs.cpu }}
-            --min-instances=${{ steps.env-vars.outputs.min_instances }}
-            --max-instances=${{ steps.env-vars.outputs.max_instances }}
+            --memory=512Mi
+            --cpu=1
+            --concurrency=80
+            --min-instances=1
+            --max-instances=1
+            --timeout=300
             --port=3000
+            --cpu-boost
+            --startup-probe=timeoutSeconds=240,httpGet.port=3000,httpGet.path=/health,initialDelaySeconds=0,failureThreshold=1=initialDelaySeconds=0
           env_vars: |
             NODE_ENV=${{ inputs.environment }}
             PORT=3000
-            REDIRECT_URL=${{ steps.env-vars.outputs.redirect_url }}
-            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            REDIRECT_URL=${{ inputs.redirect_uri }}
             LOG_LEVEL=info
-
-      - name: Get service URL
-        id: service-url
-        env:
-          SERVICE_NAME: ${{ steps.env-vars.outputs.service_name }}
-          REGION: ${{ steps.env-vars.outputs.region }}
-        run: |
-          SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" \
-            --platform managed \
-            --region "$REGION" \
-            --format 'value(status.url)')
-          echo "Service deployed to: $SERVICE_URL"
-          echo "service_url=$SERVICE_URL" >> $GITHUB_OUTPUT
-
-      - name: Verify deployment
-        env:
-          SERVICE_URL: ${{ steps.service-url.outputs.service_url }}
-        run: |
-          # Wait for service to be ready
-          sleep 10
-
-          # Check health endpoint
-          curl -f "${SERVICE_URL}/health" || exit 1
-          echo "Health check passed!"
+          # https://github.com/google-github-actions/deploy-cloudrun?tab=readme-ov-file#user-content-secrets
+          secrets: |
+            # As environment variables
+            GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest
+            GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest
