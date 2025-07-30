@@ -78,8 +78,11 @@ impl Service {
             mcp_server_catalog_id
         );
 
-        // TODO: read this from an environment variable
-        let auth_url = format!("https://oauth.dev.archestra.ai/v1/auth/{mcp_server_catalog_id}");
+        // Get OAuth proxy base URL from environment - required
+        let oauth_proxy_base_url = std::env::var("OAUTH_PROXY_BASE_URL")
+            .expect("OAUTH_PROXY_BASE_URL environment variable must be set");
+        
+        let auth_url = format!("{}/v1/auth/{}", oauth_proxy_base_url, mcp_server_catalog_id);
         debug!("OAuth proxy URL: {}", auth_url);
 
         // Call the cloud OAuth proxy service with dynamic "service" parameter

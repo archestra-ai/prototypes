@@ -1,11 +1,16 @@
 import { Request, Response } from 'express';
 import path from 'path';
 
+import { GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET } from '@/consts';
 import googleService from '@/google';
 import { logger } from '@/logger';
 import type { AuthState, GoogleService, OAuthService, ServiceHandler } from '@/types';
 
-// Store temporary auth states (in production, use Redis or database)
+/**
+ * Store auth states
+ *
+ * Eventually this should move to Redis since states are lost on deploys
+ */
 const authStates = new Map<string, AuthState>();
 
 // Generic OAuth state management
@@ -234,8 +239,8 @@ export const handlers = {
         refresh_token: tokens.refresh_token,
         expiry_date: tokens.expiry_date?.toString() || '',
         token_uri: 'https://oauth2.googleapis.com/token',
-        client_id: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
-        client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
+        client_id: GOOGLE_OAUTH_CLIENT_ID || '',
+        client_secret: GOOGLE_OAUTH_CLIENT_SECRET || '',
         scopes: scopes.join(','),
       });
 

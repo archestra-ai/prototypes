@@ -11,8 +11,8 @@ on:
         description: "The version to deploy (commit SHA for development, release version for production)"
         required: true
         type: string
-      redirect_uri:
-        description: "The redirect URI to use for the OAuth flow"
+      base_url:
+        description: "The base URL that the oauth-proxy service is running on (used to construct the redirect URL for the OAuth flows)"
         required: true
         type: string
     secrets:
@@ -92,7 +92,7 @@ jobs:
           # don't set PORT env var as it is a reserved env var and will be automatically set by cloud run
           env_vars: |
             NODE_ENV=${{ inputs.environment }}
-            REDIRECT_URL=${{ inputs.redirect_uri }}
+            BASE_URL=${{ inputs.base_url }}
             LOG_LEVEL=info
           # https://github.com/google-github-actions/deploy-cloudrun?tab=readme-ov-file#user-content-secrets
           secrets: |

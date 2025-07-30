@@ -13,7 +13,6 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "google-auth-library": "^10.2.0",
     "googleapis": "^154.1.0",

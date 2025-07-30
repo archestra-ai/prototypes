@@ -2,6 +2,7 @@ node_modules
 dist
 target
 build
+dist-ssr
 
 # Logs
 logs
@@ -11,9 +12,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
-dist-ssr
-*.local
 
 # Editor directories and files
 .idea
@@ -28,3 +26,6 @@ dist-ssr
 .serena/
 LOGGING_WORKFLOW.md
 .claude/settings.local.json
+
+# Local environment files
+desktop/.env.local

@@ -14,6 +14,9 @@ pub mod test_fixtures;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Load environment variables from .env file
+    load_environment();
+    
     let mut builder = tauri::Builder::default().plugin(tauri_plugin_http::init());
     let websocket_service = std::sync::Arc::new(gateway::websocket::Service::new());
 
@@ -186,4 +189,32 @@ pub fn run() {
             info!("Cleanup completed");
         }
     });
+}
+
+fn load_environment() {
+    // Determine which .env file to load based on build configuration
+    let env_file = if cfg!(debug_assertions) {
+        ".env.local"
+    } else {
+        // In release builds, check for ARCHESTRA_ENV to determine which env file to use
+        match std::env::var("ARCHESTRA_ENV").as_deref() {
+            Ok("production") => ".env.production",
+            Ok("dev") | Ok("development") => ".env.dev",
+            _ => ".env.dev", // Default to dev for now
+        }
+    };
+
+    // Try to load the env file from the desktop directory
+    let env_path = std::path::Path::new(env_file);
+    match dotenv::from_path(env_path) {
+        Ok(_) => info!("Loaded environment from {}", env_file),
+        Err(e) => {
+            // Try parent directory (for when running from src-tauri)
+            let parent_env_path = std::path::Path::new("..").join(env_file);
+            match dotenv::from_path(&parent_env_path) {
+                Ok(_) => info!("Loaded environment from ../{}", env_file),
+                Err(_) => debug!("No {} file found (original error: {})", env_file, e),
+            }
+        }
+    }
 }

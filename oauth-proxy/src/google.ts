@@ -1,20 +1,10 @@
 import { google } from 'googleapis';
 
+import { GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_REDIRECT_URL } from '@/consts';
 import { logger } from '@/logger';
 import type { ServiceHandler, TokenResponse } from '@/types';
 
-// Load OAuth credentials
-const CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID;
-const CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-
-if (!CLIENT_ID || !CLIENT_SECRET) {
-  logger.error('Missing GOOGLE_OAUTH_CLIENT_ID or GOOGLE_OAUTH_CLIENT_SECRET in environment variables.');
-  throw new Error('Google OAuth credentials not configured');
-}
-
-const REDIRECT_URL = process.env.REDIRECT_URL || `http://localhost:${process.env.PORT}/oauth-callback/google`;
-
-const oauth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URL);
+const oauth2Client = new google.auth.OAuth2(GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_REDIRECT_URL);
 
 /**
  * Generate Google OAuth authorization URL
@@ -24,8 +14,8 @@ const oauth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_U
  */
 async function generateAuthUrl(state: string, scopes: string[]): Promise<string> {
   logger.debug('Generating Google auth URL', {
-    clientIdSet: !!CLIENT_ID,
-    clientSecretSet: !!CLIENT_SECRET,
+    clientIdSet: !!GOOGLE_OAUTH_CLIENT_ID,
+    clientSecretSet: !!GOOGLE_OAUTH_CLIENT_SECRET,
     scopeCount: scopes.length,
   });
 

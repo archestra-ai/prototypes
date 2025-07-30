@@ -1,5 +1,7 @@
 import winston from 'winston';
 
+import { LOG_LEVEL } from '@/consts';
+
 // Define log format
 const logFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
@@ -10,7 +12,7 @@ const logFormat = winston.format.combine(
 
 // Create the logger
 export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: LOG_LEVEL,
   format: logFormat,
   defaultMeta: { service: 'oauth-proxy' },
   transports: [
