@@ -105,7 +105,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
 
       // Start the OAuth flow
       const oauthResponse = await startMcpServerOauth({
-        body: { mcp_server_catalog_id: id },
+        path: { mcp_server_catalog_id: id },
       });
 
       if ('error' in oauthResponse) {

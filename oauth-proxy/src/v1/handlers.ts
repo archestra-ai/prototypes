@@ -234,8 +234,8 @@ export const handlers = {
         refresh_token: tokens.refresh_token,
         expiry_date: tokens.expiry_date?.toString() || '',
         token_uri: 'https://oauth2.googleapis.com/token',
-        client_id: process.env.GOOGLE_CLIENT_ID || '',
-        client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+        client_id: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
+        client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
         scopes: scopes.join(','),
       });
 

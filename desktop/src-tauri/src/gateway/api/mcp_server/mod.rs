@@ -22,12 +22,6 @@ pub struct InstallRequest {
     mcp_server_catalog_id: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-#[schema(as = StartMCPServerOAuthRequest)]
-pub struct StartOAuthRequest {
-    mcp_server_catalog_id: String,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct OAuthProxyResponse {
     pub auth_url: String,
@@ -188,7 +182,9 @@ pub async fn install_mcp_server_from_catalog(
     post,
     path = "/api/mcp_server/catalog/install/{mcp_server_catalog_id}/start_oauth",
     tag = "mcp_server",
-    request_body = StartOAuthRequest,
+    params(
+        ("mcp_server_catalog_id" = String, Path, description = "ID of the MCP server from catalog")
+    ),
     responses(
         (status = 200, description = "OAuth authorization URL"),
         (status = 500, description = "Internal server error")
@@ -196,10 +192,8 @@ pub async fn install_mcp_server_from_catalog(
 )]
 pub async fn start_mcp_server_oauth(
     State(service): State<Arc<Service>>,
-    Json(payload): Json<StartOAuthRequest>,
+    Path(mcp_server_catalog_id): Path<String>,
 ) -> Result<String, StatusCode> {
-    let mcp_server_catalog_id = payload.mcp_server_catalog_id;
-
     service
         .start_oauth_auth(mcp_server_catalog_id.clone())
         .await

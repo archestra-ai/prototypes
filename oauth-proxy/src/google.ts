@@ -4,11 +4,11 @@ import { logger } from '@/logger';
 import type { ServiceHandler, TokenResponse } from '@/types';
 
 // Load OAuth credentials
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID;
+const CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
-  logger.error('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in environment variables.');
+  logger.error('Missing GOOGLE_OAUTH_CLIENT_ID or GOOGLE_OAUTH_CLIENT_SECRET in environment variables.');
   throw new Error('Google OAuth credentials not configured');
 }
 

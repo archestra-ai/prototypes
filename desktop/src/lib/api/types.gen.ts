@@ -175,10 +175,6 @@ export type PaginatedMcpRequestLogResponseMcpRequestLog = {
   total: number;
 };
 
-export type StartMcpServerOAuthRequest = {
-  mcp_server_catalog_id: string;
-};
-
 export type ToolCall = {
   function: ToolCallFunction;
 };
@@ -598,8 +594,13 @@ export type InstallMcpServerFromCatalogResponses = {
 };
 
 export type StartMcpServerOauthData = {
-  body: StartMcpServerOAuthRequest;
-  path?: never;
+  body?: never;
+  path: {
+    /**
+     * ID of the MCP server from catalog
+     */
+    mcp_server_catalog_id: string;
+  };
   query?: never;
   url: '/api/mcp_server/catalog/install/{mcp_server_catalog_id}/start_oauth';
 };

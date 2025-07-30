@@ -115,8 +115,8 @@ pnpm install
 # Set up environment variables
 cp .env.example .env
 # Edit .env to add:
-# - GOOGLE_CLIENT_ID
-# - GOOGLE_CLIENT_SECRET
+# - GOOGLE_OAUTH_CLIENT_ID
+# - GOOGLE_OAUTH_CLIENT_SECRET
 # - PORT (default: 3000)
 # - REDIRECT_URL (for production)
 ```
