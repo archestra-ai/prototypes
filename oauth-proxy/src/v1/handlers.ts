@@ -270,7 +270,8 @@ export const handlers = {
 
       // For Google mcpCatalogConnectorIds, we need to pass additional parameters for credential file creation
       const params = new URLSearchParams({
-        mcpCatalogConnectorId: mcpCatalogConnectorId,
+        provider,
+        mcpCatalogConnectorId,
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
         expiry_date: tokens.expiry_date?.toString() || '',
