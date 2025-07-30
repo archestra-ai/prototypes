@@ -22,7 +22,7 @@ export default function ToolExecutionResult({
   };
 
   const formatArguments = (args: Record<string, any>) => {
-    return JSON.stringify(args, null, 2);
+    return JSON.stringify(args || {}, null, 2);
   };
 
   const truncateResult = (text: string, maxLength: number = 200) => {
@@ -57,12 +57,12 @@ export default function ToolExecutionResult({
         </div>
       </div>
 
-      {Object.keys(toolArguments).length > 0 && (
+      {toolArguments && Object.keys(toolArguments).length > 0 && (
         <Collapsible open={showArguments} onOpenChange={setShowArguments}>
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="h-6 p-0 text-xs text-muted-foreground hover:text-foreground">
               {showArguments ? <ChevronDown className="h-3 w-3 mr-1" /> : <ChevronRight className="h-3 w-3 mr-1" />}
-              Arguments ({Object.keys(toolArguments).length})
+              Arguments ({toolArguments ? Object.keys(toolArguments).length : 0})
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
