@@ -1,14 +1,16 @@
 # OAuth Proxy Service
 
-A secure OAuth proxy service that handles OAuth authentication flows for MCP (Model Context Protocol) servers in the Archestra desktop application. This service facilitates OAuth 2.0 authentication for various Google Workspace services without exposing sensitive credentials to the client application.
+A secure OAuth proxy service that handles OAuth authentication flows for MCP (Model Context Protocol) servers in the Archestra desktop application. This service facilitates OAuth 2.0 authentication for various Google Workspace MCP servers without exposing sensitive credentials to the client application.
 
 ## Overview
 
 The OAuth proxy acts as an intermediary between the Archestra desktop application and OAuth providers (currently Google). It manages the OAuth flow, exchanges authorization codes for tokens, and securely passes credentials back to the desktop application via deep links.
 
-## Supported Services
+## Supported OAuth Providers + MCP Catalog Connector IDs
 
-Currently supports OAuth authentication for the following Google services:
+## Google
+
+Currently supports OAuth authentication for the following Google MCP catalog connector IDs:
 
 - Gmail (`gmail`)
 - Google Drive (`google-drive`)
@@ -32,7 +34,7 @@ sequenceDiagram
     participant Google as Google OAuth
     participant Browser as User's Browser
 
-    User->>ArchestraApp: Click "Connect Gmail" (or other service)
+    User->>ArchestraApp: Click "Connect Gmail" (or other MCP catalog connectors)
     ArchestraApp->>OAuthProxy: GET /v1/auth/gmail
     Note over OAuthProxy: Generate state for CSRF protection
     OAuthProxy-->>ArchestraApp: Return {auth_url, state}
@@ -46,7 +48,7 @@ sequenceDiagram
     Google-->>OAuthProxy: Return {access_token, refresh_token, expiry}
     OAuthProxy->>Browser: Redirect to /oauth-callback.html with tokens in URL params
     Note over Browser: Display success message
-    Browser->>ArchestraApp: Deep link: archestra-ai://oauth-callback?service=gmail&tokens...
+    Browser->>ArchestraApp: Deep link: archestra-ai://oauth-callback?provider=google&mcpCatalogConnectorId=gmail&tokens...
     Note over ArchestraApp: Parse tokens from deep link
     ArchestraApp->>ArchestraApp: Create credential file in app data directory
     ArchestraApp->>ArchestraApp: Save MCP server config to database
@@ -68,13 +70,13 @@ Health check endpoint.
 }
 ```
 
-### `GET /v1/auth/:service`
+### `GET /v1/auth/:provider`
 
-Initiates OAuth flow for the specified service.
+Initiates OAuth flow for the specified provider.
 
 **Parameters:**
 
-- `service` - The OAuth service identifier (e.g., `gmail`, `google-drive`)
+- `provider` - The OAuth provider identifier (e.g., `google`)
 - `userId` (optional query param) - User identifier for state tracking
 
 **Response:**
@@ -86,13 +88,13 @@ Initiates OAuth flow for the specified service.
 }
 ```
 
-### `GET /v1/oauth-callback/:service`
+### `GET /v1/oauth-callback/:provider`
 
 Handles OAuth callback from the provider.
 
 **Parameters:**
 
-- `service` - The OAuth service identifier
+- `provider` - The OAuth provider identifier
 - `code` - Authorization code from OAuth provider
 - `state` - State parameter for CSRF protection
 
@@ -161,15 +163,15 @@ See deployment configuration:
 4. **Deep Links**: Tokens are passed via secure deep links to the desktop app
 5. **Environment Variables**: Sensitive credentials are stored as environment variables
 
-## Adding New OAuth Services
+## Adding New OAuth Providers + Supported MCP Catalog Connector IDs
 
-To add support for a new OAuth service:
+To add support for a new OAuth provider and/or new "MCP catalog connector ID(s):
 
-1. Add the service to the `OAuthService` type in `src/types.ts`
-2. Implement the service handler interface in a new file (e.g., `src/microsoft.ts`)
-3. Add service routing in `src/v1/handlers.ts`
+1. Add the "MCP catalog connector ID(s)" to the `MCPCatalogConnectorId` type in `src/types.ts`
+2. Implement the provider handler interface in a new file (e.g., `src/microsoft.ts`)
+3. Add oauth provider routing in `src/v1/handlers.ts`
 4. Add OAuth scopes configuration
-5. Update the supported services list in documentation
+5. Update the supported providers list in documentation
 
 ## Architecture
 
