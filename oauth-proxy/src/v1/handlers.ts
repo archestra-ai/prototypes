@@ -182,7 +182,7 @@ export const handlers = {
       storeState(state, { userId, mcpCatalogConnectorId });
 
       // Delegate to provider-specific handler with scopes
-      const authUrl = await providerHandler.generateAuthUrl(mcpCatalogConnectorId, state, scopes);
+      const authUrl = await providerHandler.generateAuthUrl(state, scopes);
 
       logger.debug('Generated auth URL', { provider, mcpCatalogConnectorId });
       logger.info('Sending auth response', { provider, mcpCatalogConnectorId, hasState: !!state });
@@ -235,6 +235,11 @@ export const handlers = {
     }
 
     const { mcpCatalogConnectorId } = storedState;
+    
+    logger.info('Retrieved mcpCatalogConnectorId from stored state', {
+      mcpCatalogConnectorId,
+      provider,
+    });
     
     if (!isGoogleMCPCatalogConnectorId(mcpCatalogConnectorId)) {
       logger.error('Invalid mcpCatalogConnectorId in stored state', {
