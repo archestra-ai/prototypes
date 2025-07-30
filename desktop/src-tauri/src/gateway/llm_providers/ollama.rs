@@ -80,8 +80,7 @@ impl ToolIdentifier {
         let parts: Vec<&str> = tool_str.splitn(2, '_').collect();
         if parts.len() != 2 {
             return Err(format!(
-                "Invalid tool identifier format: '{}' (expected format: serverName_toolName)",
-                tool_str
+                "Invalid tool identifier format: '{tool_str}' (expected format: serverName_toolName)"
             ));
         }
 
@@ -90,8 +89,7 @@ impl ToolIdentifier {
 
         if server_name.is_empty() || tool_name.is_empty() {
             return Err(format!(
-                "Tool identifier components cannot be empty: '{}'",
-                tool_str
+                "Tool identifier components cannot be empty: '{tool_str}'"
             ));
         }
 
@@ -111,8 +109,7 @@ impl ToolIdentifier {
         for pattern in dangerous_patterns {
             if server_name.contains(pattern) || tool_name.contains(pattern) {
                 return Err(format!(
-                    "Tool identifier contains dangerous pattern: '{}'",
-                    pattern
+                    "Tool identifier contains dangerous pattern: '{pattern}'"
                 ));
             }
         }
@@ -128,9 +125,11 @@ impl ToolIdentifier {
         })
     }
 
-    /// Convert back to string format
-    fn to_string(&self) -> String {
-        format!("{}_{}", self.server_name, self.tool_name)
+}
+
+impl std::fmt::Display for ToolIdentifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}_{}", self.server_name, self.tool_name)
     }
 }
 
@@ -170,9 +169,7 @@ impl ChatRequest {
         if let Some(tools) = &self.tools {
             for tool in tools {
                 // Use ToolIdentifier to validate format
-                if let Err(e) = ToolIdentifier::parse(tool) {
-                    return Err(e);
-                }
+                ToolIdentifier::parse(tool)?;
             }
         }
 
@@ -740,7 +737,7 @@ impl Service {
         // Only allow specific schemes
         match parsed_url.scheme() {
             "http" | "https" => {}
-            scheme => return Err(format!("Disallowed URL scheme: {}", scheme)),
+            scheme => return Err(format!("Disallowed URL scheme: {scheme}")),
         }
 
         // Extract host
@@ -750,8 +747,7 @@ impl Service {
         let allowed_hosts = ["localhost", "127.0.0.1", "::1", "[::1]"];
         if !allowed_hosts.contains(&host) {
             return Err(format!(
-                "Host not allowed: {}. Only localhost connections are permitted.",
-                host
+                "Host not allowed: {host}. Only localhost connections are permitted."
             ));
         }
 
@@ -763,8 +759,7 @@ impl Service {
             ];
             if !allowed_ports.contains(&port) {
                 return Err(format!(
-                    "Port not allowed: {}. Only Ollama ports are permitted.",
-                    port
+                    "Port not allowed: {port}. Only Ollama ports are permitted."
                 ));
             }
         }
@@ -1218,8 +1213,7 @@ async fn execute_chat_stream(
         tool_round += 1;
         if tool_round > MAX_TOOL_ROUNDS {
             eprintln!(
-                "[execute_chat_stream] Reached maximum tool rounds ({})",
-                MAX_TOOL_ROUNDS
+                "[execute_chat_stream] Reached maximum tool rounds ({MAX_TOOL_ROUNDS})"
             );
             break;
         }
@@ -1480,7 +1474,7 @@ async fn execute_chat_stream(
                         }
                     }
                     Err(e) => {
-                        eprintln!("Failed to parse Ollama chunk: {}, line: {}", e, line);
+                        eprintln!("Failed to parse Ollama chunk: {e}, line: {line}");
                     }
                 }
             }
@@ -1532,7 +1526,7 @@ async fn convert_tools_to_ollama_format(
         let tool_id = match ToolIdentifier::parse(&tool_name) {
             Ok(id) => id,
             Err(e) => {
-                eprintln!("Invalid tool name format: {} - {}", tool_name, e);
+                eprintln!("Invalid tool name format: {tool_name} - {e}");
                 continue;
             }
         };
@@ -1542,7 +1536,7 @@ async fn convert_tools_to_ollama_format(
 
         tools_by_server
             .entry(server_name)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(tool_name_only);
     }
 
@@ -1607,7 +1601,7 @@ async fn convert_tools_to_ollama_format(
                 }
             }
             Err(e) => {
-                eprintln!("Failed to list tools from server '{}': {}", server_name, e);
+                eprintln!("Failed to list tools from server '{server_name}': {e}");
                 // Fall back to basic tool definition for this server's tools
                 for tool_name_only in requested_tools {
                     ollama_tools.push(OllamaTool {
@@ -1618,7 +1612,7 @@ async fn convert_tools_to_ollama_format(
                                 tool_name: tool_name_only.clone(),
                             }
                             .to_string(),
-                            description: format!("MCP tool from server: {}", server_name),
+                            description: format!("MCP tool from server: {server_name}"),
                             parameters: serde_json::json!({
                                 "type": "object",
                                 "properties": {},
@@ -1678,8 +1672,7 @@ fn validate_tool_arguments(arguments: &serde_json::Value) -> Result<(), String> 
     for pattern in dangerous_patterns {
         if args_str.contains(pattern) {
             return Err(format!(
-                "Tool arguments contain dangerous pattern: '{}'",
-                pattern
+                "Tool arguments contain dangerous pattern: '{pattern}'"
             ));
         }
     }
