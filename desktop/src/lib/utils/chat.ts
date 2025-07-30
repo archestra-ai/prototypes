@@ -1,4 +1,4 @@
-import type { ChatWithMessages as ServerChatWithMessages, ToolCall as ServerToolCall } from '@/lib/api-client';
+import type { ChatWithMessages as ServerChatWithMessages } from '@/lib/api-client';
 import { type ChatMessage, type ChatWithMessages, type ToolCall, ToolCallStatus } from '@/types';
 
 import { convertArchestraToolNameToServerAndToolName } from './tools';
@@ -77,7 +77,7 @@ export function parseThinkingContent(content: string): ParsedContent {
 
 export const generateNewToolCallId = () => crypto.randomUUID();
 
-export const initializeToolCalls = (toolCalls: ServerToolCall[]): ToolCall[] => {
+export const initializeToolCalls = (toolCalls: any[]): ToolCall[] => {
   return toolCalls.map((toolCall) => {
     const [serverName, toolName] = convertArchestraToolNameToServerAndToolName(toolCall.function.name);
     return {
@@ -102,7 +102,11 @@ export const generateNewMessageCreatedAt = () => crypto.randomUUID();
 
 export const initializeChat = (chat: ServerChatWithMessages): ChatWithMessages => {
   return {
-    ...chat,
+    id: chat.id,
+    session_id: chat.session_id,
+    title: chat.title ?? null,
+    llm_provider: chat.llm_provider,
+    created_at: chat.created_at,
     messages: chat.messages.map((message: any) => {
       const content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
       const { thinking, response } = parseThinkingContent(content);

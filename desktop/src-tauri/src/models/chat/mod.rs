@@ -3,11 +3,11 @@ use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use sea_orm::{ActiveModelTrait, QueryOrder, QuerySelect, Set};
 use serde::{Deserialize, Serialize};
-use std::ops::Deref;
 use utoipa::ToSchema;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize, ToSchema)]
 #[sea_orm(table_name = "chats")]
+#[schema(as = Chat)]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
@@ -45,16 +45,24 @@ pub struct ChatTitleUpdatedEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ChatWithMessages {
-    #[serde(flatten)]
-    pub chat: Model,
+    pub id: i32,
+    pub session_id: String,
+    pub title: Option<String>,
+    pub llm_provider: String,
+    pub created_at: DateTime<Utc>,
     pub messages: Vec<ChatMessageModel>,
 }
 
-impl Deref for ChatWithMessages {
-    type Target = Model;
-
-    fn deref(&self) -> &Self::Target {
-        &self.chat
+impl From<(Model, Vec<ChatMessageModel>)> for ChatWithMessages {
+    fn from((chat, messages): (Model, Vec<ChatMessageModel>)) -> Self {
+        Self {
+            id: chat.id,
+            session_id: chat.session_id,
+            title: chat.title,
+            llm_provider: chat.llm_provider,
+            created_at: chat.created_at,
+            messages,
+        }
     }
 }
 
@@ -65,7 +73,7 @@ impl ChatWithMessages {
         };
 
         let count = ChatMessageEntity::find()
-            .filter(ChatMessageColumn::ChatId.eq(self.chat.id))
+            .filter(ChatMessageColumn::ChatId.eq(self.id))
             .count(db)
             .await?;
 
@@ -82,7 +90,7 @@ impl ChatWithMessages {
         };
 
         let messages = ChatMessageEntity::find()
-            .filter(ChatMessageColumn::ChatId.eq(self.chat.id))
+            .filter(ChatMessageColumn::ChatId.eq(self.id))
             .order_by_asc(ChatMessageColumn::CreatedAt)
             .limit(limit as u64)
             .all(db)
@@ -102,10 +110,7 @@ impl Model {
             ..Default::default()
         };
         let chat = new_chat.insert(db).await?;
-        Ok(ChatWithMessages {
-            chat,
-            messages: vec![],
-        })
+        Ok(ChatWithMessages::from((chat, vec![])))
     }
 
     pub async fn load_by_id(
@@ -118,7 +123,7 @@ impl Model {
             .await?;
 
         match result.into_iter().next() {
-            Some((chat, messages)) => Ok(Some(ChatWithMessages { chat, messages })),
+            Some((chat, messages)) => Ok(Some(ChatWithMessages::from((chat, messages)))),
             None => Ok(None),
         }
     }
@@ -134,7 +139,7 @@ impl Model {
             .await?;
 
         match result.into_iter().next() {
-            Some((chat, messages)) => Ok(Some(ChatWithMessages { chat, messages })),
+            Some((chat, messages)) => Ok(Some(ChatWithMessages::from((chat, messages)))),
             None => Ok(None),
         }
     }
@@ -148,7 +153,7 @@ impl Model {
 
         Ok(results
             .into_iter()
-            .map(|(chat, messages)| ChatWithMessages { chat, messages })
+            .map(|(chat, messages)| ChatWithMessages::from((chat, messages)))
             .collect())
     }
 
@@ -206,8 +211,14 @@ mod tests {
         assert!(!all_chats[0].session_id.is_empty());
 
         // Update title
-        let updated = chat
-            .chat
+        let chat_model = Model {
+            id: chat.id,
+            session_id: chat.session_id.clone(),
+            title: chat.title.clone(),
+            llm_provider: chat.llm_provider.clone(),
+            created_at: chat.created_at,
+        };
+        let updated = chat_model
             .update_title(Some("Updated Title".to_string()), &db)
             .await
             .unwrap();
@@ -365,10 +376,7 @@ mod tests {
             created_at: Utc::now(),
         };
 
-        let chat_with_messages = ChatWithMessages {
-            chat,
-            messages: vec![message],
-        };
+        let chat_with_messages = ChatWithMessages::from((chat, vec![message]));
 
         let json = serde_json::to_string_pretty(&chat_with_messages).unwrap();
 
@@ -398,13 +406,21 @@ mod tests {
         .await
         .unwrap();
 
+        // Create chat model
+        let chat_model = Model {
+            id: chat.id,
+            session_id: chat.session_id.clone(),
+            title: chat.title.clone(),
+            llm_provider: chat.llm_provider.clone(),
+            created_at: chat.created_at,
+        };
+
         // Update with None title
-        let updated = chat.chat.clone().update_title(None, &db).await.unwrap();
+        let updated = chat_model.clone().update_title(None, &db).await.unwrap();
         assert!(updated.title.is_none());
 
         // Update with empty string
-        let updated = chat
-            .chat
+        let updated = chat_model
             .clone()
             .update_title(Some("".to_string()), &db)
             .await
@@ -413,8 +429,7 @@ mod tests {
 
         // Update with very long title
         let long_title = "a".repeat(1000);
-        let updated = chat
-            .chat
+        let updated = chat_model
             .update_title(Some(long_title.clone()), &db)
             .await
             .unwrap();

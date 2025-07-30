@@ -5,7 +5,6 @@ type DataEventHandler = (eventData: any) => void;
 
 // Individual event handlers
 const handleAgentStateUpdate: DataEventHandler = (eventData) => {
-  console.log('[ChatProvider] Agent state update:', eventData);
   const store = useAgentStore.getState();
 
   if (eventData.mode) {
@@ -39,7 +38,6 @@ const handleAgentStateUpdate: DataEventHandler = (eventData) => {
 };
 
 const handleReasoningUpdate: DataEventHandler = (eventData) => {
-  console.log('[ChatProvider] Reasoning update:', eventData);
   const { addReasoningEntry } = useAgentStore.getState();
 
   if (eventData.content) {

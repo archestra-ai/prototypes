@@ -9,6 +9,7 @@ use crate::models::chat::Model as ChatModel;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize, ToSchema)]
 #[sea_orm(table_name = "chat_messages")]
+#[schema(as = ChatMessage)]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,

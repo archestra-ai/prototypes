@@ -1,7 +1,7 @@
 use crate::gateway::websocket::{
     ChatTitleUpdatedWebSocketPayload, Service as WebSocketService, WebSocketMessage,
 };
-use crate::models::chat::Model as Chat;
+use crate::models::chat::Model as ChatModel;
 use crate::models::chat_messages::Model as ChatMessage;
 use crate::ollama::client::OllamaClient;
 use axum::{
@@ -124,7 +124,6 @@ impl ToolIdentifier {
             tool_name: tool_name.to_string(),
         })
     }
-
 }
 
 impl std::fmt::Display for ToolIdentifier {
@@ -491,7 +490,7 @@ impl Service {
         chat_session_id: String,
         chat_model: String,
     ) -> Result<(), String> {
-        let chat = Chat::load_by_session_id(chat_session_id.clone(), &self.db)
+        let chat = ChatModel::load_by_session_id(chat_session_id.clone(), &self.db)
             .await
             .map_err(|_| "Failed to load chat".to_string())?
             .ok_or_else(|| "Chat not found".to_string())?;
@@ -526,8 +525,14 @@ impl Service {
             Ok(title) => {
                 debug!("Generated title: {title}");
                 // Update chat title
-                if chat
-                    .chat
+                let chat_model = ChatModel {
+                    id: chat.id,
+                    session_id: chat.session_id.clone(),
+                    title: chat.title.clone(),
+                    llm_provider: chat.llm_provider.clone(),
+                    created_at: chat.created_at,
+                };
+                if chat_model
                     .update_title(Some(title.clone()), &self.db)
                     .await
                     .is_ok()
@@ -571,7 +576,7 @@ impl Service {
             };
 
         // Load or create chat
-        let chat = match Chat::load_by_session_id(session_id.clone(), &self.db).await {
+        let chat = match ChatModel::load_by_session_id(session_id.clone(), &self.db).await {
             Ok(Some(c)) => {
                 debug!("Found existing chat with session_id: {}", c.session_id);
                 c
@@ -1212,9 +1217,7 @@ async fn execute_chat_stream(
         }
         tool_round += 1;
         if tool_round > MAX_TOOL_ROUNDS {
-            eprintln!(
-                "[execute_chat_stream] Reached maximum tool rounds ({MAX_TOOL_ROUNDS})"
-            );
+            eprintln!("[execute_chat_stream] Reached maximum tool rounds ({MAX_TOOL_ROUNDS})");
             break;
         }
 

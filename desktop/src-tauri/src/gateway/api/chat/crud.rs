@@ -57,15 +57,24 @@ impl Service {
         let id = id
             .parse::<i32>()
             .map_err(|_| sea_orm::DbErr::Custom("Invalid ID format".to_string()))?;
-        let chat = Chat::load_by_id(id, &self.db)
+        let chat_with_messages = Chat::load_by_id(id, &self.db)
             .await?
             .ok_or_else(|| sea_orm::DbErr::RecordNotFound("Chat not found".to_string()))?;
 
-        let updated_chat = chat.chat.update_title(request.title, &self.db).await?;
-        Ok(ChatWithMessages {
-            chat: updated_chat,
-            messages: chat.messages,
-        })
+        // Extract the chat model from ChatWithMessages
+        let chat_model = Chat {
+            id: chat_with_messages.id,
+            session_id: chat_with_messages.session_id.clone(),
+            title: chat_with_messages.title.clone(),
+            llm_provider: chat_with_messages.llm_provider.clone(),
+            created_at: chat_with_messages.created_at,
+        };
+
+        let updated_chat = chat_model.update_title(request.title, &self.db).await?;
+        Ok(ChatWithMessages::from((
+            updated_chat,
+            chat_with_messages.messages,
+        )))
     }
 }
 

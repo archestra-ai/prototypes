@@ -637,6 +637,50 @@
   },
   "components": {
     "schemas": {
+      "Chat": {
+        "type": "object",
+        "required": ["id", "session_id", "llm_provider", "created_at"],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "llm_provider": {
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "ChatMessage": {
+        "type": "object",
+        "required": ["id", "chat_id", "created_at", "content"],
+        "properties": {
+          "chat_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "content": {
+            "$ref": "#/components/schemas/Value"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "ChatTitleUpdatedWebSocketPayload": {
         "type": "object",
         "required": ["chat_id", "title"],
@@ -651,23 +695,33 @@
         }
       },
       "ChatWithMessages": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Model"
+        "type": "object",
+        "required": ["id", "session_id", "llm_provider", "created_at", "messages"],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
           },
-          {
-            "type": "object",
-            "required": ["messages"],
-            "properties": {
-              "messages": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Model"
-                }
-              }
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "llm_provider": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
             }
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": ["string", "null"]
           }
-        ]
+        }
       },
       "ConnectExternalMCPClientRequest": {
         "type": "object",
@@ -1044,27 +1098,6 @@
           },
           "transport": {
             "type": "string"
-          }
-        }
-      },
-      "Model": {
-        "type": "object",
-        "required": ["id", "chat_id", "created_at", "content"],
-        "properties": {
-          "chat_id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "content": {
-            "$ref": "#/components/schemas/Value"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "id": {
-            "type": "integer",
-            "format": "int32"
           }
         }
       },
