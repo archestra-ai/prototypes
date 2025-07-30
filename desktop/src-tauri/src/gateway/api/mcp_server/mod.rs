@@ -72,7 +72,11 @@ impl Service {
         Ok(())
     }
 
-    pub async fn start_oauth_auth(&self, provider: String, mcp_server_catalog_id: String) -> Result<(), String> {
+    pub async fn start_oauth_auth(
+        &self,
+        provider: String,
+        mcp_server_catalog_id: String,
+    ) -> Result<(), String> {
         info!(
             "Starting OAuth auth flow for MCP server: {}",
             mcp_server_catalog_id
@@ -81,7 +85,7 @@ impl Service {
         // Get OAuth proxy base URL from environment - required
         let oauth_proxy_base_url = std::env::var("OAUTH_PROXY_BASE_URL")
             .expect("OAUTH_PROXY_BASE_URL environment variable must be set");
-        
+
         let auth_url = format!("{oauth_proxy_base_url}/v1/auth/{provider}?mcpCatalogConnectorId={mcp_server_catalog_id}", );
         debug!("OAuth proxy URL: {}", auth_url);
 
@@ -206,11 +210,17 @@ pub async fn start_mcp_server_oauth(
     Query(params): Query<OAuthStartParams>,
 ) -> Result<String, StatusCode> {
     service
-        .start_oauth_auth(params.provider.clone(), params.mcp_server_catalog_id.clone())
+        .start_oauth_auth(
+            params.provider.clone(),
+            params.mcp_server_catalog_id.clone(),
+        )
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(format!("OAuth flow started for {} with provider {}", params.mcp_server_catalog_id, params.provider))
+    Ok(format!(
+        "OAuth flow started for {} with provider {}",
+        params.mcp_server_catalog_id, params.provider
+    ))
 }
 
 #[utoipa::path(

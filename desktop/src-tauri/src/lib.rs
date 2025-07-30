@@ -16,7 +16,7 @@ pub mod test_fixtures;
 pub fn run() {
     // Load environment variables from .env file
     load_environment();
-    
+
     let mut builder = tauri::Builder::default().plugin(tauri_plugin_http::init());
     let websocket_service = std::sync::Arc::new(gateway::websocket::Service::new());
 

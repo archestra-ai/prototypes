@@ -46,7 +46,10 @@ pub async fn handle_oauth_callback(
         .unwrap_or(&"unknown".to_string())
         .clone();
 
-    debug!("OAuth callback for mcp catalog connector id: {}", mcp_server_catalog_id);
+    debug!(
+        "OAuth callback for mcp catalog connector id: {}",
+        mcp_server_catalog_id
+    );
     debug!("Query parameters: {:?}", query_params);
 
     // Check for error parameter
