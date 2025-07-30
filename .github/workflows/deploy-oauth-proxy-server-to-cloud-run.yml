@@ -89,9 +89,9 @@ jobs:
             --port=3000
             --cpu-boost
             --startup-probe=httpGet.port=3000,httpGet.path=/health,timeoutSeconds=240,periodSeconds=240,initialDelaySeconds=0,failureThreshold=1
+          # don't set PORT env var as it is a reserved env var and will be automatically set by cloud run
           env_vars: |
             NODE_ENV=${{ inputs.environment }}
-            PORT=3000
             REDIRECT_URL=${{ inputs.redirect_uri }}
             LOG_LEVEL=info
           # https://github.com/google-github-actions/deploy-cloudrun?tab=readme-ov-file#user-content-secrets
