@@ -1,4 +1,4 @@
-export type GoogleService =
+export type GoogleMCPCatalogConnectorId =
   | 'gmail'
   | 'google-drive'
   | 'google-calendar'
@@ -9,11 +9,11 @@ export type GoogleService =
   | 'google-tasks'
   | 'google-chat';
 
-export type OAuthService = GoogleService;
+export type MCPCatalogConnectorId = GoogleMCPCatalogConnectorId;
 
 export interface AuthState {
   userId: string;
-  service: OAuthService;
+  mcpCatalogConnectorId: MCPCatalogConnectorId;
   timestamp: number;
 }
 
@@ -25,7 +25,7 @@ export interface TokenResponse {
   scope?: string;
 }
 
-export interface ServiceHandler {
-  generateAuthUrl(state: string, scopes: string[]): Promise<string>;
+export interface ProviderHandler {
+  generateAuthUrl(mcpCatalogConnectorId: MCPCatalogConnectorId, state: string, scopes: string[]): Promise<string>;
   exchangeCodeForTokens(code: string): Promise<TokenResponse>;
 }

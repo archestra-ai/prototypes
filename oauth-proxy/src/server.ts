@@ -22,8 +22,8 @@ app.use((req, _res, next) => {
 app.get('/', v1Handlers.getIndex);
 
 // V1 API routes
-app.get('/v1/auth/:service', v1Handlers.authService);
-app.get('/v1/oauth-callback/:service', v1Handlers.oauthCallback);
+app.get('/v1/auth/:provider', v1Handlers.authProvider);
+app.get('/v1/oauth-callback/:provider', v1Handlers.oauthCallback);
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -43,9 +43,9 @@ app.listen(PORT, () => {
     nodeVersion: process.version,
   });
 
-  logger.info('Service configuration', {
+  logger.info('Provider configuration', {
     healthCheckUrl: `${BASE_URL}/health`,
-    supportedServices: [
+    supportedMcpCatalogConnectorId: [
       'gmail',
       'google-drive',
       'google-calendar',
@@ -56,7 +56,7 @@ app.listen(PORT, () => {
       'google-tasks',
       'google-chat',
     ],
-    authUrlPattern: `${BASE_URL}/v1/auth/<service>`,
-    callbackUrlPattern: `${BASE_URL}/v1/oauth-callback/<service>`,
+    authUrlPattern: `${BASE_URL}/v1/auth/<provider>`,
+    callbackUrlPattern: `${BASE_URL}/v1/oauth-callback/<provider>`,
   });
 });

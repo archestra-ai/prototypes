@@ -37,7 +37,7 @@ pub struct MCPServerDefinition {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[schema(as = MCPConnectorCatalogEntryOAuth)]
 pub struct ConnectorCatalogEntryOauth {
-    pub service: String,
+    pub provider: String,
     pub required: bool,
 }
 

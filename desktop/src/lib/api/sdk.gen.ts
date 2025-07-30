@@ -257,7 +257,7 @@ export const startMcpServerOauth = <ThrowOnError extends boolean = false>(
   options: Options<StartMcpServerOauthData, ThrowOnError>
 ) => {
   return (options.client ?? _heyApiClient).post<StartMcpServerOauthResponses, StartMcpServerOauthErrors, ThrowOnError>({
-    url: '/api/mcp_server/catalog/install/{mcp_server_catalog_id}/start_oauth',
+    url: '/api/mcp_server/catalog/start_oauth_installation',
     ...options,
   });
 };

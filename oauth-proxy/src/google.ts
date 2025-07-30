@@ -2,31 +2,36 @@ import { google } from 'googleapis';
 
 import { GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_REDIRECT_URL } from '@/consts';
 import { logger } from '@/logger';
-import type { ServiceHandler, TokenResponse } from '@/types';
+import type { ProviderHandler, TokenResponse } from '@/types';
 
 const oauth2Client = new google.auth.OAuth2(GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_REDIRECT_URL);
 
 /**
  * Generate Google OAuth authorization URL
+ * @param mcpCatalogConnectorId - MCP catalog connector id (ex. gmail, google-drive, etc)
  * @param state - CSRF protection state parameter
  * @param scopes - OAuth scopes to request
  * @returns Authorization URL
  */
-async function generateAuthUrl(state: string, scopes: string[]): Promise<string> {
+async function generateAuthUrl(mcpCatalogConnectorId: string, state: string, scopes: string[]): Promise<string> {
   logger.debug('Generating Google auth URL', {
     clientIdSet: !!GOOGLE_OAUTH_CLIENT_ID,
     clientSecretSet: !!GOOGLE_OAUTH_CLIENT_SECRET,
     scopeCount: scopes.length,
   });
 
-  const authUrl = oauth2Client.generateAuthUrl({
+  return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
     state: state,
     prompt: 'consent', // Force consent to get refresh token
+    /**
+     * mcpCatalogConnectorId will be set as a query param on the generated auth Url. This will allow /oauth-callback/google
+     * to handle all callback redirects, while still knowing exactly which "mcpCatalogConnectorId" this is concerning
+     *
+     */
+    mcpCatalogConnectorId,
   });
-
-  return authUrl;
 }
 
 /**
@@ -55,37 +60,38 @@ async function exchangeCodeForTokens(code: string): Promise<TokenResponse> {
   }
 }
 
-/**
- * Refresh access token using refresh token
- * @param refreshToken - Refresh token
- * @returns New token object
- */
-async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
-  try {
-    oauth2Client.setCredentials({
-      refresh_token: refreshToken,
-    });
+// NOTE: this is not needed for now..
+// /**
+//  * Refresh access token using refresh token
+//  * @param refreshToken - Refresh token
+//  * @returns New token object
+//  */
+// async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
+//   try {
+//     oauth2Client.setCredentials({
+//       refresh_token: refreshToken,
+//     });
 
-    const { credentials } = await oauth2Client.refreshAccessToken();
+//     const { credentials } = await oauth2Client.refreshAccessToken();
 
-    if (!credentials.access_token) {
-      throw new Error('No access token in refresh response');
-    }
+//     if (!credentials.access_token) {
+//       throw new Error('No access token in refresh response');
+//     }
 
-    return {
-      access_token: credentials.access_token,
-      refresh_token: credentials.refresh_token || refreshToken,
-      expiry_date: credentials.expiry_date || undefined,
-      token_type: credentials.token_type || undefined,
-      scope: credentials.scope || undefined,
-    };
-  } catch (error) {
-    logger.error('Google token refresh error:', error);
-    throw new Error(`Google token refresh failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
+//     return {
+//       access_token: credentials.access_token,
+//       refresh_token: credentials.refresh_token || refreshToken,
+//       expiry_date: credentials.expiry_date || undefined,
+//       token_type: credentials.token_type || undefined,
+//       scope: credentials.scope || undefined,
+//     };
+//   } catch (error) {
+//     logger.error('Google token refresh error:', error);
+//     throw new Error(`Google token refresh failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+//   }
+// }
 
-export const googleServiceHandler: ServiceHandler = {
+export const googleProviderHandler: ProviderHandler = {
   generateAuthUrl,
   exchangeCodeForTokens,
 };
@@ -93,5 +99,4 @@ export const googleServiceHandler: ServiceHandler = {
 export default {
   generateAuthUrl,
   exchangeCodeForTokens,
-  refreshAccessToken,
 };

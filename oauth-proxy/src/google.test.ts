@@ -1,4 +1,4 @@
-import { googleServiceHandler } from '@/google';
+import { googleProviderHandler } from '@/google';
 
 // Mock logger
 vi.mock('@/logger', () => ({
@@ -30,17 +30,18 @@ vi.mock('googleapis', () => ({
   },
 }));
 
-describe('Google OAuth Service', () => {
+describe('Google OAuth Provider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('generateAuthUrl', () => {
     it('should generate a valid auth URL', async () => {
+      const mcpCatalogConnectorId = 'gmail';
       const state = 'test-state';
       const scopes = ['email', 'openid'];
 
-      const authUrl = await googleServiceHandler.generateAuthUrl(state, scopes);
+      const authUrl = await googleProviderHandler.generateAuthUrl(mcpCatalogConnectorId, state, scopes);
 
       expect(authUrl).toContain('https://accounts.google.com');
       expect(authUrl).toContain('state=test');
@@ -51,7 +52,7 @@ describe('Google OAuth Service', () => {
     it('should exchange code for tokens successfully', async () => {
       const code = 'test-auth-code';
 
-      const tokens = await googleServiceHandler.exchangeCodeForTokens(code);
+      const tokens = await googleProviderHandler.exchangeCodeForTokens(code);
 
       expect(tokens).toEqual({
         access_token: 'mock_access_token',

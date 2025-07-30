@@ -1,4 +1,4 @@
 pub mod google;
-pub mod supported_services;
+pub mod supported_mcp_catalog_connectors;
 
-pub use supported_services::OAuthService;
+pub use supported_mcp_catalog_connectors::SupportedMCPCatalogConnectorId;

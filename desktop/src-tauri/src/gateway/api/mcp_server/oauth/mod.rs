@@ -2,7 +2,7 @@ pub mod providers;
 pub mod utils;
 pub mod websocket;
 
-pub use providers::OAuthService;
+pub use providers::SupportedMCPCatalogConnectorId;
 
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
@@ -40,13 +40,13 @@ pub async fn handle_oauth_callback(
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect();
 
-    // Get the service from the query parameters
+    // Get the mcp catalog connector id from the query parameters
     let mcp_server_catalog_id = query_params
-        .get("service")
+        .get("mcpCatalogConnectorId")
         .unwrap_or(&"unknown".to_string())
         .clone();
 
-    debug!("OAuth callback for service: {}", mcp_server_catalog_id);
+    debug!("OAuth callback for mcp catalog connector id: {}", mcp_server_catalog_id);
     debug!("Query parameters: {:?}", query_params);
 
     // Check for error parameter
@@ -59,9 +59,9 @@ pub async fn handle_oauth_callback(
         return;
     }
 
-    // Route to service-specific handler
-    match mcp_server_catalog_id.parse::<OAuthService>() {
-        Ok(service) if service.is_google_service() => {
+    // Route to provider-specific handler
+    match mcp_server_catalog_id.parse::<SupportedMCPCatalogConnectorId>() {
+        Ok(mcp_catalog_connector_id) if mcp_catalog_connector_id.is_google_provider() => {
             match providers::google::handle_google_oauth_callback(
                 app_handle,
                 db.as_ref().clone(),

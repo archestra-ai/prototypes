@@ -662,7 +662,7 @@
         }
       }
     },
-    "/api/mcp_server/catalog/install/{mcp_server_catalog_id}/start_oauth": {
+    "/api/mcp_server/catalog/start_oauth_installation": {
       "post": {
         "tags": [
           "mcp_server"
@@ -671,8 +671,17 @@
         "parameters": [
           {
             "name": "mcp_server_catalog_id",
-            "in": "path",
+            "in": "query",
             "description": "ID of the MCP server from catalog",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "description": "OAuth provider of the MCP server",
             "required": true,
             "schema": {
               "type": "string"
@@ -1063,15 +1072,15 @@
       "MCPConnectorCatalogEntryOAuth": {
         "type": "object",
         "required": [
-          "service",
+          "provider",
           "required"
         ],
         "properties": {
+          "provider": {
+            "type": "string"
+          },
           "required": {
             "type": "boolean"
-          },
-          "service": {
-            "type": "string"
           }
         }
       },

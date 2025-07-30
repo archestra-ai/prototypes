@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
     routing::{delete, get, post},
@@ -72,7 +72,7 @@ impl Service {
         Ok(())
     }
 
-    pub async fn start_oauth_auth(&self, mcp_server_catalog_id: String) -> Result<(), String> {
+    pub async fn start_oauth_auth(&self, provider: String, mcp_server_catalog_id: String) -> Result<(), String> {
         info!(
             "Starting OAuth auth flow for MCP server: {}",
             mcp_server_catalog_id
@@ -82,10 +82,11 @@ impl Service {
         let oauth_proxy_base_url = std::env::var("OAUTH_PROXY_BASE_URL")
             .expect("OAUTH_PROXY_BASE_URL environment variable must be set");
         
-        let auth_url = format!("{}/v1/auth/{}", oauth_proxy_base_url, mcp_server_catalog_id);
+        let auth_url = format!("{oauth_proxy_base_url}/v1/auth/{provider}?mcpCatalogConnectorId={mcp_server_catalog_id}", );
         debug!("OAuth proxy URL: {}", auth_url);
 
-        // Call the cloud OAuth proxy service with dynamic "service" parameter
+        // Call the cloud OAuth proxy service with dynamic "provider" parameter and including
+        // the mcp catalog connector id in the query parameters
         let client = reqwest::Client::new();
         let response = client.get(&auth_url).send().await.map_err(|e| {
             error!("Failed to connect to OAuth proxy at {}: {}", auth_url, e);
@@ -183,10 +184,11 @@ pub async fn install_mcp_server_from_catalog(
 
 #[utoipa::path(
     post,
-    path = "/api/mcp_server/catalog/install/{mcp_server_catalog_id}/start_oauth",
+    path = "/api/mcp_server/catalog/start_oauth_installation",
     tag = "mcp_server",
     params(
-        ("mcp_server_catalog_id" = String, Path, description = "ID of the MCP server from catalog")
+        ("mcp_server_catalog_id" = String, Query, description = "ID of the MCP server from catalog"),
+        ("provider" = String, Query, description = "OAuth provider of the MCP server")
     ),
     responses(
         (status = 200, description = "OAuth authorization URL"),
@@ -195,14 +197,15 @@ pub async fn install_mcp_server_from_catalog(
 )]
 pub async fn start_mcp_server_oauth(
     State(service): State<Arc<Service>>,
-    Path(mcp_server_catalog_id): Path<String>,
+    Query(mcp_server_catalog_id): Query<String>,
+    Query(provider): Query<String>,
 ) -> Result<String, StatusCode> {
     service
-        .start_oauth_auth(mcp_server_catalog_id.clone())
+        .start_oauth_auth(provider.clone(), mcp_server_catalog_id.clone())
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(format!("OAuth flow started for {mcp_server_catalog_id}"))
+    Ok(format!("OAuth flow started for {mcp_server_catalog_id} with provider {provider}"))
 }
 
 #[utoipa::path(
@@ -235,7 +238,7 @@ pub fn create_router(app_handle: tauri::AppHandle, db: DatabaseConnection) -> Ro
         .route("/catalog", get(get_mcp_connector_catalog))
         .route("/catalog/install", post(install_mcp_server_from_catalog))
         .route(
-            "/catalog/install/{mcp_server_catalog_id}/start_oauth",
+            "/catalog/start_oauth_installation",
             post(start_mcp_server_oauth),
         )
         .route("/{mcp_server_name}", delete(uninstall_mcp_server))

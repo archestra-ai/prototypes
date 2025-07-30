@@ -85,8 +85,8 @@ export type McpConnectorCatalogEntry = {
 };
 
 export type McpConnectorCatalogEntryOAuth = {
+  provider: string;
   required: boolean;
-  service: string;
 };
 
 export type McpRequestLog = {
@@ -595,14 +595,18 @@ export type InstallMcpServerFromCatalogResponses = {
 
 export type StartMcpServerOauthData = {
   body?: never;
-  path: {
+  path?: never;
+  query: {
     /**
      * ID of the MCP server from catalog
      */
     mcp_server_catalog_id: string;
+    /**
+     * OAuth provider of the MCP server
+     */
+    provider: string;
   };
-  query?: never;
-  url: '/api/mcp_server/catalog/install/{mcp_server_catalog_id}/start_oauth';
+  url: '/api/mcp_server/catalog/start_oauth_installation';
 };
 
 export type StartMcpServerOauthErrors = {

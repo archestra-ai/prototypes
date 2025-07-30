@@ -163,7 +163,7 @@
     "homepage": "https://workspacemcp.com/",
     "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
     "oauth": {
-      "service": "gmail",
+      "provider": "google",
       "required": true
     },
     "server_config": {
@@ -187,7 +187,7 @@
     "homepage": "https://workspacemcp.com/",
     "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
     "oauth": {
-      "service": "google-drive",
+      "provider": "google",
       "required": true
     },
     "server_config": {
@@ -209,7 +209,7 @@
     "homepage": "https://workspacemcp.com/",
     "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
     "oauth": {
-      "service": "google-calendar",
+      "provider": "google",
       "required": true
     },
     "server_config": {
@@ -231,7 +231,7 @@
     "homepage": "https://workspacemcp.com/",
     "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
     "oauth": {
-      "service": "google-docs",
+      "provider": "google",
       "required": true
     },
     "server_config": {
@@ -253,7 +253,7 @@
     "homepage": "https://workspacemcp.com/",
     "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
     "oauth": {
-      "service": "google-sheets",
+      "provider": "google",
       "required": true
     },
     "server_config": {
@@ -275,7 +275,7 @@
     "homepage": "https://workspacemcp.com/",
     "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
     "oauth": {
-      "service": "google-slides",
+      "provider": "google",
       "required": true
     },
     "server_config": {
@@ -297,7 +297,7 @@
     "homepage": "https://workspacemcp.com/",
     "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
     "oauth": {
-      "service": "google-forms",
+      "provider": "google",
       "required": true
     },
     "server_config": {
@@ -319,7 +319,7 @@
     "homepage": "https://workspacemcp.com/",
     "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
     "oauth": {
-      "service": "google-tasks",
+      "provider": "google",
       "required": true
     },
     "server_config": {
@@ -341,7 +341,7 @@
     "homepage": "https://workspacemcp.com/",
     "repository": "https://github.com/taylorwilsdon/google_workspace_mcp",
     "oauth": {
-      "service": "google-chat",
+      "provider": "google",
       "required": true
     },
     "server_config": {

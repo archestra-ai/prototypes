@@ -95,7 +95,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
   },
 
   installOAuthMCPServerFromConnectorCatalog: async (mcpServer: McpConnectorCatalogEntry) => {
-    const { id } = mcpServer;
+    const { id, oauth } = mcpServer;
 
     try {
       set({
@@ -103,9 +103,13 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
         errorInstallingMCPServer: null,
       });
 
+      if (!oauth) {
+        throw new Error('OAuth configuration not needed for this MCP server');
+      }
+
       // Start the OAuth flow
       const oauthResponse = await startMcpServerOauth({
-        path: { mcp_server_catalog_id: id },
+        query: { mcp_server_catalog_id: id, provider: oauth.provider },
       });
 
       if ('error' in oauthResponse) {

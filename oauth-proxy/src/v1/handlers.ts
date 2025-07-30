@@ -1,10 +1,11 @@
+import crypto from 'crypto';
 import { Request, Response } from 'express';
 import path from 'path';
 
 import { GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET } from '@/consts';
-import googleService from '@/google';
+import googleProvider from '@/google';
 import { logger } from '@/logger';
-import type { AuthState, GoogleService, OAuthService, ServiceHandler } from '@/types';
+import type { AuthState, GoogleMCPCatalogConnectorId, MCPCatalogConnectorId, ProviderHandler } from '@/types';
 
 /**
  * Store auth states
@@ -15,7 +16,8 @@ const authStates = new Map<string, AuthState>();
 
 // Generic OAuth state management
 function generateState(): string {
-  return Math.random().toString(36).substring(7);
+  // Use cryptographically secure random bytes for CSRF protection
+  return crypto.randomBytes(32).toString('hex');
 }
 
 function storeState(state: string, data: Omit<AuthState, 'timestamp'>): void {
@@ -38,19 +40,23 @@ function removeState(state: string): void {
   authStates.delete(state);
 }
 
-// Service routing function
-function getServiceHandler(service: string): ServiceHandler {
-  const lowerService = service.toLowerCase();
-
-  if (isGoogleService(lowerService)) {
-    return googleService;
-  }
-
-  throw new Error(`Unsupported OAuth service: ${service}`);
+function isGoogleProvider(provider: string): provider is 'google' {
+  return provider === 'google';
 }
 
-function isGoogleService(service: string): service is GoogleService {
-  const googleServices: GoogleService[] = [
+// Provider routing function
+function getProviderHandler(provider: string): ProviderHandler {
+  if (isGoogleProvider(provider)) {
+    return googleProvider;
+  }
+
+  throw new Error(`Unsupported OAuth provider: ${provider}`);
+}
+
+function isGoogleMCPCatalogConnectorId(
+  mcpCatalogConnectorId: string
+): mcpCatalogConnectorId is GoogleMCPCatalogConnectorId {
+  const googleMCPCatalogConnectorIds: GoogleMCPCatalogConnectorId[] = [
     'gmail',
     'google-drive',
     'google-calendar',
@@ -61,19 +67,19 @@ function isGoogleService(service: string): service is GoogleService {
     'google-tasks',
     'google-chat',
   ];
-  return googleServices.includes(service as GoogleService);
+  return googleMCPCatalogConnectorIds.includes(mcpCatalogConnectorId as GoogleMCPCatalogConnectorId);
 }
 
-function getServiceScopes(service: string): string[] {
+function getMcpCatalogConnectorIdScopes(mcpCatalogConnectorId: MCPCatalogConnectorId): string[] {
   /**
-   * Base scopes for all Google services
+   * Base scopes for all Google mcp catalog connectors
    *
    * see here for where we referenced these scopes for the Google Workspace MCP server that we use in our catalog
    * https://github.com/taylorwilsdon/google_workspace_mcp/blob/main/auth/scopes.py
    */
   const baseGoogleScopes = ['https://www.googleapis.com/auth/userinfo.email', 'openid'];
 
-  switch (service.toLowerCase()) {
+  switch (mcpCatalogConnectorId) {
     case 'gmail':
       return [
         ...baseGoogleScopes,
@@ -134,7 +140,7 @@ function getServiceScopes(service: string): string[] {
         'https://www.googleapis.com/auth/chat.spaces',
       ];
     default:
-      throw new Error(`Unknown service for scopes: ${service}`);
+      throw new Error(`Unknown mcpCatalogConnectorId for scopes: ${mcpCatalogConnectorId}`);
   }
 }
 
@@ -145,35 +151,46 @@ export const handlers = {
     res.sendFile(path.join(__dirname, '..', '..', 'public', 'index.html'));
   },
 
-  // GET /auth/:service
-  authService: async (req: Request<{ service: string }>, res: Response): Promise<void> => {
-    const { service } = req.params;
+  // GET /auth/:provider
+  authProvider: async (req: Request<{ provider: string }>, res: Response): Promise<void> => {
+    const { provider } = req.params;
+    const { mcpCatalogConnectorId } = req.query;
 
-    logger.info(`Received /auth/${service} request`);
+    logger.info(`Received /auth/${provider} request`);
+
+    if (
+      !mcpCatalogConnectorId ||
+      typeof mcpCatalogConnectorId !== 'string' ||
+      !isGoogleMCPCatalogConnectorId(mcpCatalogConnectorId)
+    ) {
+      logger.warn('Missing mcpCatalogConnectorId in auth request', { provider, mcpCatalogConnectorId });
+      res.status(400).json({ error: 'Missing mcpCatalogConnectorId' });
+      return;
+    }
 
     try {
-      const serviceHandler = getServiceHandler(service);
-      const scopes = getServiceScopes(service);
+      const providerHandler = getProviderHandler(provider);
+      const scopes = getMcpCatalogConnectorIdScopes(mcpCatalogConnectorId);
 
       const state = generateState();
       const userId = (req.query.userId as string) || 'default';
 
       logger.debug('Generated state:', { state });
-      logger.info(`Initiating ${service} OAuth flow`, { service, scopeCount: scopes.length });
+      logger.info(`Initiating ${provider} OAuth flow`, { provider, mcpCatalogConnectorId, scopeCount: scopes.length });
 
       // Store state for verification
-      storeState(state, { userId, service: service.toLowerCase() as OAuthService });
+      storeState(state, { userId, mcpCatalogConnectorId });
 
-      // Delegate to service-specific handler with scopes
-      const authUrl = await serviceHandler.generateAuthUrl(state, scopes);
+      // Delegate to provider-specific handler with scopes
+      const authUrl = await providerHandler.generateAuthUrl(mcpCatalogConnectorId, state, scopes);
 
-      logger.debug('Generated auth URL', { service });
-      logger.info('Sending auth response', { service, hasState: !!state });
+      logger.debug('Generated auth URL', { provider, mcpCatalogConnectorId });
+      logger.info('Sending auth response', { provider, mcpCatalogConnectorId, hasState: !!state });
 
       res.json({ auth_url: authUrl, state });
     } catch (error) {
-      logger.error(`Error in /auth/${service}:`, {
-        service,
+      logger.error(`Error in /auth/${provider}:`, {
+        provider,
         error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
       });
@@ -181,21 +198,32 @@ export const handlers = {
     }
   },
 
-  // GET /oauth-callback/:service
-  oauthCallback: async (req: Request<{ service: string }>, res: Response): Promise<void> => {
-    const { service } = req.params;
-    const { code, state } = req.query;
+  // GET /oauth-callback/:provider
+  oauthCallback: async (req: Request<{ provider: string }>, res: Response): Promise<void> => {
+    const { provider } = req.params;
+    const { code, state, mcpCatalogConnectorId } = req.query;
 
-    logger.info(`OAuth callback received for ${service}`, {
-      service,
+    logger.info(`OAuth callback received for ${provider}`, {
+      mcpCatalogConnectorId,
       hasCode: !!code,
       hasState: !!state,
     });
 
-    if (!code || !state || typeof code !== 'string' || typeof state !== 'string') {
-      logger.warn('Missing code or state in OAuth callback', { service });
+    if (
+      !code ||
+      !state ||
+      !mcpCatalogConnectorId ||
+      typeof code !== 'string' ||
+      typeof state !== 'string' ||
+      typeof mcpCatalogConnectorId !== 'string' ||
+      !isGoogleMCPCatalogConnectorId(mcpCatalogConnectorId)
+    ) {
+      logger.warn('Missing code, state, or mcpCatalogConnectorId in OAuth callback', {
+        provider,
+        mcpCatalogConnectorId,
+      });
       res.redirect(
-        `/oauth-callback.html?service=${service}&error=${encodeURIComponent('Missing authorization code or state')}`
+        `/oauth-callback.html?provider=${provider}&mcpCatalogConnectorId=${mcpCatalogConnectorId}&error=${encodeURIComponent('Missing authorization code or state')}`
       );
       return;
     }
@@ -204,37 +232,45 @@ export const handlers = {
     const storedState = getStoredState(state);
 
     if (!storedState) {
-      logger.warn('Invalid or expired state', { service, state });
-      res.redirect(`/oauth-callback.html?service=${service}&error=${encodeURIComponent('Invalid or expired state')}`);
+      logger.warn('Invalid or expired state', { provider, mcpCatalogConnectorId, state });
+      res.redirect(
+        `/oauth-callback.html?provider=${provider}&mcpCatalogConnectorId=${mcpCatalogConnectorId}&error=${encodeURIComponent('Invalid or expired state')}`
+      );
       return;
     }
 
-    // Verify service matches
-    if (storedState.service !== service.toLowerCase()) {
-      logger.error('Service mismatch in OAuth callback', {
-        expected: storedState.service,
-        received: service,
+    // Verify mcpCatalogConnectorId matches
+    if (storedState.mcpCatalogConnectorId !== mcpCatalogConnectorId.toLowerCase()) {
+      logger.error('mcpCatalogConnectorId mismatch in OAuth callback', {
+        expected: storedState.mcpCatalogConnectorId,
+        received: mcpCatalogConnectorId,
       });
-      res.redirect(`/oauth-callback.html?service=${service}&error=${encodeURIComponent('Service mismatch')}`);
+      res.redirect(
+        `/oauth-callback.html?provider=${provider}&mcpCatalogConnectorId=${mcpCatalogConnectorId}&error=${encodeURIComponent('Service mismatch')}`
+      );
       return;
     }
 
     try {
-      const serviceHandler = getServiceHandler(service);
-      const scopes = getServiceScopes(service);
+      const providerHandler = getProviderHandler(provider);
+      const scopes = getMcpCatalogConnectorIdScopes(mcpCatalogConnectorId);
 
-      logger.info('Exchanging authorization code for tokens', { service });
-      // Exchange code for tokens using service-specific handler
-      const tokens = await serviceHandler.exchangeCodeForTokens(code);
+      logger.info('Exchanging authorization code for tokens', { provider, mcpCatalogConnectorId });
+      // Exchange code for tokens using provider-specific handler
+      const tokens = await providerHandler.exchangeCodeForTokens(code);
 
       // Clean up state
       removeState(state);
 
-      logger.info('Successfully exchanged code for tokens', { service, hasRefreshToken: !!tokens.refresh_token });
+      logger.info('Successfully exchanged code for tokens', {
+        provider,
+        mcpCatalogConnectorId,
+        hasRefreshToken: !!tokens.refresh_token,
+      });
 
-      // For Google services, we need to pass additional parameters for credential file creation
+      // For Google mcpCatalogConnectorIds, we need to pass additional parameters for credential file creation
       const params = new URLSearchParams({
-        service: service,
+        mcpCatalogConnectorId: mcpCatalogConnectorId,
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
         expiry_date: tokens.expiry_date?.toString() || '',
@@ -246,15 +282,16 @@ export const handlers = {
 
       const redirectUrl = `/oauth-callback.html?${params.toString()}`;
 
-      logger.info('Redirecting to callback page with tokens', { service });
+      logger.info('Redirecting to callback page with tokens', { provider, mcpCatalogConnectorId });
       res.redirect(redirectUrl);
     } catch (error) {
       logger.error('Token exchange error:', {
-        service,
+        provider,
+        mcpCatalogConnectorId,
         error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
       });
-      const errorUrl = `/oauth-callback.html?service=${service}&error=${encodeURIComponent(
+      const errorUrl = `/oauth-callback.html?provider=${provider}&mcpCatalogConnectorId=${mcpCatalogConnectorId}&error=${encodeURIComponent(
         error instanceof Error ? error.message : 'Token exchange failed'
       )}`;
       res.redirect(errorUrl);

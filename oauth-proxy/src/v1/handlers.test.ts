@@ -12,7 +12,7 @@ vi.mock('@/logger', () => ({
   },
 }));
 
-// Mock the google service
+// Mock the google provider
 vi.mock('@/google', () => ({
   default: {
     generateAuthUrl: vi.fn().mockResolvedValue('https://accounts.google.com/oauth/authorize?...'),
@@ -44,10 +44,10 @@ describe('v1 handlers', () => {
 
   describe('authService', () => {
     it('should generate auth URL for Gmail', async () => {
-      mockReq.params = { service: 'gmail' };
-      mockReq.query = { userId: 'test-user' };
+      mockReq.params = { provider: 'google' };
+      mockReq.query = { userId: 'test-user', mcpCatalogConnectorId: 'gmail' };
 
-      await handlers.authService(mockReq as Request<{ service: string }>, mockRes as Response);
+      await handlers.authProvider(mockReq as Request<{ provider: string }>, mockRes as Response);
 
       expect(mockRes.json).toHaveBeenCalledWith({
         auth_url: expect.stringContaining('https://accounts.google.com'),
@@ -56,23 +56,24 @@ describe('v1 handlers', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      mockReq.params = { service: 'invalid-service' };
+      mockReq.params = { provider: 'invalid-provider' };
+      mockReq.query = { mcpCatalogConnectorId: 'gmail' };
 
-      await handlers.authService(mockReq as Request<{ service: string }>, mockRes as Response);
+      await handlers.authProvider(mockReq as Request<{ provider: string }>, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: expect.stringContaining('Unsupported OAuth service'),
+        error: expect.stringContaining('Unsupported OAuth provider'),
       });
     });
   });
 
   describe('oauthCallback', () => {
     it('should redirect with error when code is missing', async () => {
-      mockReq.params = { service: 'gmail' };
-      mockReq.query = { state: 'test-state' };
+      mockReq.params = { provider: 'google' };
+      mockReq.query = { state: 'test-state', mcpCatalogConnectorId: 'gmail' };
 
-      await handlers.oauthCallback(mockReq as Request<{ service: string }>, mockRes as Response);
+      await handlers.oauthCallback(mockReq as Request<{ provider: string }>, mockRes as Response);
 
       expect(mockRes.redirect).toHaveBeenCalledWith(
         expect.stringContaining('error=Missing%20authorization%20code%20or%20state')
@@ -80,10 +81,10 @@ describe('v1 handlers', () => {
     });
 
     it('should redirect with error when state is missing', async () => {
-      mockReq.params = { service: 'gmail' };
-      mockReq.query = { code: 'test-code' };
+      mockReq.params = { provider: 'google' };
+      mockReq.query = { code: 'test-code', mcpCatalogConnectorId: 'gmail' };
 
-      await handlers.oauthCallback(mockReq as Request<{ service: string }>, mockRes as Response);
+      await handlers.oauthCallback(mockReq as Request<{ provider: string }>, mockRes as Response);
 
       expect(mockRes.redirect).toHaveBeenCalledWith(
         expect.stringContaining('error=Missing%20authorization%20code%20or%20state')
