@@ -68,12 +68,12 @@ sequenceDiagram
     participant MCP as MCP Tools
 
     User->>UI: Types message
-    
+
     alt Agent Mode Active
         UI->>AS: Check agent state
         AS->>CP: Add agent context
     end
-    
+
     UI->>CP: sendMessage()
     CP->>BE: POST /api/chat/stream
 
@@ -85,11 +85,11 @@ sequenceDiagram
         AE->>AE: Plan tasks
         BE-->>CP: SSE: agent-state-update
         BE-->>CP: SSE: reasoning-entry
-        
+
         loop Execute Tasks
             AE->>OL: Generate next action
             OL-->>AE: Tool selection
-            
+
             alt Requires Approval
                 BE-->>CP: SSE: tool-approval-request
                 CP-->>AUI: Show approval UI
@@ -97,12 +97,12 @@ sequenceDiagram
                 AUI->>AS: Update approval
                 AS->>BE: Send approval
             end
-            
+
             AE->>MCP: Execute tool
             MCP-->>AE: Tool result
             BE-->>CP: SSE: task-progress
         end
-        
+
         AE->>OL: Generate summary
         OL-->>AE: Final response
     else Standard Chat
@@ -177,7 +177,7 @@ graph LR
 
     DP --> DPA
     DPA --> FIN
-    
+
     TF --> FIN
     FS --> FIN
     ERR --> FIN
@@ -311,7 +311,7 @@ DELETE /api/chat/{id}     - Delete chat and messages
 1. **New SSE Events**: Update both backend emitter and frontend handler
 2. **New Tools**: Register in MCP catalog, backend handles execution automatically
 3. **New Models**: Add to Ollama, automatically available in UI
-4. **Agent Features**: 
+4. **Agent Features**:
    - Add new agent modes in agent store
    - Extend reasoning types for new decision types
    - Add tool categories in approval system
