@@ -8,12 +8,11 @@ const oauth2Client = new google.auth.OAuth2(GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH
 
 /**
  * Generate Google OAuth authorization URL
- * @param mcpCatalogConnectorId - MCP catalog connector id (ex. gmail, google-drive, etc)
  * @param state - CSRF protection state parameter
  * @param scopes - OAuth scopes to request
  * @returns Authorization URL
  */
-async function generateAuthUrl(mcpCatalogConnectorId: string, state: string, scopes: string[]): Promise<string> {
+async function generateAuthUrl(state: string, scopes: string[]): Promise<string> {
   logger.debug('Generating Google auth URL', {
     clientIdSet: !!GOOGLE_OAUTH_CLIENT_ID,
     clientSecretSet: !!GOOGLE_OAUTH_CLIENT_SECRET,

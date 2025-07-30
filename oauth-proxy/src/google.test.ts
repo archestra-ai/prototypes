@@ -37,11 +37,10 @@ describe('Google OAuth Provider', () => {
 
   describe('generateAuthUrl', () => {
     it('should generate a valid auth URL', async () => {
-      const mcpCatalogConnectorId = 'gmail';
       const state = 'test-state';
       const scopes = ['email', 'openid'];
 
-      const authUrl = await googleProviderHandler.generateAuthUrl(mcpCatalogConnectorId, state, scopes);
+      const authUrl = await googleProviderHandler.generateAuthUrl(state, scopes);
 
       expect(authUrl).toContain('https://accounts.google.com');
       expect(authUrl).toContain('state=test');

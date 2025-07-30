@@ -26,6 +26,6 @@ export interface TokenResponse {
 }
 
 export interface ProviderHandler {
-  generateAuthUrl(mcpCatalogConnectorId: MCPCatalogConnectorId, state: string, scopes: string[]): Promise<string>;
+  generateAuthUrl(state: string, scopes: string[]): Promise<string>;
   exchangeCodeForTokens(code: string): Promise<TokenResponse>;
 }
