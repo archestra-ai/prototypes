@@ -35,7 +35,8 @@ graph TB
     UI --> CP
     AUI --> AS
     CP --> SDK
-    SDK --> |"SSE Stream"| STREAM
+    SDK --> |"SSE Stream"| GW
+    GW --> |"/llm/ollama/stream"| STREAM
     CS --> |"REST API"| CRUD
     AS --> |"Agent Context"| CP
 
@@ -75,7 +76,7 @@ sequenceDiagram
     end
 
     UI->>CP: sendMessage()
-    CP->>BE: POST /api/chat/stream
+    CP->>BE: POST /llm/ollama/stream
 
     BE->>DB: Create/Update chat session
     BE->>BE: Process message
@@ -259,7 +260,7 @@ export const ARCHESTRA_SERVER_OLLAMA_PROXY_URL = `${ARCHESTRA_SERVER_BASE_HTTP_U
 ### Chat Streaming
 
 ```
-POST /api/chat/stream
+POST /llm/ollama/stream
 Content-Type: application/json
 
 {
@@ -280,7 +281,7 @@ Content-Type: application/json
   }
 }
 
-Response: Server-Sent Events stream
+Response: Server-Sent Events stream (Vercel AI SDK v5 compatible)
 ```
 
 ### Chat CRUD Operations

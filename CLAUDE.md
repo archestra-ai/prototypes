@@ -105,7 +105,7 @@ npm start    # Production mode
 
 ## High-Level Architecture
 
-This is a **Tauri desktop application** that integrates AI/LLM capabilities with MCP (Model Context Protocol) support for a privacy-focused AI assistant with autonomous agent capabilities and extensible tool support.
+This is a **Tauri desktop application** that integrates AI/LLM capabilities with MCP (Model Context Protocol) support for a privacy-focused AI assistant with autonomous agent capabilities and extensible tool support. The application uses a fully streaming architecture with Server-Sent Events (SSE) for real-time chat and agent responses.
 
 ### Tech Stack
 
@@ -113,8 +113,8 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - **State Management**: Zustand v5
 - **Routing**: Tanstack React Router
 - **Backend**: Rust with Tauri v2 framework, Axum web framework, SeaORM for SQLite database
-- **API Layer**: HTTP gateway on port 54587 with OpenAPI schema generation using utoipa
-- **AI Integration**: Ollama for local LLM support, MCP (Model Context Protocol) for tool integration, Vercel AI SDK v5 for streaming
+- **API Layer**: HTTP gateway on port 54587 with OpenAPI schema generation using utoipa, SSE streaming endpoint at `/api/chat/stream`
+- **AI Integration**: Ollama for local LLM support, MCP (Model Context Protocol) for tool integration, Vercel AI SDK v5 for streaming chat and agent responses
 - **Testing**: Vitest + React Testing Library (frontend), Rust built-in test framework with rstest (backend)
 
 ### Key Directories
@@ -176,12 +176,13 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `src/gateway/`: HTTP gateway exposing the following APIs:
   - `/api`: REST API for Archestra resources (OpenAPI documented)
     - `/api/chat`: Chat CRUD operations (create, read, update, delete chats)
-    - `/api/chat/stream`: SSE streaming endpoint for Vercel AI SDK v5 with agent support
+    - `/api/chat/stream`: SSE streaming endpoint for Vercel AI SDK v5 with agent support (proxied through `/llm/ollama/stream`)
     - `oauth/`: OAuth authentication flows for MCP servers (e.g., Gmail)
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
   - `/llm/:provider`: Proxies requests to LLM providers
     - `/llm/ollama/*`: Proxies all requests to embedded Ollama instance
+    - `/llm/ollama/stream`: Enhanced streaming endpoint with chat persistence and agent support
   - `/ws`: WebSocket endpoint for real-time event broadcasting
 - `src/ollama/`: Ollama integration module
   - `client.rs`: HTTP client for Ollama API
@@ -364,8 +365,33 @@ export const useItemStore = create<StoreState>((set) => ({
 
 #### Chat API Endpoints
 
-The application provides RESTful endpoints for chat management:
+The application provides two types of chat endpoints:
 
+**1. SSE Streaming Endpoint (for chat interactions):**
+```typescript
+// Stream chat responses with optional agent support
+POST /api/chat/stream
+Content-Type: application/json
+
+Body: {
+  messages: Message[],
+  model?: string,
+  tools?: string[],
+  agent_context?: {
+    mode: AgentMode,
+    tools: string[],
+    instructions: string
+  },
+  options?: {
+    temperature?: number,
+    num_predict?: number
+  }
+}
+
+Response: Server-Sent Events stream (Vercel AI SDK v5 compatible)
+```
+
+**2. CRUD Endpoints (for chat management):**
 ```typescript
 // List all chats (ordered by created_at DESC)
 GET /api/chat
