@@ -55,7 +55,7 @@ jobs:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           VERSION: ${{ inputs.version }}
         run: |
-          IMAGE_NAME="europe-west1-docker.pkg.dev/${GCP_PROJECT_ID}/oauth-proxy/oauth-proxy:${VERSION}"
+          IMAGE_NAME="europe-west1-docker.pkg.dev/${GCP_PROJECT_ID}/archestra/oauth-proxy:${VERSION}"
           echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
