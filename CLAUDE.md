@@ -176,11 +176,19 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `src/gateway/`: HTTP gateway exposing the following APIs:
   - `/api`: REST API for Archestra resources (OpenAPI documented)
     - `/api/chat`: Chat CRUD operations (create, read, update, delete chats)
+    - `/api/mcp_server/oauth/{mcp_server_catalog_id}`: Initiates OAuth flow for MCP server
     - `/api/mcp_server/oauth/callback`: OAuth callback endpoint for deep links from proxy service
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
   - `/llm/:provider`: Proxies requests to LLM providers
   - `/ws`: WebSocket endpoint for real-time event broadcasting
+  - `api/mcp_server/oauth/`: OAuth authentication modules
+    - `mod.rs`: OAuth flow initiation and callback handling
+    - `providers/`: Provider-specific OAuth implementations
+      - `google.rs`: Google OAuth credential handling
+      - `supported_services.rs`: List of supported Google services
+    - `utils.rs`: OAuth utility functions (credential storage, path templating)
+    - `websocket.rs`: OAuth-specific WebSocket event broadcasting
 - `src/ollama/`: Ollama integration module
   - `client.rs`: HTTP client for Ollama API
   - `server.rs`: Ollama server management
@@ -615,3 +623,11 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - **Frontend Tests**: Mock API responses for chat operations
 - **Streaming Tests**: Test message accumulation and persistence during streaming
 - **Event Tests**: Verify WebSocket messages are broadcast correctly for UI updates
+
+#### OAuth Feature Testing
+
+- **OAuth Proxy Tests**: Vitest unit tests for OAuth handlers and Google service implementation
+- **CSRF Protection Tests**: Verify state parameter generation and validation
+- **Error Handling Tests**: Test OAuth error scenarios and callback failures
+- **Integration Tests**: Test complete OAuth flow from initiation to credential storage
+- **WebSocket Event Tests**: Verify `oauth-success` and `oauth-error` events are broadcast correctly
