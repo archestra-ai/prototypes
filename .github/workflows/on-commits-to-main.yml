@@ -2,13 +2,14 @@ name: On commits to main
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      # To run this workflow on all commits to main, remove the paths filter below
-      - "oauth-proxy/**"
-      - ".github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml"
-      - ".github/workflows/on-commits-to-main.yml"
+    # TODO: uncomment this out when done testing
+    # branches:
+    #   - main
+    # paths:
+    #   # To run this workflow on all commits to main, remove the paths filter below
+    #   - "oauth-proxy/**"
+    #   - ".github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml"
+    #   - ".github/workflows/on-commits-to-main.yml"
 
 concurrency:
   group: on-commits-to-main
@@ -23,6 +24,7 @@ jobs:
     with:
       environment: development
       version: ${{ github.sha }}
+      redirect_uri: https://oauth.dev.archestra.ai
     secrets:
       GCP_PROJECT_ID: ${{ secrets.DEVELOPMENT_GCP_PROJECT_ID }}
       GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER: ${{ secrets.DEVELOPMENT_OAUTH_PROXY_RELEASER_GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER }}

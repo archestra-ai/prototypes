@@ -193,17 +193,3 @@ jobs:
 
       - name: Run zizmor 🌈
         uses: zizmorcore/zizmor-action@f52a838cfabf134edcbaa7c8b3677dde20045018 # v0.1.1
-
-  # TODO: remove this when done testing
-  deploy-oauth-proxy-to-dev:
-    name: Deploy OAuth Proxy to Dev
-    uses: ./.github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml
-    permissions:
-      contents: read
-    with:
-      environment: development
-      version: ${{ github.sha }}
-    secrets:
-      GCP_PROJECT_ID: ${{ secrets.DEVELOPMENT_GCP_PROJECT_ID }}
-      GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER: ${{ secrets.DEVELOPMENT_OAUTH_PROXY_RELEASER_GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER }}
-      GCP_SERVICE_ACCOUNT_NAME: ${{ secrets.DEVELOPMENT_OAUTH_PROXY_RELEASER_GCP_SERVICE_ACCOUNT_NAME }}

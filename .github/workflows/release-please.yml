@@ -115,6 +115,7 @@ jobs:
   #   with:
   #     environment: production
   #     version: v${{ needs.release-please.outputs.oauth_proxy_version }}
+  #     redirect_uri: https://oauth.archestra.ai
   #   secrets:
   #     GCP_PROJECT_ID: ${{ secrets.PRODUCTION_GCP_PROJECT_ID }}
   #     GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER: ${{ secrets.PRODUCTION_OAUTH_PROXY_RELEASER_GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER }}
