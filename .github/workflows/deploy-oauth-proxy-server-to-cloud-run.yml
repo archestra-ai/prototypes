@@ -88,7 +88,7 @@ jobs:
             --timeout=300
             --port=3000
             --cpu-boost
-            --startup-probe=httpGet.port=3000,httpGet.path=/health,timeoutSeconds=240,initialDelaySeconds=0,failureThreshold=1
+            --startup-probe=httpGet.port=3000,httpGet.path=/health,timeoutSeconds=240,periodSeconds=240,initialDelaySeconds=0,failureThreshold=1
           env_vars: |
             NODE_ENV=${{ inputs.environment }}
             PORT=3000
