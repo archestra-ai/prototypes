@@ -96,6 +96,5 @@ jobs:
             LOG_LEVEL=info
           # https://github.com/google-github-actions/deploy-cloudrun?tab=readme-ov-file#user-content-secrets
           secrets: |
-            # As environment variables
             GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest
             GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest
