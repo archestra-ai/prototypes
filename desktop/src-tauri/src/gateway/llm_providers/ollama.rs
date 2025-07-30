@@ -47,7 +47,6 @@ const CONTENT_TYPE_NDJSON: &str = "application/x-ndjson";
 // Message roles
 const ROLE_ASSISTANT: &str = "assistant";
 const ROLE_SYSTEM: &str = "system";
-const ROLE_USER: &str = "user";
 
 // Tool types
 const TOOL_TYPE_FUNCTION: &str = "function";
@@ -229,6 +228,7 @@ struct AgentContext {
 
 /// SSE message types for streaming
 #[derive(Debug)]
+#[allow(dead_code)]
 enum SseMessage {
     MessageStart { id: String, role: String },
     TextStart { id: String },
@@ -1135,7 +1135,6 @@ async fn execute_chat_stream(
     // Keep track of the maximum number of tool rounds to prevent infinite loops
     const MAX_TOOL_ROUNDS: usize = 10;
     const MAX_OLLAMA_MESSAGES: usize = 100; // Maximum number of messages to keep in history
-    const MAX_MESSAGE_SIZE: usize = 1024 * 1024; // 1MB per message
     let mut tool_round = 0;
     let mut _had_tool_calls_in_previous_round = false;
     
