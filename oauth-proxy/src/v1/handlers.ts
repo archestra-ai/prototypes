@@ -178,7 +178,7 @@ export const handlers = {
       logger.debug('Generated state:', { state });
       logger.info(`Initiating ${provider} OAuth flow`, { provider, mcpCatalogConnectorId, scopeCount: scopes.length });
 
-      // Store state for verification
+      // Store state for verification - include mcpCatalogConnectorId in state
       storeState(state, { userId, mcpCatalogConnectorId });
 
       // Delegate to provider-specific handler with scopes
@@ -201,10 +201,9 @@ export const handlers = {
   // GET /oauth-callback/:provider
   oauthCallback: async (req: Request<{ provider: string }>, res: Response): Promise<void> => {
     const { provider } = req.params;
-    const { code, state, mcpCatalogConnectorId } = req.query;
+    const { code, state } = req.query;
 
     logger.info(`OAuth callback received for ${provider}`, {
-      mcpCatalogConnectorId,
       hasCode: !!code,
       hasState: !!state,
     });
@@ -212,41 +211,37 @@ export const handlers = {
     if (
       !code ||
       !state ||
-      !mcpCatalogConnectorId ||
       typeof code !== 'string' ||
-      typeof state !== 'string' ||
-      typeof mcpCatalogConnectorId !== 'string' ||
-      !isGoogleMCPCatalogConnectorId(mcpCatalogConnectorId)
+      typeof state !== 'string'
     ) {
-      logger.warn('Missing code, state, or mcpCatalogConnectorId in OAuth callback', {
+      logger.warn('Missing code or state in OAuth callback', {
         provider,
-        mcpCatalogConnectorId,
       });
       res.redirect(
-        `/oauth-callback.html?provider=${provider}&mcpCatalogConnectorId=${mcpCatalogConnectorId}&error=${encodeURIComponent('Missing authorization code or state')}`
+        `/oauth-callback.html?provider=${provider}&error=${encodeURIComponent('Missing authorization code or state')}`
       );
       return;
     }
 
-    // Verify state
+    // Verify state and get mcpCatalogConnectorId from stored state
     const storedState = getStoredState(state);
 
     if (!storedState) {
-      logger.warn('Invalid or expired state', { provider, mcpCatalogConnectorId, state });
+      logger.warn('Invalid or expired state', { provider, state });
       res.redirect(
-        `/oauth-callback.html?provider=${provider}&mcpCatalogConnectorId=${mcpCatalogConnectorId}&error=${encodeURIComponent('Invalid or expired state')}`
+        `/oauth-callback.html?provider=${provider}&error=${encodeURIComponent('Invalid or expired state')}`
       );
       return;
     }
 
-    // Verify mcpCatalogConnectorId matches
-    if (storedState.mcpCatalogConnectorId !== mcpCatalogConnectorId.toLowerCase()) {
-      logger.error('mcpCatalogConnectorId mismatch in OAuth callback', {
-        expected: storedState.mcpCatalogConnectorId,
-        received: mcpCatalogConnectorId,
+    const { mcpCatalogConnectorId } = storedState;
+    
+    if (!isGoogleMCPCatalogConnectorId(mcpCatalogConnectorId)) {
+      logger.error('Invalid mcpCatalogConnectorId in stored state', {
+        mcpCatalogConnectorId,
       });
       res.redirect(
-        `/oauth-callback.html?provider=${provider}&mcpCatalogConnectorId=${mcpCatalogConnectorId}&error=${encodeURIComponent('Service mismatch')}`
+        `/oauth-callback.html?provider=${provider}&error=${encodeURIComponent('Invalid service configuration')}`
       );
       return;
     }
