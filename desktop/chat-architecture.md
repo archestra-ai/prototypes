@@ -15,16 +15,18 @@ graph TB
         SDK[Vercel AI SDK v5]
         CS[Chat Store]
         AS[Agent Store]
+        EH[Event Handlers]
     end
 
     subgraph "Backend (Rust/Tauri)"
         GW[HTTP Gateway :54587]
-        STREAM["/api/chat/stream endpoint"]
+        STREAM[Ollama Proxy Handler]
         CRUD["/api/chat CRUD endpoints"]
         DB[(SQLite Database)]
         AE[Agent Executor]
         MCP[MCP Tool Executor]
         OC[Ollama Client]
+        WS[WebSocket Service]
     end
 
     subgraph "External Services"
@@ -39,16 +41,20 @@ graph TB
     GW --> |"/llm/ollama/stream"| STREAM
     CS --> |"REST API"| CRUD
     AS --> |"Agent Context"| CP
+    CP --> EH
+    EH --> AS
 
     STREAM --> DB
     STREAM --> AE
     AE --> MCP
     AE --> OC
+    STREAM --> WS
 
     OC --> OLLAMA
     MCP --> MCPS
 
     CRUD --> DB
+    WS --> |"chat-title-updated"| CP
 ```
 
 ## Request Flow
@@ -134,54 +140,45 @@ The backend sends Server-Sent Events (SSE) following the Vercel AI SDK v5 protoc
 
 ```mermaid
 graph LR
-    subgraph "Standard SSE Events"
-        TS[text-start]
-        TD[text-delta]
-        TF[text-available]
-        SS[start-step]
-        FS[finish-step]
-        TIS[tool-input-start]
-        TID[tool-input-delta]
-        TIA[tool-input-available]
-        TOA[tool-output-available]
-        FIN[finish]
+    subgraph "Standard SSE Events (v5 SDK)"
+        TS[0-text]
+        TD[2-text-delta]
+        SS[5-tool-call]
+        FS[9-tool-result]
+        TC[tool-call-streaming-start]
+        TCS[6-tool-call-streaming-delta]
+        MSG[3-assistant-message]
+        CMSG[assistant-control-data]
+        FIN[c-finish]
     end
 
-    subgraph "Agent SSE Events"
-        ASU[agent-state-update]
-        RE[reasoning-entry]
-        TP[task-progress]
-        TAR[tool-approval-request]
-        TAA[tool-approval-response]
-        WMU[working-memory-update]
-        ERR[agent-error]
+    subgraph "Custom Data Events"
+        DAS[data-agent-state]
+        DRE[data-reasoning]
+        DTP[data-task-progress]
+        DTC[data-tool-call]
+        DTAR[data-tool-approval-request]
+        DWMU[data-working-memory]
+        DERR[data-agent-error]
     end
 
-    subgraph "Data Parts"
-        DP[data-part]
-        DPA[data-part-available]
+    subgraph "Event Flow"
+        TS --> TD
+        TD --> MSG
+        MSG --> SS
+        SS --> TCS
+        TCS --> FS
+        
+        DAS --> DRE
+        DRE --> DTP
+        DTP --> DTC
+        DTC --> DTAR
+        DTAR --> SS
+        
+        FS --> FIN
+        DERR --> FIN
+        CMSG --> FIN
     end
-
-    TS --> TD
-    TD --> TF
-
-    SS --> TIS
-    TIS --> TID
-    TID --> TIA
-    TIA --> TOA
-    TOA --> FS
-
-    ASU --> TP
-    TP --> RE
-    TAR --> TAA
-    TAA --> TIS
-
-    DP --> DPA
-    DPA --> FIN
-
-    TF --> FIN
-    FS --> FIN
-    ERR --> FIN
 ```
 
 ## Key Features
@@ -264,17 +261,18 @@ POST /llm/ollama/stream
 Content-Type: application/json
 
 {
+  "session_id": "uuid-v4",
   "messages": [...],
   "model": "qwen2.5:3b",
-  "tools": ["tool1", "tool2"],
+  "tools": ["server_tool"],  // Format: "serverName_toolName"
   "stream": true,
   "options": {
     "temperature": 0.7,
     "num_predict": 2048
   },
-  "agent_context": {
+  "agent_context": {  // Optional, added by ChatProvider when agent is active
     "mode": "executing",
-    "tools": ["filesystem", "github"],
+    "tools": ["filesystem_read", "github_createIssue"],
     "instructions": "Help user with coding tasks",
     "plan_id": "plan_123",
     "step_id": "step_456"
@@ -283,6 +281,12 @@ Content-Type: application/json
 
 Response: Server-Sent Events stream (Vercel AI SDK v5 compatible)
 ```
+
+**Important Notes**:
+- The `session_id` is managed by ChatProvider and persists across messages
+- Tools must be in `serverName_toolName` format for MCP integration
+- Agent context is automatically injected via `window.__CHAT_METADATA__`
+- The endpoint validates the chat request and creates chat if needed
 
 ### Chat CRUD Operations
 
@@ -309,23 +313,43 @@ DELETE /api/chat/{id}     - Delete chat and messages
 
 ### Adding New Features
 
-1. **New SSE Events**: Update both backend emitter and frontend handler
-2. **New Tools**: Register in MCP catalog, backend handles execution automatically
-3. **New Models**: Add to Ollama, automatically available in UI
+1. **New SSE Events**: 
+   - Add event type to backend SSE emitter
+   - Add handler in `event-handlers.ts` EVENT_HANDLERS map
+   - Update agent store if event affects agent state
+2. **New Tools**: 
+   - Register in MCP server catalog
+   - Backend automatically handles execution
+   - Add to tool approval categories if sensitive
+3. **New Models**: 
+   - Pull model in Ollama
+   - Model automatically appears in UI selector
 4. **Agent Features**:
-   - Add new agent modes in agent store
-   - Extend reasoning types for new decision types
+   - Add new agent modes in `agent-store.ts`
+   - Extend `ReasoningEntry` types for new decision types
    - Add tool categories in approval system
+   - Update `AgentContext` interface if needed
 
 ### Common Issues
 
 1. **CORS Errors**: Ensure URLs include `http://` protocol
-2. **Streaming Stops**: Check for unhandled errors in tool execution
-3. **Missing Messages**: Verify database persistence in stream handler
+2. **Streaming Stops**: 
+   - Check for unhandled errors in tool execution
+   - Verify `window.__CHAT_STOP_STREAMING__` is not set
+   - Check network connectivity to backend
+3. **Missing Messages**: 
+   - Verify database persistence in stream handler
+   - Check chat session_id consistency
+   - Ensure chat creation succeeds before streaming
 4. **Agent Issues**:
    - Agent stuck: Check task timeout settings
-   - Tool approval timeout: Verify WebSocket connection
-   - Memory overflow: Adjust memory limits in config
+   - Tool approval timeout: Verify SSE connection is active
+   - Memory overflow: Adjust memory limits in backend config
+   - State mismatch: Check event handler updates
+5. **WebSocket Issues**:
+   - Connection drops: Check reconnection logic
+   - Missing events: Verify event subscription setup
+   - Title not updating: Check WebSocket broadcast
 
 ## Future Enhancements
 

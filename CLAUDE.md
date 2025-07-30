@@ -185,7 +185,6 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `src/gateway/`: HTTP gateway exposing the following APIs:
   - `/api`: REST API for Archestra resources (OpenAPI documented)
     - `/api/chat`: Chat CRUD operations (create, read, update, delete chats)
-    - `/api/chat/stream`: SSE streaming endpoint for Vercel AI SDK v5 with agent support
     - `oauth/`: OAuth authentication flows for MCP servers (e.g., Gmail)
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
@@ -317,6 +316,36 @@ The application uses WebSockets for real-time event broadcasting between the bac
 
 ### Key Patterns
 
+#### SSE Streaming with Vercel AI SDK v5
+
+The application uses a custom transport configuration to integrate with the backend SSE endpoint:
+
+```typescript
+// Custom transport configuration in ChatProvider
+const chatTransport = new DefaultChatTransport({
+  api: `${ARCHESTRA_SERVER_BASE_HTTP_URL}/llm/ollama/stream`,
+  prepareSendMessagesRequest: ({ messages }) => {
+    const metadata = window.__CHAT_METADATA__ || {};
+    return {
+      body: {
+        session_id: currentChatSessionId,
+        messages,
+        model: metadata.model || selectedModel,
+        agent_context: metadata.agent_context,
+        tools: metadata.tools,
+        options: metadata.options
+      }
+    }
+  }
+});
+```
+
+**Key Integration Points**:
+- Global `window.__CHAT_METADATA__` object for metadata injection (required by v5 SDK architecture)
+- `window.__CHAT_STOP_STREAMING__` for coordinated streaming control
+- Custom data event handlers for agent-specific SSE events
+- Automatic chat persistence during streaming
+
 #### API Endpoint Pattern (Rust)
 
 ```rust
@@ -423,11 +452,17 @@ Response: 204 No Content
 **Chat Persistence Workflow**:
 
 1. Frontend uses `/llm/ollama/stream` endpoint via Vercel AI SDK v5's `useChat` hook with custom transport
-2. Chat is automatically created on first message via `/api/chat` CRUD endpoint
+2. Chat is automatically created on first message if session doesn't exist
 3. Messages are persisted during streaming via the Ollama proxy interceptor
 4. Backend maintains chat session through automatic title generation after 4 messages
 5. Frontend can manage chats via REST endpoints: GET, POST, PATCH, DELETE at `/api/chat`
 6. Agent metadata (plan IDs, step IDs, reasoning) is persisted with messages when agent mode is active
+
+**Backend SSE Event Processing**:
+- Standard Vercel AI SDK v5 events: `text-delta`, `tool-call`, `tool-result`, etc.
+- Custom data events prefixed with `data-` for agent-specific updates
+- Event handlers in frontend automatically update agent store and UI
+- All events flow through the same SSE stream for unified processing
 
 **Agent-Enhanced Streaming**:
 
@@ -588,14 +623,25 @@ The agent system provides autonomous task planning and execution capabilities wi
 The backend sends these additional SSE events during agent execution:
 
 ```typescript
-// Agent-specific SSE events
-type AgentEvent =
-  | { type: 'agent-state-update', mode: AgentMode }
-  | { type: 'reasoning-entry', entry: ReasoningEntry }
-  | { type: 'task-progress', progress: TaskProgress }
-  | { type: 'tool-approval-request', tool: ToolInfo }
-  | { type: 'working-memory-update', memory: MemoryEntry }
-  | { type: 'agent-error', error: string }
+// Agent-specific SSE events (sent as data events)
+type AgentDataEvent =
+  | { type: 'data-agent-state', data: { mode: AgentMode, objective?: string } }
+  | { type: 'data-reasoning', data: ReasoningEntry }
+  | { type: 'data-task-progress', data: TaskProgress }
+  | { type: 'data-tool-call', data: { tool: string, args: any } }
+  | { type: 'data-tool-approval-request', data: ToolApprovalRequest }
+  | { type: 'data-working-memory-update', data: MemoryEntry }
+  | { type: 'data-agent-error', data: { error: string } }
+```
+
+**Event Processing Flow**:
+```typescript
+// Frontend event handler pattern
+if (data.type.startsWith('data-')) {
+  const dataType = data.type.substring(5); // Remove 'data-' prefix
+  const handler = EVENT_HANDLERS[dataType];
+  if (handler) handler(data.data);
+}
 ```
 
 #### Agent Configuration
@@ -632,3 +678,25 @@ interface AgentContext {
 - **Memory Management Tests**: Test working memory with TTL and relevance
 - **Error Recovery Tests**: Verify agent error handling and recovery strategies
 - **Integration Tests**: End-to-end agent execution with mock tools
+
+#### SSE Event Testing
+
+- **Event Handler Tests**: Verify all custom data events are processed correctly
+- **Auto-scroll Tests**: Test scroll behavior during streaming and message updates
+- **Message Processing Tests**: Complex message parsing with tool results and thinking content
+- **Chat Provider Tests**: Provider setup and event subscription management
+
+#### Test Coverage Gaps
+
+**Well-Tested Areas**:
+- Agent store lifecycle and state management
+- Message processing and rendering
+- Tool approval workflows
+- SSE event handlers
+
+**Areas Needing More Coverage**:
+- Backend SSE streaming endpoint integration tests
+- WebSocket event broadcasting tests
+- End-to-end agent execution with real tool calls
+- Chat title generation and broadcasting
+- Error recovery during streaming interruptions
