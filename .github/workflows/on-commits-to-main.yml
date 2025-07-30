@@ -2,14 +2,13 @@ name: On commits to main
 
 on:
   push:
-    # TODO: uncomment this out when done testing
-    # branches:
-    #   - main
-    # paths:
-    #   # To run this workflow on all commits to main, remove the paths filter below
-    #   - 'oauth-proxy/**'
-    #   - '.github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml'
-    #   - '.github/workflows/on-commits-to-main.yml'
+    branches:
+      - main
+    paths:
+      # To run this workflow on all commits to main, remove the paths filter below
+      - "oauth-proxy/**"
+      - ".github/workflows/deploy-oauth-proxy-server-to-cloud-run.yml"
+      - ".github/workflows/on-commits-to-main.yml"
 
 concurrency:
   group: on-commits-to-main

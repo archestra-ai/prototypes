@@ -46,17 +46,21 @@ jobs:
       - name: Configure Docker authentication
         run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
 
-      - name: Docker image name
+      - name: Set Docker image name
         id: docker-image-name
         env:
-          IMAGE_NAME: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/oauth-proxy/oauth-proxy:${{ inputs.version }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          VERSION: ${{ inputs.version }}
         run: |
-          echo "IMAGE_NAME=${{ env.IMAGE_NAME }}" >> $GITHUB_OUTPUT
+          IMAGE_NAME="europe-west1-docker.pkg.dev/${GCP_PROJECT_ID}/oauth-proxy/oauth-proxy:${VERSION}"
+          echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
+        env:
+          IMAGE_NAME: ${{ steps.docker-image-name.outputs.IMAGE_NAME }}
         run: |
-          docker build -f ./oauth-proxy/Dockerfile -t ${{ env.IMAGE_NAME }} .
-          docker push ${{ env.IMAGE_NAME }}
+          docker build -f ./oauth-proxy/Dockerfile -t "${IMAGE_NAME}" .
+          docker push "${IMAGE_NAME}"
 
       - name: Deploy to Cloud Run
         # https://github.com/google-github-actions/deploy-cloudrun
@@ -64,7 +68,7 @@ jobs:
         uses: google-github-actions/deploy-cloudrun@147732842f8a61ce9bd3b3f8e9f6597fe991ad65 # v2.7.4
         with:
           service: oauth-proxy
-          image: ${{ env.IMAGE_NAME }}
+          image: ${{ steps.docker-image-name.outputs.IMAGE_NAME }}
           region: europe-west1
           env_vars_update_strategy: overwrite
           # https://cloud.google.com/sdk/gcloud/reference/run/deploy#FLAGS
