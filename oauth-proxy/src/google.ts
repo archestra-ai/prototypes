@@ -25,6 +25,7 @@ async function generateAuthUrl(mcpCatalogConnectorId: string, state: string, sco
     scope: scopes,
     state: state,
     prompt: 'consent', // Force consent to get refresh token
+    provider: 'google',
     /**
      * mcpCatalogConnectorId will be set as a query param on the generated auth Url. This will allow /oauth-callback/google
      * to handle all callback redirects, while still knowing exactly which "mcpCatalogConnectorId" this is concerning

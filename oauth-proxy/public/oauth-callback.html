@@ -51,63 +51,66 @@
       const accessToken = urlParams.get('access_token');
       const refreshToken = urlParams.get('refresh_token');
       const expiryDate = urlParams.get('expiry_date');
-      const service = urlParams.get('service') || 'unknown';
+      const provider = urlParams.get('provider') || 'unknown';
+      const mcpCatalogConnectorId = urlParams.get('mcpCatalogConnectorId') || 'unknown';
       const error = urlParams.get('error');
 
       const statusDiv = document.getElementById('status');
 
-      // Service-specific configuration
-      const serviceConfig = {
-        gmail: {
-          name: 'Gmail',
-          emoji: '📧',
-          color: '#d93025',
+      // Provider-specific configuration
+      const providerConfig = {
+        google: {
+          gmail: {
+            name: 'Gmail',
+            emoji: '📧',
+            color: '#d93025',
+          },
+          'google-drive': {
+            name: 'Google Drive',
+            emoji: '📁',
+            color: '#0F9D58',
+          },
+          'google-calendar': {
+            name: 'Google Calendar',
+            emoji: '📅',
+            color: '#4285F4',
+          },
+          'google-docs': {
+            name: 'Google Docs',
+            emoji: '📄',
+            color: '#4285F4',
+          },
+          'google-sheets': {
+            name: 'Google Sheets',
+            emoji: '📊',
+            color: '#0F9D58',
+          },
+          'google-slides': {
+            name: 'Google Slides',
+            emoji: '📱',
+            color: '#F4B400',
+          },
+          'google-forms': {
+            name: 'Google Forms',
+            emoji: '📋',
+            color: '#673AB7',
+          },
+          'google-tasks': {
+            name: 'Google Tasks',
+            emoji: '✅',
+            color: '#4285F4',
+          },
+          'google-chat': {
+            name: 'Google Chat',
+            emoji: '💬',
+            color: '#0F9D58',
+          },
         },
-        'google-drive': {
-          name: 'Google Drive',
-          emoji: '📁',
-          color: '#0F9D58',
-        },
-        'google-calendar': {
-          name: 'Google Calendar',
-          emoji: '📅',
-          color: '#4285F4',
-        },
-        'google-docs': {
-          name: 'Google Docs',
-          emoji: '📄',
-          color: '#4285F4',
-        },
-        'google-sheets': {
-          name: 'Google Sheets',
-          emoji: '📊',
-          color: '#0F9D58',
-        },
-        'google-slides': {
-          name: 'Google Slides',
-          emoji: '📱',
-          color: '#F4B400',
-        },
-        'google-forms': {
-          name: 'Google Forms',
-          emoji: '📋',
-          color: '#673AB7',
-        },
-        'google-tasks': {
-          name: 'Google Tasks',
-          emoji: '✅',
-          color: '#4285F4',
-        },
-        'google-chat': {
-          name: 'Google Chat',
-          emoji: '💬',
-          color: '#0F9D58',
-        },
-        // Add more services here as needed
+        // Add more providers/mcp catalog connectors here as needed
       };
 
-      const config = serviceConfig[service] || {
-        name: service.charAt(0).toUpperCase() + service.slice(1),
+      const config = providerConfig[provider][mcpCatalogConnectorId] || {
+        name: provider.charAt(0).toUpperCase() + provider.slice(1),
         emoji: '🔐',
         color: '#007bff',
       };
@@ -128,7 +131,7 @@
             `;
 
         // Redirect to the Tauri app via deep-link
-        const deepLinkUrl = `archestra-ai://oauth-callback?service=${service}&access_token=${accessToken}&refresh_token=${refreshToken}&expiry_date=${expiryDate || ''}`;
+        const deepLinkUrl = `archestra-ai://oauth-callback?provider=${provider}&mcpCatalogConnectorId=${mcpCatalogConnectorId}&access_token=${accessToken}&refresh_token=${refreshToken}&expiry_date=${expiryDate || ''}`;
 
         setTimeout(() => {
           window.location.href = deepLinkUrl;
