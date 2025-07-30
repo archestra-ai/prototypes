@@ -148,6 +148,11 @@ export type OAuthErrorWebSocketPayload = {
   mcp_server_catalog_id: string;
 };
 
+export type OAuthStartParams = {
+  mcp_server_catalog_id: string;
+  provider: string;
+};
+
 export type OAuthSuccessWebSocketPayload = {
   mcp_server_catalog_id: string;
 };

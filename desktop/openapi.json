@@ -1339,6 +1339,21 @@
           }
         }
       },
+      "OAuthStartParams": {
+        "type": "object",
+        "required": [
+          "mcp_server_catalog_id",
+          "provider"
+        ],
+        "properties": {
+          "mcp_server_catalog_id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          }
+        }
+      },
       "OAuthSuccessWebSocketPayload": {
         "type": "object",
         "required": [

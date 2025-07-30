@@ -182,6 +182,12 @@ pub async fn install_mcp_server_from_catalog(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct OAuthStartParams {
+    mcp_server_catalog_id: String,
+    provider: String,
+}
+
 #[utoipa::path(
     post,
     path = "/api/mcp_server/catalog/start_oauth_installation",
@@ -197,15 +203,14 @@ pub async fn install_mcp_server_from_catalog(
 )]
 pub async fn start_mcp_server_oauth(
     State(service): State<Arc<Service>>,
-    Query(mcp_server_catalog_id): Query<String>,
-    Query(provider): Query<String>,
+    Query(params): Query<OAuthStartParams>,
 ) -> Result<String, StatusCode> {
     service
-        .start_oauth_auth(provider.clone(), mcp_server_catalog_id.clone())
+        .start_oauth_auth(params.provider.clone(), params.mcp_server_catalog_id.clone())
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(format!("OAuth flow started for {mcp_server_catalog_id} with provider {provider}"))
+    Ok(format!("OAuth flow started for {} with provider {}", params.mcp_server_catalog_id, params.provider))
 }
 
 #[utoipa::path(
