@@ -29,6 +29,7 @@ interface ChatActions {
   getCurrentChatTitle: () => string;
   deleteCurrentChat: () => Promise<void>;
   updateChat: (chatId: number, title: string) => Promise<void>;
+  updateChatMessages: (sessionId: string, messages: any[]) => void;
   initializeStore: () => void;
 }
 
@@ -157,6 +158,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     } catch (error) {
       console.error('Failed to update chat:', error);
     }
+  },
+
+  updateChatMessages: (sessionId: string, messages: any[]) => {
+    set((state) => ({
+      chats: state.chats.map((chat) => (chat.session_id === sessionId ? { ...chat, messages } : chat)),
+    }));
   },
 
   initializeStore: () => {

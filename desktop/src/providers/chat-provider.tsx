@@ -97,6 +97,14 @@ export function ChatProvider({ children }: ChatProviderProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentChatSessionId]); // Don't include chat in dependencies to avoid infinite loop
 
+  // Sync messages back to the store when they change
+  useEffect(() => {
+    if (currentChatSessionId && chat.messages.length > 0) {
+      console.log('[ChatProvider] Syncing messages to store:', chat.messages.length);
+      useChatStore.getState().updateChatMessages(currentChatSessionId, chat.messages);
+    }
+  }, [chat.messages, currentChatSessionId]);
+
   // Expose stop function globally for chat deletion
   useEffect(() => {
     window.__CHAT_STOP_STREAMING__ = () => {
