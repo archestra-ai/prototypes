@@ -17,11 +17,13 @@ interface ChatState {
   chats: ChatWithMessages[];
   currentChatSessionId: string | null;
   isLoadingChats: boolean;
+  streamingChatSessionId: string | null;
 }
 
 interface ChatActions {
   getStatus: () => ChatMessageStatus;
   setStatus: (status: ChatMessageStatus) => void;
+  setStreamingChatSessionId: (sessionId: string | null) => void;
   loadChats: () => Promise<void>;
   createNewChat: () => Promise<ChatWithMessages>;
   selectChat: (chatId: number) => void;
@@ -54,11 +56,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   chats: [],
   currentChatSessionId: null,
   isLoadingChats: false,
+  streamingChatSessionId: null,
 
   // Actions
   getStatus: () => get().status,
 
   setStatus: (status) => set({ status }),
+
+  setStreamingChatSessionId: (sessionId) => set({ streamingChatSessionId: sessionId }),
 
   loadChats: async () => {
     set({ isLoadingChats: true });
@@ -68,9 +73,18 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (data) {
         const initializedChats = data.map((chat) => initializeChat(chat as unknown as ServerChatWithMessages));
 
+        // Preserve the current chat session ID if it's still valid
+        const currentSessionId = get().currentChatSessionId;
+        const isCurrentChatValid =
+          currentSessionId && initializedChats.some((chat) => chat.session_id === currentSessionId);
+
         set({
           chats: initializedChats,
-          currentChatSessionId: initializedChats.length > 0 ? initializedChats[0].session_id : null,
+          currentChatSessionId: isCurrentChatValid
+            ? currentSessionId
+            : initializedChats.length > 0
+              ? initializedChats[0].session_id
+              : null,
           isLoadingChats: false,
         });
       }

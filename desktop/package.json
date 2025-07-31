@@ -41,7 +41,6 @@
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@shikijs/transformers": "^3.8.1",
     "@tailwindcss/vite": "^4.1.11",
-    "@tanstack/react-router": "^1.130.2",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-http": "~2.5.1",
     "@tauri-apps/plugin-opener": "^2",
@@ -84,7 +83,7 @@
     "vite": "^7.0.6",
     "vitest": "^3.2.4"
   },
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@10.14.0",
   "engines": {
     "node": ">=24.0.0"
   },

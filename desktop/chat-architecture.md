@@ -172,13 +172,13 @@ graph LR
         MSG --> TIA
         TIA --> TC
         TC --> TR
-        
+
         DAS --> DRE
         DRE --> DTP
         DTP --> DTC
         DTC --> DTAR
         DTAR --> TC
-        
+
         TR --> FIN
         DERR --> FIN
         ERR --> FIN
@@ -288,6 +288,7 @@ Response: Server-Sent Events stream (Vercel AI SDK v5 compatible)
 ```
 
 **Important Notes**:
+
 - The `session_id` is managed by ChatProvider and persists across messages
 - Tools must be in `serverName_toolName` format for MCP integration
 - Agent context is automatically injected via `window.__CHAT_METADATA__`
@@ -318,15 +319,15 @@ DELETE /api/chat/{id}     - Delete chat and messages
 
 ### Adding New Features
 
-1. **New SSE Events**: 
+1. **New SSE Events**:
    - Add event type to backend SSE emitter
    - Add handler in `event-handlers.ts` EVENT_HANDLERS map
    - Update agent store if event affects agent state
-2. **New Tools**: 
+2. **New Tools**:
    - Register in MCP server catalog
    - Backend automatically handles execution
    - Add to tool approval categories if sensitive
-3. **New Models**: 
+3. **New Models**:
    - Pull model in Ollama
    - Model automatically appears in UI selector
 4. **Agent Features**:
@@ -338,11 +339,11 @@ DELETE /api/chat/{id}     - Delete chat and messages
 ### Common Issues
 
 1. **CORS Errors**: Ensure URLs include `http://` protocol
-2. **Streaming Stops**: 
+2. **Streaming Stops**:
    - Check for unhandled errors in tool execution
    - Verify `window.__CHAT_STOP_STREAMING__` is not set
    - Check network connectivity to backend
-3. **Missing Messages**: 
+3. **Missing Messages**:
    - Verify database persistence in stream handler
    - Check chat session_id consistency
    - Ensure chat creation succeeds before streaming

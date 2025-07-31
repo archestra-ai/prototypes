@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 
 import { DeleteChatConfirmation } from '@/components/DeleteChatConfirmation';
 import { EditableTitle } from '@/components/EditableTitle';
@@ -9,8 +9,16 @@ import { useChatStore } from '@/stores/chat-store';
 interface ChatSidebarProps {}
 
 export default function ChatSidebarSection(_props: ChatSidebarProps) {
-  const { chats, getCurrentChat, isLoadingChats, selectChat, createNewChat, deleteCurrentChat, updateChat } =
-    useChatStore();
+  const {
+    chats,
+    getCurrentChat,
+    isLoadingChats,
+    selectChat,
+    createNewChat,
+    deleteCurrentChat,
+    updateChat,
+    streamingChatSessionId,
+  } = useChatStore();
   const currentChatId = getCurrentChat()?.id;
 
   return (
@@ -34,8 +42,9 @@ export default function ChatSidebarSection(_props: ChatSidebarProps) {
         </SidebarMenuItem>
       ) : (
         chats.map((chat) => {
-          const { id, title } = chat;
+          const { id, title, session_id } = chat;
           const isCurrentChat = currentChatId === id;
+          const isStreaming = streamingChatSessionId === session_id;
 
           return (
             <SidebarMenuItem key={id} className="ml-6 group-data-[collapsible=icon]:hidden group/chat-item">
@@ -46,12 +55,15 @@ export default function ChatSidebarSection(_props: ChatSidebarProps) {
                   size="sm"
                   className="cursor-pointer hover:bg-accent/50 text-sm flex-1 group/chat-button"
                 >
-                  <EditableTitle
-                    className="truncate"
-                    title={title || DEFAULT_CHAT_TITLE}
-                    onSave={(newTitle) => updateChat(id, newTitle)}
-                    isAnimated
-                  />
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {isStreaming && <Loader2 className="h-3 w-3 animate-spin text-blue-600 flex-shrink-0" />}
+                    <EditableTitle
+                      className="truncate flex-1"
+                      title={title || DEFAULT_CHAT_TITLE}
+                      onSave={(newTitle) => updateChat(id, newTitle)}
+                      isAnimated
+                    />
+                  </div>
                 </SidebarMenuButton>
                 <DeleteChatConfirmation onDelete={deleteCurrentChat} />
               </div>
