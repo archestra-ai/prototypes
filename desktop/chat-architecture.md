@@ -11,11 +11,12 @@ graph TB
     subgraph "Frontend (React)"
         UI[Chat UI Components]
         AUI[Agent UI Components]
-        CP[ChatProvider]
+        CP[ChatProvider Context]
         SDK[Vercel AI SDK v5]
         CS[Chat Store]
         AS[Agent Store]
-        EH[Event Handlers]
+        EH[SSE Event Handlers]
+        TC[Custom Transport]
     end
 
     subgraph "Backend (Rust/Tauri)"
@@ -37,12 +38,14 @@ graph TB
     UI --> CP
     AUI --> AS
     CP --> SDK
-    SDK --> |"SSE Stream"| GW
+    SDK --> TC
+    TC --> |"SSE Stream"| GW
     GW --> |"/llm/ollama/stream"| STREAM
     CS --> |"REST API"| CRUD
     AS --> |"Agent Context"| CP
     CP --> EH
     EH --> AS
+    EH --> CS
 
     STREAM --> DB
     STREAM --> AE
@@ -82,10 +85,11 @@ sequenceDiagram
     end
 
     UI->>CP: sendMessage()
-    CP->>BE: POST /llm/ollama/stream
+    CP->>CP: Inject metadata via window.__CHAT_METADATA__
+    CP->>BE: POST /llm/ollama/stream (via custom transport)
 
     BE->>DB: Create/Update chat session
-    BE->>BE: Process message
+    BE->>BE: Validate request & process message
 
     alt Agent Mode
         BE->>AE: Initialize agent
@@ -141,15 +145,15 @@ The backend sends Server-Sent Events (SSE) following the Vercel AI SDK v5 protoc
 ```mermaid
 graph LR
     subgraph "Standard SSE Events (v5 SDK)"
-        TS[0-text]
-        TD[2-text-delta]
-        SS[5-tool-call]
-        FS[9-tool-result]
-        TC[tool-call-streaming-start]
-        TCS[6-tool-call-streaming-delta]
-        MSG[3-assistant-message]
+        TS[text-start]
+        TD[text-delta]
+        TIA[tool-input-available]
+        TC[tool-call]
+        TR[tool-result]
+        MSG[assistant-message]
         CMSG[assistant-control-data]
-        FIN[c-finish]
+        ERR[error]
+        FIN[finish]
     end
 
     subgraph "Custom Data Events"
@@ -165,18 +169,19 @@ graph LR
     subgraph "Event Flow"
         TS --> TD
         TD --> MSG
-        MSG --> SS
-        SS --> TCS
-        TCS --> FS
+        MSG --> TIA
+        TIA --> TC
+        TC --> TR
         
         DAS --> DRE
         DRE --> DTP
         DTP --> DTC
         DTC --> DTAR
-        DTAR --> SS
+        DTAR --> TC
         
-        FS --> FIN
+        TR --> FIN
         DERR --> FIN
+        ERR --> FIN
         CMSG --> FIN
     end
 ```

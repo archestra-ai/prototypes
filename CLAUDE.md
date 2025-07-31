@@ -116,7 +116,7 @@ npm start    # Production mode
 
 ## High-Level Architecture
 
-This is a **Tauri desktop application** that integrates AI/LLM capabilities with MCP (Model Context Protocol) support for a privacy-focused AI assistant with autonomous agent capabilities and extensible tool support. The application uses a fully streaming architecture with Server-Sent Events (SSE) for real-time chat and agent responses.
+This is a **Tauri desktop application** that integrates AI/LLM capabilities with MCP (Model Context Protocol) support for a privacy-focused AI assistant with autonomous agent capabilities and extensible tool support. The application uses a fully streaming architecture with Server-Sent Events (SSE) for real-time chat and agent responses, built on top of Vercel AI SDK v5.
 
 ### Tech Stack
 
@@ -125,8 +125,8 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - **Routing**: Tanstack React Router
 - **Backend**: Rust with Tauri v2 framework, Axum web framework, SeaORM for SQLite database
 - **API Layer**: HTTP gateway on port 54587 with OpenAPI schema generation using utoipa
-- **AI Integration**: Ollama for local LLM support, MCP (Model Context Protocol) for tool integration, Vercel AI SDK v5 for streaming chat and agent responses
-- **Streaming**: Server-Sent Events (SSE) for real-time chat streaming via `/llm/ollama/stream` endpoint
+- **AI Integration**: Ollama for local LLM support, MCP (Model Context Protocol) for tool integration
+- **Streaming**: Vercel AI SDK v5 (^5.0.0) for streaming chat interface with custom SSE transport via `/llm/ollama/stream` endpoint
 - **Testing**: Vitest + React Testing Library (frontend), Rust built-in test framework with rstest (backend)
 - **Async Architecture**: Fully streaming with Server-Sent Events (SSE), backend-driven agent execution
 
@@ -137,9 +137,12 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `components/`: Reusable UI components
   - `ui/`: Base UI components (shadcn/ui style) - DO NOT MODIFY
     - `popover.tsx`: Added for UI interactions (installed via shadcn)
+    - `progress.tsx`: Added for progress indicators in agent task execution (installed via shadcn)
+    - `alert.tsx`: Alert component for notifications and warnings
   - `kibo/`: AI-specific components (messages, code blocks, reasoning)
     - `code-block.tsx`: Rich code display with syntax highlighting, file tabs, copy functionality, and theme support
     - `tool-part.tsx`: Tool execution display with collapsible results
+    - `ai-input.tsx`: Enhanced chat input with model and tool selection
   - `agent/`: Autonomous agent components
     - `AgentControlPanel.tsx`: Complete agent control interface with activation, pause/resume, and stop functionality
     - `AgentModeIndicator.tsx`: Real-time visual indicators for agent state and progress
@@ -155,6 +158,12 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
     - `ChatHistory/`: Message display with auto-scroll behavior
       - `Messages/`: Individual message components
         - `ToolExecutionResult/`: Displays tool call results with timing, status, and collapsible sections
+          - `StructuredToolOutput.tsx`: Collapsible component for structured tool outputs
+      - `utils/`: Chat history utilities
+        - `message-processing.ts`: Tool result extraction and message transformation
+        - `message-styles.ts`: Consistent styling utilities for messages
+      - `hooks/`: Chat-specific hooks
+        - `use-auto-scroll.ts`: Auto-scroll behavior during streaming
   - `ConnectorCatalogPage/`: MCP server catalog and management
   - `LLMProvidersPage/`: LLM model management
   - `SettingsPage/`: Application settings
@@ -164,6 +173,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `hooks/`: Custom React hooks including MCP client hooks
   - `use-typewriter.ts`: Hook for typewriter text animation
   - `use-sse-chat.ts`: SSE chat streaming integration with Vercel AI SDK v5 (deprecated - use ChatProvider instead)
+  - `use-auto-scroll.ts`: Auto-scroll behavior for chat history during streaming
 - `lib/`: Utility functions and helpers
   - `api/`: Generated TypeScript client from OpenAPI schema (DO NOT EDIT)
   - `api-client.ts`: Configured HTTP client instance
@@ -184,7 +194,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `src/database/`: Database layer with SeaORM entities and migrations
 - `src/models/`: Business logic and data models
   - `chat/`: Chat management with CRUD operations and automatic title generation
-  - `chat_interactions/`: Message persistence and chat history management
+  - `chat_messages/`: Message persistence and chat history management (renamed from chat_interactions)
   - `mcp_server/`: MCP server models and definitions
   - `external_mcp_client/`: External MCP client configurations
   - `mcp_request_log/`: Request logging and analytics
@@ -246,10 +256,10 @@ The application uses SQLite with SeaORM for database management. Key tables incl
   - `llm_provider`: LLM provider used (e.g., "ollama")
   - `created_at`: Timestamp with timezone
 
-- **chat_interactions**: Stores individual messages within chats
+- **chat_messages**: Stores individual messages within chats (renamed from chat_interactions in this PR)
   - `id` (Primary Key): Auto-incrementing integer
   - `chat_id` (Foreign Key): References chats.id with CASCADE delete
-  - `content` (JSON): Message data with role and content
+  - `content` (JSON): Message data with role and content, supporting both simple format and Vercel AI SDK v5 parts format
   - `created_at`: Timestamp with timezone
   - Index on `chat_id` for query performance
 
@@ -432,7 +442,7 @@ Body: {
 Response: Server-Sent Events stream (Vercel AI SDK v5 compatible)
 ```
 
-**Note**: The frontend uses a custom transport configuration in ChatProvider to properly format requests for the backend. The `/llm/ollama/stream` endpoint is specifically for LLM interactions, while `/api/chat` endpoints are purely for database CRUD operations.
+**Important**: The `/llm/ollama/stream` endpoint is used for streaming LLM interactions (via Vercel AI SDK v5), while `/api/chat` endpoints are purely for database CRUD operations (managing chat sessions). These are completely separate concerns - streaming happens through SSE, while chat management uses REST.
 
 **2. CRUD Endpoints (for chat management):**
 ```typescript
