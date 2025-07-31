@@ -161,7 +161,7 @@ export const processAssistantMessage = (
         result.push({
           id: `${message.id}-segment-${segmentIndex++}`,
           role: 'assistant',
-          content: response || (thinking ? '[Thinking...]' : ''),
+          content: response || '',
           thinking: thinking,
           originalMessageId: message.id,
         });
@@ -211,7 +211,7 @@ export const processAssistantMessage = (
         result.push({
           id: `${message.id}-segment-${segmentIndex++}`,
           role: 'assistant',
-          content: response || (thinking ? '[Thinking...]' : ''),
+          content: response || '',
           thinking: thinking,
           originalMessageId: message.id,
         });
@@ -227,7 +227,7 @@ export const processAssistantMessage = (
     result.push({
       id: message.id,
       role: message.role,
-      content: response || (thinking && !isMessageStreaming ? '[Thinking complete]' : ''),
+      content: response || '',
       thinking: thinking,
       originalMessageId: message.id,
     });
