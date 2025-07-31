@@ -44,10 +44,20 @@ jobs:
         with:
           fetch-depth: 10 # give Claude a bit more context
           persist-credentials: true # credentials are needed here as Claude will use them to read stuffs
+      
+      # Generate a token from your custom app
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@e26577a930883943cf9d90885cd1e8da510078dd # beta tag
         with:
+          github_token: ${{ steps.app-token.outputs.token }}
+
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
           # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
