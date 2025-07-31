@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:ai-sdk.dev)"
+    ],
+    "deny": []
+  }
+}

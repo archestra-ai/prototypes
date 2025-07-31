@@ -39,9 +39,13 @@
     "vite": "^5.4.19"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^2.0.0",
+    "@ai-sdk/react": "^2.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
+    "ai": "^5.0.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
     "electron-squirrel-startup": "^1.0.1",
     "express": "^5.1.0",
     "react": "^19.1.1",
