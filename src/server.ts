@@ -1,9 +1,9 @@
-import express from 'express';
-import cors from 'cors';
-import { openai } from '@ai-sdk/openai';
-import { ollama } from 'ollama-ai-provider';
-import { streamText } from 'ai';
-import dotenv from 'dotenv';
+import express from "express";
+import cors from "cors";
+import { openai } from "@ai-sdk/openai";
+import { ollama } from "ollama-ai-provider";
+import { streamText, convertToModelMessages } from "ai";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -13,29 +13,22 @@ let server: any;
 app.use(cors());
 app.use(express.json());
 
-app.post('/api/chat', async (req, res) => {
-  const { messages, provider = 'openai' } = req.body;
-  
-  const model = provider === 'ollama' 
-    ? ollama('llama3.2')
-    : openai('gpt-4-turbo');
-  
+app.post("/api/chat", async (req, res) => {
+  const { messages, provider = "openai" } = req.body;
+
+  const model = provider === "ollama" ? ollama("llama3.2") : openai("gpt-4o");
+
   const result = streamText({
     model,
-    messages,
+    messages: convertToModelMessages(messages),
   });
 
-  for await (const chunk of result.baseStream) {
-    if (chunk?.part?.text) {
-      res.write(chunk.part.text);
-    }
-  }
-  res.end();
+  result.toUIMessageStreamResponse(res);
 });
 
 export async function startServer() {
   return new Promise<number>((resolve) => {
-    server = app.listen(3000, '127.0.0.1', () => {
+    server = app.listen(3000, "127.0.0.1", () => {
       resolve(3000);
     });
   });
