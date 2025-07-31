@@ -128,6 +128,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - **AI Integration**: Ollama for local LLM support, MCP (Model Context Protocol) for tool integration, Vercel AI SDK v5 for streaming chat and agent responses
 - **Streaming**: Server-Sent Events (SSE) for real-time chat streaming via `/llm/ollama/stream` endpoint
 - **Testing**: Vitest + React Testing Library (frontend), Rust built-in test framework with rstest (backend)
+- **Async Architecture**: Fully streaming with Server-Sent Events (SSE), backend-driven agent execution
 
 ### Key Directories
 
@@ -162,7 +163,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
   - `agent-store.ts`: Agent state management with task planning and execution tracking (backend-driven)
 - `hooks/`: Custom React hooks including MCP client hooks
   - `use-typewriter.ts`: Hook for typewriter text animation
-  - `use-sse-chat.ts`: SSE chat streaming integration with Vercel AI SDK v5
+  - `use-sse-chat.ts`: SSE chat streaming integration with Vercel AI SDK v5 (deprecated - use ChatProvider instead)
 - `lib/`: Utility functions and helpers
   - `api/`: Generated TypeScript client from OpenAPI schema (DO NOT EDIT)
   - `api-client.ts`: Configured HTTP client instance
@@ -172,6 +173,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
     - `agent.ts`: Agent utility functions and helpers
 - `providers/`: React context providers
   - `chat-provider/`: Centralized chat state provider with SSE streaming support
+    - `event-handlers.ts`: SSE event handlers for agent-specific data events
 - `types/`: TypeScript type definitions
   - `agent.ts`: Comprehensive agent types for task planning and execution
   - `agent-ui.ts`: UI-specific agent type definitions
@@ -513,8 +515,8 @@ Response: 204 No Content
 ### Key Dependencies
 
 - **Frontend**:
-  - `ai`: Vercel AI SDK v5 (5.0.0-canary.30) for SSE streaming chat integration
-  - `@ai-sdk/react`: React bindings for Vercel AI SDK v5 (5.0.0-canary.30)
+  - `ai`: Vercel AI SDK v5 (^5.0.0) for SSE streaming chat integration
+  - `@ai-sdk/react`: React bindings for Vercel AI SDK v5 (^5.0.0)
   - `@radix-ui/react-popover`: For popover UI component (required by shadcn/ui)
   - `@radix-ui/react-progress`: For progress indicators in agent task execution
   - `reconnecting-websocket`: For WebSocket client with automatic reconnection support
@@ -689,6 +691,15 @@ interface AgentContext {
 - **Auto-scroll Tests**: Test scroll behavior during streaming and message updates
 - **Message Processing Tests**: Complex message parsing with tool results and thinking content
 - **Chat Provider Tests**: Provider setup and event subscription management
+
+### Test Files Added in v5 Refactor
+
+- **Chat History Tests** (`ChatHistory.test.tsx`): Component rendering and auto-scroll behavior
+- **Message Processing Tests** (`message-processing.test.ts`): Tool result extraction and message transformation
+- **Auto-scroll Hook Tests** (`use-auto-scroll.test.ts`): Scroll behavior during streaming
+- **Event Handler Tests** (`event-handlers.test.ts`): SSE event processing and agent state updates
+- **Agent Store Tests** (`agent-store.test.ts`): Complete agent lifecycle and state management
+- **Chat Provider Tests** (`chat-provider.test.tsx`): Provider setup and event subscription
 
 #### Test Coverage Gaps
 
