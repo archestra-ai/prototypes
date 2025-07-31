@@ -3,6 +3,7 @@ import React from 'react';
 export function TestChat({ serverPort }: { serverPort: number }) {
   const [input, setInput] = React.useState('');
   const [messages, setMessages] = React.useState<Array<{role: string, content: string}>>([]);
+  const [provider, setProvider] = React.useState('openai');
   
   const sendMessage = async () => {
     if (!input) return;
@@ -14,7 +15,7 @@ export function TestChat({ serverPort }: { serverPort: number }) {
     const response = await fetch(`http://127.0.0.1:${serverPort}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: newMessages }),
+      body: JSON.stringify({ messages: newMessages, provider }),
     });
     
     const reader = response.body?.getReader();
@@ -31,6 +32,10 @@ export function TestChat({ serverPort }: { serverPort: number }) {
   
   return (
     <div>
+      <select value={provider} onChange={(e) => setProvider(e.target.value)}>
+        <option value="openai">OpenAI</option>
+        <option value="ollama">Ollama</option>
+      </select>
       {messages.map((m, i) => (
         <div key={i}>{m.role}: {m.content}</div>
       ))}
