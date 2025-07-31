@@ -22,6 +22,6 @@ jobs:
   linting-and-tests:
     name: Linting and Tests
     permissions:
-      contents: read
+      contents: write  # Need write access to push automated fixes
       security-events: write
     uses: ./.github/workflows/linting-and-tests.yml
