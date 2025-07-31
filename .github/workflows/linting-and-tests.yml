@@ -66,7 +66,16 @@ jobs:
             git config --local user.name "github-actions[bot]"
             git add .
             git commit -m "fix: apply cargo fix and formatting changes"
-            git push --no-verify
+            
+            # Extract the PR head branch name from the GitHub context
+            # When running on a PR, we need to push to the PR branch, not the detached HEAD
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              # Push to the PR branch
+              git push origin HEAD:${{ github.head_ref }} --no-verify
+            else
+              # For non-PR events (like push to main), use regular push
+              git push --no-verify
+            fi
           fi
 
       - name: Run tests
@@ -134,7 +143,16 @@ jobs:
             git config --local user.name "github-actions[bot]"
             git add .
             git commit -m "chore: update OpenAPI schema and TypeScript client"
-            git push --no-verify
+            
+            # Extract the PR head branch name from the GitHub context
+            # When running on a PR, we need to push to the PR branch, not the detached HEAD
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              # Push to the PR branch
+              git push origin HEAD:${{ github.head_ref }} --no-verify
+            else
+              # For non-PR events (like push to main), use regular push
+              git push --no-verify
+            fi
           fi
 
   zizmor:
