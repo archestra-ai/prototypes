@@ -48,6 +48,7 @@
     "dotenv": "^17.2.1",
     "electron-squirrel-startup": "^1.0.1",
     "express": "^5.1.0",
+    "ollama-ai-provider": "^1.2.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   }
