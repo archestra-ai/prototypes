@@ -614,6 +614,16 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - CI automatically formats Rust code and regenerates OpenAPI schemas, committing changes back to PRs
 - CI uses GitHub Actions bot credentials for automated commits
 
+### Architecture Documentation
+
+- **Detailed Chat Architecture**: See `desktop/chat-architecture.md` for comprehensive documentation including:
+  - System architecture diagrams (Mermaid)
+  - Request flow sequences
+  - SSE event protocol details
+  - Configuration and API endpoint specifications
+  - Common issues and troubleshooting
+  - Future enhancement roadmap
+
 ### Agent System Architecture
 
 The agent system provides autonomous task planning and execution capabilities with all logic running server-side:
