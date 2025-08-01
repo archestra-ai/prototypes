@@ -42,7 +42,7 @@ describe('v1 handlers', () => {
     vi.clearAllMocks();
   });
 
-  describe('authService', () => {
+  describe('authProvider', () => {
     it('should generate auth URL for Gmail', async () => {
       mockReq.params = { provider: 'google' };
       mockReq.query = { userId: 'test-user', mcpCatalogConnectorId: 'gmail' };

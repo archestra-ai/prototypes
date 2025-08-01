@@ -4,8 +4,10 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
-use tracing::{info, Level};
+
+use crate::consts;
+
+// use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 
 pub mod api;
 pub mod llm_providers;
@@ -13,20 +15,12 @@ mod mcp;
 mod mcp_proxy;
 pub mod websocket;
 
-pub const GATEWAY_SERVER_PORT: u16 = 54587;
-
 pub async fn start_gateway(
     app_handle: tauri::AppHandle,
     websocket_service: Arc<websocket::Service>,
     user_id: String,
     db: DatabaseConnection,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_max_level(Level::DEBUG)
-        .with_target(false)
-        .init();
-
     info!("Starting gateway server...");
 
     let mcp_service = mcp::create_streamable_http_service(user_id, db.clone()).await;
@@ -41,10 +35,10 @@ pub async fn start_gateway(
         .allow_headers(Any);
 
     // Create trace layer for logging
-    let trace_layer = TraceLayer::new_for_http()
-        .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-        .on_request(DefaultOnRequest::new().level(Level::INFO))
-        .on_response(DefaultOnResponse::new().level(Level::INFO));
+    // let trace_layer = TraceLayer::new_for_http()
+    //     .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+    //     .on_request(DefaultOnRequest::new().level(Level::INFO))
+    //     .on_response(DefaultOnResponse::new().level(Level::INFO));
 
     let app = Router::new()
         .nest("/mcp_proxy", mcp_proxy_router)
@@ -52,10 +46,10 @@ pub async fn start_gateway(
         .nest("/api", api_router)
         .nest("/ws", websocket_router)
         .nest_service("/mcp", mcp_service)
-        .layer(cors)
-        .layer(trace_layer);
+        .layer(cors);
+        // .layer(trace_layer);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], GATEWAY_SERVER_PORT));
+    let addr = SocketAddr::from(([127, 0, 0, 1], consts::GATEWAY_SERVER_PORT));
     let listener = TcpListener::bind(addr).await?;
 
     info!("Gateway started successfully on http://{addr}");
@@ -68,7 +62,7 @@ pub async fn start_gateway(
     let server = axum::serve(listener, app);
 
     if let Err(e) = server.await {
-        tracing::error!("Server error: {e}");
+        error!("Server error: {e}");
     }
 
     info!("Server has been shut down");

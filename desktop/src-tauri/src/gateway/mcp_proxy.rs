@@ -12,7 +12,6 @@ use sea_orm::DatabaseConnection;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{debug, error, info};
 use uuid::Uuid;
 
 pub struct Service {

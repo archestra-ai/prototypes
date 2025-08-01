@@ -1,7 +1,6 @@
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{debug, error, info};
 use url::Url;
 
 use crate::gateway::api::mcp_server::oauth::utils::write_oauth_credentials_file;

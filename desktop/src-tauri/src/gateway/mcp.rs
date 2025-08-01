@@ -22,7 +22,6 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::error;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

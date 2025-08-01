@@ -222,7 +222,10 @@ pub async fn get_all_chats(
         .get_all_chats()
         .await
         .map(Json)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .map_err(|e| {
+            error!("Failed to get all chats: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
 }
 
 #[utoipa::path(
@@ -243,7 +246,10 @@ pub async fn create_chat(
         .create_chat(request)
         .await
         .map(|chat| (StatusCode::CREATED, Json(chat)))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .map_err(|e| {
+            error!("Failed to create chat: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
 }
 
 #[utoipa::path(
@@ -266,7 +272,10 @@ pub async fn delete_chat(
         .delete_chat(id)
         .await
         .map(|_| StatusCode::NO_CONTENT)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .map_err(|e| {
+            error!("Failed to delete chat: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
 }
 
 #[utoipa::path(
@@ -291,7 +300,10 @@ pub async fn update_chat(
     match service.update_chat(id, request).await {
         Ok(chat) => Ok(Json(chat)),
         Err(sea_orm::DbErr::RecordNotFound(_)) => Err(StatusCode::NOT_FOUND),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(e) => {
+            error!("Failed to update chat: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        },
     }
 }
 

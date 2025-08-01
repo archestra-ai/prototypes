@@ -4,7 +4,6 @@ use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::PathBuf;
-use tracing::{debug, error};
 use utoipa::ToSchema;
 
 const ARCHESTRA_MCP_SERVER_KEY: &str = "archestra.ai";

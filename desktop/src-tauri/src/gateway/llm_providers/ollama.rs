@@ -23,7 +23,6 @@ use sea_orm::DatabaseConnection;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::{debug, error};
 
 // Constants
 const MIN_MESSAGES_FOR_TITLE_GENERATION: u64 = 4;

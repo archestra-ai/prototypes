@@ -3,9 +3,13 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": ["main"],
+  "remote": {
+    "urls": ["http://localhost:*"]
+  },
   "permissions": [
     "core:default",
     "opener:default",
+    "log:default",
     "core:window:allow-start-dragging",
     {
       "identifier": "shell:allow-execute",
@@ -65,6 +69,12 @@
       "allow": [
         {
           "url": "http://localhost:*"
+        },
+        {
+          "url": "https://fonts.googleapis.com:*"
+        },
+        {
+          "url": "https://fonts.gstatic.com:*"
         }
       ]
     }

@@ -1,6 +1,6 @@
 pub mod node;
 
-use crate::database::connection::get_database_connection_with_app;
+use crate::database::get_database_connection;
 use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel, ServerConfig};
 use rmcp::model::{Resource as MCPResource, Tool as MCPTool};
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,6 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, Mutex as TokioMutex, RwLock};
-use tracing::{debug, error, info};
 
 // Constants for resource management
 const MAX_BUFFER_SIZE: usize = 1000;
@@ -511,7 +510,7 @@ lazy_static::lazy_static! {
 pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> {
     info!("Starting all persisted MCP servers...");
 
-    let db = get_database_connection_with_app(&app)
+    let db = get_database_connection(&app)
         .await
         .map_err(|e| format!("Failed to connect to database: {e}"))?;
 

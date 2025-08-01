@@ -3,7 +3,6 @@ use sea_orm::entity::prelude::*;
 use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::error;
 use utoipa::ToSchema;
 
 use crate::sandbox;

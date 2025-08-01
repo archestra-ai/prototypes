@@ -1,6 +1,6 @@
 import ReconnectingWebSocket from 'reconnecting-websocket';
 
-import { ARCHESTRA_SERVER_WEBSOCKET_URL } from '@/consts';
+import { ARCHESTRA_SERVER_WEBSOCKET_URL, DEBUG } from '@/consts';
 import { WebSocketMessage } from '@/lib/api';
 
 type MessageHandler<T extends WebSocketMessage = WebSocketMessage> = (message: T) => void;
@@ -29,7 +29,7 @@ class WebSocketService {
         reconnectionDelayGrowFactor: 1.3,
         connectionTimeout: 10000,
         maxRetries: Infinity,
-        debug: false,
+        debug: DEBUG,
       });
 
       this.ws.addEventListener('open', () => {

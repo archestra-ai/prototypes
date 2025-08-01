@@ -6,7 +6,6 @@ pub use providers::SupportedMCPCatalogConnectorId;
 
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
-use tracing::{debug, error};
 use url::Url;
 
 use crate::gateway::websocket::Service as WebSocketService;
@@ -24,7 +23,7 @@ pub async fn handle_oauth_callback(
         Ok(url) => url,
         Err(e) => {
             let error_message = format!("Invalid OAuth callback URL: {e}");
-            error!(error_message);
+            error!("{error_message}");
             let _ = websocket::emit_oauth_error(
                 websocket_service,
                 "unknown".to_string(),
@@ -55,7 +54,7 @@ pub async fn handle_oauth_callback(
     // Check for error parameter
     if let Some(error) = query_params.get("error") {
         let error_message = format!("OAuth error for {mcp_server_catalog_id}: {error}");
-        error!(error_message);
+        error!("{error_message}");
         let _ =
             websocket::emit_oauth_error(websocket_service, mcp_server_catalog_id, error_message)
                 .await;
@@ -87,7 +86,7 @@ pub async fn handle_oauth_callback(
         }
         _ => {
             let error_message = format!("Unsupported OAuth service: {mcp_server_catalog_id}");
-            error!(error_message);
+            error!("{error_message}");
             let _ = websocket::emit_oauth_error(
                 websocket_service,
                 mcp_server_catalog_id,

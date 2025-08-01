@@ -9,7 +9,6 @@ use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri_plugin_opener::OpenerExt;
-use tracing::{debug, error, info};
 use utoipa::ToSchema;
 
 use crate::models::mcp_server::{ConnectorCatalogEntry, Model as MCPServer};

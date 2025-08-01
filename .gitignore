@@ -26,6 +26,3 @@ lerna-debug.log*
 .serena/
 LOGGING_WORKFLOW.md
 .claude/settings.local.json
-
-# Local environment files
-desktop/.env.local

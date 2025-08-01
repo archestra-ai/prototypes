@@ -1,13 +1,16 @@
-use tauri::Manager;
-use tauri_plugin_deep_link::DeepLinkExt;
-use tracing::{debug, error, info};
+#[macro_use] extern crate log;
 
+use tauri::{Manager};
+use tauri_plugin_deep_link::DeepLinkExt;
+
+pub mod consts;
 pub mod database;
 pub mod gateway;
 pub mod models;
 pub mod ollama;
 pub mod openapi;
 pub mod sandbox;
+pub mod windows;
 
 #[cfg(test)]
 pub mod test_fixtures;
@@ -17,7 +20,29 @@ pub fn run() {
     // Load environment variables from .env file
     load_environment();
 
-    let mut builder = tauri::Builder::default().plugin(tauri_plugin_http::init());
+    // Initialize logging
+    let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new()
+            // .target(tauri_plugin_log::Target::new(
+            //     tauri_plugin_log::TargetKind::Stdout,
+            // ))
+            .target(tauri_plugin_log::Target::new(
+                tauri_plugin_log::TargetKind::LogDir { file_name: Some("archestra".into()) },
+            ))
+            .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(10))
+            .max_file_size(1024 * 1024 * 5) // 5MB
+            .with_colors(fern::colors::ColoredLevelConfig {
+                error: fern::colors::Color::Red,
+                warn: fern::colors::Color::Yellow,
+                info: fern::colors::Color::Green,
+                debug: fern::colors::Color::Cyan,
+                trace: fern::colors::Color::Magenta,
+            })
+            .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseUtc)
+            .level(log::LevelFilter::Debug)
+            .build())
+        .plugin(tauri_plugin_http::init());
+
     let websocket_service = std::sync::Arc::new(gateway::websocket::Service::new());
 
     // Configure the single instance plugin which should always be the first plugin you register
@@ -41,7 +66,7 @@ pub fn run() {
                         let websocket_service_clone = websocket_service_for_single_instance.clone();
 
                         tauri::async_runtime::spawn(async move {
-                            match database::connection::get_database_connection_with_app(
+                            match database::get_database_connection(
                                 &app_handle,
                             )
                             .await
@@ -74,7 +99,10 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_deep_link::init())
+        // .plugin(tauri_plugin_localhost::Builder::new(consts::TAURI_WINDOW_PORT).build())
         .setup(move |app| {
+            // let main_window = windows::main::create_main_window(&app.handle())?;
+
             // Initialize database
             let app_handle = app.handle().clone();
             let db = tauri::async_runtime::block_on(async {
@@ -193,15 +221,11 @@ pub fn run() {
 
 fn load_environment() {
     // Determine which .env file to load based on build configuration
-    let env_file = if cfg!(debug_assertions) {
-        ".env.local"
-    } else {
-        // In release builds, check for ARCHESTRA_ENV to determine which env file to use
-        match std::env::var("ARCHESTRA_ENV").as_deref() {
-            Ok("production") => ".env.production",
-            Ok("dev") | Ok("development") => ".env.dev",
-            _ => ".env.dev", // Default to dev for now
-        }
+    // see https://v2.tauri.app/reference/environment-variables/#tauri-cli-hook-commands
+    let env_file = match std::env::var("TAURI_ENV_DEBUG").as_deref() {
+        Ok("true") => ".env.desktop.dev",
+        Ok("false") => ".env.desktop.production",
+        _ => ".env.desktop.dev",
     };
 
     // Try to load the env file from the desktop directory
