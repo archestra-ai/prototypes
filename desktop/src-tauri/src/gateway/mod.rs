@@ -19,7 +19,7 @@ pub async fn start_gateway(
     app_handle: tauri::AppHandle,
     websocket_service: Arc<websocket::Service>,
     user_id: String,
-    db: DatabaseConnection,
+    db: Arc<DatabaseConnection>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting gateway server...");
 

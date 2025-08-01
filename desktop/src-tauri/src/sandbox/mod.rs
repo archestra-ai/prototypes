@@ -1,10 +1,11 @@
 pub mod node;
 
-use crate::database::get_database_connection;
-use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel, ServerConfig};
+use crate::models::mcp_server::{Model as MCPServerModel, ServerConfig};
+use sea_orm::DatabaseConnection;
 use rmcp::model::{Resource as MCPResource, Tool as MCPTool};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -59,16 +60,12 @@ pub struct MCPServer {
 pub struct MCPServerManager {
     servers: Arc<RwLock<HashMap<String, MCPServer>>>,
     http_client: reqwest::Client,
-}
-
-impl Default for MCPServerManager {
-    fn default() -> Self {
-        Self::new()
-    }
+    db: Arc<DatabaseConnection>,
+    app_data_dir: PathBuf,
 }
 
 impl MCPServerManager {
-    pub fn new() -> Self {
+    pub fn new(app_data_dir: PathBuf, db: Arc<DatabaseConnection>) -> Self {
         let http_client = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .build()
@@ -77,24 +74,61 @@ impl MCPServerManager {
         Self {
             servers: Arc::new(RwLock::new(HashMap::new())),
             http_client,
+            db,
+            app_data_dir,
         }
+    }
+
+    fn resolve_app_data_dir_templated_env_var_value(
+        &self,
+        templated_env_var_value: String,
+    ) -> Result<String, String> {
+        Ok(templated_env_var_value.replace("{{ .app_data_dir }}", self.app_data_dir.to_str().unwrap()))
+    }
+
+    fn resolve_mcp_server_port_templated_env_var_value(
+        &self,
+        templated_env_var_value: String,
+        port: &String,
+    ) -> Result<String, String> {
+        Ok(templated_env_var_value.replace("{{ .mcp_server_port }}", port))
+    }
+
+    /// Replace "template variables" in a value representing a "templated" environment variable, with actual values
+    /// Currently supports: {{ .app_data_dir }} and {{ .mcp_server_port }}
+    fn resolve_templated_env_var_value(
+        &self,
+        templated_env_var_value: String,
+    ) -> Result<String, String> {
+        let templated_env_var_value = self.resolve_app_data_dir_templated_env_var_value(templated_env_var_value)
+            .map_err(|e| format!("Failed to resolve app_data_dir env var template: {e}"))?;
+
+        // TODO: add more template variables as needed
+        // let templated_env_var_value = self.resolve_mcp_server_port_templated_env_var_value(templated_env_var_value, &"5555".to_string())
+        //     .map_err(|e| format!("Failed to resolve mcp_server_port env var template: {e}"))?;
+
+        Ok(templated_env_var_value)
     }
 
     /// Start an MCP server
     pub async fn start_server(
         &self,
-        name: String,
-        command: String,
-        args: Vec<String>,
-        env: Option<HashMap<String, String>>,
+        mcp_server: &MCPServerModel,
     ) -> Result<(), String> {
+        let name = &mcp_server.name;
+
+        let config: ServerConfig = serde_json::from_value(mcp_server.server_config.clone())
+                .map_err(|e| format!("Failed to parse server config for {}: {e}", name))?;
+
+        let command = config.command;
+        let args = config.args;
+        let env: HashMap<String, String> = config.env;
+
         // Check if server already exists
-        {
-            let servers = self.servers.read().await;
-            if let Some(existing) = servers.get(&name) {
-                if existing.is_running {
-                    return Err(format!("MCP server '{name}' is already running"));
-                }
+        let servers = self.servers.read().await;
+        if let Some(existing) = servers.get(name) {
+            if existing.is_running {
+                return Err(format!("MCP server '{}' is already running", name));
             }
         }
 
@@ -104,13 +138,11 @@ impl MCPServerManager {
 
             if !node_info.is_available() {
                 let instructions = node::get_node_installation_instructions();
-                return Err(format!("Cannot start MCP server '{name}': {instructions}"));
+                return Err(format!("Cannot start MCP server '{}': {instructions}", name));
             }
 
             if args.is_empty() {
-                return Err(format!(
-                    "No package specified for npx command in server '{name}'"
-                ));
+                return Err(format!("No package specified for npx command in server '{}'", name));
             }
 
             let package_name = &args[0];
@@ -126,18 +158,10 @@ impl MCPServerManager {
             }
         } else if command == "http" {
             // Handle HTTP-based MCP server
-            return self.start_http_mcp_server(name, args, env).await;
+            return self.start_http_mcp_server(name, &args, &env).await;
         } else {
-            (command.clone(), args.clone())
+            return Ok(());
         };
-
-        let env_vars = env.unwrap_or_default();
-        debug!(
-            "🚀 MCP [{}] Starting: {} {}",
-            name,
-            actual_command,
-            actual_args.join(" ")
-        );
 
         // Start the process with sandbox-exec for security (macOS only)
         let mut cmd = if cfg!(target_os = "macos") {
@@ -163,9 +187,20 @@ impl MCPServerManager {
             regular_cmd
         };
 
+        debug!(
+            "MCP [{}] Starting: {} {}",
+            name,
+            actual_command,
+            actual_args.join(" ")
+        );
+
         // Set environment variables
-        for (key, value) in env_vars {
-            cmd.env(key, value);
+        for (key, value) in env {
+            let value_with_resolved_template_values = self.resolve_templated_env_var_value(value)?;
+
+            debug!("MCP [{name}] Setting env var: {key} = {value_with_resolved_template_values}");
+
+            cmd.env(key, value_with_resolved_template_values);
         }
 
         let mut child = cmd
@@ -269,26 +304,26 @@ impl MCPServerManager {
     /// Start an HTTP-based MCP server
     async fn start_http_mcp_server(
         &self,
-        name: String,
-        args: Vec<String>,
-        env: Option<HashMap<String, String>>,
+        name: &String,
+        args: &Vec<String>,
+        env: &HashMap<String, String>,
     ) -> Result<(), String> {
         if args.is_empty() {
             return Err(format!("No URL specified for HTTP MCP server '{name}'"));
         }
 
         let url = args[0].clone();
-        let headers = env.unwrap_or_default();
 
         info!("🚀 MCP [{name}] Starting HTTP server at: {url}");
 
+        // TODO: fix the .clone()s here once I learn about "lifetimes"
         let server = MCPServer {
             name: name.clone(),
             command: "http".to_string(),
             args: vec![url.clone()],
             server_type: ServerType::Http {
                 url: url.clone(),
-                headers: headers.clone(),
+                headers: env.clone(),
             },
             tools: Vec::new(),
             resources: Vec::new(),
@@ -499,93 +534,31 @@ impl MCPServerManager {
             }
         }
     }
-}
 
-// Create a global instance of the manager
-lazy_static::lazy_static! {
-    static ref MCP_SERVER_MANAGER: MCPServerManager = MCPServerManager::new();
-}
+    /// Start all configured MCP servers
+    pub async fn start_all_mcp_servers(&self) -> Result<(), String> {
+        info!("Starting all persisted MCP servers...");
 
-/// Start all configured MCP servers using the global manager
-pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> {
-    info!("Starting all persisted MCP servers...");
+        let installed_mcp_servers = MCPServerModel::load_installed_mcp_servers(&self.db)
+            .await
+            .map_err(|e| format!("Failed to load MCP servers: {e}"))?;
 
-    let db = get_database_connection(&app)
-        .await
-        .map_err(|e| format!("Failed to connect to database: {e}"))?;
+        if installed_mcp_servers.is_empty() {
+            info!("No installed MCP servers found to start.");
+            return Ok(());
+        }
 
-    let installed_mcp_servers = MCPServerModel::load_installed_mcp_servers(&db)
-        .await
-        .map_err(|e| format!("Failed to load MCP servers: {e}"))?;
-
-    if installed_mcp_servers.is_empty() {
-        info!("No installed MCP servers found to start.");
-        return Ok(());
-    }
-
-    info!("Found {} MCP servers to start", installed_mcp_servers.len());
-
-    let server_count = installed_mcp_servers.len();
-
-    for server in &installed_mcp_servers {
-        let server_name = server.name.clone();
-
-        let config: ServerConfig = serde_json::from_value(server.server_config.clone())
-            .map_err(|e| format!("Failed to parse server config for {server_name}: {e}"))?;
-
-        debug!(
-            "🚀 MCP [{}] Queuing startup: {} {}",
-            server_name,
-            config.command,
-            config.args.join(" ")
-        );
-
-        tauri::async_runtime::spawn(async move {
-            let name = server_name.clone();
-            match MCP_SERVER_MANAGER
-                .start_server(
-                    server_name.clone(),
-                    config.command,
-                    config.args,
-                    Some(config.env),
-                )
-                .await
-            {
+        for server in &installed_mcp_servers {
+            match self.start_server(server).await {
                 Ok(_) => {} // Success already logged by start_server
-                Err(e) => error!("❌ MCP [{name}] Startup failed: {e}"),
+                Err(e) => error!("❌ MCP [{}] Startup failed: {e}", server.name),
             }
-        });
+        }
+
+        let server_count = installed_mcp_servers.len();
+        if server_count > 0 {
+            debug!("✅ Queued {server_count} MCP servers for startup");
+        }
+        Ok(())
     }
-
-    if server_count > 0 {
-        debug!("✅ Queued {server_count} MCP servers for startup");
-    }
-    Ok(())
-}
-
-/// Start an MCP server using the global manager
-pub async fn start_mcp_server(definition: &MCPServerDefinition) -> Result<(), String> {
-    MCP_SERVER_MANAGER
-        .start_server(
-            definition.name.clone(),
-            definition.server_config.command.clone(),
-            definition.server_config.args.clone(),
-            Some(definition.server_config.env.clone()),
-        )
-        .await
-}
-
-/// Stop an MCP server using the global manager
-pub async fn stop_mcp_server(server_name: &str) -> Result<(), String> {
-    MCP_SERVER_MANAGER.stop_server(server_name).await
-}
-
-/// Forward a raw request using the global manager
-pub async fn forward_raw_request(
-    server_name: &str,
-    request_body: String,
-) -> Result<String, String> {
-    MCP_SERVER_MANAGER
-        .forward_raw_request(server_name, request_body)
-        .await
 }

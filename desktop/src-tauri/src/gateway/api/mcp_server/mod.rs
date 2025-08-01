@@ -8,10 +8,12 @@ use axum::{
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tauri_plugin_opener::OpenerExt;
 use utoipa::ToSchema;
 
-use crate::models::mcp_server::{ConnectorCatalogEntry, Model as MCPServer};
+use crate::{
+    models::mcp_server::{ConnectorCatalogEntry, Model as MCPServer},
+    sandbox,
+};
 
 pub mod oauth;
 
@@ -34,15 +36,21 @@ pub struct OAuthProxyResponse {
 
 #[derive(Clone)]
 pub struct Service {
-    app_handle: tauri::AppHandle,
+    open_oauth_auth_url_fn: fn(&str, Option<&str>) -> Result<(), String>,
     db: Arc<DatabaseConnection>,
+    mcp_server_sandbox_service: Arc<sandbox::MCPServerManager>,
 }
 
 impl Service {
-    pub fn new(app_handle: tauri::AppHandle, db: DatabaseConnection) -> Self {
+    pub fn new(
+        open_oauth_auth_url_fn: fn(&str, Option<&str>) -> Result<(), String>,
+        db: Arc<DatabaseConnection>,
+        mcp_server_sandbox_service: Arc<sandbox::MCPServerManager>,
+    ) -> Self {
         Self {
-            app_handle,
-            db: Arc::new(db),
+            open_oauth_auth_url_fn,
+            db,
+            mcp_server_sandbox_service,
         }
     }
 
@@ -62,7 +70,7 @@ impl Service {
         &self,
         mcp_server_catalog_id: String,
     ) -> Result<(), String> {
-        MCPServer::save_mcp_server_from_catalog(&self.db, mcp_server_catalog_id)
+        MCPServer::save_mcp_server_from_catalog(&self.db, mcp_server_catalog_id, &self.mcp_server_sandbox_service)
             .await
             .map_err(|e| format!("Failed to save server: {e}"))?;
 
@@ -70,7 +78,7 @@ impl Service {
     }
 
     async fn uninstall_mcp_server(&self, mcp_server_name: String) -> Result<(), String> {
-        MCPServer::uninstall_mcp_server(&self.db, &mcp_server_name)
+        MCPServer::uninstall_mcp_server(&self.db, &mcp_server_name, &self.mcp_server_sandbox_service)
             .await
             .map_err(|e| format!("Failed to uninstall server: {e}"))?;
 
@@ -126,10 +134,7 @@ impl Service {
         info!("Received auth URL from OAuth proxy, opening browser");
         debug!("Auth URL: {}", auth_data.auth_url);
 
-        // Open the auth URL in the system browser
-        self.app_handle
-            .opener()
-            .open_url(auth_data.auth_url.as_str(), None::<&str>)
+        (self.open_oauth_auth_url_fn)(auth_data.auth_url.as_str(), None::<&str>)
             .map_err(|e| {
                 error!("Failed to open browser for auth URL: {}", e);
                 format!("Failed to open auth URL: {e}")
@@ -253,8 +258,17 @@ pub async fn uninstall_mcp_server(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub fn create_router(app_handle: tauri::AppHandle, db: DatabaseConnection) -> Router {
-    let service = Arc::new(Service::new(app_handle, db));
+pub fn create_router(
+    open_oauth_auth_url_fn: fn(&str, Option<&str>) -> Result<(), String>,
+    db: Arc<DatabaseConnection>,
+    mcp_server_sandbox_service: Arc<sandbox::MCPServerManager>,
+) -> Router {
+    let service = Arc::new(Service::new(
+        open_oauth_auth_url_fn,
+        db,
+        mcp_server_sandbox_service,
+    ));
+
     Router::new()
         .route("/", get(get_installed_mcp_servers))
         .route("/catalog", get(get_mcp_connector_catalog))

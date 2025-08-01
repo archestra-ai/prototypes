@@ -2,28 +2,13 @@ use crate::database::migration::Migrator;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
 use sea_orm_migration::MigratorTrait;
 use std::path::PathBuf;
-use tauri::Manager;
 
 pub mod migration;
 
-pub fn get_database_path(app: &tauri::AppHandle) -> std::result::Result<PathBuf, String> {
-    let data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {e}"))?;
-
-    std::fs::create_dir_all(&data_dir)
-        .map_err(|e| format!("Failed to create data directory: {e}"))?;
-
-    Ok(data_dir.join("archestra.db"))
-}
-
 pub async fn get_database_connection(
-    app: &tauri::AppHandle,
+    app_data_dir: &PathBuf,
 ) -> Result<DatabaseConnection, DbErr> {
-    let db_path = get_database_path(app)
-        .map_err(|e| DbErr::Custom(format!("Failed to get database path: {e}")))?;
-
+    let db_path = app_data_dir.join("archestra.db");
     let db_url = format!("sqlite:{}?mode=rwc", db_path.to_string_lossy());
 
     // Disable SQLx logging - https://www.sea-ql.org/SeaORM/docs/next/install-and-config/debug-log/#sqlx-logging
@@ -33,11 +18,11 @@ pub async fn get_database_connection(
     Database::connect(opt).await
 }
 
-/// Initialize the database (for use in app setup)
-pub async fn init_database(app: &tauri::AppHandle) -> Result<DatabaseConnection, String> {
+/// Initialize the database
+pub async fn init_database(app_data_dir: &PathBuf) -> Result<DatabaseConnection, String> {
     debug!("🏁 Initializing database...");
 
-    let db = get_database_connection(app)
+    let db = get_database_connection(app_data_dir)
         .await
         .map_err(|e| format!("Failed to initialize database: {e}"))?;
 

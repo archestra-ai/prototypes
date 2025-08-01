@@ -23,8 +23,8 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(db: DatabaseConnection) -> Self {
-        Self { db: Arc::new(db) }
+    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+        Self { db }
     }
 
     async fn get_connected_external_mcp_clients(&self) -> Result<Vec<ExternalMCPClient>, String> {
@@ -131,7 +131,7 @@ pub async fn disconnect_external_mcp_client(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub fn create_router(db: DatabaseConnection) -> Router {
+pub fn create_router(db: Arc<DatabaseConnection>) -> Router {
     let service = Arc::new(Service::new(db));
 
     Router::new()
@@ -157,16 +157,23 @@ mod tests {
     use serde_json::json;
     use tower::ServiceExt;
 
-    fn app(db: DatabaseConnection) -> Router {
-        create_router(db)
+    #[fixture]
+    async fn router(#[future] database: DatabaseConnection) -> Router {
+        let db = database.await;
+        create_router(Arc::new(db))
+    }
+    #[fixture]
+    async fn service(#[future] database: DatabaseConnection) -> Service {
+        let db = database.await;
+        Service::new(Arc::new(db))
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_get_connected_external_mcp_clients_empty(#[future] database: DatabaseConnection) {
-        let app = app(database.await);
+    async fn test_get_connected_external_mcp_clients_empty(#[future] router: Router) {
+        let router = router.await;
 
-        let response = app
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("GET")
@@ -188,10 +195,10 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_get_supported_external_mcp_clients(#[future] database: DatabaseConnection) {
-        let app = app(database.await);
+    async fn test_get_supported_external_mcp_clients(#[future] router: Router) {
+        let router = router.await;
 
-        let response = app
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("GET")
@@ -218,15 +225,18 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_connect_external_mcp_client_success(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let app = app(db.clone());
+    async fn test_connect_external_mcp_client_success(
+        #[future] router: Router,
+        #[future] service: Service,
+    ) {
+        let router = router.await;
+        let service = service.await;
 
         let request_body = json!({
             "client_name": "claude"
         });
 
-        let response = app
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -241,7 +251,6 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         // Verify the client was actually connected
-        let service = Service::new(db);
         let connected_clients = service.get_connected_external_mcp_clients().await.unwrap();
         assert_eq!(connected_clients.len(), 1);
         assert_eq!(connected_clients[0].client_name, "claude");
@@ -249,14 +258,14 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_connect_external_mcp_client_invalid_name(#[future] database: DatabaseConnection) {
-        let app = app(database.await);
+    async fn test_connect_external_mcp_client_invalid_name(#[future] router: Router) {
+        let router = router.await;
 
         let request_body = json!({
             "client_name": "invalid-client-name"
         });
 
-        let response = app
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -273,10 +282,14 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_disconnect_external_mcp_client_success(#[future] database: DatabaseConnection) {
-        let db = database.await;
+    async fn test_disconnect_external_mcp_client_success(
+        #[future] router: Router,
+        #[future] service: Service,
+    ) {
+        let router = router.await;
+        let service = service.await;
+
         // First connect a client
-        let service = Service::new(db.clone());
         service
             .connect_external_mcp_client("claude".to_string())
             .await
@@ -287,8 +300,7 @@ mod tests {
         assert_eq!(connected_clients.len(), 1);
 
         // Now disconnect it via the API
-        let app = app(db.clone());
-        let response = app
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("DELETE")
@@ -305,12 +317,10 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_disconnect_external_mcp_client_not_connected(
-        #[future] database: DatabaseConnection,
-    ) {
-        let app = app(database.await);
+    async fn test_disconnect_external_mcp_client_not_connected(#[future] router: Router) {
+        let router = router.await;
 
-        let response = app
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("DELETE")
@@ -327,9 +337,12 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_connect_multiple_clients_and_list(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let service = Service::new(db.clone());
+    async fn test_connect_multiple_clients_and_list(
+        #[future] router: Router,
+        #[future] service: Service,
+    ) {
+        let router = router.await;
+        let service = service.await;
 
         // Connect multiple clients
         service
@@ -346,8 +359,7 @@ mod tests {
             .unwrap();
 
         // Get connected clients via API
-        let app = app(db);
-        let response = app
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("GET")
@@ -374,9 +386,12 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_connect_duplicate_client(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let service = Service::new(db.clone());
+    async fn test_connect_duplicate_client(
+        #[future] router: Router,
+        #[future] service: Service,
+    ) {
+        let router = router.await;
+        let service = service.await;
 
         // Connect a client
         service
@@ -385,12 +400,11 @@ mod tests {
             .unwrap();
 
         // Try to connect the same client again via API
-        let app = app(db.clone());
         let request_body = json!({
             "client_name": "claude"
         });
 
-        let response = app
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("POST")

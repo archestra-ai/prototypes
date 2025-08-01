@@ -158,8 +158,8 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(db: DatabaseConnection) -> Self {
-        Self { db: Arc::new(db) }
+    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+        Self { db }
     }
 
     pub async fn get_all_chats(&self) -> Result<Vec<ChatWithMessages>, sea_orm::DbErr> {
@@ -307,7 +307,7 @@ pub async fn update_chat(
     }
 }
 
-pub fn create_router(db: DatabaseConnection) -> Router {
+pub fn create_router(db: Arc<DatabaseConnection>) -> Router {
     let service = Arc::new(Service::new(db));
 
     Router::new()
@@ -323,14 +323,19 @@ mod tests {
     use axum::body::Body;
     use axum::http::Request;
     use http_body_util::BodyExt;
-    use rstest::rstest;
+    use rstest::*;
     use tower::ServiceExt;
+
+    #[fixture]
+    async fn router(#[future] database: DatabaseConnection) -> Router {
+        let db = database.await;
+        create_router(Arc::new(db))
+    }
 
     #[rstest]
     #[tokio::test]
-    async fn test_create_and_get_chat(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let router = create_router(db.clone());
+    async fn test_create_and_get_chat(#[future] router: Router) {
+        let router = router.await;
 
         let create_request = CreateChatRequest {
             llm_provider: "ollama".to_string(),
@@ -360,9 +365,8 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_get_all_chats(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let router = create_router(db.clone());
+    async fn test_get_all_chats(#[future] router: Router) {
+        let router = router.await;
 
         // Initially empty
         let response = router
@@ -423,9 +427,8 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_delete_chat(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let router = create_router(db.clone());
+    async fn test_delete_chat(#[future] router: Router) {
+        let router = router.await;
 
         let create_request = CreateChatRequest {
             llm_provider: "ollama".to_string(),
@@ -498,9 +501,8 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_update_chat_title(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let router = create_router(db.clone());
+    async fn test_update_chat_title(#[future] router: Router) {
+        let router = router.await;
 
         // Create a chat first
         let create_request = CreateChatRequest {
@@ -572,9 +574,8 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_update_non_existent_chat(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let router = create_router(db.clone());
+    async fn test_update_non_existent_chat(#[future] router: Router) {
+        let router = router.await;
 
         let update_request = UpdateChatRequest {
             title: Some("Test".to_string()),

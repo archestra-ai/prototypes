@@ -1,27 +1,29 @@
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
 use url::Url;
 
 use crate::gateway::api::mcp_server::oauth::utils::write_oauth_credentials_file;
+use crate::sandbox;
 use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel};
 
 // Check out https://googleapis.dev/python/google-auth/latest/reference/google.oauth2.credentials.html for
 // more details about what these various fields mean
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GoogleCredentials {
-    #[serde(rename = "type")]
-    pub credential_type: String,
     pub client_id: String,
-    // pub client_secret: String,
+    pub token: String,
     pub refresh_token: String,
     pub token_uri: String,
     pub scopes: Vec<String>,
 }
 
 pub async fn handle_google_oauth_callback(
-    app_handle: tauri::AppHandle,
-    db: DatabaseConnection,
+    app_data_dir: &PathBuf,
+    db: Arc<DatabaseConnection>,
+    mcp_server_sandbox_service: Arc<sandbox::MCPServerManager>,
     url: String,
 ) -> Result<(), String> {
     info!("Processing Google OAuth callback");
@@ -47,6 +49,14 @@ pub async fn handle_google_oauth_callback(
         .clone();
 
     info!("OAuth callback for MCP server: {}", mcp_server_catalog_id);
+
+    let access_token = query_params
+        .get("access_token")
+        .ok_or_else(|| {
+            error!("Missing 'access_token' parameter in OAuth callback");
+            "Missing access_token parameter"
+        })?
+        .clone();
 
     let refresh_token = query_params
         .get("refresh_token")
@@ -93,12 +103,12 @@ pub async fn handle_google_oauth_callback(
 
     // Create Google credentials structure matching the expected format
     let credentials = GoogleCredentials {
-        credential_type: "authorized_user".to_string(),
-        client_id,
-        // client_secret,
+        token: access_token,
         refresh_token,
         token_uri,
         scopes: scopes.split(',').map(|s| s.to_string()).collect(),
+        client_id,
+        // client_secret,
     };
 
     // Write credentials to file
@@ -107,7 +117,7 @@ pub async fn handle_google_oauth_callback(
         mcp_server_catalog_id
     );
     let credential_path =
-        write_oauth_credentials_file(&app_handle, &mcp_server_catalog_id, &credentials).map_err(
+        write_oauth_credentials_file(app_data_dir, &mcp_server_catalog_id, &credentials).map_err(
             |e| {
                 error!("Failed to write OAuth credentials to file: {}", e);
                 e
@@ -150,7 +160,7 @@ pub async fn handle_google_oauth_callback(
 
     // Save the MCP server to the database (this will also start the server)
     info!("Saving MCP server '{}' to database", connector.title);
-    MCPServerModel::save_server(&db, &definition)
+    MCPServerModel::save_server(&db, &definition, &mcp_server_sandbox_service)
         .await
         .map_err(|e| {
             error!(

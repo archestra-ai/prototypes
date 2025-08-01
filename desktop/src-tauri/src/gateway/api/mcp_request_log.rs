@@ -46,8 +46,8 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(db: DatabaseConnection) -> Self {
-        Self { db: Arc::new(db) }
+    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+        Self { db }
     }
 
     async fn get_mcp_request_logs(
@@ -236,7 +236,7 @@ pub async fn clear_mcp_request_logs(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub fn create_router(db: DatabaseConnection) -> Router {
+pub fn create_router(db: Arc<DatabaseConnection>) -> Router {
     let service = Arc::new(Service::new(db));
 
     Router::new()

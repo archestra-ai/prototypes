@@ -16,7 +16,7 @@ pub enum SupportedMCPCatalogConnectorId {
 
 impl SupportedMCPCatalogConnectorId {
     /// Check if an mcp catalog connector id is related to the Google provider
-    pub fn is_google_provider(&self) -> bool {
+    pub fn is_google_connector(&self) -> bool {
         // All current mcp catalog connectors are Google mcp catalog connectors
         // This method exists for future extensibility when we add non-Google mcp catalog connectors
         true

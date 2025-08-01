@@ -1,10 +1,12 @@
-use crate::models::mcp_server::Model as MCPServer;
+use std::sync::Arc;
 use sea_orm::entity::prelude::*;
 use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::PathBuf;
 use utoipa::ToSchema;
+
+use crate::models::mcp_server::Model as MCPServer;
 
 const ARCHESTRA_MCP_SERVER_KEY: &str = "archestra.ai";
 const ARCHESTRA_SERVER_BASE_URL: &str = "http://localhost:54587";
@@ -385,7 +387,7 @@ impl Model {
     }
 
     pub async fn sync_all_connected_external_mcp_clients(
-        db: &DatabaseConnection,
+        db: &Arc<DatabaseConnection>,
     ) -> Result<(), String> {
         let connected_clients = Self::get_connected_external_mcp_clients(db)
             .await

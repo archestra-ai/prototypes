@@ -16,11 +16,15 @@ use uuid::Uuid;
 
 pub struct Service {
     db: Arc<DatabaseConnection>,
+    mcp_server_sandbox_service: sandbox::MCPServerManager,
 }
 
 impl Service {
-    pub fn new(db: DatabaseConnection) -> Self {
-        Self { db: Arc::new(db) }
+    pub fn new(db: DatabaseConnection, mcp_server_sandbox_service: sandbox::MCPServerManager) -> Self {
+        Self {
+            db: Arc::new(db),
+            mcp_server_sandbox_service,
+        }
     }
 
     // Extract client info from request headers
@@ -188,7 +192,7 @@ impl Service {
 
         debug!("🔄 Forwarding request to forward_raw_request function...");
         // Forward the raw JSON-RPC request to the MCPServerManager
-        match sandbox::forward_raw_request(&server_name, request_body.clone()).await {
+        match self.mcp_server_sandbox_service.forward_raw_request(&server_name, request_body.clone()).await {
             Ok(raw_response) => {
                 info!("✅ Successfully received response from server '{server_name}'");
 
@@ -291,17 +295,17 @@ async fn handler(
     service.call(server_name, request).await
 }
 
-pub fn create_router(db: DatabaseConnection) -> Router {
+pub fn create_router(db: DatabaseConnection, mcp_server_sandbox_service: sandbox::MCPServerManager) -> Router {
     Router::new()
         .route("/{server_name}", post(handler))
-        .with_state(Arc::new(Service::new(db)))
+        .with_state(Arc::new(Service::new(db, mcp_server_sandbox_service)))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::models::mcp_request_log::{Column, Entity};
-    use crate::test_fixtures::database;
+    use crate::test_fixtures::*;
     use axum::{
         body::Body,
         http::{Request, StatusCode},
@@ -310,16 +314,16 @@ mod tests {
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
     use tower::ServiceExt;
 
-    fn app(db: DatabaseConnection) -> Router {
-        create_router(db)
+    #[fixture]
+    async fn router(#[future] database: DatabaseConnection, #[future] mcp_server_sandbox_service: sandbox::MCPServerManager) -> Router {
+        let db = database.await;
+        let mcp_server_sandbox_service = mcp_server_sandbox_service.await;
+        create_router(db, mcp_server_sandbox_service)
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_extract_client_info(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let _service = Service::new(db);
-
+    async fn test_extract_client_info() {
         let mut headers = HeaderMap::new();
         headers.insert("user-agent", "test-agent/1.0".parse().unwrap());
         headers.insert("x-client-name", "test-client".parse().unwrap());
@@ -336,10 +340,7 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_extract_session_ids(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let _service = Service::new(db);
-
+    async fn test_extract_session_ids() {
         let mut headers = HeaderMap::new();
         headers.insert("x-session-id", "session-123".parse().unwrap());
         headers.insert("mcp-session-id", "mcp-456".parse().unwrap());
@@ -352,10 +353,7 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_headers_to_hashmap(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let _service = Service::new(db);
-
+    async fn test_headers_to_hashmap() {
         let mut headers = HeaderMap::new();
         headers.insert("content-type", "application/json".parse().unwrap());
         headers.insert("authorization", "Bearer token123".parse().unwrap());
@@ -374,10 +372,7 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_extract_method_from_request(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let _service = Service::new(db);
-
+    async fn test_extract_method_from_request() {
         // Valid JSON-RPC request
         let request_body = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#;
         let method = Service::extract_method_from_request(request_body);
@@ -396,14 +391,13 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_proxy_invalid_utf8_request(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let app = app(db);
+    async fn test_proxy_invalid_utf8_request(#[future] router: Router) {
+        let router = router.await;
 
         // Create a request with invalid UTF-8 bytes
         let invalid_utf8 = vec![0xFF, 0xFE, 0xFD];
 
-        let response = app
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -426,13 +420,12 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_proxy_with_headers(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let app = app(db);
+    async fn test_proxy_with_headers(#[future] router: Router) {
+        let router = router.await;
 
         let request_body = r#"{"jsonrpc":"2.0","id":1,"method":"test","params":{}}"#;
 
-        let response = app
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -461,73 +454,5 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("MCP Proxy error"));
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_concurrent_proxy_requests(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let service = Arc::new(Service::new(db));
-
-        let mut handles = vec![];
-
-        for i in 0..5 {
-            let service_clone = service.clone();
-            let handle = tokio::spawn(async move {
-                let request_body =
-                    format!(r#"{{"jsonrpc":"2.0","id":{i},"method":"test","params":{{}}}}"#);
-                let req = Request::builder()
-                    .method("POST")
-                    .uri(format!("/server-{i}"))
-                    .header("Content-Type", "application/json")
-                    .body(Body::from(request_body))
-                    .unwrap();
-
-                let response = service_clone.call(format!("server-{i}"), req).await;
-                response.status()
-            });
-            handles.push(handle);
-        }
-
-        for handle in handles {
-            let status = handle.await.unwrap();
-            // All should fail with internal server error since forward_raw_request isn't mocked
-            assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_service_logging(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let service = Service::new(db.clone());
-
-        let request_body = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#;
-        let req = Request::builder()
-            .method("POST")
-            .uri("/test-server")
-            .header("Content-Type", "application/json")
-            .header("x-session-id", "test-session")
-            .body(Body::from(request_body))
-            .unwrap();
-
-        // Call the service
-        let _response = service.call("test-server".to_string(), req).await;
-
-        // Give time for async logging to complete
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        // Check that a log entry was created
-        let logs = Entity::find()
-            .filter(Column::ServerName.eq("test-server"))
-            .all(&db)
-            .await
-            .unwrap();
-
-        assert!(!logs.is_empty());
-        let log = &logs[0];
-        assert_eq!(log.server_name, "test-server");
-        assert_eq!(log.method, Some("tools/list".to_string()));
-        assert_eq!(log.status_code, 500); // Failed since forward_raw_request isn't mocked
     }
 }

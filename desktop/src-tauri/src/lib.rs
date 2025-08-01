@@ -1,5 +1,7 @@
 #[macro_use] extern crate log;
 
+use std::sync::Arc;
+
 use tauri::{Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
 
@@ -50,20 +52,28 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_deep_link::init())
         .setup(move |app| {
+            // Get the app data directory
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|e| format!("Failed to get app data directory: {e}"))?;
+
             // Initialize database
-            let app_handle = app.handle().clone();
-            let db = tauri::async_runtime::block_on(async {
-                database::init_database(&app_handle)
+            let db = Arc::new(tauri::async_runtime::block_on(async {
+                database::init_database(&app_data_dir)
                     .await
                     .map_err(|e| format!("Database error: {e}"))
-            })?;
+            })?);
 
             let websocket_service = std::sync::Arc::new(gateway::websocket::Service::new());
+            let mcp_server_sandbox_service = sandbox::MCPServerManager::new(
+                app_data_dir.clone(),
+                db.clone(),
+            );
 
             // Start all persisted MCP servers
-            let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = sandbox::start_all_mcp_servers(app_handle).await {
+                if let Err(e) = mcp_server_sandbox_service.start_all_mcp_servers().await {
                     error!("Failed to start MCP servers: {e}");
                 }
             });
@@ -108,22 +118,25 @@ pub fn run() {
             });
 
             // deep link handler
-            let app_handle = app.handle().clone();
-            let websocket_service_for_deep_link = websocket_service.clone();
+            // TODO: when we support > 1 deep link, we should update this logic to use a map of deep link handlers
+            let app_data_dir = app_data_dir.clone();
+            let websocket_service = websocket_service.clone();
+            let db = db.clone();
             app.deep_link().on_open_url(move |event| {
                 let urls = event.urls();
+
                 debug!("received deep link URLs: {urls:?}");
+
                 for url in urls {
-                    debug!("processing deep link URL: {url}");
-                    let app_handle = app_handle.clone();
+                    let app_data_dir = app_data_dir.clone();
+                    let websocket_service = websocket_service.clone();
                     let db = db.clone();
-                    let websocket_service_clone = websocket_service_for_deep_link.clone();
 
                     tauri::async_runtime::spawn(async move {
                         gateway::api::mcp_server::oauth::handle_oauth_callback(
-                            app_handle,
-                            std::sync::Arc::new(db),
-                            websocket_service_clone,
+                            &app_data_dir,
+                            db.clone(),
+                            websocket_service,
                             url.to_string(),
                         )
                         .await;

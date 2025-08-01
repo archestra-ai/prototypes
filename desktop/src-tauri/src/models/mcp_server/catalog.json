@@ -169,10 +169,14 @@
     "server_config": {
       "transport": "stdio",
       "command": "uvx",
-      "args": ["workspace-mcp", "--tools", "gmail"],
-      "env": {
-        "GOOGLE_CLIENT_SECRET_PATH": "~/.archestra/google/gmail-client-secret.json"
-      }
+      "args": [
+        "--from",
+        "git+https://github.com/taylorwilsdon/google_workspace_mcp@54d7c6dffae1a7804bdd8dea2d9c0eea952ba4c2",
+        "workspace-mcp",
+        "--tools",
+        "gmail"
+      ],
+      "env": {}
     }
   },
   {
@@ -193,7 +197,13 @@
     "server_config": {
       "transport": "stdio",
       "command": "uvx",
-      "args": ["workspace-mcp", "--tools", "drive"],
+      "args": [
+        "--from",
+        "git+https://github.com/taylorwilsdon/google_workspace_mcp@54d7c6dffae1a7804bdd8dea2d9c0eea952ba4c2",
+        "workspace-mcp",
+        "--tools",
+        "drive"
+      ],
       "env": {}
     }
   },
@@ -215,7 +225,13 @@
     "server_config": {
       "transport": "stdio",
       "command": "uvx",
-      "args": ["workspace-mcp", "--tools", "calendar"],
+      "args": [
+        "--from",
+        "git+https://github.com/taylorwilsdon/google_workspace_mcp@54d7c6dffae1a7804bdd8dea2d9c0eea952ba4c2",
+        "workspace-mcp",
+        "--tools",
+        "calendar"
+      ],
       "env": {}
     }
   },
@@ -237,7 +253,13 @@
     "server_config": {
       "transport": "stdio",
       "command": "uvx",
-      "args": ["workspace-mcp", "--tools", "docs"],
+      "args": [
+        "--from",
+        "git+https://github.com/taylorwilsdon/google_workspace_mcp@54d7c6dffae1a7804bdd8dea2d9c0eea952ba4c2",
+        "workspace-mcp",
+        "--tools",
+        "docs"
+      ],
       "env": {}
     }
   },
@@ -259,7 +281,13 @@
     "server_config": {
       "transport": "stdio",
       "command": "uvx",
-      "args": ["workspace-mcp", "--tools", "sheets"],
+      "args": [
+        "--from",
+        "git+https://github.com/taylorwilsdon/google_workspace_mcp@54d7c6dffae1a7804bdd8dea2d9c0eea952ba4c2",
+        "workspace-mcp",
+        "--tools",
+        "sheets"
+      ],
       "env": {}
     }
   },
@@ -281,7 +309,13 @@
     "server_config": {
       "transport": "stdio",
       "command": "uvx",
-      "args": ["workspace-mcp", "--tools", "slides"],
+      "args": [
+        "--from",
+        "git+https://github.com/taylorwilsdon/google_workspace_mcp@54d7c6dffae1a7804bdd8dea2d9c0eea952ba4c2",
+        "workspace-mcp",
+        "--tools",
+        "slides"
+      ],
       "env": {}
     }
   },
@@ -303,7 +337,13 @@
     "server_config": {
       "transport": "stdio",
       "command": "uvx",
-      "args": ["workspace-mcp", "--tools", "forms"],
+      "args": [
+        "--from",
+        "git+https://github.com/taylorwilsdon/google_workspace_mcp@54d7c6dffae1a7804bdd8dea2d9c0eea952ba4c2",
+        "workspace-mcp",
+        "--tools",
+        "forms"
+      ],
       "env": {}
     }
   },
@@ -325,7 +365,13 @@
     "server_config": {
       "transport": "stdio",
       "command": "uvx",
-      "args": ["workspace-mcp", "--tools", "tasks"],
+      "args": [
+        "--from",
+        "git+https://github.com/taylorwilsdon/google_workspace_mcp@54d7c6dffae1a7804bdd8dea2d9c0eea952ba4c2",
+        "workspace-mcp",
+        "--tools",
+        "tasks"
+      ],
       "env": {}
     }
   },
@@ -347,7 +393,13 @@
     "server_config": {
       "transport": "stdio",
       "command": "uvx",
-      "args": ["workspace-mcp", "--tools", "chat"],
+      "args": [
+        "--from",
+        "git+https://github.com/taylorwilsdon/google_workspace_mcp@54d7c6dffae1a7804bdd8dea2d9c0eea952ba4c2",
+        "workspace-mcp",
+        "--tools",
+        "chat"
+      ],
       "env": {}
     }
   }

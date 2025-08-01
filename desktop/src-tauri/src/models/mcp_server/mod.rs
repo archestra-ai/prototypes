@@ -68,7 +68,7 @@ pub struct ConnectorCatalogEntry {
 
 impl Model {
     /// Save an MCP server definition to the database (without starting it)
-    pub async fn save_server_without_lifecycle(
+    async fn save_server_without_lifecycle(
         db: &DatabaseConnection,
         definition: &MCPServerDefinition,
     ) -> Result<Model, DbErr> {
@@ -94,8 +94,9 @@ impl Model {
 
     /// Save an MCP server definition to the database, start it and sync all connected external MCP clients
     pub async fn save_server(
-        db: &DatabaseConnection,
+        db: &Arc<DatabaseConnection>,
         definition: &MCPServerDefinition,
+        mcp_server_sandbox_service: &Arc<sandbox::MCPServerManager>,
     ) -> Result<Model, DbErr> {
         // Check if server exists to determine if this is an update
         let existing_server = Self::find_by_name(db, &definition.name).await?;
@@ -103,7 +104,7 @@ impl Model {
 
         // If updating, stop the existing server first
         if is_update {
-            if let Err(e) = sandbox::stop_mcp_server(&definition.name).await {
+            if let Err(e) = mcp_server_sandbox_service.stop_server(&definition.name).await {
                 error!("Warning: Failed to stop server before update: {e}");
             }
         }
@@ -112,7 +113,7 @@ impl Model {
         let result = Self::save_server_without_lifecycle(db, definition).await?;
 
         // Start the server after saving
-        if let Err(e) = sandbox::start_mcp_server(definition).await {
+        if let Err(e) = mcp_server_sandbox_service.start_server(&result).await {
             error!("Warning: Failed to start server after save: {e}");
             // Don't fail the save operation, but log the error
         }
@@ -134,13 +135,11 @@ impl Model {
     pub async fn uninstall_mcp_server(
         db: &DatabaseConnection,
         server_name: &str,
+        mcp_server_sandbox_service: &sandbox::MCPServerManager,
     ) -> Result<(), DbErr> {
-        // Stop the server, in the background, before deleting
+        // Stop the server before deleting
         // if there's an error stopping the server, that's fine (for now)
-        let server_name_for_bg = server_name.to_string();
-        tokio::spawn(async move {
-            let _ = sandbox::stop_mcp_server(&server_name_for_bg).await;
-        });
+        let _ = mcp_server_sandbox_service.stop_server(&server_name).await;
 
         Entity::delete_many()
             .filter(Column::Name.eq(server_name))
@@ -186,6 +185,7 @@ impl Model {
     pub async fn save_mcp_server_from_catalog(
         db: &DatabaseConnection,
         mcp_server_catalog_id: String,
+        mcp_server_sandbox_service: &sandbox::MCPServerManager,
     ) -> Result<MCPServerDefinition, String> {
         // Load the catalog
         let catalog = Self::get_mcp_connector_catalog().await?;
@@ -203,7 +203,7 @@ impl Model {
             server_config: connector.server_config.clone(),
         };
 
-        let result = Model::save_server(db, &definition)
+        let result = Model::save_server(db, &definition, mcp_server_sandbox_service)
             .await
             .map_err(|e| format!("Failed to save MCP server: {e}"))?;
 

@@ -1,18 +1,17 @@
-pub mod providers;
-pub mod utils;
-pub mod websocket;
-
-pub use providers::SupportedMCPCatalogConnectorId;
-
 use sea_orm::DatabaseConnection;
+use std::path::PathBuf;
 use std::sync::Arc;
 use url::Url;
 
 use crate::gateway::websocket::Service as WebSocketService;
 
+pub mod providers;
+pub mod utils;
+pub mod websocket;
+
 /// Handle OAuth callback URLs from deep links
 pub async fn handle_oauth_callback(
-    app_handle: tauri::AppHandle,
+    app_data_dir: &PathBuf,
     db: Arc<DatabaseConnection>,
     websocket_service: Arc<WebSocketService>,
     url: String,
@@ -41,7 +40,7 @@ pub async fn handle_oauth_callback(
 
     // Get the mcp catalog connector id from the query parameters
     let mcp_server_catalog_id = query_params
-        .get("mcpCatalogConnectorId")
+        .get("mcp_catalog_connector_id")
         .unwrap_or(&"unknown".to_string())
         .clone();
 
@@ -62,10 +61,10 @@ pub async fn handle_oauth_callback(
     }
 
     // Route to provider-specific handler
-    match mcp_server_catalog_id.parse::<SupportedMCPCatalogConnectorId>() {
-        Ok(mcp_catalog_connector_id) if mcp_catalog_connector_id.is_google_provider() => {
+    match mcp_server_catalog_id.parse::<providers::SupportedMCPCatalogConnectorId>() {
+        Ok(mcp_catalog_connector_id) if mcp_catalog_connector_id.is_google_connector() => {
             match providers::google::handle_google_oauth_callback(
-                app_handle,
+                app_data_dir,
                 db.as_ref().clone(),
                 url,
             )
@@ -85,7 +84,7 @@ pub async fn handle_oauth_callback(
             }
         }
         _ => {
-            let error_message = format!("Unsupported OAuth service: {mcp_server_catalog_id}");
+            let error_message = format!("Unsupported OAuth provider: {mcp_server_catalog_id}");
             error!("{error_message}");
             let _ = websocket::emit_oauth_error(
                 websocket_service,
