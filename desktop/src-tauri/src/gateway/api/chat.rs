@@ -154,11 +154,11 @@ impl From<ChatWithMessagesModel> for ChatWithMessages {
 }
 
 pub struct Service {
-    db: Arc<DatabaseConnection>,
+    db: DatabaseConnection,
 }
 
 impl Service {
-    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+    pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
 
@@ -307,13 +307,11 @@ pub async fn update_chat(
     }
 }
 
-pub fn create_router(db: Arc<DatabaseConnection>) -> Router {
-    let service = Arc::new(Service::new(db));
-
+pub fn create_router(db: DatabaseConnection) -> Router {
     Router::new()
         .route("/", get(get_all_chats).post(create_chat))
         .route("/{id}", delete(delete_chat).patch(update_chat))
-        .with_state(service)
+        .with_state(Arc::new(Service::new(db)))
 }
 
 #[cfg(test)]
@@ -329,7 +327,7 @@ mod tests {
     #[fixture]
     async fn router(#[future] database: DatabaseConnection) -> Router {
         let db = database.await;
-        create_router(Arc::new(db))
+        create_router(db)
     }
 
     #[rstest]

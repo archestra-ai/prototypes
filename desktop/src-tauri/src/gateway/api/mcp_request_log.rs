@@ -42,11 +42,11 @@ pub struct PaginatedResponse<T> {
 }
 
 pub struct Service {
-    db: Arc<DatabaseConnection>,
+    db: DatabaseConnection,
 }
 
 impl Service {
-    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+    pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
 
@@ -236,9 +236,7 @@ pub async fn clear_mcp_request_logs(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub fn create_router(db: Arc<DatabaseConnection>) -> Router {
-    let service = Arc::new(Service::new(db));
-
+pub fn create_router(db: DatabaseConnection) -> Router {
     Router::new()
         .route(
             "/",
@@ -246,7 +244,7 @@ pub fn create_router(db: Arc<DatabaseConnection>) -> Router {
         )
         .route("/{request_id}", get(get_mcp_request_log_by_id))
         .route("/stats", get(get_mcp_request_log_stats))
-        .with_state(service)
+        .with_state(Arc::new(Service::new(db)))
 }
 
 #[cfg(test)]

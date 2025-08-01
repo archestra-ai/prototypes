@@ -1,9 +1,9 @@
 use sea_orm::DatabaseConnection;
 use std::path::PathBuf;
-use std::sync::Arc;
 use url::Url;
 
 use crate::gateway::websocket::Service as WebSocketService;
+use crate::sandbox;
 
 pub mod providers;
 pub mod utils;
@@ -12,8 +12,9 @@ pub mod websocket;
 /// Handle OAuth callback URLs from deep links
 pub async fn handle_oauth_callback(
     app_data_dir: &PathBuf,
-    db: Arc<DatabaseConnection>,
-    websocket_service: Arc<WebSocketService>,
+    db: DatabaseConnection,
+    websocket_service: WebSocketService,
+    mcp_server_sandbox_service: sandbox::MCPServerManager,
     url: String,
 ) {
     debug!("Received OAuth callback: {url}");
@@ -65,7 +66,8 @@ pub async fn handle_oauth_callback(
         Ok(mcp_catalog_connector_id) if mcp_catalog_connector_id.is_google_connector() => {
             match providers::google::handle_google_oauth_callback(
                 app_data_dir,
-                db.as_ref().clone(),
+                db,
+                mcp_server_sandbox_service,
                 url,
             )
             .await

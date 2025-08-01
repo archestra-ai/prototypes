@@ -6,6 +6,7 @@ use axum::{
     Router,
 };
 use sea_orm::DatabaseConnection;
+use tauri_plugin_opener::OpenerExt;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -34,21 +35,20 @@ pub struct OAuthProxyResponse {
     pub auth_url: String,
 }
 
-#[derive(Clone)]
 pub struct Service {
-    open_oauth_auth_url_fn: fn(&str, Option<&str>) -> Result<(), String>,
-    db: Arc<DatabaseConnection>,
-    mcp_server_sandbox_service: Arc<sandbox::MCPServerManager>,
+    app_handle: tauri::AppHandle,
+    db: DatabaseConnection,
+    mcp_server_sandbox_service: sandbox::MCPServerManager,
 }
 
 impl Service {
     pub fn new(
-        open_oauth_auth_url_fn: fn(&str, Option<&str>) -> Result<(), String>,
-        db: Arc<DatabaseConnection>,
-        mcp_server_sandbox_service: Arc<sandbox::MCPServerManager>,
+        app_handle: tauri::AppHandle,
+        db: DatabaseConnection,
+        mcp_server_sandbox_service: sandbox::MCPServerManager,
     ) -> Self {
         Self {
-            open_oauth_auth_url_fn,
+            app_handle,
             db,
             mcp_server_sandbox_service,
         }
@@ -134,7 +134,9 @@ impl Service {
         info!("Received auth URL from OAuth proxy, opening browser");
         debug!("Auth URL: {}", auth_data.auth_url);
 
-        (self.open_oauth_auth_url_fn)(auth_data.auth_url.as_str(), None::<&str>)
+        self.app_handle
+            .opener()
+            .open_url(&auth_data.auth_url, None::<&str>)
             .map_err(|e| {
                 error!("Failed to open browser for auth URL: {}", e);
                 format!("Failed to open auth URL: {e}")
@@ -259,12 +261,12 @@ pub async fn uninstall_mcp_server(
 }
 
 pub fn create_router(
-    open_oauth_auth_url_fn: fn(&str, Option<&str>) -> Result<(), String>,
-    db: Arc<DatabaseConnection>,
-    mcp_server_sandbox_service: Arc<sandbox::MCPServerManager>,
+    app_handle: tauri::AppHandle,
+    db: DatabaseConnection,
+    mcp_server_sandbox_service: sandbox::MCPServerManager,
 ) -> Router {
     let service = Arc::new(Service::new(
-        open_oauth_auth_url_fn,
+        app_handle,
         db,
         mcp_server_sandbox_service,
     ));

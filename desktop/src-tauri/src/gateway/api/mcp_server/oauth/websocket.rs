@@ -1,12 +1,10 @@
-use std::sync::Arc;
-
 use crate::gateway::websocket::{
     OAuthErrorWebSocketPayload, OAuthSuccessWebSocketPayload, Service as WebSocketService,
     WebSocketMessage,
 };
 
 pub async fn emit_oauth_success(
-    websocket_service: Arc<WebSocketService>,
+    websocket_service: WebSocketService,
     mcp_server_catalog_id: String,
 ) {
     let message = WebSocketMessage::OAuthSuccess(OAuthSuccessWebSocketPayload {
@@ -16,7 +14,7 @@ pub async fn emit_oauth_success(
 }
 
 pub async fn emit_oauth_error(
-    websocket_service: Arc<WebSocketService>,
+    websocket_service: WebSocketService,
     mcp_server_catalog_id: String,
     error: String,
 ) {

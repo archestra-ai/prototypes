@@ -166,16 +166,19 @@ async fn handle_socket(socket: WebSocket, service: Arc<Service>) {
     info!("Client {} removed", client_index);
 }
 
-pub fn create_router(service: Arc<Service>) -> Router {
+pub fn create_router(service: Service) -> Router {
     Router::new()
         .route("/", axum::routing::get(websocket_handler))
-        .with_state(service)
+        .with_state(Arc::new(service))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_fixtures::*;
+    use rstest::*;
     use serde_json::json;
+
 
     #[tokio::test]
     async fn test_websocket_message_serialization() {
@@ -288,19 +291,6 @@ mod tests {
         let debug_str = format!("{payload:?}");
         assert!(debug_str.contains("999"));
         assert!(debug_str.contains("Long Chat Title"));
-    }
-
-    #[tokio::test]
-    async fn test_create_router() {
-        let service = Arc::new(Service::new());
-        let _router = create_router(service.clone());
-
-        // Router should be created successfully
-        // We can't easily test the routes without running a server
-        // but we can verify the router is created
-
-        // Verify the service is still valid after router creation
-        assert!(Arc::strong_count(&service) >= 2); // Original + router state
     }
 
     #[tokio::test]

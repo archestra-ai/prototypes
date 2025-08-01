@@ -2,7 +2,6 @@ use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 use url::Url;
 
 use crate::gateway::api::mcp_server::oauth::utils::write_oauth_credentials_file;
@@ -22,8 +21,8 @@ pub struct GoogleCredentials {
 
 pub async fn handle_google_oauth_callback(
     app_data_dir: &PathBuf,
-    db: Arc<DatabaseConnection>,
-    mcp_server_sandbox_service: Arc<sandbox::MCPServerManager>,
+    db: DatabaseConnection,
+    mcp_server_sandbox_service: sandbox::MCPServerManager,
     url: String,
 ) -> Result<(), String> {
     info!("Processing Google OAuth callback");

@@ -57,15 +57,16 @@ pub struct MCPServer {
 }
 
 /// Manages MCP server processes and their lifecycle
+#[derive(Clone)]
 pub struct MCPServerManager {
     servers: Arc<RwLock<HashMap<String, MCPServer>>>,
     http_client: reqwest::Client,
-    db: Arc<DatabaseConnection>,
+    db: DatabaseConnection,
     app_data_dir: PathBuf,
 }
 
 impl MCPServerManager {
-    pub fn new(app_data_dir: PathBuf, db: Arc<DatabaseConnection>) -> Self {
+    pub fn new(app_data_dir: PathBuf, db: DatabaseConnection) -> Self {
         let http_client = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .build()
@@ -86,14 +87,7 @@ impl MCPServerManager {
         Ok(templated_env_var_value.replace("{{ .app_data_dir }}", self.app_data_dir.to_str().unwrap()))
     }
 
-    fn resolve_mcp_server_port_templated_env_var_value(
-        &self,
-        templated_env_var_value: String,
-        port: &String,
-    ) -> Result<String, String> {
-        Ok(templated_env_var_value.replace("{{ .mcp_server_port }}", port))
-    }
-
+    // TODO: add more template variables as needed
     /// Replace "template variables" in a value representing a "templated" environment variable, with actual values
     /// Currently supports: {{ .app_data_dir }} and {{ .mcp_server_port }}
     fn resolve_templated_env_var_value(
@@ -102,10 +96,6 @@ impl MCPServerManager {
     ) -> Result<String, String> {
         let templated_env_var_value = self.resolve_app_data_dir_templated_env_var_value(templated_env_var_value)
             .map_err(|e| format!("Failed to resolve app_data_dir env var template: {e}"))?;
-
-        // TODO: add more template variables as needed
-        // let templated_env_var_value = self.resolve_mcp_server_port_templated_env_var_value(templated_env_var_value, &"5555".to_string())
-        //     .map_err(|e| format!("Failed to resolve mcp_server_port env var template: {e}"))?;
 
         Ok(templated_env_var_value)
     }

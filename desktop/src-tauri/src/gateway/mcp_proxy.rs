@@ -15,14 +15,14 @@ use std::time::Instant;
 use uuid::Uuid;
 
 pub struct Service {
-    db: Arc<DatabaseConnection>,
+    db: DatabaseConnection,
     mcp_server_sandbox_service: sandbox::MCPServerManager,
 }
 
 impl Service {
     pub fn new(db: DatabaseConnection, mcp_server_sandbox_service: sandbox::MCPServerManager) -> Self {
         Self {
-            db: Arc::new(db),
+            db,
             mcp_server_sandbox_service,
         }
     }
@@ -130,7 +130,7 @@ impl Service {
                 };
 
                 // Log asynchronously (don't block on database errors)
-                let db_clone = Arc::clone(&self.db);
+                let db_clone = self.db.clone();
                 tokio::spawn(async move {
                     if let Err(e) = MCPRequestLog::create_request_log(&db_clone, log_data).await {
                         error!("Failed to log request: {e}");
@@ -172,7 +172,7 @@ impl Service {
                 };
 
                 // Log asynchronously
-                let db_clone = Arc::clone(&self.db);
+                let db_clone = self.db.clone();
                 tokio::spawn(async move {
                     if let Err(e) = MCPRequestLog::create_request_log(&db_clone, log_data).await {
                         error!("Failed to log request: {e}");
@@ -219,7 +219,7 @@ impl Service {
                 };
 
                 // Log asynchronously
-                let db_clone = Arc::clone(&self.db);
+                let db_clone = self.db.clone();
                 tokio::spawn(async move {
                     if let Err(e) = MCPRequestLog::create_request_log(&db_clone, log_data).await {
                         error!("Failed to log request: {e}");
@@ -270,7 +270,7 @@ impl Service {
                 };
 
                 // Log asynchronously
-                let db_clone = Arc::clone(&self.db);
+                let db_clone = self.db.clone();
                 tokio::spawn(async move {
                     if let Err(e) = MCPRequestLog::create_request_log(&db_clone, log_data).await {
                         error!("Failed to log request: {e}");
@@ -304,14 +304,12 @@ pub fn create_router(db: DatabaseConnection, mcp_server_sandbox_service: sandbox
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::mcp_request_log::{Column, Entity};
     use crate::test_fixtures::*;
     use axum::{
         body::Body,
         http::{Request, StatusCode},
     };
     use rstest::*;
-    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
     use tower::ServiceExt;
 
     #[fixture]

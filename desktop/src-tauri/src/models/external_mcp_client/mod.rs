@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use sea_orm::entity::prelude::*;
 use sea_orm::Set;
 use serde::{Deserialize, Serialize};
@@ -387,7 +386,7 @@ impl Model {
     }
 
     pub async fn sync_all_connected_external_mcp_clients(
-        db: &Arc<DatabaseConnection>,
+        db: &DatabaseConnection,
     ) -> Result<(), String> {
         let connected_clients = Self::get_connected_external_mcp_clients(db)
             .await

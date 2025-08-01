@@ -19,11 +19,11 @@ pub struct ConnectRequest {
 }
 
 pub struct Service {
-    db: Arc<DatabaseConnection>,
+    db: DatabaseConnection,
 }
 
 impl Service {
-    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+    pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
 
@@ -131,9 +131,7 @@ pub async fn disconnect_external_mcp_client(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
-pub fn create_router(db: Arc<DatabaseConnection>) -> Router {
-    let service = Arc::new(Service::new(db));
-
+pub fn create_router(db: DatabaseConnection) -> Router {
     Router::new()
         .route("/", get(get_connected_external_mcp_clients))
         .route("/supported", get(get_supported_external_mcp_clients))
@@ -142,7 +140,7 @@ pub fn create_router(db: Arc<DatabaseConnection>) -> Router {
             "/{client_name}/disconnect",
             delete(disconnect_external_mcp_client),
         )
-        .with_state(service)
+        .with_state(Arc::new(Service::new(db)))
 }
 
 #[cfg(test)]
@@ -160,12 +158,13 @@ mod tests {
     #[fixture]
     async fn router(#[future] database: DatabaseConnection) -> Router {
         let db = database.await;
-        create_router(Arc::new(db))
+        create_router(db)
     }
+
     #[fixture]
     async fn service(#[future] database: DatabaseConnection) -> Service {
         let db = database.await;
-        Service::new(Arc::new(db))
+        Service::new(db)
     }
 
     #[rstest]

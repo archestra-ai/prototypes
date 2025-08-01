@@ -1,5 +1,4 @@
 use axum::Router;
-use std::sync::Arc;
 
 use crate::sandbox;
 use sea_orm::DatabaseConnection;
@@ -10,9 +9,9 @@ pub mod mcp_request_log;
 pub mod mcp_server;
 
 pub fn create_router(
-    open_oauth_auth_url_fn: fn(&str, Option<&str>) -> Result<(), String>,
-    db: Arc<DatabaseConnection>,
-    mcp_server_sandbox_service: Arc<sandbox::MCPServerManager>,
+    app_handle: tauri::AppHandle,
+    db: DatabaseConnection,
+    mcp_server_sandbox_service: sandbox::MCPServerManager,
 ) -> Router {
     Router::new()
         .nest(
@@ -26,7 +25,7 @@ pub fn create_router(
         .nest(
             "/mcp_server",
             mcp_server::create_router(
-                open_oauth_auth_url_fn,
+                app_handle,
                 db.clone(),
                 mcp_server_sandbox_service.clone(),
             ),

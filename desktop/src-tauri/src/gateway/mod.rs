@@ -1,9 +1,10 @@
 use axum::Router;
 use sea_orm::DatabaseConnection;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
+
+use crate::sandbox;
 
 // use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 
@@ -17,15 +18,17 @@ const GATEWAY_SERVER_PORT: u16 = 54587;
 
 pub async fn start_gateway(
     app_handle: tauri::AppHandle,
-    websocket_service: Arc<websocket::Service>,
+    websocket_service: websocket::Service,
+    mcp_server_sandbox_service: sandbox::MCPServerManager,
     user_id: String,
-    db: Arc<DatabaseConnection>,
+    db: DatabaseConnection,
 ) -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting gateway server...");
 
     let mcp_service = mcp::create_streamable_http_service(user_id, db.clone()).await;
-    let mcp_proxy_router = mcp_proxy::create_router(db.clone());
-    let api_router = api::create_router(app_handle.clone(), db.clone());
+
+    let mcp_proxy_router = mcp_proxy::create_router(db.clone(), mcp_server_sandbox_service.clone());
+    let api_router = api::create_router(app_handle, db.clone(), mcp_server_sandbox_service.clone());
     let llm_providers_router = llm_providers::create_router(db.clone(), websocket_service.clone());
     let websocket_router = websocket::create_router(websocket_service.clone());
 
