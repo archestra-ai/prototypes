@@ -1,12 +1,8 @@
 use axum::Router;
 use sea_orm::DatabaseConnection;
-use std::net::SocketAddr;
+use std::{net::SocketAddr, path::PathBuf};
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
-
-use crate::sandbox;
-
-// use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 
 pub mod api;
 pub mod llm_providers;
@@ -18,8 +14,8 @@ const GATEWAY_SERVER_PORT: u16 = 54587;
 
 pub async fn start_gateway(
     app_handle: tauri::AppHandle,
+    app_data_dir: PathBuf,
     websocket_service: websocket::Service,
-    mcp_server_sandbox_service: sandbox::MCPServerManager,
     user_id: String,
     db: DatabaseConnection,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -27,8 +23,8 @@ pub async fn start_gateway(
 
     let mcp_service = mcp::create_streamable_http_service(user_id, db.clone()).await;
 
-    let mcp_proxy_router = mcp_proxy::create_router(db.clone(), mcp_server_sandbox_service.clone());
-    let api_router = api::create_router(app_handle, db.clone(), mcp_server_sandbox_service.clone());
+    let mcp_proxy_router = mcp_proxy::create_router(db.clone());
+    let api_router = api::create_router(app_handle, app_data_dir, db.clone());
     let llm_providers_router = llm_providers::create_router(db.clone(), websocket_service.clone());
     let websocket_router = websocket::create_router(websocket_service.clone());
 
@@ -37,12 +33,6 @@ pub async fn start_gateway(
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // Create trace layer for logging
-    // let trace_layer = TraceLayer::new_for_http()
-    //     .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-    //     .on_request(DefaultOnRequest::new().level(Level::INFO))
-    //     .on_response(DefaultOnResponse::new().level(Level::INFO));
-
     let app = Router::new()
         .nest("/mcp_proxy", mcp_proxy_router)
         .nest("/llm", llm_providers_router)
@@ -50,7 +40,6 @@ pub async fn start_gateway(
         .nest("/ws", websocket_router)
         .nest_service("/mcp", mcp_service)
         .layer(cors);
-        // .layer(trace_layer);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], GATEWAY_SERVER_PORT));
     let listener = TcpListener::bind(addr).await?;

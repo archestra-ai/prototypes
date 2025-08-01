@@ -16,14 +16,12 @@ use uuid::Uuid;
 
 pub struct Service {
     db: DatabaseConnection,
-    mcp_server_sandbox_service: sandbox::MCPServerManager,
 }
 
 impl Service {
-    pub fn new(db: DatabaseConnection, mcp_server_sandbox_service: sandbox::MCPServerManager) -> Self {
+    pub fn new(db: DatabaseConnection) -> Self {
         Self {
             db,
-            mcp_server_sandbox_service,
         }
     }
 
@@ -192,7 +190,7 @@ impl Service {
 
         debug!("🔄 Forwarding request to forward_raw_request function...");
         // Forward the raw JSON-RPC request to the MCPServerManager
-        match self.mcp_server_sandbox_service.forward_raw_request(&server_name, request_body.clone()).await {
+        match sandbox::forward_raw_request(&server_name, request_body.clone()).await {
             Ok(raw_response) => {
                 info!("✅ Successfully received response from server '{server_name}'");
 
@@ -295,10 +293,10 @@ async fn handler(
     service.call(server_name, request).await
 }
 
-pub fn create_router(db: DatabaseConnection, mcp_server_sandbox_service: sandbox::MCPServerManager) -> Router {
+pub fn create_router(db: DatabaseConnection) -> Router {
     Router::new()
         .route("/{server_name}", post(handler))
-        .with_state(Arc::new(Service::new(db, mcp_server_sandbox_service)))
+        .with_state(Arc::new(Service::new(db)))
 }
 
 #[cfg(test)]
@@ -313,10 +311,9 @@ mod tests {
     use tower::ServiceExt;
 
     #[fixture]
-    async fn router(#[future] database: DatabaseConnection, #[future] mcp_server_sandbox_service: sandbox::MCPServerManager) -> Router {
+    async fn router(#[future] database: DatabaseConnection) -> Router {
         let db = database.await;
-        let mcp_server_sandbox_service = mcp_server_sandbox_service.await;
-        create_router(db, mcp_server_sandbox_service)
+        create_router(db)
     }
 
     #[rstest]

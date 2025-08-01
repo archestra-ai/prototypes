@@ -1,6 +1,5 @@
 use axum::Router;
-
-use crate::sandbox;
+use std::path::PathBuf;
 use sea_orm::DatabaseConnection;
 
 pub mod chat;
@@ -10,8 +9,8 @@ pub mod mcp_server;
 
 pub fn create_router(
     app_handle: tauri::AppHandle,
+    app_data_dir: PathBuf,
     db: DatabaseConnection,
-    mcp_server_sandbox_service: sandbox::MCPServerManager,
 ) -> Router {
     Router::new()
         .nest(
@@ -26,8 +25,8 @@ pub fn create_router(
             "/mcp_server",
             mcp_server::create_router(
                 app_handle,
+                app_data_dir,
                 db.clone(),
-                mcp_server_sandbox_service.clone(),
             ),
         )
         .nest("/chat", chat::create_router(db))

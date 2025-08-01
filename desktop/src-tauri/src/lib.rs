@@ -64,15 +64,12 @@ pub fn run() {
             }).unwrap();
 
             let websocket_service = gateway::websocket::Service::new();
-            let mcp_server_sandbox_service = sandbox::MCPServerManager::new(
-                app_data_dir.clone(),
-                db.clone(),
-            );
 
             // Start all persisted MCP servers
-            let mcp_server_sandbox_service_for_mcp_servers = mcp_server_sandbox_service.clone();
+            let db_for_mcp = db.clone();
+            let app_data_dir_for_mcp = app_data_dir.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = mcp_server_sandbox_service_for_mcp_servers.start_all_mcp_servers().await {
+                if let Err(e) = sandbox::start_all_mcp_servers(&db_for_mcp, &app_data_dir_for_mcp).await {
                     error!("Failed to start MCP servers: {e}");
                 }
             });
@@ -89,13 +86,13 @@ pub fn run() {
             let user_id = "archestra_user".to_string();
             let db_for_mcp = db.clone();
             let app_handle = app.handle().clone();
-            let mcp_server_sandbox_service_for_gateway = mcp_server_sandbox_service.clone();
+            let app_data_dir_for_gateway = app_data_dir.clone();
             let websocket_service_for_gateway = websocket_service.clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = gateway::start_gateway(
                     app_handle,
+                    app_data_dir_for_gateway,
                     websocket_service_for_gateway,
-                    mcp_server_sandbox_service_for_gateway,
                     user_id,
                     db_for_mcp,
                 )
@@ -123,7 +120,6 @@ pub fn run() {
             let app_data_dir = app_data_dir.clone();
             let websocket_service = websocket_service.clone();
             let db = db.clone();
-            let mcp_server_sandbox_service = mcp_server_sandbox_service.clone();
             app.deep_link().on_open_url(move |event| {
                 let urls = event.urls();
 
@@ -133,13 +129,11 @@ pub fn run() {
                     let app_data_dir = app_data_dir.clone();
                     let websocket_service = websocket_service.clone();
                     let db = db.clone();
-                    let mcp_server_sandbox_service = mcp_server_sandbox_service.clone();
                     tauri::async_runtime::spawn(async move {
                         gateway::api::mcp_server::oauth::handle_oauth_callback(
                             &app_data_dir,
                             db.clone(),
                             websocket_service,
-                            mcp_server_sandbox_service,
                             url.to_string(),
                         )
                         .await;

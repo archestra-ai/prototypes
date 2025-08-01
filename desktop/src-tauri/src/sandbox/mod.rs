@@ -61,12 +61,16 @@ pub struct MCPServer {
 pub struct MCPServerManager {
     servers: Arc<RwLock<HashMap<String, MCPServer>>>,
     http_client: reqwest::Client,
-    db: DatabaseConnection,
-    app_data_dir: PathBuf,
+}
+
+impl Default for MCPServerManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MCPServerManager {
-    pub fn new(app_data_dir: PathBuf, db: DatabaseConnection) -> Self {
+    pub fn new() -> Self {
         let http_client = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .build()
@@ -75,16 +79,15 @@ impl MCPServerManager {
         Self {
             servers: Arc::new(RwLock::new(HashMap::new())),
             http_client,
-            db,
-            app_data_dir,
         }
     }
 
     fn resolve_app_data_dir_templated_env_var_value(
         &self,
+        app_data_dir: &PathBuf,
         templated_env_var_value: String,
     ) -> Result<String, String> {
-        Ok(templated_env_var_value.replace("{{ .app_data_dir }}", self.app_data_dir.to_str().unwrap()))
+        Ok(templated_env_var_value.replace("{{ .app_data_dir }}", app_data_dir.to_str().unwrap()))
     }
 
     // TODO: add more template variables as needed
@@ -92,9 +95,10 @@ impl MCPServerManager {
     /// Currently supports: {{ .app_data_dir }} and {{ .mcp_server_port }}
     fn resolve_templated_env_var_value(
         &self,
+        app_data_dir: &PathBuf,
         templated_env_var_value: String,
     ) -> Result<String, String> {
-        let templated_env_var_value = self.resolve_app_data_dir_templated_env_var_value(templated_env_var_value)
+        let templated_env_var_value = self.resolve_app_data_dir_templated_env_var_value(app_data_dir, templated_env_var_value)
             .map_err(|e| format!("Failed to resolve app_data_dir env var template: {e}"))?;
 
         Ok(templated_env_var_value)
@@ -103,6 +107,7 @@ impl MCPServerManager {
     /// Start an MCP server
     pub async fn start_server(
         &self,
+        app_data_dir: &PathBuf,
         mcp_server: &MCPServerModel,
     ) -> Result<(), String> {
         let name = &mcp_server.name;
@@ -186,7 +191,10 @@ impl MCPServerManager {
 
         // Set environment variables
         for (key, value) in env {
-            let value_with_resolved_template_values = self.resolve_templated_env_var_value(value)?;
+            let value_with_resolved_template_values = self.resolve_templated_env_var_value(
+                app_data_dir,
+                value
+            )?;
 
             debug!("MCP [{name}] Setting env var: {key} = {value_with_resolved_template_values}");
 
@@ -524,31 +532,59 @@ impl MCPServerManager {
             }
         }
     }
+}
 
-    /// Start all configured MCP servers
-    pub async fn start_all_mcp_servers(&self) -> Result<(), String> {
-        info!("Starting all persisted MCP servers...");
+/// Start all configured MCP servers
+pub async fn start_all_mcp_servers(db: &DatabaseConnection, app_data_dir: &PathBuf) -> Result<(), String> {
+    info!("Starting all persisted MCP servers...");
 
-        let installed_mcp_servers = MCPServerModel::load_installed_mcp_servers(&self.db)
-            .await
-            .map_err(|e| format!("Failed to load MCP servers: {e}"))?;
+    let installed_mcp_servers = MCPServerModel::load_installed_mcp_servers(db)
+        .await
+        .map_err(|e| format!("Failed to load MCP servers: {e}"))?;
 
-        if installed_mcp_servers.is_empty() {
-            info!("No installed MCP servers found to start.");
-            return Ok(());
-        }
-
-        for server in &installed_mcp_servers {
-            match self.start_server(server).await {
-                Ok(_) => {} // Success already logged by start_server
-                Err(e) => error!("❌ MCP [{}] Startup failed: {e}", server.name),
-            }
-        }
-
-        let server_count = installed_mcp_servers.len();
-        if server_count > 0 {
-            debug!("✅ Queued {server_count} MCP servers for startup");
-        }
-        Ok(())
+    if installed_mcp_servers.is_empty() {
+        info!("No installed MCP servers found to start.");
+        return Ok(());
     }
+
+    for server in &installed_mcp_servers {
+        match MCP_SERVER_MANAGER.start_server(app_data_dir, server).await {
+            Ok(_) => {} // Success already logged by start_server
+            Err(e) => error!("❌ MCP [{}] Startup failed: {e}", server.name),
+        }
+    }
+
+    let server_count = installed_mcp_servers.len();
+    if server_count > 0 {
+        debug!("✅ Queued {server_count} MCP servers for startup");
+    }
+    Ok(())
+}
+
+// Create a global instance of the manager
+lazy_static::lazy_static! {
+    static ref MCP_SERVER_MANAGER: MCPServerManager = MCPServerManager::new();
+}
+
+
+/// Start an MCP server using the global manager
+pub async fn start_mcp_server(mcp_server: &MCPServerModel, app_data_dir: &PathBuf) -> Result<(), String> {
+    MCP_SERVER_MANAGER
+        .start_server(app_data_dir, mcp_server)
+        .await
+}
+
+/// Stop an MCP server using the global manager
+pub async fn stop_mcp_server(server_name: &str) -> Result<(), String> {
+    MCP_SERVER_MANAGER.stop_server(server_name).await
+}
+
+/// Forward a raw request using the global manager
+pub async fn forward_raw_request(
+    server_name: &str,
+    request_body: String,
+) -> Result<String, String> {
+    MCP_SERVER_MANAGER
+        .forward_raw_request(server_name, request_body)
+        .await
 }

@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use url::Url;
 
 use crate::gateway::api::mcp_server::oauth::utils::write_oauth_credentials_file;
-use crate::sandbox;
 use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel};
 
 // Check out https://googleapis.dev/python/google-auth/latest/reference/google.oauth2.credentials.html for
@@ -22,7 +21,6 @@ pub struct GoogleCredentials {
 pub async fn handle_google_oauth_callback(
     app_data_dir: &PathBuf,
     db: DatabaseConnection,
-    mcp_server_sandbox_service: sandbox::MCPServerManager,
     url: String,
 ) -> Result<(), String> {
     info!("Processing Google OAuth callback");
@@ -159,7 +157,7 @@ pub async fn handle_google_oauth_callback(
 
     // Save the MCP server to the database (this will also start the server)
     info!("Saving MCP server '{}' to database", connector.title);
-    MCPServerModel::save_server(&db, &definition, &mcp_server_sandbox_service)
+    MCPServerModel::save_server(&db, &app_data_dir, &definition)
         .await
         .map_err(|e| {
             error!(

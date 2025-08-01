@@ -30,11 +30,8 @@ pub fn app_data_dir() -> PathBuf {
 }
 
 #[fixture]
-pub async fn mcp_server_sandbox_service(
-    app_data_dir: PathBuf,
-    #[future] database: DatabaseConnection,
-) -> sandbox::MCPServerManager {
-    sandbox::MCPServerManager::new(app_data_dir, database.await)
+pub fn mcp_server_sandbox_service() -> sandbox::MCPServerManager {
+    sandbox::MCPServerManager::new()
 }
 
 #[fixture]

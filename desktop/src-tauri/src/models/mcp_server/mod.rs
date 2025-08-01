@@ -3,6 +3,7 @@ use sea_orm::entity::prelude::*;
 use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use utoipa::ToSchema;
 
 use crate::sandbox;
@@ -95,8 +96,8 @@ impl Model {
     /// Save an MCP server definition to the database, start it and sync all connected external MCP clients
     pub async fn save_server(
         db: &DatabaseConnection,
+        app_data_dir: &PathBuf,
         definition: &MCPServerDefinition,
-        mcp_server_sandbox_service: &sandbox::MCPServerManager,
     ) -> Result<Model, DbErr> {
         // Check if server exists to determine if this is an update
         let existing_server = Self::find_by_name(db, &definition.name).await?;
@@ -104,7 +105,7 @@ impl Model {
 
         // If updating, stop the existing server first
         if is_update {
-            if let Err(e) = mcp_server_sandbox_service.stop_server(&definition.name).await {
+            if let Err(e) = sandbox::stop_mcp_server(&definition.name).await {
                 error!("Warning: Failed to stop server before update: {e}");
             }
         }
@@ -113,7 +114,7 @@ impl Model {
         let result = Self::save_server_without_lifecycle(db, definition).await?;
 
         // Start the server after saving
-        if let Err(e) = mcp_server_sandbox_service.start_server(&result).await {
+        if let Err(e) = sandbox::start_mcp_server(&result, app_data_dir).await {
             error!("Warning: Failed to start server after save: {e}");
             // Don't fail the save operation, but log the error
         }
@@ -135,11 +136,10 @@ impl Model {
     pub async fn uninstall_mcp_server(
         db: &DatabaseConnection,
         server_name: &str,
-        mcp_server_sandbox_service: &sandbox::MCPServerManager,
     ) -> Result<(), DbErr> {
         // Stop the server before deleting
         // if there's an error stopping the server, that's fine (for now)
-        let _ = mcp_server_sandbox_service.stop_server(&server_name).await;
+        let _ = sandbox::stop_mcp_server(&server_name).await;
 
         Entity::delete_many()
             .filter(Column::Name.eq(server_name))
@@ -184,8 +184,8 @@ impl Model {
 
     pub async fn save_mcp_server_from_catalog(
         db: &DatabaseConnection,
+        app_data_dir: &PathBuf,
         mcp_server_catalog_id: String,
-        mcp_server_sandbox_service: &sandbox::MCPServerManager,
     ) -> Result<MCPServerDefinition, String> {
         // Load the catalog
         let catalog = Self::get_mcp_connector_catalog().await?;
@@ -203,7 +203,7 @@ impl Model {
             server_config: connector.server_config.clone(),
         };
 
-        let result = Model::save_server(db, &definition, mcp_server_sandbox_service)
+        let result = Model::save_server(db, app_data_dir, &definition)
             .await
             .map_err(|e| format!("Failed to save MCP server: {e}"))?;
 
@@ -239,7 +239,7 @@ impl From<MCPServerDefinition> for ActiveModel {
 mod tests {
     use super::*;
     use crate::test_fixtures::*;
-    use rstest::*;
+    use rstest::rstest;
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     #[rstest]
@@ -345,12 +345,8 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_uninstall_mcp_server(
-        #[future] database: DatabaseConnection,
-        #[future] mcp_server_sandbox_service: sandbox::MCPServerManager,
-    ) {
+    async fn test_uninstall_mcp_server(#[future] database: DatabaseConnection) {
         let db = database.await;
-        let mcp_server_sandbox_service = mcp_server_sandbox_service.await;
 
         let definition = MCPServerDefinition {
             name: "server_to_uninstall".to_string(),
@@ -376,12 +372,7 @@ mod tests {
         assert!(found.is_some());
 
         // Uninstall it
-        let result = Model::uninstall_mcp_server(
-            &db,
-            "server_to_uninstall",
-            &mcp_server_sandbox_service,
-        )
-        .await;
+        let result = Model::uninstall_mcp_server(&db, "server_to_uninstall").await;
 
         assert!(result.is_ok());
 
@@ -396,20 +387,11 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_uninstall_nonexistent_server(
-        #[future] database: DatabaseConnection,
-        #[future] mcp_server_sandbox_service: sandbox::MCPServerManager,
-    ) {
+    async fn test_uninstall_nonexistent_server(#[future] database: DatabaseConnection) {
         let db = database.await;
-        let mcp_server_sandbox_service = mcp_server_sandbox_service.await;
 
         // Try to uninstall a server that doesn't exist
-        let result = Model::uninstall_mcp_server(
-            &db,
-            "nonexistent_server",
-            &mcp_server_sandbox_service,
-        )
-        .await;
+        let result = Model::uninstall_mcp_server(&db, "nonexistent_server").await;
 
         // Should succeed (no-op)
         assert!(result.is_ok());
@@ -495,10 +477,9 @@ mod tests {
     #[tokio::test]
     async fn test_save_server_update_existing(
         #[future] database: DatabaseConnection,
-        #[future] mcp_server_sandbox_service: sandbox::MCPServerManager,
+        app_data_dir: PathBuf,
     ) {
         let db = database.await;
-        let mcp_server_sandbox_service = mcp_server_sandbox_service.await;
 
         let definition1 = MCPServerDefinition {
             name: "update_test_server".to_string(),
@@ -529,8 +510,8 @@ mod tests {
         // save_server should handle the update
         let result = Model::save_server(
             &db,
+            &app_data_dir,
             &definition2,
-            &mcp_server_sandbox_service,
         )
         .await;
 

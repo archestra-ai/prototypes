@@ -14,7 +14,6 @@ pub async fn handle_oauth_callback(
     app_data_dir: &PathBuf,
     db: DatabaseConnection,
     websocket_service: WebSocketService,
-    mcp_server_sandbox_service: sandbox::MCPServerManager,
     url: String,
 ) {
     debug!("Received OAuth callback: {url}");
@@ -67,7 +66,6 @@ pub async fn handle_oauth_callback(
             match providers::google::handle_google_oauth_callback(
                 app_data_dir,
                 db,
-                mcp_server_sandbox_service,
                 url,
             )
             .await

@@ -8,13 +8,11 @@ use axum::{
 use sea_orm::DatabaseConnection;
 use tauri_plugin_opener::OpenerExt;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::Arc;
 use utoipa::ToSchema;
 
-use crate::{
-    models::mcp_server::{ConnectorCatalogEntry, Model as MCPServer},
-    sandbox,
-};
+use crate::models::mcp_server::{ConnectorCatalogEntry, Model as MCPServer};
 
 pub mod oauth;
 
@@ -37,20 +35,20 @@ pub struct OAuthProxyResponse {
 
 pub struct Service {
     app_handle: tauri::AppHandle,
+    app_data_dir: PathBuf,
     db: DatabaseConnection,
-    mcp_server_sandbox_service: sandbox::MCPServerManager,
 }
 
 impl Service {
     pub fn new(
         app_handle: tauri::AppHandle,
+        app_data_dir: PathBuf,
         db: DatabaseConnection,
-        mcp_server_sandbox_service: sandbox::MCPServerManager,
     ) -> Self {
         Self {
             app_handle,
+            app_data_dir,
             db,
-            mcp_server_sandbox_service,
         }
     }
 
@@ -68,9 +66,10 @@ impl Service {
 
     async fn install_mcp_server_from_catalog(
         &self,
+        app_data_dir: &PathBuf,
         mcp_server_catalog_id: String,
     ) -> Result<(), String> {
-        MCPServer::save_mcp_server_from_catalog(&self.db, mcp_server_catalog_id, &self.mcp_server_sandbox_service)
+        MCPServer::save_mcp_server_from_catalog(&self.db, app_data_dir, mcp_server_catalog_id)
             .await
             .map_err(|e| format!("Failed to save server: {e}"))?;
 
@@ -78,7 +77,7 @@ impl Service {
     }
 
     async fn uninstall_mcp_server(&self, mcp_server_name: String) -> Result<(), String> {
-        MCPServer::uninstall_mcp_server(&self.db, &mcp_server_name, &self.mcp_server_sandbox_service)
+        MCPServer::uninstall_mcp_server(&self.db, &mcp_server_name)
             .await
             .map_err(|e| format!("Failed to uninstall server: {e}"))?;
 
@@ -200,7 +199,7 @@ pub async fn install_mcp_server_from_catalog(
     Json(payload): Json<InstallRequest>,
 ) -> Result<StatusCode, StatusCode> {
     service
-        .install_mcp_server_from_catalog(payload.mcp_server_catalog_id)
+        .install_mcp_server_from_catalog(&service.app_data_dir, payload.mcp_server_catalog_id)
         .await
         .map(|_| StatusCode::OK)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
@@ -262,13 +261,13 @@ pub async fn uninstall_mcp_server(
 
 pub fn create_router(
     app_handle: tauri::AppHandle,
+    app_data_dir: PathBuf,
     db: DatabaseConnection,
-    mcp_server_sandbox_service: sandbox::MCPServerManager,
 ) -> Router {
     let service = Arc::new(Service::new(
         app_handle,
+        app_data_dir,
         db,
-        mcp_server_sandbox_service,
     ));
 
     Router::new()
