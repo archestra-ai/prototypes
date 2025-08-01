@@ -32,6 +32,11 @@ pub fn run() {
         ))
         .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(10))
         .max_file_size(1024 * 1024 * 5) // 5MB
+        .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseUtc)
+        // use WARN level for all logs by default
+        // except for logging defined in our crate, which uses DEBUG level
+        .level(log::LevelFilter::Warn)
+        .level_for("archestra_ai_lib", log::LevelFilter::Debug)
         .with_colors(fern::colors::ColoredLevelConfig {
             error: fern::colors::Color::Red,
             warn: fern::colors::Color::Yellow,
@@ -39,8 +44,6 @@ pub fn run() {
             debug: fern::colors::Color::Cyan,
             trace: fern::colors::Color::Magenta,
         })
-        .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseUtc)
-        .level(log::LevelFilter::Debug)
         .build();
 
     let app = tauri::Builder::default()

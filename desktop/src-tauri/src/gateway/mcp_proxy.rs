@@ -90,7 +90,7 @@ impl Service {
         let start_time = Instant::now();
         let request_id = Uuid::new_v4().to_string();
 
-        info!("🚀 MCP Proxy: Starting request to server '{server_name}' (ID: {request_id})");
+        info!("MCP Proxy: Starting request to server '{server_name}' (ID: {request_id})");
 
         // Extract headers and session info before consuming the request
         let headers = req.headers().clone();
@@ -104,11 +104,11 @@ impl Service {
         // Read the request body
         let body_bytes = match axum::body::to_bytes(req.into_body(), usize::MAX).await {
             Ok(bytes) => {
-                debug!("📥 Successfully read request body ({} bytes)", bytes.len());
+                debug!("Successfully read request body ({} bytes)", bytes.len());
                 bytes
             }
             Err(e) => {
-                error!("❌ Failed to read request body: {e}");
+                error!("Failed to read request body: {e}");
 
                 // Log the failed request
                 let log_data = CreateLogRequest {
@@ -146,11 +146,11 @@ impl Service {
         // Convert bytes to string
         let request_body = match String::from_utf8(body_bytes.to_vec()) {
             Ok(body) => {
-                debug!("📝 Request body: {body}");
+                debug!("Request body: {body}");
                 body
             }
             Err(e) => {
-                error!("❌ Invalid UTF-8 in request body: {e}");
+                error!("Invalid UTF-8 in request body: {e}");
 
                 // Log the failed request
                 let log_data = CreateLogRequest {
@@ -188,11 +188,11 @@ impl Service {
         // Extract method from request body
         let method = Self::extract_method_from_request(&request_body);
 
-        debug!("🔄 Forwarding request to forward_raw_request function...");
+        debug!("Forwarding request to forward_raw_request function...");
         // Forward the raw JSON-RPC request to the MCPServerManager
         match sandbox::forward_raw_request(&server_name, request_body.clone()).await {
             Ok(raw_response) => {
-                info!("✅ Successfully received response from server '{server_name}'");
+                info!("Successfully received response from server '{server_name}'");
 
                 let duration_ms = start_time.elapsed().as_millis() as i32;
 
@@ -231,7 +231,7 @@ impl Service {
                     .unwrap()
             }
             Err(e) => {
-                error!("❌ MCP Proxy: Failed to forward request to '{server_name}': {e}");
+                error!("MCP Proxy: Failed to forward request to '{server_name}': {e}");
 
                 let duration_ms = start_time.elapsed().as_millis() as i32;
 

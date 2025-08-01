@@ -20,19 +20,19 @@ pub async fn get_database_connection(
 
 /// Initialize the database
 pub async fn init_database(app_data_dir: &PathBuf) -> Result<DatabaseConnection, String> {
-    debug!("🏁 Initializing database...");
+    debug!("Initializing database...");
 
     let db = get_database_connection(app_data_dir)
         .await
         .map_err(|e| format!("Failed to initialize database: {e}"))?;
 
     // Run migrations
-    debug!("📊 Running database migrations...");
+    debug!("Running database migrations...");
     Migrator::up(&db, None)
         .await
         .map_err(|e| format!("Failed to run migrations: {e}"))?;
 
-    debug!("✅ Database connection established and migrations completed");
+    debug!("Database connection established and migrations completed");
 
     Ok(db)
 }

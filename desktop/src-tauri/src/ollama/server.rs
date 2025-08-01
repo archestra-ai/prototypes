@@ -100,11 +100,11 @@ pub async fn shutdown() -> Result<(), String> {
         if let Some(child) = process_guard.take() {
             match child.kill() {
                 Ok(()) => {
-                    info!("✅ Ollama server shut down successfully");
+                    info!("Ollama server shut down successfully");
                     Ok(())
                 }
                 Err(e) => {
-                    let error_msg = format!("⚠️ Failed to kill Ollama process: {e}");
+                    let error_msg = format!("Failed to kill Ollama process: {e}");
                     error!("{error_msg}");
                     Err(error_msg)
                 }
