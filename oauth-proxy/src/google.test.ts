@@ -1,15 +1,5 @@
 import { googleProviderHandler } from '@/google';
 
-// Mock logger
-vi.mock('@/logger', () => ({
-  logger: {
-    info: vi.fn(),
-    debug: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-  },
-}));
-
 // Mock googleapis
 vi.mock('googleapis', () => ({
   google: {

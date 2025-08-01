@@ -6,14 +6,17 @@ use url::Url;
 use crate::gateway::api::mcp_server::oauth::utils::write_oauth_credentials_file;
 use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel};
 
+// Check out https://googleapis.dev/python/google-auth/latest/reference/google.oauth2.credentials.html for
+// more details about what these various fields mean
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GoogleCredentials {
     #[serde(rename = "type")]
     pub credential_type: String,
     pub client_id: String,
-    pub client_secret: String,
+    // pub client_secret: String,
     pub refresh_token: String,
     pub token_uri: String,
+    pub scopes: Vec<String>,
 }
 
 pub async fn handle_google_oauth_callback(
@@ -69,13 +72,22 @@ pub async fn handle_google_oauth_callback(
         })?
         .clone();
 
-    let client_secret = query_params
-        .get("client_secret")
+    let scopes = query_params
+        .get("scopes")
         .ok_or_else(|| {
-            error!("Missing 'client_secret' parameter in OAuth callback");
-            "Missing client_secret parameter"
+            error!("Missing 'scopes' parameter in OAuth callback");
+            "Missing scopes parameter"
         })?
         .clone();
+
+    // NOTE: the oauth-proxy server's callback SHOULDN'T include this..
+    // let client_secret = query_params
+    //     .get("client_secret")
+    //     .ok_or_else(|| {
+    //         error!("Missing 'client_secret' parameter in OAuth callback");
+    //         "Missing client_secret parameter"
+    //     })?
+    //     .clone();
 
     debug!("Successfully extracted all OAuth parameters");
 
@@ -83,9 +95,10 @@ pub async fn handle_google_oauth_callback(
     let credentials = GoogleCredentials {
         credential_type: "authorized_user".to_string(),
         client_id,
-        client_secret,
+        // client_secret,
         refresh_token,
         token_uri,
+        scopes: scopes.split(',').map(|s| s.to_string()).collect(),
     };
 
     // Write credentials to file

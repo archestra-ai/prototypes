@@ -48,7 +48,7 @@ sequenceDiagram
     Google-->>OAuthProxy: Return {access_token, refresh_token, expiry}
     OAuthProxy->>Browser: Redirect to /oauth-callback.html with tokens in URL params
     Note over Browser: Display success message
-    Browser->>ArchestraApp: Deep link: archestra-ai://oauth-callback?provider=google&mcpCatalogConnectorId=gmail&tokens...
+    Browser->>ArchestraApp: Deep link: archestra-ai://oauth-callback?provider=google&mcp_catalog_connector_id=gmail&tokens...
     Note over ArchestraApp: Parse tokens from deep link
     ArchestraApp->>ArchestraApp: Create credential file in app data directory
     ArchestraApp->>ArchestraApp: Save MCP server config to database
@@ -77,7 +77,6 @@ Initiates OAuth flow for the specified provider.
 **Parameters:**
 
 - `provider` - The OAuth provider identifier (e.g., `google`)
-- `userId` (optional query param) - User identifier for state tracking
 
 **Response:**
 

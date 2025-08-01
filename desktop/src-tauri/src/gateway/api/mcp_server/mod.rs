@@ -99,8 +99,7 @@ impl Service {
         // };
         let oauth_proxy_base_url = String::from("https://oauth.dev.archestra.ai");
 
-
-        let auth_url = format!("{oauth_proxy_base_url}/v1/auth/{provider}?mcpCatalogConnectorId={mcp_server_catalog_id}", );
+        let auth_url = format!("{oauth_proxy_base_url}/v1/auth/{provider}?mcp_catalog_connector_id={mcp_server_catalog_id}", );
         debug!("OAuth proxy URL: {}", auth_url);
 
         // Call the cloud OAuth proxy service with dynamic "provider" parameter and including

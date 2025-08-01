@@ -154,7 +154,7 @@ export const handlers = {
   // GET /auth/:provider
   authProvider: async (req: Request<{ provider: string }>, res: Response): Promise<void> => {
     const { provider } = req.params;
-    const { mcpCatalogConnectorId } = req.query;
+    const { mcp_catalog_connector_id: mcpCatalogConnectorId } = req.query;
 
     logger.info(`Received /auth/${provider} request`);
 
@@ -163,23 +163,21 @@ export const handlers = {
       typeof mcpCatalogConnectorId !== 'string' ||
       !isGoogleMCPCatalogConnectorId(mcpCatalogConnectorId)
     ) {
-      logger.warn('Missing mcpCatalogConnectorId in auth request', { provider, mcpCatalogConnectorId });
-      res.status(400).json({ error: 'Missing mcpCatalogConnectorId' });
+      logger.warn('Missing mcp_catalog_connector_id in auth request', { provider, mcpCatalogConnectorId });
+      res.status(400).json({ error: 'Missing mcp_catalog_connector_id' });
       return;
     }
 
     try {
       const providerHandler = getProviderHandler(provider);
       const scopes = getMcpCatalogConnectorIdScopes(mcpCatalogConnectorId);
-
       const state = generateState();
-      const userId = (req.query.userId as string) || 'default';
 
       logger.debug('Generated state:', { state });
       logger.info(`Initiating ${provider} OAuth flow`, { provider, mcpCatalogConnectorId, scopeCount: scopes.length });
 
-      // Store state for verification - include mcpCatalogConnectorId in state
-      storeState(state, { userId, mcpCatalogConnectorId });
+      // Store state for later retrieval
+      storeState(state, { mcpCatalogConnectorId });
 
       // Delegate to provider-specific handler with scopes
       const authUrl = await providerHandler.generateAuthUrl(state, scopes);

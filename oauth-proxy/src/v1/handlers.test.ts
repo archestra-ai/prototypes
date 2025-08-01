@@ -2,16 +2,6 @@ import { Request, Response } from 'express';
 
 import handlers from '@/v1/handlers';
 
-// Mock the logger
-vi.mock('@/logger', () => ({
-  logger: {
-    info: vi.fn(),
-    debug: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-  },
-}));
-
 // Mock the google provider
 vi.mock('@/google', () => ({
   default: {
@@ -45,7 +35,7 @@ describe('v1 handlers', () => {
   describe('authProvider', () => {
     it('should generate auth URL for Gmail', async () => {
       mockReq.params = { provider: 'google' };
-      mockReq.query = { userId: 'test-user', mcpCatalogConnectorId: 'gmail' };
+      mockReq.query = { mcp_catalog_connector_id: 'gmail' };
 
       await handlers.authProvider(mockReq as Request<{ provider: string }>, mockRes as Response);
 
@@ -57,7 +47,7 @@ describe('v1 handlers', () => {
 
     it('should handle errors gracefully', async () => {
       mockReq.params = { provider: 'invalid-provider' };
-      mockReq.query = { mcpCatalogConnectorId: 'gmail' };
+      mockReq.query = { mcp_catalog_connector_id: 'gmail' };
 
       await handlers.authProvider(mockReq as Request<{ provider: string }>, mockRes as Response);
 
@@ -71,23 +61,23 @@ describe('v1 handlers', () => {
   describe('oauthCallback', () => {
     it('should redirect with error when code is missing', async () => {
       mockReq.params = { provider: 'google' };
-      mockReq.query = { state: 'test-state', mcpCatalogConnectorId: 'gmail' };
+      mockReq.query = { state: 'test-state', mcp_catalog_connector_id: 'gmail' };
 
       await handlers.oauthCallback(mockReq as Request<{ provider: string }>, mockRes as Response);
 
       expect(mockRes.redirect).toHaveBeenCalledWith(
-        expect.stringContaining('error=Missing%20authorization%20code%20or%20state')
+        '/oauth-callback.html?provider=google&error=Missing+authorization+code+or+state'
       );
     });
 
     it('should redirect with error when state is missing', async () => {
       mockReq.params = { provider: 'google' };
-      mockReq.query = { code: 'test-code', mcpCatalogConnectorId: 'gmail' };
+      mockReq.query = { code: 'test-code', mcp_catalog_connector_id: 'gmail' };
 
       await handlers.oauthCallback(mockReq as Request<{ provider: string }>, mockRes as Response);
 
       expect(mockRes.redirect).toHaveBeenCalledWith(
-        expect.stringContaining('error=Missing%20authorization%20code%20or%20state')
+        '/oauth-callback.html?provider=google&error=Missing+authorization+code+or+state'
       );
     });
   });

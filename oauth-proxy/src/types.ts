@@ -12,7 +12,6 @@ export type GoogleMCPCatalogConnectorId =
 export type MCPCatalogConnectorId = GoogleMCPCatalogConnectorId;
 
 export interface AuthState {
-  userId: string;
   mcpCatalogConnectorId: MCPCatalogConnectorId;
   timestamp: number;
 }
