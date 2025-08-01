@@ -267,7 +267,7 @@ Content-Type: application/json
 
 {
   "session_id": "uuid-v4",
-  "messages": [...],
+  "message": "User's message here",  // Single message (backend loads full history)
   "model": "qwen2.5:3b",
   "tools": ["server_tool"],  // Format: "serverName_toolName"
   "stream": true,

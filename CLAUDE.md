@@ -425,10 +425,11 @@ POST /llm/ollama/stream
 Content-Type: application/json
 
 Body: {
-  messages: Message[],
+  session_id: string,     // Required for chat session management
+  message: string,        // Single user message (backend loads full history)
   model?: string,
-  tools?: string[],
-  stream?: boolean,  // Defaults to true
+  tools?: string[],       // Format: "serverName_toolName" for MCP tools
+  stream?: boolean,       // Defaults to true
   options?: {
     temperature?: number,
     num_predict?: number
