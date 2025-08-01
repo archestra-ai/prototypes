@@ -113,7 +113,7 @@ pnpm run test:coverage  # Generate test coverage report
 # Required environment variables for OAuth proxy:
 GOOGLE_OAUTH_CLIENT_ID      # Google OAuth client ID
 GOOGLE_OAUTH_CLIENT_SECRET  # Google OAuth client secret
-REDIRECT_URL               # OAuth redirect URL (e.g., https://oauth.dev.archestra.ai)
+BASE_URL                   # Base URL for the OAuth proxy service (e.g., https://oauth.dev.archestra.ai)
 NODE_ENV                   # Environment (development/production)
 PORT                       # Server port (default: 3000)
 LOG_LEVEL                  # Logging level (default: info)
