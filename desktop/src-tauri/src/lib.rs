@@ -3,106 +3,53 @@
 use tauri::{Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
 
-pub mod consts;
 pub mod database;
 pub mod gateway;
 pub mod models;
 pub mod ollama;
 pub mod openapi;
 pub mod sandbox;
-pub mod windows;
 
 #[cfg(test)]
 pub mod test_fixtures;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Load environment variables from .env file
-    load_environment();
 
     // Initialize logging
-    let mut builder = tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new()
-            // .target(tauri_plugin_log::Target::new(
-            //     tauri_plugin_log::TargetKind::Stdout,
-            // ))
-            .target(tauri_plugin_log::Target::new(
-                tauri_plugin_log::TargetKind::LogDir { file_name: Some("archestra".into()) },
-            ))
-            .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(10))
-            .max_file_size(1024 * 1024 * 5) // 5MB
-            .with_colors(fern::colors::ColoredLevelConfig {
-                error: fern::colors::Color::Red,
-                warn: fern::colors::Color::Yellow,
-                info: fern::colors::Color::Green,
-                debug: fern::colors::Color::Cyan,
-                trace: fern::colors::Color::Magenta,
-            })
-            .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseUtc)
-            .level(log::LevelFilter::Debug)
-            .build())
-        .plugin(tauri_plugin_http::init());
-
-    let websocket_service = std::sync::Arc::new(gateway::websocket::Service::new());
-
-    // Configure the single instance plugin which should always be the first plugin you register
-    // https://v2.tauri.app/plugin/deep-linking/#desktop
-    #[cfg(desktop)]
-    {
-        debug!("Setting up single instance plugin...");
-        let websocket_service_for_single_instance = websocket_service.clone();
-        builder = builder.plugin(tauri_plugin_single_instance::init(
-            move |app, argv, _cwd| {
-                debug!("SINGLE INSTANCE CALLBACK: a new app instance was opened with {argv:?}");
-
-                // HANDLER 1: Single Instance Deep Link Handler
-                // This handles deep links when the app is ALREADY RUNNING and user clicks a deep link
-                // Scenario: App is open → User clicks archestra-ai://foo-bar → This prevents opening
-                // a second instance and processes the deep link in the existing app
-                for arg in argv {
-                    if arg.starts_with("archestra-ai://") {
-                        debug!("SINGLE INSTANCE: Found deep link in argv: {arg}");
-                        let app_handle = app.clone();
-                        let websocket_service_clone = websocket_service_for_single_instance.clone();
-
-                        tauri::async_runtime::spawn(async move {
-                            match database::get_database_connection(
-                                &app_handle,
-                            )
-                            .await
-                            {
-                                Ok(db) => {
-                                    gateway::api::mcp_server::oauth::handle_oauth_callback(
-                                        app_handle,
-                                        std::sync::Arc::new(db),
-                                        websocket_service_clone,
-                                        arg.to_string(),
-                                    )
-                                    .await;
-                                }
-                                Err(e) => {
-                                    error!(
-                                        "Failed to get database connection for OAuth callback: {e}"
-                                    );
-                                }
-                            }
-                        });
-                    }
-                }
+    let log_plugin = tauri_plugin_log::Builder::new()
+        // By default the plugin logs to stdout and to a file in the application logs directory.
+        // To only use your own log targets, call clear_targets
+        // https://v2.tauri.app/plugin/logging/#log-targets
+        .clear_targets()
+        .target(tauri_plugin_log::Target::new(
+            tauri_plugin_log::TargetKind::Stdout,
+        ))
+        .target(tauri_plugin_log::Target::new(
+            tauri_plugin_log::TargetKind::LogDir {
+                file_name: Some("archestra".into())
             },
-        ));
-        debug!("Single instance plugin set up successfully");
-    }
+        ))
+        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(10))
+        .max_file_size(1024 * 1024 * 5) // 5MB
+        .with_colors(fern::colors::ColoredLevelConfig {
+            error: fern::colors::Color::Red,
+            warn: fern::colors::Color::Yellow,
+            info: fern::colors::Color::Green,
+            debug: fern::colors::Color::Cyan,
+            trace: fern::colors::Color::Magenta,
+        })
+        .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseUtc)
+        .level(log::LevelFilter::Debug)
+        .build();
 
-    let app = builder
+    let app = tauri::Builder::default()
+        .plugin(log_plugin)
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_deep_link::init())
-        // .plugin(tauri_plugin_localhost::Builder::new(consts::TAURI_WINDOW_PORT).build())
         .setup(move |app| {
-            // let main_window = windows::main::create_main_window(&app.handle())?;
-
             // Initialize database
             let app_handle = app.handle().clone();
             let db = tauri::async_runtime::block_on(async {
@@ -110,6 +57,8 @@ pub fn run() {
                     .await
                     .map_err(|e| format!("Database error: {e}"))
             })?;
+
+            let websocket_service = std::sync::Arc::new(gateway::websocket::Service::new());
 
             // Start all persisted MCP servers
             let app_handle = app.handle().clone();
@@ -158,19 +107,14 @@ pub fn run() {
                 }
             });
 
-            // HANDLER 2: Deep Link Plugin Handler
-            // This handles deep links when the app is FIRST LAUNCHED via deep link
-            // Scenario: App is NOT running → User clicks archestra-ai://foo-bar → App starts up
-            // and this handler processes the initial deep link during startup
-            // https://v2.tauri.app/plugin/deep-linking/#listening-to-deep-links
-            debug!("Setting up deep link handler...");
+            // deep link handler
             let app_handle = app.handle().clone();
             let websocket_service_for_deep_link = websocket_service.clone();
             app.deep_link().on_open_url(move |event| {
                 let urls = event.urls();
-                debug!("DEEP LINK PLUGIN: Received URLs: {urls:?}");
+                debug!("received deep link URLs: {urls:?}");
                 for url in urls {
-                    debug!("DEEP LINK PLUGIN: Processing URL: {url}");
+                    debug!("processing deep link URL: {url}");
                     let app_handle = app_handle.clone();
                     let db = db.clone();
                     let websocket_service_clone = websocket_service_for_deep_link.clone();
@@ -186,9 +130,9 @@ pub fn run() {
                     });
                 }
             });
-            debug!("Deep link handler set up successfully");
 
-            #[cfg(debug_assertions)] // only include this code on debug builds
+            // open devtools on debug builds
+            #[cfg(debug_assertions)]
             {
                 let window = app.get_webview_window("main").unwrap();
                 window.open_devtools();
@@ -217,28 +161,4 @@ pub fn run() {
             info!("Cleanup completed");
         }
     });
-}
-
-fn load_environment() {
-    // Determine which .env file to load based on build configuration
-    // see https://v2.tauri.app/reference/environment-variables/#tauri-cli-hook-commands
-    let env_file = match std::env::var("TAURI_ENV_DEBUG").as_deref() {
-        Ok("true") => ".env.desktop.dev",
-        Ok("false") => ".env.desktop.production",
-        _ => ".env.desktop.dev",
-    };
-
-    // Try to load the env file from the desktop directory
-    let env_path = std::path::Path::new(env_file);
-    match dotenv::from_path(env_path) {
-        Ok(_) => info!("Loaded environment from {}", env_file),
-        Err(e) => {
-            // Try parent directory (for when running from src-tauri)
-            let parent_env_path = std::path::Path::new("..").join(env_file);
-            match dotenv::from_path(&parent_env_path) {
-                Ok(_) => info!("Loaded environment from ../{}", env_file),
-                Err(_) => debug!("No {} file found (original error: {})", env_file, e),
-            }
-        }
-    }
 }

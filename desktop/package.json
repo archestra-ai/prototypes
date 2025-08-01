@@ -6,8 +6,10 @@
   "scripts": {
     "dev:desktop": "vite --mode desktop.dev",
     "dev:web": "vite --mode web.local",
-    "build:desktop:dev": "tsc && vite build --mode desktop.dev",
-    "build:desktop:prod": "tsc && vite build --mode desktop.production",
+    "build:dev": "tauri build --debug",
+    "build:prod": "tauri build --release",
+    "build:desktop-frontend:dev": "tsc && vite build --mode desktop.dev",
+    "build:desktop-frontend:prod": "tsc && vite build --mode desktop.production",
     "build:web:dev": "tsc && vite build --mode web.dev",
     "build:web:prod": "tsc && vite build --mode web.production",
     "codegen": "openapi-ts",

@@ -6,7 +6,7 @@ import {
   installMcpServerFromCatalog,
   startMcpServerOauth,
   uninstallMcpServer,
-} from '@/lib/api-client';
+} from '@/lib/api';
 import { websocketService } from '@/lib/websocket';
 
 import { useMCPServersStore } from './mcp-servers-store';

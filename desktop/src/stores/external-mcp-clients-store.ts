@@ -6,7 +6,7 @@ import {
   disconnectExternalMcpClient,
   getConnectedExternalMcpClients,
   getSupportedExternalMcpClients,
-} from '@/lib/api-client';
+} from '@/lib/api';
 
 interface ExternalMCPClientsState {
   supportedExternalMCPClientNames: string[];

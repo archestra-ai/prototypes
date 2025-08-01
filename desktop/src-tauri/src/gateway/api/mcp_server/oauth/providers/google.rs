@@ -36,10 +36,10 @@ pub async fn handle_google_oauth_callback(
 
     // Extract required parameters
     let mcp_server_catalog_id = query_params
-        .get("mcpCatalogConnectorId")
+        .get("mcp_catalog_connector_id")
         .ok_or_else(|| {
-            error!("Missing 'mcpCatalogConnectorId' parameter in OAuth callback");
-            "Missing mcpCatalogConnectorId parameter"
+            error!("Missing 'mcp_catalog_connector_id' parameter in OAuth callback");
+            "Missing mcp_catalog_connector_id parameter"
         })?
         .clone();
 

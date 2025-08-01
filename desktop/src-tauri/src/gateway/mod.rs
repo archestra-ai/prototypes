@@ -5,8 +5,6 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::consts;
-
 // use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 
 pub mod api;
@@ -14,6 +12,8 @@ pub mod llm_providers;
 mod mcp;
 mod mcp_proxy;
 pub mod websocket;
+
+const GATEWAY_SERVER_PORT: u16 = 54587;
 
 pub async fn start_gateway(
     app_handle: tauri::AppHandle,
@@ -49,7 +49,7 @@ pub async fn start_gateway(
         .layer(cors);
         // .layer(trace_layer);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], consts::GATEWAY_SERVER_PORT));
+    let addr = SocketAddr::from(([127, 0, 0, 1], GATEWAY_SERVER_PORT));
     let listener = TcpListener::bind(addr).await?;
 
     info!("Gateway started successfully on http://{addr}");

@@ -21,6 +21,12 @@ pub struct InstallRequest {
     mcp_server_catalog_id: String,
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct OAuthStartParams {
+    mcp_server_catalog_id: String,
+    provider: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct OAuthProxyResponse {
     pub auth_url: String,
@@ -81,9 +87,18 @@ impl Service {
             mcp_server_catalog_id
         );
 
+        // TODO: once we've properly set-up different environment variable loading for different
+        // environments, and once we have a "production" oauth-proxy server, uncomment this out
         // Get OAuth proxy base URL from environment - required
-        let oauth_proxy_base_url = std::env::var("OAUTH_PROXY_BASE_URL")
-            .expect("OAUTH_PROXY_BASE_URL environment variable must be set");
+        // let oauth_proxy_base_url = match std::env::var("OAUTH_PROXY_BASE_URL") {
+        //     Ok(url) => url,
+        //     Err(_) => {
+        //         error!("OAUTH_PROXY_BASE_URL environment variable must be set");
+        //         return Err(format!("OAUTH_PROXY_BASE_URL environment variable must be set"));
+        //     }
+        // };
+        let oauth_proxy_base_url = String::from("https://oauth.dev.archestra.ai");
+
 
         let auth_url = format!("{oauth_proxy_base_url}/v1/auth/{provider}?mcpCatalogConnectorId={mcp_server_catalog_id}", );
         debug!("OAuth proxy URL: {}", auth_url);
@@ -183,12 +198,6 @@ pub async fn install_mcp_server_from_catalog(
         .await
         .map(|_| StatusCode::OK)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-}
-
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct OAuthStartParams {
-    mcp_server_catalog_id: String,
-    provider: String,
 }
 
 #[utoipa::path(

@@ -50,9 +50,8 @@
       const urlParams = new URLSearchParams(window.location.search);
       const accessToken = urlParams.get('access_token');
       const refreshToken = urlParams.get('refresh_token');
-      const expiryDate = urlParams.get('expiry_date');
       const provider = urlParams.get('provider') || 'unknown';
-      const mcpCatalogConnectorId = urlParams.get('mcpCatalogConnectorId') || 'unknown';
+      const mcpCatalogConnectorId = urlParams.get('mcp_catalog_connector_id') || 'unknown';
       const error = urlParams.get('error');
 
       const statusDiv = document.getElementById('status');
@@ -131,7 +130,7 @@
             `;
 
         // Redirect to the Tauri app via deep-link
-        const deepLinkUrl = `archestra-ai://oauth-callback?provider=${provider}&mcpCatalogConnectorId=${mcpCatalogConnectorId}&access_token=${accessToken}&refresh_token=${refreshToken}&expiry_date=${expiryDate || ''}`;
+        const deepLinkUrl = `archestra-ai://oauth-callback?${urlParams.toString()}`;
 
         setTimeout(() => {
           window.location.href = deepLinkUrl;

@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { Request, Response } from 'express';
 import path from 'path';
 
-import { GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET } from '@/consts';
+import { GOOGLE_OAUTH_CLIENT_ID } from '@/consts';
 import googleProvider from '@/google';
 import { logger } from '@/logger';
 import type { AuthState, GoogleMCPCatalogConnectorId, MCPCatalogConnectorId, ProviderHandler } from '@/types';
@@ -208,19 +208,17 @@ export const handlers = {
       hasState: !!state,
     });
 
-    if (
-      !code ||
-      !state ||
-      typeof code !== 'string' ||
-      typeof state !== 'string'
-    ) {
+    if (!code || !state || typeof code !== 'string' || typeof state !== 'string') {
       logger.warn('Missing code or state in OAuth callback', {
         provider,
       });
-      res.redirect(
-        `/oauth-callback.html?provider=${provider}&error=${encodeURIComponent('Missing authorization code or state')}`
-      );
-      return;
+
+      const params = new URLSearchParams({
+        provider,
+        error: 'Missing authorization code or state',
+      });
+
+      return res.redirect(`/oauth-callback.html?${params.toString()}`);
     }
 
     // Verify state and get mcpCatalogConnectorId from stored state
@@ -228,27 +226,33 @@ export const handlers = {
 
     if (!storedState) {
       logger.warn('Invalid or expired state', { provider, state });
-      res.redirect(
-        `/oauth-callback.html?provider=${provider}&error=${encodeURIComponent('Invalid or expired state')}`
-      );
-      return;
+
+      const params = new URLSearchParams({
+        provider,
+        error: 'Invalid or expired state',
+      });
+
+      return res.redirect(`/oauth-callback.html?${params.toString()}`);
     }
 
     const { mcpCatalogConnectorId } = storedState;
-    
+
     logger.info('Retrieved mcpCatalogConnectorId from stored state', {
       mcpCatalogConnectorId,
       provider,
     });
-    
+
     if (!isGoogleMCPCatalogConnectorId(mcpCatalogConnectorId)) {
       logger.error('Invalid mcpCatalogConnectorId in stored state', {
         mcpCatalogConnectorId,
       });
-      res.redirect(
-        `/oauth-callback.html?provider=${provider}&error=${encodeURIComponent('Invalid service configuration')}`
-      );
-      return;
+
+      const params = new URLSearchParams({
+        provider,
+        error: 'Invalid service configuration',
+      });
+
+      return res.redirect(`/oauth-callback.html?${params.toString()}`);
     }
 
     try {
@@ -271,13 +275,16 @@ export const handlers = {
       // For Google mcpCatalogConnectorIds, we need to pass additional parameters for credential file creation
       const params = new URLSearchParams({
         provider,
-        mcpCatalogConnectorId,
+        mcp_catalog_connector_id: mcpCatalogConnectorId,
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
         expiry_date: tokens.expiry_date?.toString() || '',
         token_uri: 'https://oauth2.googleapis.com/token',
         client_id: GOOGLE_OAUTH_CLIENT_ID || '',
-        client_secret: GOOGLE_OAUTH_CLIENT_SECRET || '',
+        /**
+         * NOTE: don't expose the client secret!
+         */
+        // client_secret: GOOGLE_OAUTH_CLIENT_SECRET || '',
         scopes: scopes.join(','),
       });
 
@@ -286,15 +293,22 @@ export const handlers = {
       logger.info('Redirecting to callback page with tokens', { provider, mcpCatalogConnectorId });
       res.redirect(redirectUrl);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Token exchange failed';
+
       logger.error('Token exchange error:', {
         provider,
         mcpCatalogConnectorId,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         stack: error instanceof Error ? error.stack : undefined,
       });
-      const errorUrl = `/oauth-callback.html?provider=${provider}&mcpCatalogConnectorId=${mcpCatalogConnectorId}&error=${encodeURIComponent(
-        error instanceof Error ? error.message : 'Token exchange failed'
-      )}`;
+
+      const params = new URLSearchParams({
+        provider,
+        mcp_catalog_connector_id: mcpCatalogConnectorId,
+        error: errorMessage,
+      });
+
+      const errorUrl = `/oauth-callback.html?${params.toString()}`;
       res.redirect(errorUrl);
     }
   },

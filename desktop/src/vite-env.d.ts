@@ -33,7 +33,7 @@ interface ImportMetaEnv {
   /**
    * the [mode](https://vite.dev/guide/env-and-mode.html#modes) the app is running in
    */
-  readonly MODE: 'desktop.dev' | 'desktop.production' | 'web.dev' | 'web.production';
+  readonly MODE: 'desktop.dev' | 'desktop.production' | 'web.local' | 'web.dev' | 'web.production';
 }
 
 interface ImportMeta {

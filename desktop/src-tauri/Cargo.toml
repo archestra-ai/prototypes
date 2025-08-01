@@ -28,7 +28,6 @@ tauri-plugin-single-instance = { version = "2.3.2", features = ["deep-link"] }
 
 [dependencies]
 tokio = { version = "1.47", features = ["process", "io-util", "macros", "rt-multi-thread", "io-std"] }
-dotenv = "0.15"
 tokio-util = "0.7"
 tokio-stream = "0.1.17"
 tauri = { version = "2", features = ["test"] }
@@ -49,7 +48,6 @@ sea-orm = { version = "1.0", features = ["sqlx-sqlite", "runtime-tokio-rustls", 
 sea-orm-migration = { version = "1.0", features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
 rmcp = { version = "0.3.0", features = ["server", "macros", "transport-streamable-http-server", "transport-worker"] }
 axum = { version = "0.8.4", features = ["macros", "ws"] }
-tauri-plugin-http = "2"
 utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono", "macros"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 utoipauto = "0.2"
@@ -61,8 +59,6 @@ tauri-plugin-log = { version = "2.6.0", features = ["colored", "tracing"] }
 log = "0.4.27"
 fern = "0.7.1"
 strum = { version = "0.27.2", features = ["derive"] }
-tauri-plugin-localhost = "2.3.0"
-tauri-utils = "2.6.0"
 
 [dev-dependencies]
 tempfile = "3.8"
