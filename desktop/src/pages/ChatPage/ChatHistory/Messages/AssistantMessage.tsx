@@ -9,6 +9,15 @@ interface AssistantMessageProps {
   message: ChatMessage;
 }
 
+const LoadingIndicator = ({ isToolExecuting }: { isToolExecuting: boolean }) => {
+  return (
+    <div className="flex items-center space-x-2 mt-2">
+      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+      <p className="text-muted-foreground text-sm">{isToolExecuting ? 'Executing tools...' : 'Loading...'}</p>
+    </div>
+  );
+};
+
 export default function AssistantMessage({ message }: AssistantMessageProps) {
   const {
     content: assistantContent,
@@ -42,12 +51,7 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
 
       <AIResponse>{assistantContent}</AIResponse>
 
-      {(isStreaming || isToolExecuting) && (
-        <div className="flex items-center space-x-2 mt-2">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground text-sm">{isToolExecuting ? 'Executing tools...' : 'Loading...'}</p>
-        </div>
-      )}
+      {(isStreaming || isToolExecuting) && <LoadingIndicator isToolExecuting={isToolExecuting} />}
     </div>
   );
 }

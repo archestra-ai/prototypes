@@ -12,14 +12,6 @@ pub mod sandbox;
 #[cfg(test)]
 pub mod test_fixtures;
 
-#[tauri::command]
-fn open_devtools(app: tauri::AppHandle) {
-    #[cfg(debug_assertions)]
-    if let Some(window) = app.get_webview_window("main") {
-        window.open_devtools();
-    }
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default().plugin(tauri_plugin_http::init());
@@ -55,7 +47,6 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_deep_link::init())
-        .invoke_handler(tauri::generate_handler![open_devtools])
         .setup(|app| {
             // Initialize database
             let app_handle = app.handle().clone();

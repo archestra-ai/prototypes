@@ -121,8 +121,7 @@ export const createToolCall = (part: any, toolCallId: string): ToolCall => {
 
 // Process assistant message parts
 export const processAssistantMessage = (
-  message: any, // Using any since this is from Vercel AI SDK
-  isStreaming: boolean
+  message: any // Using any since this is from Vercel AI SDK
 ): ProcessedMessage[] => {
   const result: ProcessedMessage[] = [];
   const allParts = message.parts || [];
@@ -221,8 +220,6 @@ export const processAssistantMessage = (
     // Single text block with no tools - process normally (handles streaming)
     const allTextContent = Array.from(textBlockMap.values()).join('');
     const { thinking, response } = parseThinkingContent(allTextContent);
-    const isLastMessage = message.isStreaming;
-    const isMessageStreaming = isLastMessage && isStreaming;
 
     result.push({
       id: message.id,
@@ -237,7 +234,7 @@ export const processAssistantMessage = (
 };
 
 // Process all messages
-export const processMessages = (messages: any[], isStreaming: boolean): ProcessedMessage[] => {
+export const processMessages = (messages: any[]): ProcessedMessage[] => {
   const result: ProcessedMessage[] = [];
 
   messages.forEach((message) => {
@@ -253,7 +250,7 @@ export const processMessages = (messages: any[], isStreaming: boolean): Processe
     }
 
     if (message.role === 'assistant') {
-      result.push(...processAssistantMessage(message, isStreaming));
+      result.push(...processAssistantMessage(message));
     } else {
       // Non-assistant messages stay as-is
       const rawContent = message.parts

@@ -115,10 +115,9 @@ export default function ChatInput(_props: ChatInputProps) {
       (window as any).__CHAT_METADATA__ = metadata;
 
       // For v5, sendMessage expects an object with text property
-      const result = await sendMessage({
+      await sendMessage({
         text: trimmedInput,
       });
-      console.log('[ChatInput] Message sent successfully, result:', result);
     } catch (error) {
       console.error('[ChatInput] Error sending message:', error);
     }

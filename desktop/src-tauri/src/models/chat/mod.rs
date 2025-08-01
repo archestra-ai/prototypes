@@ -372,7 +372,8 @@ mod tests {
         let message = ChatMessageModel {
             id: 1,
             chat_id: 1,
-            content: serde_json::json!({"role": "user", "content": "Hello"}),
+            role: "user".to_string(),
+            content: "Hello".to_string(),
             created_at: Utc::now(),
         };
 

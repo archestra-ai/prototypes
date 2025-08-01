@@ -1,5 +1,3 @@
-export * from './agent-store';
-
 export * from './connector-catalog-store';
 export * from './external-mcp-clients-store';
 export * from './mcp-servers-store';

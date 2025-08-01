@@ -50,8 +50,8 @@ export default function ChatHistory(_props: ChatHistoryProps) {
 
   // Process messages to split tool calls into separate entries
   const processedMessages = useMemo(() => {
-    return processMessages(messages, isStreaming);
-  }, [messages, isStreaming]);
+    return processMessages(messages);
+  }, [messages]);
 
   return (
     <ScrollArea id={scrollAreaId} className="h-full w-full border rounded-lg overflow-hidden">

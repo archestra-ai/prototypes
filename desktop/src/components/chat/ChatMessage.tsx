@@ -7,11 +7,10 @@ import { MessageContent } from './MessageContent';
 
 interface ChatMessageProps {
   message: UIMessage;
-  showReasoning?: boolean;
   isStreaming?: boolean;
 }
 
-export function ChatMessage({ message, showReasoning, isStreaming }: ChatMessageProps) {
+export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
 
@@ -30,7 +29,7 @@ export function ChatMessage({ message, showReasoning, isStreaming }: ChatMessage
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <MessageContent message={message} showReasoning={showReasoning} />
+        <MessageContent message={message} />
 
         {/* Streaming indicator */}
         {isStreaming && isAssistant && (

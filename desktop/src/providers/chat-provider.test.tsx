@@ -19,9 +19,23 @@ vi.mock('ai', () => ({
 }));
 
 vi.mock('@/stores/chat-store', () => ({
-  useChatStore: vi.fn(() => ({
-    currentChatSessionId: 'test-session-id',
-  })),
+  useChatStore: Object.assign(
+    vi.fn(() => ({
+      currentChatSessionId: 'test-session-id',
+      setStatus: vi.fn(),
+      setStreamingChatSessionId: vi.fn(),
+      updateChatMessages: vi.fn(),
+    })),
+    {
+      getState: vi.fn(() => ({
+        currentChatSessionId: 'test-session-id',
+        getCurrentChat: vi.fn(() => null),
+        setStatus: vi.fn(),
+        setStreamingChatSessionId: vi.fn(),
+        updateChatMessages: vi.fn(),
+      })),
+    }
+  ),
 }));
 
 vi.mock('@/stores/ollama-store', () => ({
@@ -123,40 +137,5 @@ describe('ChatProvider', () => {
     unmount();
 
     expect(window.__CHAT_STOP_STREAMING__).toBeUndefined();
-  });
-});
-
-describe('ChatProvider event handlers', () => {
-  it('handles data events through handleDataEvent', async () => {
-    const { handleDataEvent } = await import('./chat-provider/event-handlers');
-    const mockHandleDataEvent = vi.mocked(handleDataEvent);
-
-    const { useChat } = await import('@ai-sdk/react');
-    const mockUseChat = vi.mocked(useChat);
-
-    // Create a mock that captures the onData callback
-    let onDataCallback: ((data: any) => void) | undefined;
-    mockUseChat.mockImplementation((config: any) => {
-      onDataCallback = config?.onData;
-      return {
-        messages: [],
-        status: 'idle',
-        sendMessage: vi.fn(),
-        setMessages: vi.fn(),
-        stop: vi.fn(),
-      } as any;
-    });
-
-    render(
-      <ChatProvider>
-        <div>Test</div>
-      </ChatProvider>
-    );
-
-    // Simulate data event
-    const testData = { type: 'data-test', data: { foo: 'bar' } };
-    onDataCallback?.(testData);
-
-    expect(mockHandleDataEvent).toHaveBeenCalledWith(testData);
   });
 });

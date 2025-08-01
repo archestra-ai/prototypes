@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 
 import { ChatProvider } from '@/providers/chat-provider';
-import { useAgentStore } from '@/stores/agent-store';
 import { useChatStore } from '@/stores/chat-store';
 
 import ChatHistory from './ChatHistory';
@@ -12,7 +11,6 @@ interface ChatPageProps {}
 
 export default function ChatPage(_props: ChatPageProps) {
   const { loadChats } = useChatStore();
-  const { isAgentActive } = useAgentStore();
 
   // Load chats when component mounts
   useEffect(() => {

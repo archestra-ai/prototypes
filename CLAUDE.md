@@ -46,7 +46,7 @@ pnpm test
 # Run a single test file
 pnpm test path/to/test.tsx
 
-# Run frontend tests once (CI mode)  
+# Run frontend tests once (CI mode)
 pnpm test run
 
 # Run tests with coverage
@@ -116,7 +116,7 @@ npm start    # Production mode
 
 ## High-Level Architecture
 
-This is a **Tauri desktop application** that integrates AI/LLM capabilities with MCP (Model Context Protocol) support for a privacy-focused AI assistant with autonomous agent capabilities and extensible tool support. The application uses a fully streaming architecture with Server-Sent Events (SSE) for real-time chat and agent responses, built on top of Vercel AI SDK v5.
+This is a **Tauri desktop application** that integrates AI/LLM capabilities with MCP (Model Context Protocol) support for a privacy-focused AI assistant with extensible tool support. The application uses a fully streaming architecture with Server-Sent Events (SSE) for real-time chat responses, built on top of Vercel AI SDK v5.
 
 ### Tech Stack
 
@@ -137,20 +137,15 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `components/`: Reusable UI components
   - `ui/`: Base UI components (shadcn/ui style) - DO NOT MODIFY
     - `popover.tsx`: Added for UI interactions (installed via shadcn)
-    - `progress.tsx`: Added for progress indicators in agent task execution (installed via shadcn)
+    - `progress.tsx`: Added for progress indicators (installed via shadcn)
     - `alert.tsx`: Alert component for notifications and warnings
   - `kibo/`: AI-specific components (messages, code blocks, reasoning)
     - `code-block.tsx`: Rich code display with syntax highlighting, file tabs, copy functionality, and theme support
     - `tool-part.tsx`: Tool execution display with collapsible results
     - `ai-input.tsx`: Enhanced chat input with model and tool selection
-  - `agent/`: Autonomous agent components
-    - `AgentControlPanel.tsx`: Complete agent control interface with activation, pause/resume, and stop functionality
-    - `AgentModeIndicator.tsx`: Real-time visual indicators for agent state and progress
-    - `ReasoningPanel.tsx`: Configurable reasoning display with verbose/concise/hidden modes
-    - `TaskProgress.tsx`: Task execution progress tracking and visualization
   - `chat/`: Chat-specific components
-    - `ChatMessage.tsx`: Message rendering with agent metadata support
-    - `MessageContent.tsx`: Message content display with agent enhancements
+    - `ChatMessage.tsx`: Message rendering
+    - `MessageContent.tsx`: Message content display
   - `DeleteChatConfirmation.tsx`: Dialog for chat deletion confirmation
   - `TypewriterText.tsx`: Animated text display component
 - `pages/`: Main application pages
@@ -169,7 +164,6 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
   - `SettingsPage/`: Application settings
 - `stores/`: Zustand stores for state management
   - `chat-store.ts`: Chat state management with streaming integration via Vercel AI SDK
-  - `agent-store.ts`: Agent state management with task planning and execution tracking (backend-driven)
 - `hooks/`: Custom React hooks including MCP client hooks
   - `use-typewriter.ts`: Hook for typewriter text animation
   - `use-sse-chat.ts`: SSE chat streaming integration with Vercel AI SDK v5 (deprecated - use ChatProvider instead)
@@ -180,10 +174,9 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
   - `websocket.ts`: WebSocket client service for real-time event handling
   - `utils/`:
     - `ollama.ts`: Contains `convertMCPServerToolsToOllamaTools` for MCP tool integration
-    - `agent.ts`: Agent utility functions and helpers
 - `providers/`: React context providers
   - `chat-provider/`: Centralized chat state provider with SSE streaming support
-    - `event-handlers.ts`: SSE event handlers for agent-specific data events
+    - `event-handlers.ts`: SSE event handlers for data events
 - `types/`: TypeScript type definitions
   - `agent.ts`: Comprehensive agent types for task planning and execution
   - `agent-ui.ts`: UI-specific agent type definitions
@@ -277,6 +270,7 @@ The relationship ensures that deleting a chat automatically removes all associat
   - `created_at`: Timestamp with timezone
 
 The `MCPServerDefinition` struct used throughout the codebase:
+
 ```rust
 pub struct MCPServerDefinition {
     pub name: String,
@@ -285,6 +279,7 @@ pub struct MCPServerDefinition {
 ```
 
 **JSON Handling Pattern**:
+
 - Database storage: Fields are stored as `serde_json::Value` with proper error handling
 - API layer: OpenAPI schema correctly represents `server_config` as `ServerConfig` type
 - Serialization: Handled automatically by SeaORM with descriptive error messages
@@ -349,14 +344,15 @@ const chatTransport = new DefaultChatTransport({
         model: metadata.model || selectedModel,
         agent_context: metadata.agent_context,
         tools: metadata.tools,
-        options: metadata.options
-      }
-    }
-  }
+        options: metadata.options,
+      },
+    };
+  },
 });
 ```
 
 **Key Integration Points**:
+
 - Global `window.__CHAT_METADATA__` object for metadata injection (required by v5 SDK architecture)
 - `window.__CHAT_STOP_STREAMING__` for coordinated streaming control
 - Custom data event handlers for agent-specific SSE events
@@ -422,6 +418,7 @@ export const useItemStore = create<StoreState>((set) => ({
 The application provides two types of chat endpoints:
 
 **1. SSE Streaming Endpoint (for chat interactions):**
+
 ```typescript
 // Stream chat responses with optional agent support
 POST /llm/ollama/stream
@@ -445,6 +442,7 @@ Response: Server-Sent Events stream (Vercel AI SDK v5 compatible)
 **Important**: The `/llm/ollama/stream` endpoint is used for streaming LLM interactions (via Vercel AI SDK v5), while `/api/chat` endpoints are purely for database CRUD operations (managing chat sessions). These are completely separate concerns - streaming happens through SSE, while chat management uses REST.
 
 **2. CRUD Endpoints (for chat management):**
+
 ```typescript
 // List all chats (ordered by created_at DESC)
 GET /api/chat
@@ -475,6 +473,7 @@ Response: 204 No Content
 6. Agent metadata (plan IDs, step IDs, reasoning) is persisted with messages when agent mode is active
 
 **Backend SSE Event Processing**:
+
 - Standard Vercel AI SDK v5 events: `text-delta`, `tool-call`, `tool-result`, etc.
 - Custom data events prefixed with `data-` for agent-specific updates
 - Event handlers in frontend automatically update agent store and UI
@@ -501,13 +500,8 @@ Response: 204 No Content
   - Handles streaming messages with Vercel AI SDK v5 integration
   - Supports request cancellation via `AbortController`
   - Event listeners automatically sync backend changes to UI
-- **Agent State**: Dedicated agent store (`agent-store.ts`) for agent lifecycle
-  - Tracks agent mode, current plan, task progress, and execution state
-  - Manages working memory and reasoning history
-  - Handles tool approval workflows and error recovery
-  - All agent execution happens server-side; frontend is display-only
 - **Centralized Provider**: `ChatProvider` context for shared streaming state
-  - Integrates chat and agent stores for unified experience
+  - Integrates chat stores for unified experience
   - Manages SSE event handling and state synchronization
 - All API calls use generated TypeScript client for type safety
 
@@ -624,64 +618,14 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
   - Common issues and troubleshooting
   - Future enhancement roadmap
 
-### Agent System Architecture
-
-The agent system provides autonomous task planning and execution capabilities with all logic running server-side:
-
-#### Agent Lifecycle
-
-1. **Initialization**: Agent activates with specific mode and configuration
-2. **Planning**: Breaks down user requests into structured task plans (backend)
-3. **Execution**: Executes tasks with tool selection and error handling (backend)
-4. **Monitoring**: Real-time progress tracking via SSE events
-5. **Completion**: Graceful completion with summary and metrics
-
-#### Agent Components
-
-- **Agent Store**: Frontend state management for display and user interaction
-- **Backend Agent Executor**: Server-side agent logic in Rust
-- **SSE Event Stream**: Real-time updates for agent state, reasoning, and progress
-- **Tool Approval System**: Human-in-the-loop approval via SSE events
-- **Memory Manager**: Working memory with relevance scoring (backend)
-
-#### SSE Event Types for Agent
-
-The backend sends these additional SSE events during agent execution:
-
-```typescript
-// Agent-specific SSE events (sent as data events)
-type AgentDataEvent =
-  | { type: 'data-agent-state', data: { mode: AgentMode, objective?: string } }
-  | { type: 'data-reasoning', data: ReasoningEntry }
-  | { type: 'data-task-progress', data: TaskProgress }
-  | { type: 'data-tool-call', data: { tool: string, args: any } }
-  | { type: 'data-tool-approval-request', data: ToolApprovalRequest }
-  | { type: 'data-working-memory-update', data: MemoryEntry }
-  | { type: 'data-agent-error', data: { error: string } }
-```
-
 **Event Processing Flow**:
+
 ```typescript
 // Frontend event handler pattern
-if (data.type.startsWith('data-')) {
+if (data.type.startsWith("data-")) {
   const dataType = data.type.substring(5); // Remove 'data-' prefix
   const handler = EVENT_HANDLERS[dataType];
   if (handler) handler(data.data);
-}
-```
-
-#### Agent Configuration
-
-Agent configuration is managed through the chat request's metadata:
-
-```typescript
-// Agent context passed with chat messages
-interface AgentContext {
-  mode: AgentMode;
-  tools: string[];
-  instructions: string;
-  planId?: string;
-  stepId?: string;
 }
 ```
 
@@ -696,15 +640,6 @@ interface AgentContext {
 - **Streaming Tests**: Test message accumulation and persistence during streaming
 - **Event Tests**: Verify WebSocket messages are broadcast correctly for UI updates
 
-#### Agent System Testing
-
-- **Agent Store Tests**: Comprehensive state management and lifecycle testing
-- **Task Planning Tests**: Verify task breakdown and dependency management
-- **Tool Approval Tests**: Test human-in-the-loop approval workflows
-- **Memory Management Tests**: Test working memory with TTL and relevance
-- **Error Recovery Tests**: Verify agent error handling and recovery strategies
-- **Integration Tests**: End-to-end agent execution with mock tools
-
 #### SSE Event Testing
 
 - **Event Handler Tests**: Verify all custom data events are processed correctly
@@ -717,21 +652,14 @@ interface AgentContext {
 - **Chat History Tests** (`ChatHistory.test.tsx`): Component rendering and auto-scroll behavior
 - **Message Processing Tests** (`message-processing.test.ts`): Tool result extraction and message transformation
 - **Auto-scroll Hook Tests** (`use-auto-scroll.test.ts`): Scroll behavior during streaming
-- **Event Handler Tests** (`event-handlers.test.ts`): SSE event processing and agent state updates
-- **Agent Store Tests** (`agent-store.test.ts`): Complete agent lifecycle and state management
+- **Event Handler Tests** (`event-handlers.test.ts`): SSE event processing state updates
 - **Chat Provider Tests** (`chat-provider.test.tsx`): Provider setup and event subscription
 
 #### Test Coverage Gaps
 
-**Well-Tested Areas**:
-- Agent store lifecycle and state management
-- Message processing and rendering
-- Tool approval workflows
-- SSE event handlers
-
 **Areas Needing More Coverage**:
+
 - Backend SSE streaming endpoint integration tests
 - WebSocket event broadcasting tests
-- End-to-end agent execution with real tool calls
 - Chat title generation and broadcasting
 - Error recovery during streaming interruptions

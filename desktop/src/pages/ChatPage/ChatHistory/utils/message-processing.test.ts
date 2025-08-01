@@ -191,7 +191,7 @@ describe('message-processing utilities', () => {
         parts: [{ type: 'text', text: 'Hello world' }],
       };
 
-      const result = processAssistantMessage(message, false);
+      const result = processAssistantMessage(message);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
@@ -215,7 +215,7 @@ describe('message-processing utilities', () => {
         ],
       };
 
-      const result = processAssistantMessage(message, false);
+      const result = processAssistantMessage(message);
 
       expect(result).toHaveLength(1);
       expect(result[0].thinking).toBe('\nAnalyzing request...\n');
@@ -243,7 +243,7 @@ describe('message-processing utilities', () => {
         ],
       };
 
-      const result = processAssistantMessage(message, false);
+      const result = processAssistantMessage(message);
 
       expect(result).toHaveLength(2);
       expect(result[0].content).toBe('Let me search for that.');
@@ -259,7 +259,7 @@ describe('message-processing utilities', () => {
         isStreaming: true,
       };
 
-      const result = processAssistantMessage(message, true);
+      const result = processAssistantMessage(message);
 
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe('Streaming...');
@@ -276,7 +276,7 @@ describe('message-processing utilities', () => {
         ],
       };
 
-      const result = processAssistantMessage(message, false);
+      const result = processAssistantMessage(message);
 
       expect(result).toHaveLength(2);
       expect(result[0].content).toBe('First part continued');
@@ -305,7 +305,7 @@ describe('message-processing utilities', () => {
         },
       ];
 
-      const result = processMessages(messages, false);
+      const result = processMessages(messages);
 
       expect(result).toHaveLength(3);
       expect(result[0].role).toBe('user');
@@ -325,7 +325,7 @@ describe('message-processing utilities', () => {
         },
       ];
 
-      const result = processMessages(messages, false);
+      const result = processMessages(messages);
 
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe('No parts array');
@@ -348,7 +348,7 @@ describe('message-processing utilities', () => {
         },
       ];
 
-      const result = processMessages(messages, false);
+      const result = processMessages(messages);
 
       // Should split into text and tool messages
       expect(result.length).toBeGreaterThan(1);
@@ -363,7 +363,7 @@ describe('message-processing utilities', () => {
         { id: '3', role: 'user', parts: [{ type: 'text', text: 'Third' }] },
       ];
 
-      const result = processMessages(messages, false);
+      const result = processMessages(messages);
 
       expect(result.map((m) => m.content)).toEqual(['First', 'Second', 'Third']);
     });

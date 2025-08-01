@@ -7,12 +7,39 @@ import { useChatStore } from '@/stores/chat-store';
 import { useOllamaStore } from '@/stores/ollama-store';
 import { ChatMessageStatus } from '@/types';
 
+// Utility function to extract message content from Vercel AI SDK message format
+function extractMessageContent(message: any): string {
+  if (!message || message.role !== 'user') return '';
+
+  // Check if message has parts array (new format)
+  if (message.parts && Array.isArray(message.parts)) {
+    const textPart = message.parts.find((part: any) => part.type === 'text');
+    return textPart?.text || '';
+  }
+
+  // Fallback to content property (if it exists)
+  return message.content || '';
+}
+
 // Use window object to share metadata between ChatInput and ChatProvider
+// Define proper types for chat metadata
+interface ChatMetadata {
+  model?: string;
+  tools?: string[];
+  agent_context?: any; // TODO: Define specific type when agent context structure is finalized
+  options?: {
+    temperature?: number;
+    top_p?: number;
+    top_k?: number;
+    num_predict?: number;
+  };
+}
+
 // This is necessary because prepareSendMessagesRequest doesn't have access to React state
 // and Vercel AI SDK v5 doesn't provide a way to pass metadata through sendMessage
 declare global {
   interface Window {
-    __CHAT_METADATA__: any;
+    __CHAT_METADATA__?: ChatMetadata;
     __CHAT_STOP_STREAMING__?: () => void;
   }
 }
@@ -31,19 +58,25 @@ export function ChatProvider({ children }: ChatProviderProps) {
     return new DefaultChatTransport({
       api: `${ARCHESTRA_SERVER_BASE_HTTP_URL}/llm/ollama/stream`,
       prepareSendMessagesRequest: ({ messages }: { messages: any[] }) => {
-        // Get the current model from Ollama store
+        // Get fresh state at execution time to avoid race conditions
         const { selectedModel } = useOllamaStore.getState();
+        const { currentChatSessionId } = useChatStore.getState();
 
-        // Get metadata from window object (set by ChatInput)
-        const metadata = window.__CHAT_METADATA__ || {};
+        // Get metadata from window object (set by ChatInput) with type safety
+        const metadata: ChatMetadata = window.__CHAT_METADATA__ || {};
 
-        // Get the current chat session ID
-        const currentChatSessionId = useChatStore.getState().currentChatSessionId;
+        // The messages array contains the full chat history
+        // When a new message is sent via sendMessage({ text: "..." }),
+        // it gets added to the messages array by the SDK
+        const lastMessage = messages[messages.length - 1];
 
-        // Build the request body with required fields and metadata
+        // Extract the content from the last message
+        const messageContent = extractMessageContent(lastMessage);
+
+        // Build the request body with only the new message
         const body = {
           session_id: currentChatSessionId,
-          messages: messages,
+          message: messageContent, // Send just the text content
           model: metadata.model || selectedModel || 'qwen3:4b',
           tools: metadata.tools,
           agent_context: metadata.agent_context,
@@ -52,7 +85,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
         };
 
         // Clear metadata after use to prevent stale data
-        window.__CHAT_METADATA__ = undefined;
+        delete window.__CHAT_METADATA__;
 
         return { body };
       },

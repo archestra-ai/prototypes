@@ -330,11 +330,6 @@ DELETE /api/chat/{id}     - Delete chat and messages
 3. **New Models**:
    - Pull model in Ollama
    - Model automatically appears in UI selector
-4. **Agent Features**:
-   - Add new agent modes in `agent-store.ts`
-   - Extend `ReasoningEntry` types for new decision types
-   - Add tool categories in approval system
-   - Update `AgentContext` interface if needed
 
 ### Common Issues
 

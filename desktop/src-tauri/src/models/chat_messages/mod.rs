@@ -15,8 +15,8 @@ pub struct Model {
     pub id: i32,
     pub chat_id: i32,
     pub created_at: DateTime<Utc>,
-    #[sea_orm(column_type = "Json")]
-    pub content: JsonValue,
+    pub role: String,
+    pub content: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -56,9 +56,23 @@ impl Model {
                 DbErr::RecordNotFound(format!("Chat not found with session_id: {chat_session_id}"))
             })?;
 
+        // Extract role and content from JSON
+        let role = content
+            .get("role")
+            .and_then(|v| v.as_str())
+            .unwrap_or("user")
+            .to_string();
+
+        let message_content = content
+            .get("content")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+
         let new_chat_message = ActiveModel {
             chat_id: Set(chat.id),
-            content: Set(content),
+            role: Set(role),
+            content: Set(message_content),
             ..Default::default()
         };
 
@@ -120,7 +134,8 @@ mod tests {
             .unwrap();
 
         assert_eq!(message.chat_id, chat.id);
-        assert_eq!(message.content, content);
+        assert_eq!(message.role, "user");
+        assert_eq!(message.content, "Hello, world!");
     }
 
     #[rstest]
