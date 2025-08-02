@@ -38,7 +38,6 @@
     "@types/react-dom": "^19.1.7",
     "drizzle-kit": "^0.31.4",
     "electron": "37.2.5",
-    "electron-rebuild": "^3.2.9",
     "husky": "^9.1.7",
     "jsdom": "^26.1.0",
     "lint-staged": "^16.1.2",
