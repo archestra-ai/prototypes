@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "85838c0a-d39b-4ee8-8329-d27dd8ad8af9",
+  "id": "b2a4f278-2cf3-4fe1-b164-3859c3839da8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "mcp_servers": {
@@ -39,7 +39,9 @@
       "indexes": {
         "mcp_servers_name_unique": {
           "name": "mcp_servers_name_unique",
-          "columns": ["name"],
+          "columns": [
+            "name"
+          ],
           "isUnique": true
         }
       },
