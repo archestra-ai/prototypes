@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Archestra AI",
-  "version": "0.1.0",
+  "version": "0.0.7",
   "identifier": "com.archestra.ai",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -18,7 +18,10 @@
         "resizable": true,
         "title": "",
         "titleBarStyle": "Overlay",
-        "trafficLightPosition": { "x": 16, "y": 17 }
+        "trafficLightPosition": {
+          "x": 16,
+          "y": 17
+        }
       }
     ],
     "security": {
@@ -28,13 +31,23 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
-    "externalBin": ["binaries/ollama-v0.9.6"]
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/ollama-v0.9.6"
+    ]
   },
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["archestra-ai"]
+        "schemes": [
+          "archestra-ai"
+        ]
       }
     }
   }
