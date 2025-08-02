@@ -1,7 +1,5 @@
-build
 coverage
 dist
-target
-src-tauri/gen
 pnpm-lock.yaml
 CHANGELOG.md
+src/database/migrations
