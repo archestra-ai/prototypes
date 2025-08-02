@@ -16,6 +16,11 @@
           "args": ["serve"]
         },
         {
+          "name": "binaries/podman-v5.5.2",
+          "sidecar": true,
+          "args": true
+        },
+        {
           "name": "pkill",
           "args": ["-f", "ollama"]
         }

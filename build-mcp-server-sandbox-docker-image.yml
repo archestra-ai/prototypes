@@ -1,0 +1,60 @@
+name: Build MCP Server Sandbox Docker Image
+description: 'Builds the MCP server sandbox Docker image'
+
+on:
+  workflow_call:
+    inputs:
+      push_to_gcr:
+        description: 'Whether to push the image to GCR'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  DOCKER_IMAGE_NAME: archestra/mcp-server-sandbox
+  # TODO: Update this when GCR is set up
+  GCR_REGISTRY: gcr.io/archestra-project
+
+jobs:
+  build-docker-image:
+    name: Build MCP Server Sandbox Image
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Authenticate to GCR
+        if: inputs.push_to_gcr
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCR_SERVICE_ACCOUNT_KEY }}
+      
+      - name: Configure Docker for GCR
+        if: inputs.push_to_gcr
+        run: |
+          gcloud auth configure-docker gcr.io
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./desktop/src-tauri
+          file: ./desktop/src-tauri/Dockerfile.mcp-server-sandbox
+          tags: |
+            ${{ env.DOCKER_IMAGE_NAME }}:latest
+            ${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          push: false
+      
+      - name: Push to GCR
+        if: inputs.push_to_gcr
+        run: |
+          # TODO: Update these commands when GCR is set up
+          docker tag ${{ env.DOCKER_IMAGE_NAME }}:latest ${{ env.GCR_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:latest
+          docker tag ${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }} ${{ env.GCR_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.GCR_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:latest
+          docker push ${{ env.GCR_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}

@@ -1,5 +1,3 @@
-pub mod node;
-
 use crate::database::connection::get_database_connection_with_app;
 use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel, ServerConfig};
 use rmcp::model::{Resource as MCPResource, Tool as MCPTool};
@@ -28,7 +26,9 @@ pub struct FlexibleJsonRpcRequest {
 
 #[derive(Debug, Clone)]
 pub enum ServerType {
-    Process,
+    Container {
+        container_id: String,
+    },
     Http {
         url: String,
         headers: HashMap<String, String>,
@@ -99,75 +99,50 @@ impl MCPServerManager {
             }
         }
 
-        // Handle special case for npx commands
-        let (actual_command, actual_args) = if command == "npx" {
-            let node_info = node::detect_node_installation();
-
-            if !node_info.is_available() {
-                let instructions = node::get_node_installation_instructions();
-                return Err(format!("Cannot start MCP server '{name}': {instructions}"));
-            }
-
-            if args.is_empty() {
-                return Err(format!(
-                    "No package specified for npx command in server '{name}'"
-                ));
-            }
-
-            let package_name = &args[0];
-            let remaining_args = args[1..].to_vec();
-
-            match node::get_npm_execution_command(package_name, &node_info) {
-                Ok((cmd, cmd_args)) => {
-                    let mut all_args = cmd_args;
-                    all_args.extend(remaining_args);
-                    (cmd, all_args)
-                }
-                Err(e) => return Err(format!("Failed to prepare npm execution for '{name}': {e}")),
-            }
-        } else if command == "http" {
-            // Handle HTTP-based MCP server
+        // Handle HTTP-based MCP server
+        if command == "http" {
             return self.start_http_mcp_server(name, args, env).await;
-        } else {
-            (command.clone(), args.clone())
-        };
+        }
 
         let env_vars = env.unwrap_or_default();
         debug!(
-            "🚀 MCP [{}] Starting: {} {}",
+            "🚀 MCP [{}] Starting container with command: {} {}",
             name,
-            actual_command,
-            actual_args.join(" ")
+            command,
+            args.join(" ")
         );
 
-        // Start the process with sandbox-exec for security (macOS only)
-        let mut cmd = if cfg!(target_os = "macos") {
-            let mut sandbox_cmd = Command::new("sandbox-exec");
-            sandbox_cmd
-                .arg("-f")
-                .arg("./sandbox-exec-profiles/mcp-server-everything-for-now.sb")
-                .arg(&actual_command)
-                .args(&actual_args)
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .kill_on_drop(true);
-            sandbox_cmd
-        } else {
-            let mut regular_cmd = Command::new(&actual_command);
-            regular_cmd
-                .args(&actual_args)
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .kill_on_drop(true);
-            regular_cmd
-        };
+        // Generate a unique container name
+        let container_name = format!("mcp-server-{}", name.replace(" ", "-").to_lowercase());
+        
+        // Get the podman binary path
+        let podman_path = get_podman_binary_path()?;
+        
+        // Start the container using podman
+        let mut cmd = Command::new(&podman_path);
+        cmd
+            .arg("run")
+            .arg("--name")
+            .arg(&container_name)
+            .arg("--rm") // Remove container when it exits
+            .arg("-i") // Interactive mode for stdin
+            .arg("--pull=never") // Use local image only
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true);
 
-        // Set environment variables
+        // Add environment variables
         for (key, value) in env_vars {
-            cmd.env(key, value);
+            cmd.arg("-e").arg(format!("{}={}", key, value));
         }
+        
+        // Add the image name (TODO: This will be the GCR image URL later)
+        cmd.arg("archestra/mcp-server-sandbox:latest");
+        
+        // Add the MCP server command and args
+        cmd.arg(&command);
+        cmd.args(&args);
 
         let mut child = cmd
             .spawn()
@@ -245,9 +220,11 @@ impl MCPServerManager {
         // Create server instance
         let server = MCPServer {
             name: name.clone(),
-            command: actual_command,
-            args: actual_args,
-            server_type: ServerType::Process,
+            command: command.clone(),
+            args: args.clone(),
+            server_type: ServerType::Container {
+                container_id: container_name.clone(),
+            },
             tools: Vec::new(),
             resources: Vec::new(),
             stdin_tx: Some(stdin_tx),
@@ -323,6 +300,22 @@ impl MCPServerManager {
 
             // Close stdin channel
             drop(server.stdin_tx);
+
+            // For containers, we need to stop the container explicitly
+            if let ServerType::Container { container_id } = &server.server_type {
+                // Stop the container using podman
+                if let Ok(podman_path) = get_podman_binary_path() {
+                    let stop_result = Command::new(&podman_path)
+                        .arg("stop")
+                        .arg(container_id)
+                        .output()
+                        .await;
+                    
+                    if let Err(e) = stop_result {
+                        error!("⚠️ MCP [{server_name}] Failed to stop container: {e}");
+                    }
+                }
+            }
 
             // Kill the process if it exists
             if let Some(process_handle) = server.process_handle {
@@ -407,7 +400,7 @@ impl MCPServerManager {
                 }
                 Ok(response_text)
             }
-            ServerType::Process => {
+            ServerType::Container { .. } => {
                 let stdin_tx = server.stdin_tx.as_ref().ok_or_else(|| {
                     error!("❌ MCP [{server_name}] No stdin channel available");
                     "No stdin channel available".to_string()
@@ -589,4 +582,29 @@ pub async fn forward_raw_request(
     MCP_SERVER_MANAGER
         .forward_raw_request(server_name, request_body)
         .await
+}
+
+/// Get the path to the podman binary
+pub fn get_podman_binary_path() -> Result<String, String> {
+    // For now, use a simple path resolution
+    // This will be updated when Tauri app context is available
+    #[cfg(target_os = "macos")]
+    {
+        #[cfg(target_arch = "x86_64")]
+        return Ok("binaries/podman-v5.5.2-x86_64-apple-darwin".to_string());
+        #[cfg(target_arch = "aarch64")]
+        return Ok("binaries/podman-v5.5.2-aarch64-apple-darwin".to_string());
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Ok("binaries/podman-v5.5.2-x86_64-unknown-linux-gnu".to_string())
+    }
+    #[cfg(target_os = "windows")]
+    {
+        Ok("binaries/podman-v5.5.2-x86_64-pc-windows-msvc.exe".to_string())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    {
+        Err("Unsupported platform".to_string())
+    }
 }
