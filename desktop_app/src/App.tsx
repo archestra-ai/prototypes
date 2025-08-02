@@ -1,10 +1,11 @@
 import React from 'react';
-import { TestChat } from './TestChat';
+
 import { Button } from '../components/ui/button';
+import { TestChat } from './TestChat';
 
 export function App() {
   const [serverPort, setServerPort] = React.useState(0);
-  
+
   React.useEffect(() => {
     window.electronAPI.getServerPort().then(setServerPort);
   }, []);

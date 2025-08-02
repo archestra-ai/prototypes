@@ -1,7 +1,6 @@
 /**
  * https://orm.drizzle.team/docs/sql-schema-declaration#advanced
  */
-
 import { sql } from 'drizzle-orm';
 import { text } from 'drizzle-orm/sqlite-core';
 

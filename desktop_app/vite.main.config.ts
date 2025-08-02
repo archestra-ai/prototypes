@@ -10,15 +10,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: [
-        '@ai-sdk/openai',
-        'ai',
-        'better-sqlite3',
-        'cors',
-        'dotenv',
-        'express',
-        'ollama-ai-provider',
-      ],
+      external: ['@ai-sdk/openai', 'ai', 'better-sqlite3', 'cors', 'dotenv', 'express', 'ollama-ai-provider'],
     },
   },
 });
