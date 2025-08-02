@@ -6,7 +6,7 @@ An Electron application with React that uses Vercel AI SDK to chat with OpenAI.
 
 1. Install dependencies:
 ```bash
-npm install
+pnpm install
 ```
 
 2. Create a `.env` file in the root directory:
@@ -22,7 +22,7 @@ OPENAI_API_KEY=your-actual-api-key-here
 ## Running the app
 
 ```bash
-npm start
+pnpm start
 ```
 
 ## Features
