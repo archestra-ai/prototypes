@@ -1,7 +1,12 @@
-use crate::database::migration::Migrator;
+use std::path::PathBuf;
+
 use rstest::*;
 use sea_orm::{Database, DatabaseConnection};
 use sea_orm_migration::MigratorTrait;
+
+use crate::database::migration::Migrator;
+use crate::sandbox;
+use crate::gateway::websocket;
 
 /// Creates an in-memory SQLite database with migrations applied
 #[fixture]
@@ -17,4 +22,19 @@ pub async fn database() -> DatabaseConnection {
         .expect("Failed to run migrations");
 
     db
+}
+
+#[fixture]
+pub fn app_data_dir() -> PathBuf {
+    PathBuf::from("/tmp/archestra-test")
+}
+
+#[fixture]
+pub fn mcp_server_sandbox_service() -> sandbox::MCPServerManager {
+    sandbox::MCPServerManager::new()
+}
+
+#[fixture]
+pub fn websocket_service() -> websocket::Service {
+    websocket::Service::new()
 }

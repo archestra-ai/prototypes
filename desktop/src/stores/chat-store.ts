@@ -2,13 +2,7 @@ import { Message as OllamaMessage, Tool as OllamaTool, ToolCall as OllamaToolCal
 import { create } from 'zustand';
 
 import { DEFAULT_CHAT_TITLE } from '@/consts';
-import {
-  ChatWithMessages as ServerChatWithMessages,
-  createChat,
-  deleteChat,
-  getAllChats,
-  updateChat,
-} from '@/lib/api-client';
+import { ChatWithMessages as ServerChatWithMessages, createChat, deleteChat, getAllChats, updateChat } from '@/lib/api';
 import {
   checkModelSupportsTools,
   generateNewMessageCreatedAt,

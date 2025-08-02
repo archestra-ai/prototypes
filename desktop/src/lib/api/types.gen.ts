@@ -59,7 +59,7 @@ export type ExternalMcpClient = {
 };
 
 export type InstallMcpServerRequest = {
-  mcp_connector_id: string;
+  mcp_server_catalog_id: string;
 };
 
 export type McpClientInfo = {
@@ -87,10 +87,6 @@ export type McpConnectorCatalogEntry = {
 export type McpConnectorCatalogEntryOAuth = {
   provider: string;
   required: boolean;
-};
-
-export type McpoAuthResponse = {
-  auth_url: string;
 };
 
 export type McpRequestLog = {
@@ -147,6 +143,20 @@ export type McpServerConfig = {
   transport: string;
 };
 
+export type OAuthErrorWebSocketPayload = {
+  error: string;
+  mcp_server_catalog_id: string;
+};
+
+export type OAuthStartParams = {
+  mcp_server_catalog_id: string;
+  provider: string;
+};
+
+export type OAuthSuccessWebSocketPayload = {
+  mcp_server_catalog_id: string;
+};
+
 export type PaginatedMcpRequestLogResponseMcpRequestLog = {
   data: Array<{
     client_info?: string | null;
@@ -170,10 +180,6 @@ export type PaginatedMcpRequestLogResponseMcpRequestLog = {
   total: number;
 };
 
-export type StartMcpServerOAuthRequest = {
-  mcp_connector_id: string;
-};
-
 export type ToolCall = {
   function: ToolCallFunction;
 };
@@ -187,10 +193,19 @@ export type UpdateChatRequest = {
   title?: string | null;
 };
 
-export type WebSocketMessage = {
-  payload: ChatTitleUpdatedWebSocketPayload;
-  type: 'chat-title-updated';
-};
+export type WebSocketMessage =
+  | {
+      payload: ChatTitleUpdatedWebSocketPayload;
+      type: 'chat-title-updated';
+    }
+  | {
+      payload: OAuthSuccessWebSocketPayload;
+      type: 'oauth-success';
+    }
+  | {
+      payload: OAuthErrorWebSocketPayload;
+      type: 'oauth-error';
+    };
 
 export type GetAllChatsData = {
   body?: never;
@@ -584,10 +599,19 @@ export type InstallMcpServerFromCatalogResponses = {
 };
 
 export type StartMcpServerOauthData = {
-  body: StartMcpServerOAuthRequest;
+  body?: never;
   path?: never;
-  query?: never;
-  url: '/api/mcp_server/start_oauth';
+  query: {
+    /**
+     * ID of the MCP server from catalog
+     */
+    mcp_server_catalog_id: string;
+    /**
+     * OAuth provider of the MCP server
+     */
+    provider: string;
+  };
+  url: '/api/mcp_server/catalog/start_oauth_installation';
 };
 
 export type StartMcpServerOauthErrors = {
@@ -601,10 +625,8 @@ export type StartMcpServerOauthResponses = {
   /**
    * OAuth authorization URL
    */
-  200: McpoAuthResponse;
+  200: unknown;
 };
-
-export type StartMcpServerOauthResponse = StartMcpServerOauthResponses[keyof StartMcpServerOauthResponses];
 
 export type UninstallMcpServerData = {
   body?: never;

@@ -1,6 +1,7 @@
-use tauri::Manager;
+#[macro_use] extern crate log;
+
+use tauri::{Manager};
 use tauri_plugin_deep_link::DeepLinkExt;
-use tracing::{debug, error, info};
 
 pub mod database;
 pub mod gateway;
@@ -14,52 +15,64 @@ pub mod test_fixtures;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut builder = tauri::Builder::default().plugin(tauri_plugin_http::init());
 
-    // Configure the single instance plugin which should always be the first plugin you register
-    // https://v2.tauri.app/plugin/deep-linking/#desktop
-    #[cfg(desktop)]
-    {
-        debug!("Setting up single instance plugin...");
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            debug!("SINGLE INSTANCE CALLBACK: a new app instance was opened with {argv:?}");
+    // Initialize logging
+    let log_plugin = tauri_plugin_log::Builder::new()
+        // By default the plugin logs to stdout and to a file in the application logs directory.
+        // To only use your own log targets, call clear_targets
+        // https://v2.tauri.app/plugin/logging/#log-targets
+        .clear_targets()
+        .target(tauri_plugin_log::Target::new(
+            tauri_plugin_log::TargetKind::Stdout,
+        ))
+        .target(tauri_plugin_log::Target::new(
+            tauri_plugin_log::TargetKind::LogDir {
+                file_name: Some("archestra".into())
+            },
+        ))
+        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(10))
+        .max_file_size(1024 * 1024 * 5) // 5MB
+        .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseUtc)
+        // use WARN level for all logs by default
+        // except for logging defined in our crate, which uses DEBUG level
+        .level(log::LevelFilter::Warn)
+        .level_for("archestra_ai_lib", log::LevelFilter::Debug)
+        .with_colors(fern::colors::ColoredLevelConfig {
+            error: fern::colors::Color::Red,
+            warn: fern::colors::Color::Yellow,
+            info: fern::colors::Color::Green,
+            debug: fern::colors::Color::Cyan,
+            trace: fern::colors::Color::Magenta,
+        })
+        .build();
 
-            // HANDLER 1: Single Instance Deep Link Handler
-            // This handles deep links when the app is ALREADY RUNNING and user clicks a deep link
-            // Scenario: App is open → User clicks archestra-ai://foo-bar → This prevents opening
-            // a second instance and processes the deep link in the existing app
-            for arg in argv {
-                if arg.starts_with("archestra-ai://") {
-                    debug!("SINGLE INSTANCE: Found deep link in argv: {arg}");
-                    let app_handle = app.clone();
-                    tauri::async_runtime::spawn(async move {
-                        gateway::api::oauth::handle_oauth_callback(app_handle, arg.to_string())
-                            .await;
-                    });
-                }
-            }
-        }));
-        debug!("Single instance plugin set up successfully");
-    }
-
-    let app = builder
+    let app = tauri::Builder::default()
+        .plugin(log_plugin)
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_deep_link::init())
-        .setup(|app| {
+        .setup(move |app| {
+            // Get the app data directory
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|e| format!("Failed to get app data directory: {e}"))?;
+
             // Initialize database
-            let app_handle = app.handle().clone();
             let db = tauri::async_runtime::block_on(async {
-                database::init_database(&app_handle)
+                database::init_database(&app_data_dir)
                     .await
                     .map_err(|e| format!("Database error: {e}"))
-            })?;
+            }).unwrap();
+
+            let websocket_service = gateway::websocket::Service::new();
 
             // Start all persisted MCP servers
-            let app_handle = app.handle().clone();
+            let db_for_mcp = db.clone();
+            let app_data_dir_for_mcp = app_data_dir.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = sandbox::start_all_mcp_servers(app_handle).await {
+                if let Err(e) = sandbox::start_all_mcp_servers(db_for_mcp, &app_data_dir_for_mcp).await {
                     error!("Failed to start MCP servers: {e}");
                 }
             });
@@ -75,45 +88,64 @@ pub fn run() {
             // Start the archestra gateway server
             let user_id = "archestra_user".to_string();
             let db_for_mcp = db.clone();
+            let app_handle = app.handle().clone();
+            let app_data_dir_for_gateway = app_data_dir.clone();
+            let websocket_service_for_gateway = websocket_service.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = gateway::start_gateway(user_id, db_for_mcp).await {
+                if let Err(e) = gateway::start_gateway(
+                    app_handle,
+                    app_data_dir_for_gateway,
+                    websocket_service_for_gateway,
+                    user_id,
+                    db_for_mcp,
+                )
+                .await
+                {
                     error!("Failed to start gateway: {e}");
                 }
             });
 
             // Sync all connected external MCP clients
-            let db = db.clone();
+            let db_for_sync = db.clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) =
-                    models::external_mcp_client::Model::sync_all_connected_external_mcp_clients(&db)
-                        .await
+                    models::external_mcp_client::Model::sync_all_connected_external_mcp_clients(
+                        &db_for_sync,
+                    )
+                    .await
                 {
                     error!("Failed to sync all connected external MCP clients: {e}");
                 }
             });
 
-            // HANDLER 2: Deep Link Plugin Handler
-            // This handles deep links when the app is FIRST LAUNCHED via deep link
-            // Scenario: App is NOT running → User clicks archestra-ai://foo-bar → App starts up
-            // and this handler processes the initial deep link during startup
-            // https://v2.tauri.app/plugin/deep-linking/#listening-to-deep-links
-            debug!("Setting up deep link handler...");
-            let app_handle = app.handle().clone();
+            // deep link handler
+            // TODO: when we support > 1 deep link, we should update this logic to use a map of deep link handlers
+            let app_data_dir = app_data_dir.clone();
+            let websocket_service = websocket_service.clone();
+            let db = db.clone();
             app.deep_link().on_open_url(move |event| {
                 let urls = event.urls();
-                debug!("DEEP LINK PLUGIN: Received URLs: {urls:?}");
+
+                debug!("received deep link URLs: {urls:?}");
+
                 for url in urls {
-                    debug!("DEEP LINK PLUGIN: Processing URL: {url}");
-                    let app_handle = app_handle.clone();
+                    let app_data_dir = app_data_dir.clone();
+                    let websocket_service = websocket_service.clone();
+                    let db = db.clone();
                     tauri::async_runtime::spawn(async move {
-                        gateway::api::oauth::handle_oauth_callback(app_handle, url.to_string())
-                            .await;
+                        gateway::api::mcp_server::oauth::handle_oauth_callback(
+                            &app_data_dir,
+                            db.clone(),
+                            websocket_service,
+                            url.to_string(),
+                        )
+                        .await;
                     });
                 }
             });
-            debug!("Deep link handler set up successfully");
 
-            #[cfg(debug_assertions)] // only include this code on debug builds
+            // open devtools on debug builds
+            #[cfg(debug_assertions)]
             {
                 let window = app.get_webview_window("main").unwrap();
                 window.open_devtools();

@@ -3,7 +3,7 @@ import { Activity, Calendar, Clock, Server } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { type McpRequestLog } from '@/lib/api-client';
+import { type McpRequestLog } from '@/lib/api';
 import { useMCPLogsStore } from '@/stores/mcp-logs-store';
 
 import { formatDuration, formatTimestamp, getStatusColor, getStatusLabel } from '../utils';

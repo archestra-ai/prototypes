@@ -3,7 +3,7 @@ use sea_orm::entity::prelude::*;
 use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::error;
+use std::path::PathBuf;
 use utoipa::ToSchema;
 
 use crate::sandbox;
@@ -69,7 +69,7 @@ pub struct ConnectorCatalogEntry {
 
 impl Model {
     /// Save an MCP server definition to the database (without starting it)
-    pub async fn save_server_without_lifecycle(
+    async fn save_server_without_lifecycle(
         db: &DatabaseConnection,
         definition: &MCPServerDefinition,
     ) -> Result<Model, DbErr> {
@@ -96,6 +96,7 @@ impl Model {
     /// Save an MCP server definition to the database, start it and sync all connected external MCP clients
     pub async fn save_server(
         db: &DatabaseConnection,
+        app_data_dir: &PathBuf,
         definition: &MCPServerDefinition,
     ) -> Result<Model, DbErr> {
         // Check if server exists to determine if this is an update
@@ -113,7 +114,7 @@ impl Model {
         let result = Self::save_server_without_lifecycle(db, definition).await?;
 
         // Start the server after saving
-        if let Err(e) = sandbox::start_mcp_server(definition).await {
+        if let Err(e) = sandbox::start_mcp_server(definition, app_data_dir).await {
             error!("Warning: Failed to start server after save: {e}");
             // Don't fail the save operation, but log the error
         }
@@ -136,12 +137,9 @@ impl Model {
         db: &DatabaseConnection,
         server_name: &str,
     ) -> Result<(), DbErr> {
-        // Stop the server, in the background, before deleting
+        // Stop the server before deleting
         // if there's an error stopping the server, that's fine (for now)
-        let server_name_for_bg = server_name.to_string();
-        tokio::spawn(async move {
-            let _ = sandbox::stop_mcp_server(&server_name_for_bg).await;
-        });
+        let _ = sandbox::stop_mcp_server(&server_name).await;
 
         Entity::delete_many()
             .filter(Column::Name.eq(server_name))
@@ -186,7 +184,8 @@ impl Model {
 
     pub async fn save_mcp_server_from_catalog(
         db: &DatabaseConnection,
-        connector_id: String,
+        app_data_dir: &PathBuf,
+        mcp_server_catalog_id: String,
     ) -> Result<MCPServerDefinition, String> {
         // Load the catalog
         let catalog = Self::get_mcp_connector_catalog().await?;
@@ -194,15 +193,17 @@ impl Model {
         // Find the connector by ID
         let connector = catalog
             .iter()
-            .find(|c| c.id == connector_id)
-            .ok_or_else(|| format!("Connector with ID '{connector_id}' not found in catalog"))?;
+            .find(|c| c.id == mcp_server_catalog_id)
+            .ok_or_else(|| {
+                format!("Connector with ID '{mcp_server_catalog_id}' not found in catalog")
+            })?;
 
         let definition = MCPServerDefinition {
             name: connector.title.clone(),
             server_config: connector.server_config.clone(),
         };
 
-        let result = Model::save_server(db, &definition)
+        let result = Model::save_server(db, app_data_dir, &definition)
             .await
             .map_err(|e| format!("Failed to save MCP server: {e}"))?;
 
@@ -237,8 +238,8 @@ impl From<MCPServerDefinition> for ActiveModel {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_fixtures::database;
-    use rstest::*;
+    use crate::test_fixtures::*;
+    use rstest::rstest;
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     #[rstest]
@@ -372,6 +373,7 @@ mod tests {
 
         // Uninstall it
         let result = Model::uninstall_mcp_server(&db, "server_to_uninstall").await;
+
         assert!(result.is_ok());
 
         // Verify it's gone
@@ -390,6 +392,7 @@ mod tests {
 
         // Try to uninstall a server that doesn't exist
         let result = Model::uninstall_mcp_server(&db, "nonexistent_server").await;
+
         // Should succeed (no-op)
         assert!(result.is_ok());
     }
@@ -462,6 +465,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_mcp_connector_catalog() {
         let result = Model::get_mcp_connector_catalog().await;
+
         assert!(result.is_ok());
 
         let catalog = result.unwrap();
@@ -471,7 +475,10 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_save_server_update_existing(#[future] database: DatabaseConnection) {
+    async fn test_save_server_update_existing(
+        #[future] database: DatabaseConnection,
+        app_data_dir: PathBuf,
+    ) {
         let db = database.await;
 
         let definition1 = MCPServerDefinition {
@@ -501,7 +508,13 @@ mod tests {
         };
 
         // save_server should handle the update
-        let result = Model::save_server(&db, &definition2).await;
+        let result = Model::save_server(
+            &db,
+            &app_data_dir,
+            &definition2,
+        )
+        .await;
+
         assert!(result.is_ok());
 
         // Verify the update
@@ -513,11 +526,8 @@ mod tests {
         assert_eq!(found.server_config.command, "node");
     }
 
-    #[rstest]
     #[tokio::test]
-    async fn test_from_mcp_server_definition(#[future] database: DatabaseConnection) {
-        let _db = database.await;
-
+    async fn test_from_mcp_server_definition() {
         let server_config = ServerConfig {
             transport: "stdio".to_string(),
             command: "python".to_string(),

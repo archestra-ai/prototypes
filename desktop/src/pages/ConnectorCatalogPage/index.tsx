@@ -26,7 +26,9 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
     loadingConnectorCatalog,
     installingMCPServerName,
     uninstallingMCPServerName,
+    errorInstallingMCPServer,
     installMCPServerFromConnectorCatalog,
+    installOAuthMCPServerFromConnectorCatalog,
     uninstallMCPServer,
   } = useConnectorCatalogStore();
 
@@ -72,13 +74,15 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
 
                 const isInstalled = installedMCPServers.some((server) => server.name === title);
                 const isInstalling = installingMCPServerName === title;
+                const requiresOAuthSetup = oauth?.required === true;
+                const hasError = errorInstallingMCPServer?.mcpServerCatalogId === id;
 
                 return (
                   <Card
                     key={id}
                     className={`transition-all duration-200 hover:shadow-md ${
                       isInstalled ? 'border-green-500/50 bg-green-50/30 dark:bg-green-950/30' : ''
-                    }`}
+                    } ${hasError ? 'border-red-500/50 bg-red-50/30 dark:bg-red-950/30' : ''}`}
                   >
                     <CardContent className="pt-6">
                       <div className="space-y-4">
@@ -112,6 +116,11 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                             </div>
                           </div>
                         </div>
+                        {hasError && (
+                          <div className="text-xs text-red-600 dark:text-red-400 mt-2">
+                            Error: {errorInstallingMCPServer?.error}
+                          </div>
+                        )}
                         <div className="flex justify-end gap-2">
                           {isInstalled ? (
                             <Button
@@ -136,7 +145,11 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                           ) : (
                             <Button
                               size="sm"
-                              onClick={() => installMCPServerFromConnectorCatalog(mcpServer)}
+                              onClick={() =>
+                                requiresOAuthSetup
+                                  ? installOAuthMCPServerFromConnectorCatalog(mcpServer)
+                                  : installMCPServerFromConnectorCatalog(mcpServer)
+                              }
                               disabled={isInstalling}
                               className="flex items-center gap-2"
                             >
@@ -145,7 +158,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                                   <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                                   Installing...
                                 </>
-                              ) : oauth?.required ? (
+                              ) : requiresOAuthSetup ? (
                                 <>
                                   <Settings className="h-4 w-4" />
                                   Setup OAuth

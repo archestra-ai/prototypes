@@ -5,7 +5,6 @@ use std::sync::Arc;
 use tauri::AppHandle;
 use tauri_plugin_shell::{process::CommandChild, ShellExt};
 use tokio::sync::Mutex;
-use tracing::{error, info};
 
 pub const FALLBACK_OLLAMA_SERVER_PORT: u16 = 54588;
 
@@ -46,7 +45,7 @@ impl Service {
             .map_err(|e| format!("Failed to get sidecar: {e:?}"))?
             .env("OLLAMA_HOST", format!("127.0.0.1:{port}"))
             // Allow (proxied) requests from the archestra server
-            .env("OLLAMA_ORIGINS", "http://localhost:54587")
+            .env("OLLAMA_ORIGINS", "http://localhost:54587,http://localhost:54586")
             .env("OLLAMA_DEBUG", "0")
             .args(["serve"])
             .spawn();
@@ -101,11 +100,11 @@ pub async fn shutdown() -> Result<(), String> {
         if let Some(child) = process_guard.take() {
             match child.kill() {
                 Ok(()) => {
-                    info!("✅ Ollama server shut down successfully");
+                    info!("Ollama server shut down successfully");
                     Ok(())
                 }
                 Err(e) => {
-                    let error_msg = format!("⚠️ Failed to kill Ollama process: {e}");
+                    let error_msg = format!("Failed to kill Ollama process: {e}");
                     error!("{error_msg}");
                     Err(error_msg)
                 }

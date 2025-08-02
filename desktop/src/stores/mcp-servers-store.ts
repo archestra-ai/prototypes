@@ -4,7 +4,7 @@ import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/t
 import { create } from 'zustand';
 
 import { ARCHESTRA_SERVER_MCP_PROXY_URL, ARCHESTRA_SERVER_MCP_URL } from '@/consts';
-import { type McpServer, getInstalledMcpServers } from '@/lib/api-client';
+import { type McpServer, getInstalledMcpServers } from '@/lib/api';
 import { getToolsGroupedByServer } from '@/lib/utils/mcp-server';
 import { formatToolName } from '@/lib/utils/tools';
 import { ConnectedMCPServer, MCPServerStatus, MCPServerToolsMap, ToolWithMCPServerName } from '@/types';

@@ -7,7 +7,6 @@ use futures_util::{stream::SplitSink, SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::{broadcast, Mutex};
-use tracing::{debug, error, info};
 use utoipa::ToSchema;
 
 // Payload types
@@ -17,12 +16,27 @@ pub struct ChatTitleUpdatedWebSocketPayload {
     pub title: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct OAuthSuccessWebSocketPayload {
+    pub mcp_server_catalog_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct OAuthErrorWebSocketPayload {
+    pub mcp_server_catalog_id: String,
+    pub error: String,
+}
+
 // Enum for all possible WebSocket messages
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "payload")]
 pub enum WebSocketMessage {
     #[serde(rename = "chat-title-updated")]
     ChatTitleUpdated(ChatTitleUpdatedWebSocketPayload),
+    #[serde(rename = "oauth-success")]
+    OAuthSuccess(OAuthSuccessWebSocketPayload),
+    #[serde(rename = "oauth-error")]
+    OAuthError(OAuthErrorWebSocketPayload),
 }
 
 type Clients = Arc<Mutex<Vec<SplitSink<WebSocket, axum::extract::ws::Message>>>>;
@@ -152,16 +166,19 @@ async fn handle_socket(socket: WebSocket, service: Arc<Service>) {
     info!("Client {} removed", client_index);
 }
 
-pub fn create_router(service: Arc<Service>) -> Router {
+pub fn create_router(service: Service) -> Router {
     Router::new()
         .route("/", axum::routing::get(websocket_handler))
-        .with_state(service)
+        .with_state(Arc::new(service))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_fixtures::*;
+    use rstest::*;
     use serde_json::json;
+
 
     #[tokio::test]
     async fn test_websocket_message_serialization() {
@@ -200,6 +217,7 @@ mod tests {
                 assert_eq!(payload.chat_id, 456);
                 assert_eq!(payload.title, "Another Chat");
             }
+            _ => panic!("Expected ChatTitleUpdated message"),
         }
     }
 
@@ -276,19 +294,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_create_router() {
-        let service = Arc::new(Service::new());
-        let _router = create_router(service.clone());
-
-        // Router should be created successfully
-        // We can't easily test the routes without running a server
-        // but we can verify the router is created
-
-        // Verify the service is still valid after router creation
-        assert!(Arc::strong_count(&service) >= 2); // Original + router state
-    }
-
-    #[tokio::test]
     async fn test_concurrent_broadcast() {
         let service = Arc::new(Service::new());
 
@@ -339,6 +344,7 @@ mod tests {
             WebSocketMessage::ChatTitleUpdated(payload) => {
                 assert_eq!(payload.title, "Title with \"quotes\" and \nnewlines");
             }
+            _ => panic!("Expected ChatTitleUpdated message"),
         }
     }
 }

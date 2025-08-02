@@ -48,7 +48,6 @@ sea-orm = { version = "1.0", features = ["sqlx-sqlite", "runtime-tokio-rustls", 
 sea-orm-migration = { version = "1.0", features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
 rmcp = { version = "0.3.0", features = ["server", "macros", "transport-streamable-http-server", "transport-worker"] }
 axum = { version = "0.8.4", features = ["macros", "ws"] }
-tauri-plugin-http = "2"
 utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono", "macros"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 utoipauto = "0.2"
@@ -56,7 +55,10 @@ once_cell = "1.21.3"
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 ollama-rs = { version = "0.3.2", features = ["stream"] }
 tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tauri-plugin-log = { version = "2.6.0", features = ["colored", "tracing"] }
+log = "0.4.27"
+fern = "0.7.1"
+strum = { version = "0.27.2", features = ["derive"] }
 
 [dev-dependencies]
 tempfile = "3.8"

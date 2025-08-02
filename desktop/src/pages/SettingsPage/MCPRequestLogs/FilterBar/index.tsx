@@ -6,7 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { type McpRequestLogFilters } from '@/lib/api-client';
+import { type McpRequestLogFilters } from '@/lib/api';
 
 interface FilterBarProps {
   filters: McpRequestLogFilters;

@@ -7,7 +7,7 @@ import type {
   ChatWithMessages as BaseChatWithMessages,
   McpServer as BaseMcpServer,
   ToolCall as BaseToolCall,
-} from '@/lib/api-client';
+} from '@/lib/api';
 
 export interface ToolWithMCPServerName extends BaseTool {
   serverName: string;

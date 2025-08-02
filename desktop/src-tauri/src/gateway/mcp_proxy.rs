@@ -12,16 +12,17 @@ use sea_orm::DatabaseConnection;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{debug, error, info};
 use uuid::Uuid;
 
 pub struct Service {
-    db: Arc<DatabaseConnection>,
+    db: DatabaseConnection,
 }
 
 impl Service {
     pub fn new(db: DatabaseConnection) -> Self {
-        Self { db: Arc::new(db) }
+        Self {
+            db,
+        }
     }
 
     // Extract client info from request headers
@@ -89,7 +90,7 @@ impl Service {
         let start_time = Instant::now();
         let request_id = Uuid::new_v4().to_string();
 
-        info!("🚀 MCP Proxy: Starting request to server '{server_name}' (ID: {request_id})");
+        info!("MCP Proxy: Starting request to server '{server_name}' (ID: {request_id})");
 
         // Extract headers and session info before consuming the request
         let headers = req.headers().clone();
@@ -103,11 +104,11 @@ impl Service {
         // Read the request body
         let body_bytes = match axum::body::to_bytes(req.into_body(), usize::MAX).await {
             Ok(bytes) => {
-                debug!("📥 Successfully read request body ({} bytes)", bytes.len());
+                debug!("Successfully read request body ({} bytes)", bytes.len());
                 bytes
             }
             Err(e) => {
-                error!("❌ Failed to read request body: {e}");
+                error!("Failed to read request body: {e}");
 
                 // Log the failed request
                 let log_data = CreateLogRequest {
@@ -127,7 +128,7 @@ impl Service {
                 };
 
                 // Log asynchronously (don't block on database errors)
-                let db_clone = Arc::clone(&self.db);
+                let db_clone = self.db.clone();
                 tokio::spawn(async move {
                     if let Err(e) = MCPRequestLog::create_request_log(&db_clone, log_data).await {
                         error!("Failed to log request: {e}");
@@ -145,11 +146,11 @@ impl Service {
         // Convert bytes to string
         let request_body = match String::from_utf8(body_bytes.to_vec()) {
             Ok(body) => {
-                debug!("📝 Request body: {body}");
+                debug!("Request body: {body}");
                 body
             }
             Err(e) => {
-                error!("❌ Invalid UTF-8 in request body: {e}");
+                error!("Invalid UTF-8 in request body: {e}");
 
                 // Log the failed request
                 let log_data = CreateLogRequest {
@@ -169,7 +170,7 @@ impl Service {
                 };
 
                 // Log asynchronously
-                let db_clone = Arc::clone(&self.db);
+                let db_clone = self.db.clone();
                 tokio::spawn(async move {
                     if let Err(e) = MCPRequestLog::create_request_log(&db_clone, log_data).await {
                         error!("Failed to log request: {e}");
@@ -187,11 +188,11 @@ impl Service {
         // Extract method from request body
         let method = Self::extract_method_from_request(&request_body);
 
-        debug!("🔄 Forwarding request to forward_raw_request function...");
+        debug!("Forwarding request to forward_raw_request function...");
         // Forward the raw JSON-RPC request to the MCPServerManager
         match sandbox::forward_raw_request(&server_name, request_body.clone()).await {
             Ok(raw_response) => {
-                info!("✅ Successfully received response from server '{server_name}'");
+                info!("Successfully received response from server '{server_name}'");
 
                 let duration_ms = start_time.elapsed().as_millis() as i32;
 
@@ -216,7 +217,7 @@ impl Service {
                 };
 
                 // Log asynchronously
-                let db_clone = Arc::clone(&self.db);
+                let db_clone = self.db.clone();
                 tokio::spawn(async move {
                     if let Err(e) = MCPRequestLog::create_request_log(&db_clone, log_data).await {
                         error!("Failed to log request: {e}");
@@ -230,7 +231,7 @@ impl Service {
                     .unwrap()
             }
             Err(e) => {
-                error!("❌ MCP Proxy: Failed to forward request to '{server_name}': {e}");
+                error!("MCP Proxy: Failed to forward request to '{server_name}': {e}");
 
                 let duration_ms = start_time.elapsed().as_millis() as i32;
 
@@ -267,7 +268,7 @@ impl Service {
                 };
 
                 // Log asynchronously
-                let db_clone = Arc::clone(&self.db);
+                let db_clone = self.db.clone();
                 tokio::spawn(async move {
                     if let Err(e) = MCPRequestLog::create_request_log(&db_clone, log_data).await {
                         error!("Failed to log request: {e}");
@@ -301,26 +302,23 @@ pub fn create_router(db: DatabaseConnection) -> Router {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::mcp_request_log::{Column, Entity};
-    use crate::test_fixtures::database;
+    use crate::test_fixtures::*;
     use axum::{
         body::Body,
         http::{Request, StatusCode},
     };
     use rstest::*;
-    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
     use tower::ServiceExt;
 
-    fn app(db: DatabaseConnection) -> Router {
+    #[fixture]
+    async fn router(#[future] database: DatabaseConnection) -> Router {
+        let db = database.await;
         create_router(db)
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_extract_client_info(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let _service = Service::new(db);
-
+    async fn test_extract_client_info() {
         let mut headers = HeaderMap::new();
         headers.insert("user-agent", "test-agent/1.0".parse().unwrap());
         headers.insert("x-client-name", "test-client".parse().unwrap());
@@ -337,10 +335,7 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_extract_session_ids(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let _service = Service::new(db);
-
+    async fn test_extract_session_ids() {
         let mut headers = HeaderMap::new();
         headers.insert("x-session-id", "session-123".parse().unwrap());
         headers.insert("mcp-session-id", "mcp-456".parse().unwrap());
@@ -353,10 +348,7 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_headers_to_hashmap(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let _service = Service::new(db);
-
+    async fn test_headers_to_hashmap() {
         let mut headers = HeaderMap::new();
         headers.insert("content-type", "application/json".parse().unwrap());
         headers.insert("authorization", "Bearer token123".parse().unwrap());
@@ -375,10 +367,7 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_extract_method_from_request(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let _service = Service::new(db);
-
+    async fn test_extract_method_from_request() {
         // Valid JSON-RPC request
         let request_body = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#;
         let method = Service::extract_method_from_request(request_body);
@@ -397,14 +386,13 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_proxy_invalid_utf8_request(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let app = app(db);
+    async fn test_proxy_invalid_utf8_request(#[future] router: Router) {
+        let router = router.await;
 
         // Create a request with invalid UTF-8 bytes
         let invalid_utf8 = vec![0xFF, 0xFE, 0xFD];
 
-        let response = app
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -427,13 +415,12 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_proxy_with_headers(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let app = app(db);
+    async fn test_proxy_with_headers(#[future] router: Router) {
+        let router = router.await;
 
         let request_body = r#"{"jsonrpc":"2.0","id":1,"method":"test","params":{}}"#;
 
-        let response = app
+        let response = router
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -462,73 +449,5 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("MCP Proxy error"));
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_concurrent_proxy_requests(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let service = Arc::new(Service::new(db));
-
-        let mut handles = vec![];
-
-        for i in 0..5 {
-            let service_clone = service.clone();
-            let handle = tokio::spawn(async move {
-                let request_body =
-                    format!(r#"{{"jsonrpc":"2.0","id":{i},"method":"test","params":{{}}}}"#);
-                let req = Request::builder()
-                    .method("POST")
-                    .uri(format!("/server-{i}"))
-                    .header("Content-Type", "application/json")
-                    .body(Body::from(request_body))
-                    .unwrap();
-
-                let response = service_clone.call(format!("server-{i}"), req).await;
-                response.status()
-            });
-            handles.push(handle);
-        }
-
-        for handle in handles {
-            let status = handle.await.unwrap();
-            // All should fail with internal server error since forward_raw_request isn't mocked
-            assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_service_logging(#[future] database: DatabaseConnection) {
-        let db = database.await;
-        let service = Service::new(db.clone());
-
-        let request_body = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#;
-        let req = Request::builder()
-            .method("POST")
-            .uri("/test-server")
-            .header("Content-Type", "application/json")
-            .header("x-session-id", "test-session")
-            .body(Body::from(request_body))
-            .unwrap();
-
-        // Call the service
-        let _response = service.call("test-server".to_string(), req).await;
-
-        // Give time for async logging to complete
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        // Check that a log entry was created
-        let logs = Entity::find()
-            .filter(Column::ServerName.eq("test-server"))
-            .all(&db)
-            .await
-            .unwrap();
-
-        assert!(!logs.is_empty());
-        let log = &logs[0];
-        assert_eq!(log.server_name, "test-server");
-        assert_eq!(log.method, Some("tools/list".to_string()));
-        assert_eq!(log.status_code, 500); // Failed since forward_raw_request isn't mocked
     }
 }

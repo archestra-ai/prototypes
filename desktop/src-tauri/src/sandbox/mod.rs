@@ -1,11 +1,12 @@
 pub mod node;
 
-use crate::database::connection::get_database_connection_with_app;
+use sea_orm::DatabaseConnection;
 use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel, ServerConfig};
 use rmcp::model::{Resource as MCPResource, Tool as MCPTool};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::process::Stdio;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -81,6 +82,28 @@ impl MCPServerManager {
         }
     }
 
+    fn resolve_app_data_dir_templated_env_var_value(
+        &self,
+        app_data_dir: &PathBuf,
+        templated_env_var_value: String,
+    ) -> Result<String, String> {
+        Ok(templated_env_var_value.replace("{{ .app_data_dir }}", app_data_dir.to_str().unwrap()))
+    }
+
+    // TODO: add more template variables as needed
+    /// Replace "template variables" in a value representing a "templated" environment variable, with actual values
+    /// Currently supports: {{ .app_data_dir }} and {{ .mcp_server_port }}
+    fn resolve_templated_env_var_value(
+        &self,
+        app_data_dir: &PathBuf,
+        templated_env_var_value: String,
+    ) -> Result<String, String> {
+        let templated_env_var_value = self.resolve_app_data_dir_templated_env_var_value(app_data_dir, templated_env_var_value)
+            .map_err(|e| format!("Failed to resolve app_data_dir env var template: {e}"))?;
+
+        Ok(templated_env_var_value)
+    }
+
     /// Start an MCP server
     pub async fn start_server(
         &self,
@@ -88,6 +111,7 @@ impl MCPServerManager {
         command: String,
         args: Vec<String>,
         env: Option<HashMap<String, String>>,
+        app_data_dir: &PathBuf,
     ) -> Result<(), String> {
         // Check if server already exists
         {
@@ -166,7 +190,14 @@ impl MCPServerManager {
 
         // Set environment variables
         for (key, value) in env_vars {
-            cmd.env(key, value);
+            let value_with_resolved_template_values = self.resolve_templated_env_var_value(
+                app_data_dir,
+                value
+            )?;
+
+            debug!("MCP [{name}] Setting env var: {key} = {value_with_resolved_template_values}");
+
+            cmd.env(key, value_with_resolved_template_values);
         }
 
         let mut child = cmd
@@ -508,12 +539,8 @@ lazy_static::lazy_static! {
 }
 
 /// Start all configured MCP servers using the global manager
-pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> {
+pub async fn start_all_mcp_servers(db: DatabaseConnection, app_data_dir: &PathBuf) -> Result<(), String> {
     info!("Starting all persisted MCP servers...");
-
-    let db = get_database_connection_with_app(&app)
-        .await
-        .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
     let installed_mcp_servers = MCPServerModel::load_installed_mcp_servers(&db)
         .await
@@ -541,14 +568,16 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
             config.args.join(" ")
         );
 
+        let name = server_name.clone();
+        let app_data_dir = app_data_dir.clone();
         tauri::async_runtime::spawn(async move {
-            let name = server_name.clone();
             match MCP_SERVER_MANAGER
                 .start_server(
                     server_name.clone(),
                     config.command,
                     config.args,
                     Some(config.env),
+                    &app_data_dir,
                 )
                 .await
             {
@@ -565,13 +594,14 @@ pub async fn start_all_mcp_servers(app: tauri::AppHandle) -> Result<(), String> 
 }
 
 /// Start an MCP server using the global manager
-pub async fn start_mcp_server(definition: &MCPServerDefinition) -> Result<(), String> {
+pub async fn start_mcp_server(definition: &MCPServerDefinition, app_data_dir: &PathBuf) -> Result<(), String> {
     MCP_SERVER_MANAGER
         .start_server(
             definition.name.clone(),
             definition.server_config.command.clone(),
             definition.server_config.args.clone(),
             Some(definition.server_config.env.clone()),
+            app_data_dir,
         )
         .await
 }

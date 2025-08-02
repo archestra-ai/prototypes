@@ -9,7 +9,7 @@ import {
   getMcpRequestLogById,
   getMcpRequestLogStats,
   getMcpRequestLogs,
-} from '@/lib/api-client';
+} from '@/lib/api';
 
 interface MCPLogsStore {
   // State

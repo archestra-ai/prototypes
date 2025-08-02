@@ -5,7 +5,6 @@ use ollama_rs::generation::{
     completion::request::GenerationRequest,
 };
 use ollama_rs::Ollama;
-use tracing::debug;
 
 #[derive(Clone)]
 pub struct OllamaClient {

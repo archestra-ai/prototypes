@@ -97,10 +97,26 @@ pnpm dbstudio
 ### OAuth Proxy Service
 
 ```bash
-cd backend/oauth-proxy
-npm install
-npm run dev  # Development mode with nodemon
-npm start    # Production mode
+cd oauth-proxy
+pnpm install
+pnpm run dev  # Development mode with Vite (runs on port 3000)
+pnpm run build  # Build for production
+pnpm run preview  # Preview production build
+pnpm run test  # Run unit tests with Vitest
+pnpm run test:ui  # Run tests with UI
+pnpm run test:coverage  # Generate test coverage report
+```
+
+#### OAuth Proxy Environment Variables
+
+```bash
+# Required environment variables for OAuth proxy:
+GOOGLE_OAUTH_CLIENT_ID      # Google OAuth client ID
+GOOGLE_OAUTH_CLIENT_SECRET  # Google OAuth client secret
+BASE_URL                   # Base URL for the OAuth proxy service (e.g., https://oauth.dev.archestra.ai)
+NODE_ENV                   # Environment (development/production)
+PORT                       # Server port (default: 3000)
+LOG_LEVEL                  # Logging level (default: info)
 ```
 
 ## High-Level Architecture
@@ -114,7 +130,7 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - **Routing**: Tanstack React Router
 - **Backend**: Rust with Tauri v2 framework, Axum web framework, SeaORM for SQLite database
 - **API Layer**: HTTP gateway on port 54587 with OpenAPI schema generation using utoipa
-- **Services**: Node.js OAuth proxy for handling OAuth flows
+- **Services**: Node.js OAuth proxy for handling OAuth flows (TypeScript + Express + Vite)
 - **AI Integration**: Ollama for local LLM support, MCP (Model Context Protocol) for tool integration
 - **Testing**: Vitest + React Testing Library (frontend), Rust built-in test framework with rstest (backend)
 
@@ -160,11 +176,19 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `src/gateway/`: HTTP gateway exposing the following APIs:
   - `/api`: REST API for Archestra resources (OpenAPI documented)
     - `/api/chat`: Chat CRUD operations (create, read, update, delete chats)
-    - `oauth/`: OAuth authentication flows for MCP servers (e.g., Gmail)
+    - `/api/mcp_server/oauth/{mcp_server_catalog_id}`: Initiates OAuth flow for MCP server
+    - `/api/mcp_server/oauth/callback`: OAuth callback endpoint for deep links from proxy service
   - `/mcp`: Archestra MCP server endpoints
   - `/proxy/:mcp_server`: Proxies requests to MCP servers running in Archestra sandbox
   - `/llm/:provider`: Proxies requests to LLM providers
   - `/ws`: WebSocket endpoint for real-time event broadcasting
+  - `api/mcp_server/oauth/`: OAuth authentication modules
+    - `mod.rs`: OAuth flow initiation and callback handling
+    - `providers/`: Provider-specific OAuth implementations
+      - `google.rs`: Google OAuth credential handling
+      - `supported_services.rs`: List of supported Google services
+    - `utils.rs`: OAuth utility functions (credential storage, path templating)
+    - `websocket.rs`: OAuth-specific WebSocket event broadcasting
 - `src/ollama/`: Ollama integration module
   - `client.rs`: HTTP client for Ollama API
   - `server.rs`: Ollama server management
@@ -174,14 +198,52 @@ This is a **Tauri desktop application** that integrates AI/LLM capabilities with
 - `binaries/`: Embedded Ollama binaries for different platforms
 - `sandbox-exec-profiles/`: macOS sandbox profiles for security
 
+#### OAuth Proxy Service (`oauth-proxy/`)
+
+- `src/`: TypeScript source code
+  - `server.ts`: Express server with middleware configuration
+  - `google.ts`: Google OAuth implementation with googleapis library
+  - `v1/handlers.ts`: OAuth flow handlers with CSRF protection
+    - `GET /v1/auth/:service`: Initiates OAuth flow
+    - `GET /v1/oauth-callback/:service`: Handles OAuth callbacks
+  - `types.ts`: TypeScript type definitions for OAuth flows
+  - `logger.ts`: Structured logging with Pino
+- `public/`: Static files served by Express
+  - `index.html`: Landing page with service information
+  - `oauth-callback.html`: OAuth callback page that:
+    - Extracts tokens from URL parameters
+    - Redirects to `archestra-ai://oauth/callback` deep link
+    - Shows error messages if authentication fails
+- Testing infrastructure:
+  - `src/**/*.test.ts`: Unit tests for all modules
+  - `setup-tests.ts`: Vitest configuration
+  - `vite.config.ts`: Build and test configuration
+- Deployment:
+  - `Dockerfile`: Multi-stage build for production
+  - Deployed to Google Cloud Run with auto-scaling
+  - Development: https://oauth.dev.archestra.ai
+  - Production: https://oauth.archestra.ai
+
 ### Core Features
 
 1. **MCP Integration**: Supports MCP servers for extending AI capabilities with tools via rmcp library
-   - **Available MCP Servers**: Context7, Filesystem, GitHub, Brave Search, PostgreSQL, Slack, Gmail, Fetch (HTTP requests), and Everything (file search)
+   - **Available MCP Servers**: Context7, Filesystem, GitHub, Brave Search, PostgreSQL, Slack, Fetch (HTTP requests), Everything (file search)
+   - **Google Workspace MCP Servers**: Gmail, Google Drive, Calendar, Docs, Sheets, Slides, Forms, Tasks, and Chat (requires OAuth authentication)
 2. **Local LLM Support**: Runs Ollama locally for privacy-focused AI interactions
 3. **Chat Persistence**: Full CRUD operations for chat conversations with SQLite database storage
 4. **Intelligent Chat Titles**: Automatic LLM-generated chat titles based on conversation content
-5. **OAuth Authentication**: Handles OAuth flows for services like Gmail
+5. **OAuth Authentication**: Secure OAuth flow for Google Workspace services with external proxy:
+   - **OAuth Proxy Service**: Node.js/TypeScript service deployed to Google Cloud Run
+     - Development: https://oauth.dev.archestra.ai (auto-deployed on main branch commits)
+     - Production: https://oauth.archestra.ai (deployed via release-please)
+   - **Deep Link Integration**: Uses `archestra-ai://oauth/callback` URLs to pass tokens securely to desktop app
+   - **Credential Management**: 
+     - Stores OAuth credentials as JSON files in app data directory
+     - Path template: `{{ .app_data_dir }}/mcp_servers/oauth-credentials-{service}.json`
+     - Credentials include: `client_id`, `client_secret`, `refresh_token`, `token_uri`
+   - **Supported Services**: 9 Google Workspace services
+     - Gmail, Google Drive, Calendar, Docs, Sheets, Slides, Forms, Tasks, and Chat
+     - Each service has appropriate OAuth scopes configured
 6. **Chat Interface**: Full-featured chat UI with streaming responses and tool execution
    - **Tool Execution Display**: Shows execution time, status indicators, and collapsible argument/result sections
    - **Enhanced Code Blocks**: Syntax highlighting with Shiki, file tabs, copy functionality, and theme support
@@ -276,6 +338,35 @@ The application uses WebSockets for real-time event broadcasting between the bac
   - Payload: `{chat_id: number, title: string}`
   - Triggered after 4 chat interactions
   - Frontend automatically updates UI without refresh
+- **`oauth-success`**: Broadcasts when OAuth authentication completes successfully
+  - Payload: `{mcp_server_catalog_id: string}`
+  - Triggered after successful OAuth callback processing
+- **`oauth-error`**: Broadcasts when OAuth authentication fails
+  - Payload: `{mcp_server_catalog_id: string, error: string}`
+  - Triggered on OAuth flow errors or invalid callbacks
+
+### OAuth Authentication Flow
+
+The application implements a secure OAuth flow for Google Workspace services:
+
+1. **User initiates OAuth**: Frontend requests OAuth URL from desktop API
+2. **Desktop contacts proxy**: Desktop API calls OAuth proxy service with service name
+3. **Proxy generates auth URL**: OAuth proxy creates Google OAuth URL with appropriate scopes
+4. **User authenticates**: Browser opens Google OAuth consent page
+5. **Google redirects to proxy**: After consent, Google redirects to proxy callback URL
+6. **Proxy exchanges code**: OAuth proxy exchanges authorization code for tokens
+7. **Proxy redirects to desktop**: Proxy redirects to `archestra-ai://oauth/callback` with tokens
+8. **Desktop handles deep link**: App receives tokens via deep link handler
+9. **Desktop saves credentials**: Credentials are written to secure app data directory
+10. **MCP server configured**: Server is saved to DB with credential file path
+11. **WebSocket notification**: Success/error event broadcast to frontend
+
+**Security Features**:
+- CSRF protection via state parameter validation
+- Tokens never stored on proxy server
+- Credentials stored securely in app data directory
+- Client secrets managed as environment variables
+- HTTPS required in production
 
 ### Key Patterns
 
@@ -452,6 +543,35 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
   - Creates draft GitHub releases with platform-specific binaries using the generated GitHub App token
   - Tags releases with format `app-v__VERSION__`
 
+#### OAuth Proxy Deployment Workflows
+
+##### Development Deployment (`.github/workflows/on-commits-to-main.yml`)
+- **Triggers**: Pushes to `main` branch that modify `oauth-proxy/` files
+- **Environment**: Automatically deploys to `oauth.dev.archestra.ai`
+- **Version**: Uses commit SHA as Docker image tag
+- **Resources**: 
+  - Memory: 512Mi
+  - CPU: 1 core with CPU boost
+  - Instances: 1-1 (fixed for dev)
+  - Timeout: 300 seconds
+- **Features**:
+  - Health check at `/health` endpoint
+  - Startup probe configuration
+  - Environment-specific secrets from Google Secret Manager
+
+##### Production Deployment (via Release Please)
+- **Triggers**: When release-please creates an OAuth proxy release
+- **Environment**: Deploys to `oauth.archestra.ai`
+- **Version**: Uses semantic version tag (e.g., `v1.2.3`)
+- **Resources**: Production-grade allocation (configured in workflow)
+- **Note**: Currently commented out with TODO - uncomment when ready for production
+
+##### OAuth Proxy CI/CD Configuration
+- **Docker Build**: Multi-stage Dockerfile with Node.js 24 Alpine
+- **Registry**: Google Artifact Registry in `europe-west1`
+- **Authentication**: Workload Identity Federation for secure deployments
+- **Secrets Management**: Google Secret Manager for OAuth client credentials
+
 #### Interactive Claude Workflow (`.github/workflows/claude.yml`)
 
 - Triggers on `@claude` mentions in issues, PR comments, and reviews
@@ -470,9 +590,21 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 ### Development Notes
 
 - Single instance enforcement prevents multiple app instances
-- The app supports deep linking with `archestra-ai://` protocol
+- The app supports deep linking with `archestra-ai://` protocol for OAuth callbacks
 - MCP servers are sandboxed for security on macOS
-- OAuth proxy runs as a separate service on a configured port
+- OAuth proxy runs as a separate service deployed to Google Cloud Run:
+  - Development: https://oauth.dev.archestra.ai (auto-deployed from main)
+  - Production: https://oauth.archestra.ai (deployed via releases)
+  - Local development: Run with `pnpm run dev` in `oauth-proxy/` directory
+- OAuth credentials storage:
+  - macOS: `~/Library/Application Support/com.archestra-ai.app/mcp_servers/oauth-credentials-{service}.json`
+  - Windows: `%APPDATA%\com.archestra-ai.app\mcp_servers\oauth-credentials-{service}.json`
+  - Linux: `~/.config/com.archestra-ai.app/mcp_servers/oauth-credentials-{service}.json`
+- OAuth implementation notes:
+  - Credentials are never stored on the proxy server
+  - Each Google service has its own credential file
+  - Refresh tokens are stored for long-term authentication
+  - The `GOOGLE_CLIENT_SECRET_PATH` env var points to the credential file
 - OpenAPI schema must be regenerated after API changes (CI will catch if forgotten)
 - Frontend API calls should use the generated client, not Tauri commands
 - Database migrations should be created for schema changes using SeaORM
@@ -491,3 +623,11 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - **Frontend Tests**: Mock API responses for chat operations
 - **Streaming Tests**: Test message accumulation and persistence during streaming
 - **Event Tests**: Verify WebSocket messages are broadcast correctly for UI updates
+
+#### OAuth Feature Testing
+
+- **OAuth Proxy Tests**: Vitest unit tests for OAuth handlers and Google service implementation
+- **CSRF Protection Tests**: Verify state parameter generation and validation
+- **Error Handling Tests**: Test OAuth error scenarios and callback failures
+- **Integration Tests**: Test complete OAuth flow from initiation to credential storage
+- **WebSocket Event Tests**: Verify `oauth-success` and `oauth-error` events are broadcast correctly
