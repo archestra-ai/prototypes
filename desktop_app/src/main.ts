@@ -6,6 +6,7 @@ import path from 'node:path';
 
 import { runDatabaseMigrations } from '@backend/database';
 import { OllamaServer } from '@backend/llms/ollama';
+import { MCPServerSandboxManager } from '@backend/mcpServerSandbox';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -91,6 +92,8 @@ app.on('ready', async () => {
   const ollamaPort = await getPort();
   ollamaServer = new OllamaServer(ollamaPort);
   await ollamaServer.startProcess();
+
+  await MCPServerSandboxManager.startAllInstalledMcpServers();
 
   startFastifyServer();
   createWindow();

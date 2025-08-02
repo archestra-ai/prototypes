@@ -71,12 +71,24 @@ export default class BinaryRunner {
   private BINARY_NAME: SupportedBinary;
   private COMMAND_ARGS: string[];
   private COMMAND_ENV: NodeJS.ProcessEnv;
+  private onStdout?: (data: string) => void;
+  private onStderr?: (data: string) => void;
 
-  constructor(processName: string, binaryName: SupportedBinary, commandArgs: string[], commandEnv: NodeJS.ProcessEnv) {
+  constructor(
+    processName: string,
+    binaryName: SupportedBinary,
+    commandArgs: string[],
+    commandEnv: NodeJS.ProcessEnv,
+    onStdout?: (data: string) => void,
+    onStderr?: (data: string) => void
+  ) {
     this.PROCESS_NAME = processName;
     this.BINARY_NAME = binaryName;
     this.COMMAND_ARGS = commandArgs;
     this.COMMAND_ENV = commandEnv;
+
+    this.onStdout = onStdout;
+    this.onStderr = onStderr;
   }
 
   /**
@@ -102,11 +114,13 @@ export default class BinaryRunner {
       // Handle stdout
       this.process.stdout?.on('data', (data) => {
         console.log(`[${this.PROCESS_NAME} stdout]: ${data.toString()}`);
+        this.onStdout?.(data.toString());
       });
 
       // Handle stderr
       this.process.stderr?.on('data', (data) => {
         console.error(`[${this.PROCESS_NAME} stderr]: ${data.toString()}`);
+        this.onStderr?.(data.toString());
       });
 
       // Handle process exit
