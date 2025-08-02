@@ -8,7 +8,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-let server: any;
 
 app.use(cors());
 app.use(express.json());
@@ -26,16 +25,26 @@ app.post("/api/chat", async (req, res) => {
   result.toUIMessageStreamResponse(res);
 });
 
-export async function startServer() {
-  return new Promise<number>((resolve) => {
-    server = app.listen(3000, "127.0.0.1", () => {
-      resolve(3000);
-    });
-  });
-}
+const PORT = 3456;
 
-export function stopServer() {
-  return new Promise<void>((resolve) => {
-    server?.close(() => resolve());
+// Start server on static port
+const server = app.listen(PORT, "127.0.0.1", () => {
+  console.log(`Express server running on port ${PORT}`);
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, closing server...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
   });
-}
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, closing server...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});

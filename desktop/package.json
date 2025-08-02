@@ -15,6 +15,9 @@
     "dbstudio": "node scripts/run-sqlite-web.js"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.0",
+    "@ai-sdk/openai": "^2.0.0",
+    "@ai-sdk/react": "^2.0.0",
     "@icons-pack/react-simple-icons": "^13.7.0",
     "@modelcontextprotocol/sdk": "^1.17.0",
     "@openai/agents": "^0.0.13",
@@ -42,10 +45,12 @@
     "@tauri-apps/plugin-http": "~2.5.1",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-shell": "~2",
+    "ai": "^5.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.532.0",
     "ollama": "^0.5.16",
+    "ollama-ai-provider-v2": "^0.0.9",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.61.1",

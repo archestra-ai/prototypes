@@ -3,9 +3,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 
+// Server runs on static port 3456
 contextBridge.exposeInMainWorld('electronAPI', {
-  getServerPort: () => ipcRenderer.invoke('get-server-port'),
-  onServerPort: (callback: (port: number) => void) => {
-    ipcRenderer.on('server-port', (_event, port) => callback(port));
-  }
+  serverPort: 3456
 });

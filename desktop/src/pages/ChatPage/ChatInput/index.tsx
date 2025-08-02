@@ -1,7 +1,7 @@
 'use client';
 
 import { FileText } from 'lucide-react';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 
 import ToolPill from '@/components/ToolPill';
 import {
@@ -18,78 +18,48 @@ import {
   AIInputTools,
 } from '@/components/kibo/ai-input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AI_PROVIDERS } from '@/hooks/use-ai-chat';
 import { cn } from '@/lib/utils/tailwind';
 import { useChatStore } from '@/stores/chat-store';
 import { useDeveloperModeStore } from '@/stores/developer-mode-store';
 import { useMCPServersStore } from '@/stores/mcp-servers-store';
-import { useOllamaStore } from '@/stores/ollama-store';
-import { ChatMessageStatus } from '@/types';
 
-interface ChatInputProps {}
+interface ChatInputProps {
+  input: string;
+  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  handleSubmit: (e?: React.FormEvent<HTMLFormElement>) => void;
+  isLoading: boolean;
+  stop: () => void;
+}
 
-export default function ChatInput(_props: ChatInputProps) {
-  const { sendChatMessage, cancelStreaming, getStatus, setStatus } = useChatStore();
+export default function ChatInput({ input, handleInputChange, handleSubmit, isLoading, stop }: ChatInputProps) {
   const { selectedTools } = useMCPServersStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
-  const { installedModels, loadingInstalledModels, loadingInstalledModelsError, selectedModel, setSelectedModel } =
-    useOllamaStore();
+  const { selectedProvider, selectedAIModel, setSelectedAIModel } = useChatStore();
 
-  const status = getStatus();
-  const isStreaming = status === ChatMessageStatus.Streaming;
-  const [message, setMessage] = useState('');
-  const hasSelectedTools = Object.keys(selectedTools).length > 0;
+  // Map provider to AI provider key
+  const providerMap = {
+    chatgpt: 'openai',
+    claude: 'anthropic',
+    ollama: 'ollama',
+  } as const;
 
-  const handleSubmit = useCallback(
-    async (e?: React.FormEvent<HTMLFormElement>) => {
-      if (e) {
-        e.preventDefault();
-      }
+  const aiProviderKey = providerMap[selectedProvider];
+  const aiProviderModels = aiProviderKey ? Object.entries(AI_PROVIDERS[aiProviderKey].models) : [];
 
-      setStatus(ChatMessageStatus.Submitted);
+  // Always use the centralized config
+  const currentModel = selectedAIModel || '';
+  const handleModelChange = setSelectedAIModel;
 
-      try {
-        let finalMessage = message.trim();
-
-        // Add tool context to the message if tools are selected
-        if (hasSelectedTools) {
-          const toolContexts = selectedTools.map(({ name, serverName }) => `Use ${name} from ${serverName}`).join(', ');
-          finalMessage = `${toolContexts}. ${finalMessage}`;
-        }
-
-        setMessage('');
-        await sendChatMessage(finalMessage);
-        setStatus(ChatMessageStatus.Ready);
-      } catch (error) {
-        setStatus(ChatMessageStatus.Error);
-        setTimeout(() => setStatus(ChatMessageStatus.Ready), 2000);
-      }
-    },
-    [hasSelectedTools, message, sendChatMessage, selectedTools]
-  );
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter') {
-      if (e.metaKey || e.ctrlKey) {
-        e.preventDefault();
-        const textarea = e.currentTarget;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const newMessage = message.substring(0, start) + '\n' + message.substring(end);
-        setMessage(newMessage);
-
-        setTimeout(() => {
-          textarea.setSelectionRange(start + 1, start + 1);
-        }, 0);
-      } else {
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleSubmit();
       }
-    }
-  };
-
-  const handleModelChange = (modelName: string) => {
-    setSelectedModel(modelName);
-  };
+    },
+    [handleSubmit]
+  );
 
   return (
     <TooltipProvider>
@@ -100,39 +70,24 @@ export default function ChatInput(_props: ChatInputProps) {
           ))}
         </div>
         <AIInputTextarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          value={input}
+          onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           placeholder="What would you like to know?"
-          disabled={!selectedModel}
+          disabled={false}
           minHeight={48}
           maxHeight={164}
         />
         <AIInputToolbar>
           <AIInputTools>
-            <AIInputModelSelect
-              defaultValue={selectedModel}
-              value={selectedModel}
-              onValueChange={handleModelChange}
-              disabled={loadingInstalledModels || !!loadingInstalledModelsError}
-            >
+            <AIInputModelSelect value={currentModel} onValueChange={handleModelChange} disabled={false}>
               <AIInputModelSelectTrigger>
-                <AIInputModelSelectValue
-                  placeholder={
-                    loadingInstalledModels
-                      ? 'Loading models...'
-                      : loadingInstalledModelsError
-                        ? 'Error loading models'
-                        : installedModels.length === 0
-                          ? 'No models found'
-                          : 'Select a model'
-                  }
-                />
+                <AIInputModelSelectValue placeholder="Select a model" />
               </AIInputModelSelectTrigger>
               <AIInputModelSelectContent>
-                {installedModels.map((model) => (
-                  <AIInputModelSelectItem key={model.name} value={model.name}>
-                    {model.name}
+                {aiProviderModels.map(([modelKey, modelConfig]) => (
+                  <AIInputModelSelectItem key={modelKey} value={modelKey}>
+                    {modelConfig.displayName}
                   </AIInputModelSelectItem>
                 ))}
               </AIInputModelSelectContent>
@@ -148,13 +103,7 @@ export default function ChatInput(_props: ChatInputProps) {
               </TooltipContent>
             </Tooltip>
           </AIInputTools>
-          <AIInputSubmit
-            status={status}
-            onClick={cancelStreaming}
-            // only disable if there's no message, and we're not streaming
-            // if we're streaming, we want to allow the user to cancel the streaming
-            disabled={!message.trim() && !isStreaming}
-          />
+          <AIInputSubmit onClick={isLoading ? stop : undefined} disabled={!input.trim() && !isLoading} />
         </AIInputToolbar>
       </AIInput>
     </TooltipProvider>

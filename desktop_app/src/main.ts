@@ -1,16 +1,17 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import started from 'electron-squirrel-startup';
+import { ChildProcess, fork } from 'node:child_process';
 import path from 'node:path';
 import { runDatabaseMigrations } from './database';
 import { MCPServer } from './models';
-import { startServer, stopServer } from './server';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
 }
 
-let serverPort: number | null = null;
+const SERVER_PORT = 3456;
+let serverProcess: ChildProcess | null = null;
 
 const createWindow = () => {
   // Create the browser window.
@@ -35,27 +36,45 @@ const createWindow = () => {
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
-
-  // Send server port to renderer when ready
-  mainWindow.webContents.on('did-finish-load', () => {
-    if (serverPort) {
-      mainWindow.webContents.send('server-port', serverPort);
-    }
-  });
 };
+
+// Function to start the Express server in a child process
+function startExpressServer(): void {
+  const serverPath = path.join(__dirname, 'server-process.js');
+
+  // Fork the server process
+  serverProcess = fork(serverPath, [], {
+    env: { ...process.env },
+    silent: false, // Allow console output from child process
+  });
+
+  // Handle server process errors
+  serverProcess.on('error', (error) => {
+    console.error('Server process error:', error);
+  });
+
+  // Handle server process exit
+  serverProcess.on('exit', (code, signal) => {
+    console.log(`Server process exited with code ${code} and signal ${signal}`);
+    serverProcess = null;
+  });
+}
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', async () => {
-  await runDatabaseMigrations();
-
   try {
-    serverPort = await startServer();
-    console.log(`Server started on port ${serverPort}`);
+    console.log('Running database migrations...');
+    await runDatabaseMigrations();
+    console.log('Database migrations completed successfully');
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('Failed to run database migrations:', error);
+    throw error;
   }
+
+  startExpressServer();
+  console.log(`Express server starting on port ${SERVER_PORT}`);
   createWindow();
 
   // TODO: this is just an example for testing, remove this later
@@ -84,16 +103,43 @@ app.on('activate', () => {
   }
 });
 
-// Handle server port request from renderer
-ipcMain.handle('get-server-port', () => {
-  return serverPort;
-});
-
 // Gracefully stop server on quit
 app.on('before-quit', async (event) => {
-  event.preventDefault();
-  await stopServer();
-  app.exit();
+  if (serverProcess) {
+    event.preventDefault();
+
+    // Kill the server process gracefully
+    serverProcess.kill('SIGTERM');
+
+    // Wait for process to exit
+    await new Promise<void>((resolve) => {
+      if (!serverProcess) {
+        resolve();
+        return;
+      }
+
+      serverProcess.on('exit', () => {
+        resolve();
+      });
+
+      // Force kill after 5 seconds
+      setTimeout(() => {
+        if (serverProcess) {
+          serverProcess.kill('SIGKILL');
+        }
+        resolve();
+      }, 5000);
+    });
+
+    app.exit();
+  }
+});
+
+// Clean up on unexpected exit
+process.on('exit', () => {
+  if (serverProcess) {
+    serverProcess.kill('SIGKILL');
+  }
 });
 
 // In this file you can include the rest of your app's specific main process

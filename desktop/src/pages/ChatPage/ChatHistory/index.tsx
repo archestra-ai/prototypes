@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils/tailwind';
-import { useChatStore } from '@/stores/chat-store';
 import { ChatMessage } from '@/types';
 
 import { AssistantMessage, OtherMessage, ToolMessage, UserMessage } from './Messages';
@@ -10,7 +9,9 @@ import { AssistantMessage, OtherMessage, ToolMessage, UserMessage } from './Mess
 const CHAT_SCROLL_AREA_ID = 'chat-scroll-area';
 const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-area-viewport]`;
 
-interface ChatHistoryProps {}
+interface ChatHistoryProps {
+  messages: ChatMessage[];
+}
 
 interface MessageProps {
   message: ChatMessage;
@@ -47,13 +48,11 @@ const getMessageClassName = (message: ChatMessage) => {
   }
 };
 
-export default function ChatHistory(_props: ChatHistoryProps) {
-  const { getCurrentChat } = useChatStore();
+export default function ChatHistory({ messages }: ChatHistoryProps) {
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const scrollAreaRef = useRef<HTMLElement | null>(null);
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const currentChat = getCurrentChat();
 
   // Scroll to bottom when new messages are added or content changes
   const scrollToBottom = useCallback(() => {
@@ -106,16 +105,16 @@ export default function ChatHistory(_props: ChatHistoryProps) {
     }
   }, [handleScroll]);
 
-  // Trigger scroll when chat changes (only if shouldAutoScroll is true)
+  // Trigger scroll when messages change (only if shouldAutoScroll is true)
   useEffect(() => {
     const timeoutId = setTimeout(scrollToBottom, 50);
     return () => clearTimeout(timeoutId);
-  }, [currentChat, scrollToBottom]);
+  }, [messages, scrollToBottom]);
 
   return (
     <ScrollArea id={CHAT_SCROLL_AREA_ID} className="h-full w-full border rounded-lg overflow-hidden">
       <div className="p-4 space-y-4 max-w-full overflow-hidden">
-        {currentChat?.messages.map((message) => (
+        {messages.map((message) => (
           <div key={message.id} className={cn('p-3 rounded-lg overflow-hidden min-w-0', getMessageClassName(message))}>
             <div className="text-xs font-medium mb-1 opacity-70 capitalize">{message.role}</div>
             <div className="overflow-hidden min-w-0">

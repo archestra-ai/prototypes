@@ -9,7 +9,7 @@ import { useChatStore } from '@/stores/chat-store';
 interface ChatSidebarProps {}
 
 export default function ChatSidebarSection(_props: ChatSidebarProps) {
-  const { chats, getCurrentChat, isLoadingChats, selectChat, createNewChat, deleteCurrentChat, updateChat } =
+  const { chats, getCurrentChat, isLoadingChats, selectChat, createNewChat, deleteCurrentChat, updateChatTitle } =
     useChatStore();
   const currentChatId = getCurrentChat()?.id;
 
@@ -49,7 +49,7 @@ export default function ChatSidebarSection(_props: ChatSidebarProps) {
                   <EditableTitle
                     className="truncate"
                     title={title || DEFAULT_CHAT_TITLE}
-                    onSave={(newTitle) => updateChat(id, newTitle)}
+                    onSave={(newTitle) => updateChatTitle(id, newTitle)}
                     isAnimated
                   />
                 </SidebarMenuButton>
