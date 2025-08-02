@@ -71,8 +71,11 @@ app.on('ready', async () => {
   console.log(`Express server starting on port ${SERVER_PORT}`);
   createWindow();
 
-  MCPServer.create(crypto.randomUUID(), {
-    url: 'http://localhost:3000',
+  MCPServer.create({
+    name: crypto.randomUUID(),
+    serverConfig: {
+      url: 'http://localhost:3000',
+    },
   });
 
   console.log(await MCPServer.getAll());
