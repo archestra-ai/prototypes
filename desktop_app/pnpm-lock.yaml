@@ -110,6 +110,9 @@ importers:
       fastify:
         specifier: ^5.4.0
         version: 5.4.0
+      get-port:
+        specifier: ^7.1.0
+        version: 7.1.0
       index.js:
         specifier: link:@modelcontextprotocol/sdk/client/index.js
         version: link:@modelcontextprotocol/sdk/client/index.js
@@ -2843,6 +2846,10 @@ packages:
   get-package-info@1.0.0:
     resolution: {integrity: sha512-SCbprXGAPdIhKAXiG+Mk6yeoFH61JlYunqdFQFHDtLjJlDjFf6x07dsS8acO+xWt52jpdVo49AlVDnUVK1sDNw==}
     engines: {node: '>= 4.0'}
+
+  get-port@7.1.0:
+    resolution: {integrity: sha512-QB9NKEeDg3xxVwCCwJQ9+xycaz6pBB6iQ76wiWMl1927n0Kir6alPiP+yuiICLLU4jpMe08dXfpebuQppFA2zw==}
+    engines: {node: '>=16'}
 
   get-proto@1.0.1:
     resolution: {integrity: sha512-sTSfBjoXBp89JvIKIefqw7U2CCebsc74kiY6awiGogKtoSGbgjYE/G/+l9sF3MWFPNc9IcoOC4ODfKHfxFmp0g==}
@@ -7754,6 +7761,8 @@ snapshots:
       read-pkg-up: 2.0.0
     transitivePeerDependencies:
       - supports-color
+
+  get-port@7.1.0: {}
 
   get-proto@1.0.1:
     dependencies:

@@ -1,5 +1,6 @@
 import { BrowserWindow, app } from 'electron';
 import started from 'electron-squirrel-startup';
+import getPort from 'get-port';
 import { ChildProcess, fork } from 'node:child_process';
 import path from 'node:path';
 
@@ -87,8 +88,9 @@ function startFastifyServer(): void {
 app.on('ready', async () => {
   await runDatabaseMigrations();
 
-  ollamaServer = new OllamaServer();
-  await ollamaServer.startServer();
+  const ollamaPort = await getPort();
+  ollamaServer = new OllamaServer(ollamaPort);
+  await ollamaServer.startProcess();
 
   startFastifyServer();
   createWindow();
@@ -119,7 +121,7 @@ app.on('before-quit', async (event) => {
     // Stop Ollama server
     if (ollamaServer) {
       try {
-        await ollamaServer.stopServer();
+        await ollamaServer.stopProcess();
         console.log('Ollama server stopped');
       } catch (error) {
         console.error('Error stopping Ollama server:', error);

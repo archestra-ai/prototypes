@@ -1,7 +1,6 @@
 import fs from 'fs';
 import * as os from 'os';
 import path from 'path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Mock electron app
 vi.mock('electron', () => ({
@@ -259,6 +258,223 @@ describe('binaries utilities', () => {
         const { getBinaryExecPath } = await import('./');
         const binaryPath = getBinaryExecPath('ollama-v0.9.6');
         expect(binaryPath).toBe(path.resolve('/path with spaces/app/resources/bin/mac/arm64/ollama-v0.9.6'));
+      });
+    });
+  });
+
+  describe('BinaryRunner', () => {
+    let mockSpawn: any;
+    let mockProcess: any;
+
+    beforeEach(() => {
+      // Mock child_process spawn
+      mockProcess = {
+        stdout: {
+          on: vi.fn(),
+        },
+        stderr: {
+          on: vi.fn(),
+        },
+        on: vi.fn(),
+        once: vi.fn(),
+        kill: vi.fn(),
+      };
+
+      mockSpawn = vi.fn(() => mockProcess);
+      vi.doMock('child_process', () => ({
+        spawn: mockSpawn,
+      }));
+    });
+
+    afterEach(() => {
+      vi.clearAllMocks();
+      vi.resetModules();
+    });
+
+    describe('constructor', () => {
+      it('should initialize with correct parameters', async () => {
+        setupMocks({ platform: 'linux', arch: 'x64' });
+
+        const { default: BinaryRunner } = await import('./');
+        const runner = new BinaryRunner('TestProcess', 'ollama-v0.9.6', ['--help'], { TEST: 'true' });
+
+        expect(runner).toBeDefined();
+      });
+    });
+
+    describe('startProcess', () => {
+      it('should start the process successfully with correct arguments', async () => {
+        setupMocks({ platform: 'linux', arch: 'x64' });
+
+        const { default: BinaryRunner } = await import('./');
+        const runner = new BinaryRunner('TestProcess', 'ollama-v0.9.6', ['serve'], {
+          HOME: '/test/home',
+          CUSTOM_VAR: 'value',
+        });
+
+        await runner.startProcess();
+
+        expect(mockSpawn).toHaveBeenCalledWith(expect.stringContaining('ollama-v0.9.6'), ['serve'], {
+          env: {
+            HOME: '/test/home',
+            CUSTOM_VAR: 'value',
+          },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+      });
+
+      it('should not start if already running', async () => {
+        setupMocks({ platform: 'linux', arch: 'x64' });
+
+        const { default: BinaryRunner } = await import('./');
+        const runner = new BinaryRunner('TestProcess', 'ollama-v0.9.6', [], {});
+
+        await runner.startProcess();
+        const initialCallCount = mockSpawn.mock.calls.length;
+
+        await runner.startProcess();
+        expect(mockSpawn.mock.calls.length).toBe(initialCallCount);
+      });
+
+      it('should handle spawn errors', async () => {
+        setupMocks({ platform: 'linux', arch: 'x64' });
+        mockSpawn.mockImplementationOnce(() => {
+          throw new Error('Failed to spawn process');
+        });
+
+        const { default: BinaryRunner } = await import('./');
+        const runner = new BinaryRunner('TestProcess', 'ollama-v0.9.6', [], {});
+
+        await expect(runner.startProcess()).rejects.toThrow('Failed to spawn process');
+      });
+
+      it('should handle process spawn ENOENT error', async () => {
+        setupMocks({ platform: 'linux', arch: 'x64' });
+        mockSpawn.mockImplementationOnce(() => {
+          const error = new Error('spawn ENOENT') as any;
+          error.code = 'ENOENT';
+          throw error;
+        });
+
+        const { default: BinaryRunner } = await import('./');
+        const runner = new BinaryRunner('TestProcess', 'ollama-v0.9.6', [], {});
+
+        await expect(runner.startProcess()).rejects.toThrow('ENOENT');
+      });
+
+      it('should capture stdout and stderr', async () => {
+        setupMocks({ platform: 'linux', arch: 'x64' });
+
+        const { default: BinaryRunner } = await import('./');
+        const runner = new BinaryRunner('TestProcess', 'ollama-v0.9.6', [], {});
+
+        await runner.startProcess();
+
+        expect(mockProcess.stdout.on).toHaveBeenCalledWith('data', expect.any(Function));
+        expect(mockProcess.stderr.on).toHaveBeenCalledWith('data', expect.any(Function));
+      });
+
+      it('should handle process exit', async () => {
+        setupMocks({ platform: 'linux', arch: 'x64' });
+
+        const { default: BinaryRunner } = await import('./');
+        const runner = new BinaryRunner('TestProcess', 'ollama-v0.9.6', [], {});
+
+        await runner.startProcess();
+
+        // Simulate process exit
+        const exitHandler = mockProcess.on.mock.calls.find((call: any) => call[0] === 'exit')?.[1];
+        expect(exitHandler).toBeDefined();
+        exitHandler(0, null);
+
+        // Process should be able to start again
+        await expect(runner.startProcess()).resolves.not.toThrow();
+      });
+
+      it('should handle process errors', async () => {
+        setupMocks({ platform: 'linux', arch: 'x64' });
+
+        const { default: BinaryRunner } = await import('./');
+        const runner = new BinaryRunner('TestProcess', 'ollama-v0.9.6', [], {});
+
+        await runner.startProcess();
+
+        const errorHandler = mockProcess.on.mock.calls.find((call: any) => call[0] === 'error')?.[1];
+        expect(errorHandler).toBeDefined();
+
+        // Simulate error
+        const testError = new Error('Process error');
+        errorHandler(testError);
+      });
+    });
+
+    describe('stopProcess', () => {
+      it('should stop the process gracefully', async () => {
+        setupMocks({ platform: 'linux', arch: 'x64' });
+
+        const { default: BinaryRunner } = await import('./');
+        const runner = new BinaryRunner('TestProcess', 'ollama-v0.9.6', [], {});
+
+        await runner.startProcess();
+
+        // Setup the exit listener
+        mockProcess.once.mockImplementationOnce((event: string, callback: Function) => {
+          if (event === 'exit') {
+            setTimeout(() => callback(), 10);
+          }
+        });
+
+        await runner.stopProcess();
+
+        expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
+      });
+
+      it('should do nothing if process is not running', async () => {
+        setupMocks({ platform: 'linux', arch: 'x64' });
+
+        const { default: BinaryRunner } = await import('./');
+        const runner = new BinaryRunner('TestProcess', 'ollama-v0.9.6', [], {});
+
+        await runner.stopProcess();
+
+        expect(mockSpawn).not.toHaveBeenCalled();
+      });
+
+      it('should handle force kill after timeout', async () => {
+        vi.useFakeTimers();
+        setupMocks({ platform: 'linux', arch: 'x64' });
+
+        const { default: BinaryRunner } = await import('./');
+        const runner = new BinaryRunner('TestProcess', 'ollama-v0.9.6', [], {});
+
+        await runner.startProcess();
+
+        // Setup the exit listener to not fire immediately
+        let exitCallback: Function;
+        mockProcess.once.mockImplementationOnce((event: string, callback: Function) => {
+          if (event === 'exit') {
+            exitCallback = callback;
+          }
+        });
+
+        const stopPromise = runner.stopProcess();
+
+        // Should have called SIGTERM first
+        expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
+        expect(mockProcess.kill).toHaveBeenCalledTimes(1);
+
+        // Fast forward past the timeout
+        await vi.advanceTimersByTimeAsync(5001);
+
+        // Should have called SIGKILL after timeout
+        expect(mockProcess.kill).toHaveBeenCalledWith('SIGKILL');
+        expect(mockProcess.kill).toHaveBeenCalledTimes(2);
+
+        // Now trigger the exit callback
+        exitCallback!();
+
+        await stopPromise;
+        vi.useRealTimers();
       });
     });
   });

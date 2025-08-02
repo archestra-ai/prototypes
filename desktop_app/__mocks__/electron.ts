@@ -1,5 +1,3 @@
-import { vi } from 'vitest';
-
 export const app = {
   isPackaged: false,
   getPath: vi.fn((name: string) => {

@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest';
-
 import { convertArchestraToolNameToServerAndToolName, convertServerAndToolNameToArchestraToolName } from './tools';
 
 describe('tools utility functions', () => {
