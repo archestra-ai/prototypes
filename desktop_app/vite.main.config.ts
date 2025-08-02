@@ -17,17 +17,17 @@ export default defineConfig({
     },
   },
   test: {
-    environment: 'node',
+    silent: true, // suppress all console logs from the tests
     globals: true,
-    setupFiles: './setup-tests.ts',
     projects: [
       {
         extends: true,
         test: {
+          setupFiles: ['./src/ui/setup-tests.ts'],
           include: ['src/ui/**/*.test.{ts,tsx}'],
           name: {
             label: 'browser',
-            color: 'cyan',
+            color: 'yellow',
           },
           environment: 'jsdom',
         },
@@ -35,6 +35,7 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          setupFiles: ['./src/backend/setup-tests.ts'],
           include: ['src/backend/**/*test.{ts,tsx}'],
           name: {
             label: 'node',
