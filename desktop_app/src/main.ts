@@ -40,7 +40,7 @@ const createWindow = () => {
 
 // Function to start the Express server in a child process
 function startExpressServer(): void {
-  const serverPath = path.join(__dirname, 'server-process.js');
+  const serverPath = path.join(__dirname, 'server', 'index.js');
 
   console.log(`Express server starting on port ${SERVER_PORT}`);
 
