@@ -36,32 +36,25 @@ export interface Chat {
  */
 export class ChatService {
   async getAllChats(): Promise<Chat[]> {
-    const chats = await db
-      .select()
-      .from(chatsTable)
-      .orderBy(desc(chatsTable.createdAt)); // Most recent chats first
-    
-    return chats.map(chat => ({
+    const chats = await db.select().from(chatsTable).orderBy(desc(chatsTable.createdAt)); // Most recent chats first
+
+    return chats.map((chat) => ({
       id: chat.id,
       session_id: chat.sessionId,
       title: chat.title,
       created_at: chat.createdAt,
       updated_at: chat.updatedAt,
       llm_provider: 'ollama', // Default provider for now
-      messages: [] // Empty messages array - these would come from chat_interactions table
+      messages: [], // Empty messages array - these would come from chat_interactions table
     }));
   }
 
   async getChatById(id: number): Promise<Chat | null> {
-    const results = await db
-      .select()
-      .from(chatsTable)
-      .where(eq(chatsTable.id, id))
-      .limit(1); // Ensure we only get one result
-    
+    const results = await db.select().from(chatsTable).where(eq(chatsTable.id, id)).limit(1); // Ensure we only get one result
+
     const chat = results[0];
     if (!chat) return null;
-    
+
     return {
       id: chat.id,
       session_id: chat.sessionId,
@@ -69,7 +62,7 @@ export class ChatService {
       created_at: chat.createdAt,
       updated_at: chat.updatedAt,
       llm_provider: 'ollama', // Default provider for now
-      messages: [] // Empty messages array - these would come from chat_interactions table
+      messages: [], // Empty messages array - these would come from chat_interactions table
     };
   }
 
@@ -88,9 +81,8 @@ export class ChatService {
       created_at: chat.createdAt,
       updated_at: chat.updatedAt,
       llm_provider: request.llm_provider || 'ollama', // Use provided provider or default to ollama
-      messages: [] // Empty messages array - these would come from chat_interactions table
+      messages: [], // Empty messages array - these would come from chat_interactions table
     };
-
   }
 
   async updateChat(id: number, request: UpdateChatRequest): Promise<Chat | null> {
@@ -109,7 +101,7 @@ export class ChatService {
       })
       .where(eq(chatsTable.id, id))
       .returning();
-    
+
     return {
       id: updatedChat.id,
       session_id: updatedChat.sessionId,
@@ -117,7 +109,7 @@ export class ChatService {
       created_at: updatedChat.createdAt,
       updated_at: updatedChat.updatedAt,
       llm_provider: 'ollama', // Default provider for now
-      messages: [] // Empty messages array - these would come from chat_interactions table
+      messages: [], // Empty messages array - these would come from chat_interactions table
     };
   }
 
