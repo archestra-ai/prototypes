@@ -96,7 +96,7 @@ impl Service {
 
         // Route to provider-specific handler
         if provider == "google" {
-            let auth_url = oauth::providers::google::get_google_oauth_auth_url(mcp_server_catalog_id).await?;
+            let auth_url = oauth::google::get_google_oauth_auth_url(mcp_server_catalog_id).await?;
             debug!("OAuth proxy URL: {}", auth_url);
 
             self.app_handle

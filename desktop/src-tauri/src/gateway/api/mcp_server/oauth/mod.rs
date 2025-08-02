@@ -1,12 +1,36 @@
 use sea_orm::DatabaseConnection;
 use std::path::PathBuf;
+use strum::{Display, EnumString};
 use url::Url;
 
 use crate::gateway::websocket::Service as WebSocketService;
 
-pub mod providers;
-pub mod utils;
-pub mod websocket;
+pub mod google;
+mod utils;
+mod websocket;
+
+#[derive(Debug, Clone, PartialEq, Eq, Display, EnumString)]
+#[strum(serialize_all = "kebab-case")]
+pub enum SupportedMCPCatalogConnectorId {
+    Gmail,
+    GoogleDrive,
+    GoogleCalendar,
+    GoogleDocs,
+    GoogleSheets,
+    GoogleSlides,
+    GoogleForms,
+    GoogleTasks,
+    GoogleChat,
+}
+
+impl SupportedMCPCatalogConnectorId {
+    /// Check if an mcp catalog connector id is related to the Google provider
+    pub fn is_google_connector(&self) -> bool {
+        // All current mcp catalog connectors are Google mcp catalog connectors
+        // This method exists for future extensibility when we add non-Google mcp catalog connectors
+        true
+    }
+}
 
 /// Handle OAuth callback URLs from deep links
 pub async fn handle_oauth_callback(
@@ -60,9 +84,9 @@ pub async fn handle_oauth_callback(
     }
 
     // Route to provider-specific handler
-    match mcp_server_catalog_id.parse::<providers::SupportedMCPCatalogConnectorId>() {
+    match mcp_server_catalog_id.parse::<SupportedMCPCatalogConnectorId>() {
         Ok(mcp_catalog_connector_id) if mcp_catalog_connector_id.is_google_connector() => {
-            match providers::google::handle_google_oauth_callback(
+            match google::handle_google_oauth_callback(
                 app_data_dir,
                 db,
                 url,
