@@ -2,14 +2,78 @@ import { FastifyPluginAsync } from 'fastify';
 import { openai } from '@ai-sdk/openai';
 import { convertToModelMessages, streamText } from 'ai';
 import { ollama } from 'ollama-ai-provider';
+import { chatService, CreateChatRequest, UpdateChatRequest } from '@/server/services/chat';
 
 interface ChatRequestBody {
   messages: any[];
   provider?: 'openai' | 'ollama';
 }
 
+interface ChatParams {
+  id: string;
+}
+
 const chatRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.post<{ Body: ChatRequestBody }>('/api/chat', async (request, reply) => {
+  // Get all chats
+  fastify.get('/api/chat', async (request, reply) => {
+    try {
+      const chats = await chatService.getAllChats();
+      return reply.code(200).send(chats);
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Create new chat
+  fastify.post<{ Body: CreateChatRequest }>('/api/chat', async (request, reply) => {
+    try {
+      const chat = await chatService.createChat(request.body);
+      return reply.code(201).send(chat);
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Update chat
+  fastify.patch<{ Params: ChatParams; Body: UpdateChatRequest }>('/api/chat/:id', async (request, reply) => {
+    try {
+      const chatId = parseInt(request.params.id, 10);
+      if (isNaN(chatId)) {
+        return reply.code(400).send({ error: 'Invalid chat ID' });
+      }
+
+      const chat = await chatService.updateChat(chatId, request.body);
+      if (!chat) {
+        return reply.code(404).send({ error: 'Chat not found' });
+      }
+
+      return reply.code(200).send(chat);
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Delete chat
+  fastify.delete<{ Params: ChatParams }>('/api/chat/:id', async (request, reply) => {
+    try {
+      const chatId = parseInt(request.params.id, 10);
+      if (isNaN(chatId)) {
+        return reply.code(400).send({ error: 'Invalid chat ID' });
+      }
+
+      await chatService.deleteChat(chatId);
+      return reply.code(204).send();
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Chat streaming endpoint (existing functionality)
+  fastify.post<{ Body: ChatRequestBody }>('/api/chat/stream', async (request, reply) => {
     const { messages, provider = 'openai' } = request.body;
 
     const model = provider === "ollama" ? ollama("llama3.2") : openai("gpt-4o");

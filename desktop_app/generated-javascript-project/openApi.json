@@ -1,0 +1,1547 @@
+{
+	"openapi": "3.1.0",
+	"info": {
+		"title": "Archestra API",
+		"description": "API for managing MCP servers, clients, and request logs in Archestra",
+		"contact": {
+			"name": "Archestra"
+		},
+		"license": {
+			"name": ""
+		},
+		"version": "1.0.0"
+	},
+	"paths": {
+		"/api/chat": {
+			"get": {
+				"tags": [
+					"chat"
+				],
+				"operationId": "get_all_chats",
+				"responses": {
+					"200": {
+						"description": "List all chats",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/ChatWithMessages"
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			},
+			"post": {
+				"tags": [
+					"chat"
+				],
+				"operationId": "create_chat",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateChatRequest"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"201": {
+						"description": "Chat created successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatWithMessages"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/chat/{id}": {
+			"delete": {
+				"tags": [
+					"chat"
+				],
+				"operationId": "delete_chat",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"description": "Chat ID",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "Chat deleted successfully"
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			},
+			"patch": {
+				"tags": [
+					"chat"
+				],
+				"operationId": "update_chat",
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"description": "Chat ID",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateChatRequest"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "Chat updated successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ChatWithMessages"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Chat not found"
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/external_mcp_client": {
+			"get": {
+				"tags": [
+					"external_mcp_client"
+				],
+				"operationId": "get_connected_external_mcp_clients",
+				"responses": {
+					"200": {
+						"description": "List of connected external MCP clients",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/ExternalMCPClient"
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/external_mcp_client/connect": {
+			"post": {
+				"tags": [
+					"external_mcp_client"
+				],
+				"operationId": "connect_external_mcp_client",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ConnectExternalMCPClientRequest"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "External MCP client connected successfully"
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/external_mcp_client/supported": {
+			"get": {
+				"tags": [
+					"external_mcp_client"
+				],
+				"operationId": "get_supported_external_mcp_clients",
+				"responses": {
+					"200": {
+						"description": "List of supported external MCP client names",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/external_mcp_client/{client_name}/disconnect": {
+			"delete": {
+				"tags": [
+					"external_mcp_client"
+				],
+				"operationId": "disconnect_external_mcp_client",
+				"parameters": [
+					{
+						"name": "client_name",
+						"in": "path",
+						"description": "Name of the external MCP client to disconnect",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "External MCP client disconnected successfully"
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/mcp_request_log": {
+			"get": {
+				"tags": [
+					"mcp_request_log"
+				],
+				"operationId": "get_mcp_request_logs",
+				"parameters": [
+					{
+						"name": "server_name",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"string",
+								"null"
+							]
+						}
+					},
+					{
+						"name": "session_id",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"string",
+								"null"
+							]
+						}
+					},
+					{
+						"name": "mcp_session_id",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"string",
+								"null"
+							]
+						}
+					},
+					{
+						"name": "status_code",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"integer",
+								"null"
+							],
+							"format": "int32"
+						}
+					},
+					{
+						"name": "method",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"string",
+								"null"
+							]
+						}
+					},
+					{
+						"name": "start_time",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"string",
+								"null"
+							]
+						}
+					},
+					{
+						"name": "end_time",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"string",
+								"null"
+							]
+						}
+					},
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"integer",
+								"null"
+							],
+							"format": "int64",
+							"minimum": 0
+						}
+					},
+					{
+						"name": "page_size",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"integer",
+								"null"
+							],
+							"format": "int64",
+							"minimum": 0
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Paginated list of MCP request logs",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PaginatedMCPRequestLogResponse_MCPRequestLog"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			},
+			"delete": {
+				"tags": [
+					"mcp_request_log"
+				],
+				"operationId": "clear_mcp_request_logs",
+				"parameters": [
+					{
+						"name": "clear_all",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"boolean",
+								"null"
+							]
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Number of deleted log entries",
+						"content": {
+							"text/plain": {
+								"schema": {
+									"type": "integer",
+									"format": "int64",
+									"minimum": 0
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/mcp_request_log/stats": {
+			"get": {
+				"tags": [
+					"mcp_request_log"
+				],
+				"operationId": "get_mcp_request_log_stats",
+				"parameters": [
+					{
+						"name": "server_name",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"string",
+								"null"
+							]
+						}
+					},
+					{
+						"name": "session_id",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"string",
+								"null"
+							]
+						}
+					},
+					{
+						"name": "mcp_session_id",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"string",
+								"null"
+							]
+						}
+					},
+					{
+						"name": "status_code",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"integer",
+								"null"
+							],
+							"format": "int32"
+						}
+					},
+					{
+						"name": "method",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"string",
+								"null"
+							]
+						}
+					},
+					{
+						"name": "start_time",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"string",
+								"null"
+							]
+						}
+					},
+					{
+						"name": "end_time",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"string",
+								"null"
+							]
+						}
+					},
+					{
+						"name": "page",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"integer",
+								"null"
+							],
+							"format": "int64",
+							"minimum": 0
+						}
+					},
+					{
+						"name": "page_size",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": [
+								"integer",
+								"null"
+							],
+							"format": "int64",
+							"minimum": 0
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Request log statistics",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MCPRequestLogStats"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/mcp_request_log/{request_id}": {
+			"get": {
+				"tags": [
+					"mcp_request_log"
+				],
+				"operationId": "get_mcp_request_log_by_id",
+				"parameters": [
+					{
+						"name": "request_id",
+						"in": "path",
+						"description": "Request ID to fetch",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "MCP request log if found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"type": "null"
+										},
+										{
+											"$ref": "#/components/schemas/MCPRequestLog"
+										}
+									]
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid request ID format"
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/mcp_server": {
+			"get": {
+				"tags": [
+					"mcp_server"
+				],
+				"operationId": "get_installed_mcp_servers",
+				"responses": {
+					"200": {
+						"description": "List of installed MCP servers",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/MCPServer"
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/mcp_server/catalog": {
+			"get": {
+				"tags": [
+					"mcp_server"
+				],
+				"operationId": "get_mcp_connector_catalog",
+				"responses": {
+					"200": {
+						"description": "MCP connector catalog",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/MCPConnectorCatalogEntry"
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/mcp_server/catalog/install": {
+			"post": {
+				"tags": [
+					"mcp_server"
+				],
+				"operationId": "install_mcp_server_from_catalog",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/InstallMCPServerRequest"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "MCP server installed successfully"
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/mcp_server/start_oauth": {
+			"post": {
+				"tags": [
+					"mcp_server"
+				],
+				"operationId": "start_mcp_server_oauth",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/StartMCPServerOAuthRequest"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "OAuth authorization URL",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MCPOAuthResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		},
+		"/api/mcp_server/{mcp_server_name}": {
+			"delete": {
+				"tags": [
+					"mcp_server"
+				],
+				"operationId": "uninstall_mcp_server",
+				"parameters": [
+					{
+						"name": "mcp_server_name",
+						"in": "path",
+						"description": "Name of the MCP server to uninstall",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "MCP server uninstalled successfully"
+					},
+					"500": {
+						"description": "Internal server error"
+					}
+				}
+			}
+		}
+	},
+	"components": {
+		"schemas": {
+			"ChatMessage": {
+				"type": "object",
+				"required": [
+					"role",
+					"content",
+					"thinking",
+					"tool_calls",
+					"images"
+				],
+				"properties": {
+					"content": {
+						"type": "string"
+					},
+					"images": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"role": {
+						"$ref": "#/components/schemas/ChatMessageRole"
+					},
+					"thinking": {
+						"type": "string"
+					},
+					"tool_calls": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ToolCall"
+						}
+					}
+				}
+			},
+			"ChatMessageRole": {
+				"type": "string",
+				"enum": [
+					"user",
+					"assistant",
+					"tool",
+					"system",
+					"unknown"
+				]
+			},
+			"ChatTitleUpdatedWebSocketPayload": {
+				"type": "object",
+				"required": [
+					"chat_id",
+					"title"
+				],
+				"properties": {
+					"chat_id": {
+						"type": "integer",
+						"format": "int32"
+					},
+					"title": {
+						"type": "string"
+					}
+				}
+			},
+			"ChatWithMessages": {
+				"type": "object",
+				"required": [
+					"id",
+					"session_id",
+					"title",
+					"llm_provider",
+					"created_at",
+					"messages"
+				],
+				"properties": {
+					"created_at": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"id": {
+						"type": "integer",
+						"format": "int32"
+					},
+					"llm_provider": {
+						"type": "string"
+					},
+					"messages": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ChatMessage"
+						}
+					},
+					"session_id": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					}
+				}
+			},
+			"ConnectExternalMCPClientRequest": {
+				"type": "object",
+				"required": [
+					"client_name"
+				],
+				"properties": {
+					"client_name": {
+						"type": "string"
+					}
+				}
+			},
+			"CreateChatRequest": {
+				"type": "object",
+				"required": [
+					"llm_provider"
+				],
+				"properties": {
+					"llm_provider": {
+						"type": "string"
+					}
+				}
+			},
+			"CreateMCPRequestLog": {
+				"type": "object",
+				"required": [
+					"request_id",
+					"server_name",
+					"status_code"
+				],
+				"properties": {
+					"client_info": {
+						"oneOf": [
+							{
+								"type": "null"
+							},
+							{
+								"$ref": "#/components/schemas/MCPClientInfo"
+							}
+						]
+					},
+					"duration_ms": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"format": "int32"
+					},
+					"error_message": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"mcp_session_id": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"method": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"request_body": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"request_headers": {
+						"type": [
+							"object",
+							"null"
+						],
+						"additionalProperties": {
+							"type": "string"
+						},
+						"propertyNames": {
+							"type": "string"
+						}
+					},
+					"request_id": {
+						"type": "string"
+					},
+					"response_body": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"response_headers": {
+						"type": [
+							"object",
+							"null"
+						],
+						"additionalProperties": {
+							"type": "string"
+						},
+						"propertyNames": {
+							"type": "string"
+						}
+					},
+					"server_name": {
+						"type": "string"
+					},
+					"session_id": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"status_code": {
+						"type": "integer",
+						"format": "int32"
+					}
+				}
+			},
+			"ExternalMCPClient": {
+				"type": "object",
+				"required": [
+					"client_name",
+					"created_at",
+					"updated_at"
+				],
+				"properties": {
+					"client_name": {
+						"type": "string"
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"updated_at": {
+						"type": "string",
+						"format": "date-time"
+					}
+				}
+			},
+			"InstallMCPServerRequest": {
+				"type": "object",
+				"required": [
+					"mcp_connector_id"
+				],
+				"properties": {
+					"mcp_connector_id": {
+						"type": "string"
+					}
+				}
+			},
+			"MCPClientInfo": {
+				"type": "object",
+				"properties": {
+					"client_name": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"client_platform": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"client_version": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"user_agent": {
+						"type": [
+							"string",
+							"null"
+						]
+					}
+				}
+			},
+			"MCPConnectorCatalogEntry": {
+				"type": "object",
+				"required": [
+					"id",
+					"title",
+					"description",
+					"category",
+					"tags",
+					"author",
+					"version",
+					"homepage",
+					"repository",
+					"server_config"
+				],
+				"properties": {
+					"author": {
+						"type": "string"
+					},
+					"category": {
+						"type": "string"
+					},
+					"description": {
+						"type": "string"
+					},
+					"homepage": {
+						"type": "string"
+					},
+					"id": {
+						"type": "string"
+					},
+					"image": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"oauth": {
+						"oneOf": [
+							{
+								"type": "null"
+							},
+							{
+								"$ref": "#/components/schemas/MCPConnectorCatalogEntryOAuth"
+							}
+						]
+					},
+					"repository": {
+						"type": "string"
+					},
+					"server_config": {
+						"$ref": "#/components/schemas/MCPServerConfig"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"title": {
+						"type": "string"
+					},
+					"version": {
+						"type": "string"
+					}
+				}
+			},
+			"MCPConnectorCatalogEntryOAuth": {
+				"type": "object",
+				"required": [
+					"provider",
+					"required"
+				],
+				"properties": {
+					"provider": {
+						"type": "string"
+					},
+					"required": {
+						"type": "boolean"
+					}
+				}
+			},
+			"MCPOAuthResponse": {
+				"type": "object",
+				"required": [
+					"auth_url"
+				],
+				"properties": {
+					"auth_url": {
+						"type": "string"
+					}
+				}
+			},
+			"MCPRequestLog": {
+				"type": "object",
+				"required": [
+					"id",
+					"request_id",
+					"server_name",
+					"status_code",
+					"timestamp"
+				],
+				"properties": {
+					"client_info": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"duration_ms": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"format": "int32"
+					},
+					"error_message": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"id": {
+						"type": "integer",
+						"format": "int32"
+					},
+					"mcp_session_id": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"method": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"request_body": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"request_headers": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"request_id": {
+						"type": "string"
+					},
+					"response_body": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"response_headers": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"server_name": {
+						"type": "string"
+					},
+					"session_id": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"status_code": {
+						"type": "integer",
+						"format": "int32"
+					},
+					"timestamp": {
+						"type": "string",
+						"format": "date-time"
+					}
+				}
+			},
+			"MCPRequestLogFilters": {
+				"type": "object",
+				"properties": {
+					"end_time": {
+						"type": [
+							"string",
+							"null"
+						],
+						"format": "date-time"
+					},
+					"mcp_session_id": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"method": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"server_name": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"session_id": {
+						"type": [
+							"string",
+							"null"
+						]
+					},
+					"start_time": {
+						"type": [
+							"string",
+							"null"
+						],
+						"format": "date-time"
+					},
+					"status_code": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"format": "int32"
+					}
+				}
+			},
+			"MCPRequestLogStats": {
+				"type": "object",
+				"required": [
+					"total_requests",
+					"success_count",
+					"error_count",
+					"avg_duration_ms",
+					"requests_per_server"
+				],
+				"properties": {
+					"avg_duration_ms": {
+						"type": "number",
+						"format": "double"
+					},
+					"error_count": {
+						"type": "integer",
+						"format": "int64",
+						"minimum": 0
+					},
+					"requests_per_server": {
+						"type": "object",
+						"additionalProperties": {
+							"type": "integer",
+							"format": "int64",
+							"minimum": 0
+						},
+						"propertyNames": {
+							"type": "string"
+						}
+					},
+					"success_count": {
+						"type": "integer",
+						"format": "int64",
+						"minimum": 0
+					},
+					"total_requests": {
+						"type": "integer",
+						"format": "int64",
+						"minimum": 0
+					}
+				}
+			},
+			"MCPServer": {
+				"type": "object",
+				"required": [
+					"id",
+					"name",
+					"server_config",
+					"created_at"
+				],
+				"properties": {
+					"created_at": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"id": {
+						"type": "integer",
+						"format": "int32"
+					},
+					"name": {
+						"type": "string"
+					},
+					"server_config": {
+						"$ref": "#/components/schemas/MCPServerConfig"
+					}
+				}
+			},
+			"MCPServerConfig": {
+				"type": "object",
+				"required": [
+					"transport",
+					"command",
+					"args",
+					"env"
+				],
+				"properties": {
+					"args": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"command": {
+						"type": "string"
+					},
+					"env": {
+						"type": "object",
+						"additionalProperties": {
+							"type": "string"
+						},
+						"propertyNames": {
+							"type": "string"
+						}
+					},
+					"transport": {
+						"type": "string"
+					}
+				}
+			},
+			"PaginatedMCPRequestLogResponse_MCPRequestLog": {
+				"type": "object",
+				"required": [
+					"data",
+					"total",
+					"page",
+					"page_size"
+				],
+				"properties": {
+					"data": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"required": [
+								"id",
+								"request_id",
+								"server_name",
+								"status_code",
+								"timestamp"
+							],
+							"properties": {
+								"client_info": {
+									"type": [
+										"string",
+										"null"
+									]
+								},
+								"duration_ms": {
+									"type": [
+										"integer",
+										"null"
+									],
+									"format": "int32"
+								},
+								"error_message": {
+									"type": [
+										"string",
+										"null"
+									]
+								},
+								"id": {
+									"type": "integer",
+									"format": "int32"
+								},
+								"mcp_session_id": {
+									"type": [
+										"string",
+										"null"
+									]
+								},
+								"method": {
+									"type": [
+										"string",
+										"null"
+									]
+								},
+								"request_body": {
+									"type": [
+										"string",
+										"null"
+									]
+								},
+								"request_headers": {
+									"type": [
+										"string",
+										"null"
+									]
+								},
+								"request_id": {
+									"type": "string"
+								},
+								"response_body": {
+									"type": [
+										"string",
+										"null"
+									]
+								},
+								"response_headers": {
+									"type": [
+										"string",
+										"null"
+									]
+								},
+								"server_name": {
+									"type": "string"
+								},
+								"session_id": {
+									"type": [
+										"string",
+										"null"
+									]
+								},
+								"status_code": {
+									"type": "integer",
+									"format": "int32"
+								},
+								"timestamp": {
+									"type": "string",
+									"format": "date-time"
+								}
+							}
+						}
+					},
+					"page": {
+						"type": "integer",
+						"format": "int64",
+						"minimum": 0
+					},
+					"page_size": {
+						"type": "integer",
+						"format": "int64",
+						"minimum": 0
+					},
+					"total": {
+						"type": "integer",
+						"format": "int64",
+						"minimum": 0
+					}
+				}
+			},
+			"StartMCPServerOAuthRequest": {
+				"type": "object",
+				"required": [
+					"mcp_connector_id"
+				],
+				"properties": {
+					"mcp_connector_id": {
+						"type": "string"
+					}
+				}
+			},
+			"ToolCall": {
+				"type": "object",
+				"required": [
+					"function"
+				],
+				"properties": {
+					"function": {
+						"$ref": "#/components/schemas/ToolCallFunction"
+					}
+				}
+			},
+			"ToolCallFunction": {
+				"type": "object",
+				"required": [
+					"name",
+					"arguments"
+				],
+				"properties": {
+					"arguments": {},
+					"name": {
+						"type": "string"
+					}
+				}
+			},
+			"UpdateChatRequest": {
+				"type": "object",
+				"properties": {
+					"title": {
+						"type": [
+							"string",
+							"null"
+						]
+					}
+				}
+			},
+			"WebSocketMessage": {
+				"oneOf": [
+					{
+						"type": "object",
+						"required": [
+							"payload",
+							"type"
+						],
+						"properties": {
+							"payload": {
+								"$ref": "#/components/schemas/ChatTitleUpdatedWebSocketPayload"
+							},
+							"type": {
+								"type": "string",
+								"enum": [
+									"chat-title-updated"
+								]
+							}
+						}
+					}
+				]
+			}
+		}
+	},
+	"tags": [
+		{
+			"name": "chat",
+			"description": "Chat and message management API"
+		},
+		{
+			"name": "external_mcp_client",
+			"description": "External MCP Client management API"
+		},
+		{
+			"name": "mcp_request_log",
+			"description": "MCP Request logging and analytics API"
+		},
+		{
+			"name": "mcp_server",
+			"description": "MCP Server management API"
+		},
+		{
+			"name": "websocket",
+			"description": "WebSocket event types"
+		}
+	]
+}
