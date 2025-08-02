@@ -12,6 +12,8 @@ export default defineConfig({
     alias: {
       // Allow @/ imports in server code to match the rest of the codebase
       '@': path.resolve(__dirname, './src'),
+      '@backend': path.resolve(__dirname, './src/backend'),
+      '@ui': path.resolve(__dirname, './src/ui'),
     },
   },
   build: {
@@ -19,7 +21,10 @@ export default defineConfig({
       // CRITICAL: Mark better-sqlite3 as external to prevent bundling
       // Native Node.js modules (.node files) cannot be bundled by Rollup/Vite
       // This tells Vite to leave `require('better-sqlite3')` as-is in the output
-      external: ['better-sqlite3'],
+      // Also mark UI components as external since server doesn't need them
+      external: [
+        'better-sqlite3',
+      ],
     },
   },
   optimizeDeps: {
