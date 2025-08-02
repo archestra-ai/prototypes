@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import started from 'electron-squirrel-startup';
 import { ChildProcess, fork } from 'node:child_process';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { runDatabaseMigrations } from './database';
 import { MCPServer } from './models';
@@ -64,26 +65,17 @@ function startExpressServer(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', async () => {
-  try {
-    console.log('Running database migrations...');
-    await runDatabaseMigrations();
-    console.log('Database migrations completed successfully');
-  } catch (error) {
-    console.error('Failed to run database migrations:', error);
-    throw error;
-  }
+  await runDatabaseMigrations();
 
   startExpressServer();
   console.log(`Express server starting on port ${SERVER_PORT}`);
   createWindow();
 
-  // TODO: this is just an example for testing, remove this later
-  MCPServer.create('test', {
+  MCPServer.create(crypto.randomUUID(), {
     url: 'http://localhost:3000',
   });
 
-  const servers = await MCPServer.getAll();
-  console.log(servers);
+  console.log(await MCPServer.getAll());
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

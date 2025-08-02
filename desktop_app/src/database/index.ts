@@ -1,13 +1,19 @@
-import { drizzle } from 'drizzle-orm/libsql';
-import { migrate } from 'drizzle-orm/libsql/migrator';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { app } from 'electron';
 import path from 'node:path';
 
 const DATABASE_NAME = 'archestra.db';
-const MIGRATIONS_FOLDER = './migrations';
+const DATABASE_PATH = path.join(app.getPath('userData'), DATABASE_NAME);
+
+/**
+ * TODO: this is a bit of a hack to get the path to the migrations folder "working"
+ * (it's sorta clashing with .vite/build, investigate this further)
+ */
+const MIGRATIONS_FOLDER = '../../src/database/migrations';
 
 const db = drizzle({
-  connection: { url: `file:${app.getPath('userData')}/${DATABASE_NAME}` },
+  connection: DATABASE_PATH,
   // https://orm.drizzle.team/docs/sql-schema-declaration#camel-and-snake-casing
   casing: 'snake_case',
   // logger: true,
