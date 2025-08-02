@@ -5,3 +5,4 @@ CHANGELOG.md
 src/backend/database/migrations
 .claude
 generated-javascript-project
+resources

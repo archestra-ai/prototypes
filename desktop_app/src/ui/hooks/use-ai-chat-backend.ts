@@ -61,18 +61,14 @@ export function getDefaultModel(provider: AIProviderType): string {
   return defaultModel ? defaultModel[0] : Object.keys(models)[0];
 }
 
-export function useAIChatBackend({ provider, model, sessionId, initialMessages = [], apiKey }: UseAIChatBackendOptions) {
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    isLoading,
-    stop,
-    error,
-    append,
-    setMessages,
-  } = useChat({
+export function useAIChatBackend({
+  provider,
+  model,
+  sessionId,
+  initialMessages = [],
+  apiKey,
+}: UseAIChatBackendOptions) {
+  const { messages, input, handleInputChange, handleSubmit, isLoading, stop, error, append, setMessages } = useChat({
     api: 'http://localhost:3456/api/llm/stream',
     initialMessages,
     body: {
@@ -89,9 +85,7 @@ export function useAIChatBackend({ provider, model, sessionId, initialMessages =
   // Custom sendMessage function that matches the original API
   const sendMessage = useCallback(
     async (message: string | { role: 'user' | 'assistant'; content: string }) => {
-      const userMessage = typeof message === 'string' 
-        ? { role: 'user' as const, content: message }
-        : message;
+      const userMessage = typeof message === 'string' ? { role: 'user' as const, content: message } : message;
 
       // Append the message to the chat
       await append(userMessage);
