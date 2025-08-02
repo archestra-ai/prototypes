@@ -1,5 +1,6 @@
 import React from 'react';
 import { TestChat } from './TestChat';
+import { Button } from '../components/ui/button';
 
 export function App() {
   const [serverPort, setServerPort] = React.useState(0);
@@ -10,5 +11,9 @@ export function App() {
 
   if (!serverPort) return <div>Loading...</div>;
 
-  return <TestChat serverPort={serverPort} />;
+  return (
+    <div className="flex min-h-svh flex-col items-center justify-center">
+      <Button>Click me</Button>
+    </div>
+  );
 }
