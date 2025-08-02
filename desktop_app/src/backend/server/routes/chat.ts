@@ -2,7 +2,7 @@ import { openai } from '@ai-sdk/openai';
 import { convertToModelMessages, streamText } from 'ai';
 import { FastifyPluginAsync } from 'fastify';
 import { ollama } from 'ollama-ai-provider';
-import { chatService, CreateChatRequest, UpdateChatRequest } from '@/server/services/chat';
+import { chatService, CreateChatRequest, UpdateChatRequest } from '@backend/server/services/chat';
 
 interface ChatRequestBody {
   messages: any[];
