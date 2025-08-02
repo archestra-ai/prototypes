@@ -80,8 +80,7 @@ export class ChatService {
       .insert(chatsTable)
       .values({}) // No required fields, all handled by defaults
       .returning(); // SQLite returns the inserted row
-<<<<<<< HEAD
-    
+
     return {
       id: chat.id,
       session_id: chat.sessionId,
@@ -91,10 +90,7 @@ export class ChatService {
       llm_provider: request.llm_provider || 'ollama', // Use provided provider or default to ollama
       messages: [] // Empty messages array - these would come from chat_interactions table
     };
-=======
 
-    return chat;
->>>>>>> main
   }
 
   async updateChat(id: number, request: UpdateChatRequest): Promise<Chat | null> {
@@ -113,7 +109,6 @@ export class ChatService {
       })
       .where(eq(chatsTable.id, id))
       .returning();
-<<<<<<< HEAD
     
     return {
       id: updatedChat.id,
@@ -124,10 +119,6 @@ export class ChatService {
       llm_provider: 'ollama', // Default provider for now
       messages: [] // Empty messages array - these would come from chat_interactions table
     };
-=======
-
-    return updatedChat;
->>>>>>> main
   }
 
   async deleteChat(id: number): Promise<void> {
