@@ -1,11 +1,15 @@
 import { spawn } from 'child_process';
-import { app } from 'electron';
 
 import OllamaServer from '.';
 
 vi.mock('child_process');
 vi.mock('net');
 vi.mock('electron');
+vi.mock('@backend/lib/utils/binaries', () => ({
+  getBinaryExecPath: vi.fn((binaryName: string) => `/mock/path/${binaryName}`),
+  getPlatform: vi.fn(() => 'mock-platform'),
+  getArchitecture: vi.fn(() => 'mock-architecture'),
+}));
 
 // Test helper
 function waitFor(ms: number) {
@@ -13,7 +17,6 @@ function waitFor(ms: number) {
 }
 
 vi.stubEnv('HOME', '/mock/home');
-vi.stubEnv('THIS_SHOULDNT_BE_SENT_TO_OLLAMA', 'this shouldnt be sent to ollama');
 
 // Mock spawn to return a mock process
 const mockProcess = {
@@ -73,21 +76,18 @@ describe('OllamaServer', () => {
   });
 
   describe('startServer', () => {
-    it('should start the server successfully with allocated port', async () => {
+    it('should start the server successfully with correct arguments', async () => {
       await server.startServer();
 
-      expect(spawn).toHaveBeenCalledWith(
-        expect.stringContaining('ollama-v0.9.6'),
-        ['serve'],
-        expect.objectContaining({
-          env: {
-            HOME: '/mock/home',
-            OLLAMA_HOST: '127.0.0.1:12345',
-            OLLAMA_ORIGINS: 'http://localhost:54587',
-            OLLAMA_DEBUG: '0',
-          },
-        })
-      );
+      expect(spawn).toHaveBeenCalledWith('/mock/path/ollama-v0.9.6', ['serve'], {
+        env: {
+          HOME: '/mock/home',
+          OLLAMA_HOST: '127.0.0.1:12345',
+          OLLAMA_ORIGINS: 'http://localhost:54587',
+          OLLAMA_DEBUG: '0',
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
     });
 
     it('should not start if already running', async () => {
@@ -107,35 +107,6 @@ describe('OllamaServer', () => {
       });
 
       await expect(server.startServer()).rejects.toThrow();
-    });
-
-    it('should set correct environment variables', async () => {
-      await server.startServer();
-
-      expect(spawn).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(Array),
-        expect.objectContaining({
-          env: {
-            HOME: '/mock/home',
-            OLLAMA_HOST: '127.0.0.1:12345',
-            OLLAMA_ORIGINS: 'http://localhost:54587',
-            OLLAMA_DEBUG: '0',
-          },
-        })
-      );
-    });
-
-    it('should handle packaged app binary path', async () => {
-      Object.defineProperty(app, 'isPackaged', {
-        value: true,
-        configurable: true,
-      });
-
-      const packagedServer = new OllamaServer();
-      await packagedServer.startServer();
-
-      expect(spawn).toHaveBeenCalledWith(expect.stringContaining('binaries'), expect.any(Array), expect.any(Object));
     });
 
     it('should capture stdout and stderr', async () => {
@@ -242,65 +213,6 @@ describe('OllamaServer', () => {
       const errorHandler = errorHandlerCalls[0][1];
       const testError = new Error('Process error');
       errorHandler(testError);
-    });
-  });
-
-  describe('platform-specific behavior', () => {
-    const originalPlatform = process.platform;
-
-    afterEach(() => {
-      Object.defineProperty(process, 'platform', {
-        value: originalPlatform,
-        configurable: true,
-      });
-    });
-
-    it('should use correct binary path for darwin platform', async () => {
-      Object.defineProperty(process, 'platform', {
-        value: 'darwin',
-        configurable: true,
-      });
-
-      const darwinServer = new OllamaServer();
-      await darwinServer.startServer();
-
-      expect(spawn).toHaveBeenCalledWith(
-        expect.stringContaining('ollama-v0.9.6'),
-        expect.any(Array),
-        expect.any(Object)
-      );
-    });
-
-    it('should use correct binary path for win32 platform', async () => {
-      Object.defineProperty(process, 'platform', {
-        value: 'win32',
-        configurable: true,
-      });
-
-      const winServer = new OllamaServer();
-      await winServer.startServer();
-
-      expect(spawn).toHaveBeenCalledWith(
-        expect.stringContaining('ollama-v0.9.6-x86_64-pc-windows-msvc.exe'),
-        expect.any(Array),
-        expect.any(Object)
-      );
-    });
-
-    it('should use correct binary path for linux platform', async () => {
-      Object.defineProperty(process, 'platform', {
-        value: 'linux',
-        configurable: true,
-      });
-
-      const linuxServer = new OllamaServer();
-      await linuxServer.startServer();
-
-      expect(spawn).toHaveBeenCalledWith(
-        expect.stringContaining('ollama-v0.9.6'),
-        expect.any(Array),
-        expect.any(Object)
-      );
     });
   });
 });

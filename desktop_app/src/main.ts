@@ -44,7 +44,7 @@ const createWindow = () => {
 
 /**
  * Start the Fastify server in a separate Node.js process
- * 
+ *
  * This function spawns the server as a child process because:
  * 1. The server needs access to native Node.js modules (better-sqlite3)
  * 2. Electron's renderer process has restrictions on native modules
@@ -60,11 +60,11 @@ function startFastifyServer(): void {
 
   // Fork creates a new Node.js process that can communicate with the parent
   serverProcess = fork(serverPath, [], {
-    env: { 
-      ...process.env, 
+    env: {
+      ...process.env,
       // CRITICAL: This flag tells Electron to run this process as pure Node.js
       // Without it, the process would run as an Electron process and fail to load native modules
-      ELECTRON_RUN_AS_NODE: '1' 
+      ELECTRON_RUN_AS_NODE: '1',
     },
     silent: false, // Allow console output from child process for debugging
   });

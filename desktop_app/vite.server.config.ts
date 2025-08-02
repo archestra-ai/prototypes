@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite';
 import path from 'path';
+import { defineConfig } from 'vite';
 
 /**
  * Vite configuration for the server process build
- * 
+ *
  * This config is used to build src/server-process.ts into a standalone
  * JavaScript file that can be executed by Node.js (not Electron)
  */
@@ -22,9 +22,7 @@ export default defineConfig({
       // Native Node.js modules (.node files) cannot be bundled by Rollup/Vite
       // This tells Vite to leave `require('better-sqlite3')` as-is in the output
       // Also mark UI components as external since server doesn't need them
-      external: [
-        'better-sqlite3',
-      ],
+      external: ['better-sqlite3'],
     },
   },
   optimizeDeps: {

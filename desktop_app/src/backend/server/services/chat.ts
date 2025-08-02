@@ -1,4 +1,5 @@
-import { eq, desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
+
 import { chatsTable } from '@backend/database/schema/chat';
 // IMPORTANT: Import from server/database, not the main database module
 // The main database module uses Electron APIs which aren't available in the server process
@@ -26,29 +27,22 @@ export interface Chat {
 
 /**
  * Service layer for chat operations
- * 
+ *
  * This service encapsulates all database operations for chats.
  * It's used by the Fastify routes to handle CRUD operations.
- * 
+ *
  * Pattern: Repository/Service pattern to separate business logic from routes
  */
 export class ChatService {
   async getAllChats(): Promise<Chat[]> {
-    const chats = await db
-      .select()
-      .from(chatsTable)
-      .orderBy(desc(chatsTable.createdAt)); // Most recent chats first
-    
+    const chats = await db.select().from(chatsTable).orderBy(desc(chatsTable.createdAt)); // Most recent chats first
+
     return chats;
   }
 
   async getChatById(id: number): Promise<Chat | null> {
-    const results = await db
-      .select()
-      .from(chatsTable)
-      .where(eq(chatsTable.id, id))
-      .limit(1); // Ensure we only get one result
-    
+    const results = await db.select().from(chatsTable).where(eq(chatsTable.id, id)).limit(1); // Ensure we only get one result
+
     return results[0] || null;
   }
 
@@ -64,7 +58,7 @@ export class ChatService {
         // timestamps are auto-generated
       })
       .returning(); // SQLite returns the inserted row
-    
+
     return chat;
   }
 
@@ -84,16 +78,14 @@ export class ChatService {
       })
       .where(eq(chatsTable.id, id))
       .returning();
-    
+
     return updatedChat;
   }
 
   async deleteChat(id: number): Promise<void> {
     // Note: Related chat_interactions will be cascade deleted
     // when that table is added (foreign key constraint)
-    await db
-      .delete(chatsTable)
-      .where(eq(chatsTable.id, id));
+    await db.delete(chatsTable).where(eq(chatsTable.id, id));
   }
 }
 

@@ -1,8 +1,7 @@
 import { ChildProcess, spawn } from 'child_process';
-import { app } from 'electron';
 import * as net from 'net';
-import * as os from 'os';
-import * as path from 'path';
+
+import { getBinaryExecPath } from '@backend/lib/utils/binaries';
 
 export default class OllamaServer {
   private serverProcess: ChildProcess | null = null;
@@ -26,43 +25,6 @@ export default class OllamaServer {
   }
 
   /**
-   * Get the platform-specific Ollama binary path
-   */
-  private getOllamaBinaryPath(): string {
-    const platform = os.platform();
-    const arch = os.arch();
-
-    let binaryName: string;
-
-    if (platform === 'darwin') {
-      if (arch === 'arm64') {
-        binaryName = 'ollama-v0.9.6-aarch64-apple-darwin';
-      } else {
-        binaryName = 'ollama-v0.9.6-x64_64-apple-darwin';
-      }
-    } else if (platform === 'win32') {
-      binaryName = 'ollama-v0.9.6-x86_64-pc-windows-msvc.exe';
-    } else if (platform === 'linux') {
-      if (arch === 'arm64') {
-        binaryName = 'ollama-v0.9.6-aarch64-unknown-linux-gnu';
-      } else {
-        binaryName = 'ollama-v0.9.6-x86_64-unknown-linux-gnu';
-      }
-    } else {
-      throw new Error(`Unsupported platform: ${platform}`);
-    }
-
-    // In development, use the resources directory
-    // In production, binaries will be in the app's resources directory
-    const isDev = !app.isPackaged;
-    const resourcesPath = isDev
-      ? path.join(app.getAppPath(), 'resources', 'binaries')
-      : path.join(process.resourcesPath, 'binaries');
-
-    return path.join(resourcesPath, binaryName);
-  }
-
-  /**
    * Start the Ollama server
    */
   async startServer(): Promise<void> {
@@ -77,7 +39,7 @@ export default class OllamaServer {
       console.log(`Starting Ollama server on port ${this.port}`);
 
       // Get the binary path
-      const binaryPath = this.getOllamaBinaryPath();
+      const binaryPath = getBinaryExecPath('ollama-v0.9.6');
       console.log(`Using Ollama binary: ${binaryPath}`);
 
       // Set up environment variables

@@ -6,7 +6,7 @@ import chatRoutes from './routes/chat';
 
 /**
  * Main server initialization function
- * 
+ *
  * IMPORTANT: Everything is wrapped in an async function to avoid top-level await.
  * Top-level await is not supported in CommonJS modules, which is what Vite
  * builds for the server target. This caused the server-process.js build to fail.
@@ -47,7 +47,7 @@ async function startServer() {
 
   // Listen for termination signals from the parent process
   process.on('SIGTERM', gracefulShutdown); // Standard termination signal
-  process.on('SIGINT', gracefulShutdown);  // Ctrl+C signal
+  process.on('SIGINT', gracefulShutdown); // Ctrl+C signal
 }
 
 // Start the server and handle any initialization errors

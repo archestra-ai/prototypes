@@ -9,8 +9,21 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
 const config: ForgeConfig = {
   packagerConfig: {
+    /**
+     * Whether to package the application's source code into an archive, using Electron's archive format.
+     * Reasons why you may want to enable this feature include mitigating issues around long path names on
+     * Windows, slightly speeding up require, and concealing your source code from cursory inspection.
+     * When the value is true, it passes the default configuration to the asar module
+     * https://electron.github.io/packager/main/interfaces/Options.html#asar
+     */
     asar: true,
-    extraResource: ['./resources/binaries'],
+    /**
+     * One or more files to be copied directly into the app's Contents/Resources directory for macOS target
+     * platforms, and the resources directory for other target platforms. The resources directory can be
+     * referenced in the packaged app via the process.resourcesPath value.
+     * https://electron.github.io/packager/main/interfaces/Options.html#extraResource
+     */
+    extraResource: ['./resources/bin'],
   },
   rebuildConfig: {},
   makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],

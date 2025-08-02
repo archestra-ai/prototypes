@@ -1,11 +1,11 @@
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import path from 'node:path';
-import os from 'node:os';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 /**
  * Server-specific database configuration
- * 
+ *
  * This is a separate database module for the server process because:
  * 1. The main database module (`src/database/index.ts`) imports Electron APIs
  * 2. The server runs in a pure Node.js process without Electron context
@@ -14,7 +14,7 @@ import fs from 'node:fs';
 
 /**
  * Get platform-specific application data directory
- * 
+ *
  * Mirrors Electron's app.getPath('userData') behavior:
  * - macOS: ~/Library/Application Support/archestra
  * - Windows: %APPDATA%/archestra
@@ -23,7 +23,7 @@ import fs from 'node:fs';
 function getAppDataPath(): string {
   const platform = process.platform;
   const homeDir = os.homedir();
-  
+
   switch (platform) {
     case 'darwin':
       return path.join(homeDir, 'Library', 'Application Support', 'archestra');
@@ -46,7 +46,7 @@ if (!fs.existsSync(appDataPath)) {
 
 /**
  * IMPORTANT: Using require() instead of import for better-sqlite3
- * 
+ *
  * This is a workaround for native module loading issues in Electron:
  * - better-sqlite3 contains native .node bindings
  * - Vite/Rollup tries to bundle these bindings, which fails

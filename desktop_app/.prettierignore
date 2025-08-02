@@ -4,3 +4,4 @@ pnpm-lock.yaml
 CHANGELOG.md
 src/backend/database/migrations
 .claude
+generated-javascript-project
