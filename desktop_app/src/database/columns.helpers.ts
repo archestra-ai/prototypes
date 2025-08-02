@@ -6,11 +6,11 @@ import { sql } from 'drizzle-orm';
 import { text } from 'drizzle-orm/sqlite-core';
 
 export const timestamps = {
-  updated_at: text('timestamp')
+  updatedAt: text('timestamp')
     .notNull()
     .default(sql`(current_timestamp)`),
-  created_at: text('timestamp')
+  createdAt: text('timestamp')
     .notNull()
     .default(sql`(current_timestamp)`),
-  deleted_at: text('timestamp'),
+  deletedAt: text('timestamp'),
 };
