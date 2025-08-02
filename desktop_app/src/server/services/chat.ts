@@ -1,6 +1,6 @@
 import { eq, desc } from 'drizzle-orm';
 import { chatsTable } from '@/database/schema/chat';
-import db from '@/database';
+import db from '@/server/database';
 
 export interface CreateChatRequest {
   llmProvider: string;

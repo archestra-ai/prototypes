@@ -9,7 +9,6 @@ export const config = {
   },
   logger: {
     level: process.env.LOG_LEVEL || 'info',
-    prettyPrint: process.env.NODE_ENV !== 'production',
   },
   ai: {
     defaultProvider: process.env.DEFAULT_AI_PROVIDER || 'openai',

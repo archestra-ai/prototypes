@@ -38,15 +38,15 @@ const createWindow = () => {
   mainWindow.webContents.openDevTools();
 };
 
-// Function to start the Express server in a child process
-function startExpressServer(): void {
-  const serverPath = path.join(__dirname, 'server', 'index.js');
+// Function to start the Fastify server in a child process
+function startFastifyServer(): void {
+  const serverPath = path.join(__dirname, 'server-process.js');
 
-  console.log(`Express server starting on port ${SERVER_PORT}`);
+  console.log(`Fastify server starting on port ${SERVER_PORT}`);
 
   // Fork the server process
   serverProcess = fork(serverPath, [], {
-    env: { ...process.env },
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
     silent: false, // Allow console output from child process
   });
 
@@ -71,7 +71,7 @@ app.on('ready', async () => {
   ollamaServer = new OllamaServer();
   await ollamaServer.startServer();
 
-  startExpressServer();
+  startFastifyServer();
   createWindow();
 });
 
