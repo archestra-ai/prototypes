@@ -1,7 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { streamText } from 'ai';
-import { createOllama } from 'ollama-ai-provider-v2';
+import { createOllama } from 'ollama-ai-provider';
 import { useCallback, useRef, useState } from 'react';
 
 interface Message {

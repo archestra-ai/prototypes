@@ -28,6 +28,12 @@ OPENAI_API_KEY=your-actual-api-key-here
 pnpm start
 ```
 
+## Database Studio
+
+```bash
+npx drizzle-kit studio
+```
+
 ## Features
 
 - Electron desktop application

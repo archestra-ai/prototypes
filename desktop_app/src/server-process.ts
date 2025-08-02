@@ -15,7 +15,9 @@ app.use(express.json());
 app.post('/api/chat', async (req, res) => {
   const { messages, provider = 'openai' } = req.body;
 
-  const model = provider === 'ollama' ? ollama('llama3.2') : openai('gpt-4o');
+  const model = provider === "ollama" ? ollama("llama3.2") : openai("gpt-4o");
+  
+  console.log("Received message", messages);
 
   const result = streamText({
     model,
