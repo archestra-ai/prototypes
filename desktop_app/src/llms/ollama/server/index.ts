@@ -1,8 +1,8 @@
 import { ChildProcess, spawn } from 'child_process';
-import * as net from 'net';
-import * as path from 'path';
 import { app } from 'electron';
+import * as net from 'net';
 import * as os from 'os';
+import * as path from 'path';
 
 export default class OllamaServer {
   private serverProcess: ChildProcess | null = null;
@@ -31,9 +31,9 @@ export default class OllamaServer {
   private getOllamaBinaryPath(): string {
     const platform = os.platform();
     const arch = os.arch();
-    
+
     let binaryName: string;
-    
+
     if (platform === 'darwin') {
       if (arch === 'arm64') {
         binaryName = 'ollama-v0.9.6-aarch64-apple-darwin';
@@ -55,10 +55,10 @@ export default class OllamaServer {
     // In development, use the resources directory
     // In production, binaries will be in the app's resources directory
     const isDev = !app.isPackaged;
-    const resourcesPath = isDev 
+    const resourcesPath = isDev
       ? path.join(app.getAppPath(), 'resources', 'binaries')
       : path.join(process.resourcesPath, 'binaries');
-    
+
     return path.join(resourcesPath, binaryName);
   }
 
@@ -85,13 +85,13 @@ export default class OllamaServer {
         ...process.env,
         OLLAMA_HOST: `127.0.0.1:${this.port}`,
         OLLAMA_ORIGINS: 'http://localhost:54587',
-        OLLAMA_DEBUG: '0'
+        OLLAMA_DEBUG: '0',
       };
 
       // Spawn the Ollama process
       this.serverProcess = spawn(binaryPath, ['serve'], {
         env,
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
 
       // Handle stdout
@@ -121,10 +121,10 @@ export default class OllamaServer {
       });
 
       this.isRunning = true;
-      
+
       // Give the server a moment to start up
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       console.log(`Ollama server started successfully on port ${this.port}`);
     } catch (error) {
       console.error('Failed to start Ollama server:', error);
@@ -142,7 +142,7 @@ export default class OllamaServer {
     }
 
     console.log('Stopping Ollama server...');
-    
+
     return new Promise((resolve) => {
       if (this.serverProcess) {
         this.serverProcess.once('exit', () => {
@@ -152,10 +152,10 @@ export default class OllamaServer {
           console.log('Ollama server stopped');
           resolve();
         });
-        
+
         // Try graceful shutdown first
         this.serverProcess.kill('SIGTERM');
-        
+
         // Force kill after 5 seconds if still running
         setTimeout(() => {
           if (this.serverProcess) {
@@ -167,19 +167,5 @@ export default class OllamaServer {
         resolve();
       }
     });
-  }
-
-  /**
-   * Get the current port the server is running on
-   */
-  getPort(): number | null {
-    return this.port;
-  }
-
-  /**
-   * Check if the server is running
-   */
-  isServerRunning(): boolean {
-    return this.isRunning;
   }
 }
