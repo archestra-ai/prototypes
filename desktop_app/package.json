@@ -1,8 +1,7 @@
 {
   "name": "archestra",
-  "productName": "archestra",
   "version": "1.0.0",
-  "description": "My Electron application description",
+  "description": "Archestra AI",
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
@@ -11,12 +10,7 @@
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx ."
   },
-  "keywords": [],
-  "author": {
-    "name": "Ildar Iskhakov",
-    "email": "ildar6v@gmail.com"
-  },
-  "license": "MIT",
+  "packageManager": "pnpm@10.13.1",
   "devDependencies": {
     "@electron-forge/cli": "^7.8.2",
     "@electron-forge/maker-deb": "^7.8.2",
@@ -51,5 +45,10 @@
     "ollama-ai-provider": "^1.2.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron"
+    ]
   }
 }
