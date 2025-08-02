@@ -1,12 +1,8 @@
-import Database from 'better-sqlite3';
-import { BetterSQLite3Database, drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import path from 'path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { mcpServersTable } from '@backend/database/schema/mcpServer';
+import MCPServer from './';
 
-import MCPServer from './index';
+vi.mock('@backend/database');
 
 // Test helper functions
 function createMockServerConfig() {
@@ -30,26 +26,6 @@ function createMockMcpServer(overrides: any = {}) {
 }
 
 describe('MCPServer Model', () => {
-  let db: BetterSQLite3Database;
-  let sqlite: Database.Database;
-
-  beforeEach(async () => {
-    // Create in-memory database
-    sqlite = new Database(':memory:');
-    db = drizzle(sqlite, {
-      casing: 'snake_case',
-    });
-
-    // Run migrations
-    const migrationsFolder = path.join(__dirname, '../../../drizzle');
-    await migrate(db, { migrationsFolder });
-  });
-
-  afterEach(() => {
-    // Close database connection
-    sqlite.close();
-  });
-
   describe('create', () => {
     it('should create a new MCP server with all fields', async () => {
       const serverData = createMockMcpServer({
@@ -58,17 +34,17 @@ describe('MCPServer Model', () => {
         env: { API_KEY: 'test-key' },
       });
 
-      const created = await MCPServer.create.call({ db }, serverData);
+      const [createdMcpServer] = await MCPServer.create(serverData);
 
-      expect(created).toBeDefined();
-      expect(created.name).toBe('test-mcp-server');
-      expect(created.serverConfig).toEqual({
+      expect(createdMcpServer).toBeDefined();
+      expect(createdMcpServer.name).toBe('test-mcp-server');
+      expect(createdMcpServer.serverConfig).toEqual({
         command: 'python',
         args: ['-m', 'server'],
         env: { API_KEY: 'test-key' },
       });
-      expect(created.id).toBeDefined();
-      expect(created.createdAt).toBeInstanceOf(Date);
+      expect(createdMcpServer.id).toBeDefined();
+      expect(createdMcpServer.createdAt).toBeInstanceOf(Date);
     });
 
     it('should enforce unique server names', async () => {
@@ -118,41 +94,32 @@ describe('MCPServer Model', () => {
 
   describe('getAll', () => {
     it('should return empty array when no servers exist', async () => {
-      const servers = await MCPServer.getAll.call({ db });
+      const servers = await MCPServer.getAll();
       expect(servers).toEqual([]);
     });
 
     it('should return all servers ordered by creation date', async () => {
       // Create multiple servers with slight delays to ensure different timestamps
-      const server1 = await MCPServer.create.call(
-        { db },
-        {
-          name: 'server1',
-          serverConfig: createMockServerConfig(),
-        }
-      );
+      const server1 = await MCPServer.create({
+        name: 'server1',
+        serverConfig: createMockServerConfig(),
+      });
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      const server2 = await MCPServer.create.call(
-        { db },
-        {
-          name: 'server2',
-          serverConfig: createMockServerConfig(),
-        }
-      );
+      const server2 = await MCPServer.create({
+        name: 'server2',
+        serverConfig: createMockServerConfig(),
+      });
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      const server3 = await MCPServer.create.call(
-        { db },
-        {
-          name: 'server3',
-          serverConfig: createMockServerConfig(),
-        }
-      );
+      const server3 = await MCPServer.create({
+        name: 'server3',
+        serverConfig: createMockServerConfig(),
+      });
 
-      const servers = await MCPServer.getAll.call({ db });
+      const servers = await MCPServer.getAll();
 
       expect(servers).toHaveLength(3);
       expect(servers[0].name).toBe('server3'); // Most recent first
@@ -169,37 +136,34 @@ describe('MCPServer Model', () => {
         },
       };
 
-      await MCPServer.create.call(
-        { db },
-        {
-          name: 'docker-server',
-          serverConfig: complexConfig,
-        }
-      );
+      await MCPServer.create({
+        name: 'docker-server',
+        serverConfig: complexConfig,
+      });
 
-      const servers = await MCPServer.getAll.call({ db });
+      const servers = await MCPServer.getAll();
       expect(servers[0].serverConfig).toEqual(complexConfig);
     });
   });
 
   describe('getById', () => {
     it('should return server by id', async () => {
-      const created = await MCPServer.create.call({ db }, createMockMcpServer());
-      const [found] = await MCPServer.getById.call({ db }, created.id);
+      const [createdMcpServer] = await MCPServer.create(createMockMcpServer());
+      const [foundMcpServer] = await MCPServer.getById(createdMcpServer.id);
 
-      expect(found).toBeDefined();
-      expect(found.id).toBe(created.id);
-      expect(found.name).toBe(created.name);
-      expect(found.serverConfig).toEqual(created.serverConfig);
+      expect(foundMcpServer).toBeDefined();
+      expect(foundMcpServer.id).toBe(createdMcpServer.id);
+      expect(foundMcpServer.name).toBe(createdMcpServer.name);
+      expect(foundMcpServer.serverConfig).toEqual(createdMcpServer.serverConfig);
     });
 
     it('should return empty array for non-existent id', async () => {
-      const servers = await MCPServer.getById.call({ db }, 999999);
+      const servers = await MCPServer.getById(999999);
       expect(servers).toEqual([]);
     });
 
     it('should return empty array for negative id', async () => {
-      const servers = await MCPServer.getById.call({ db }, -1);
+      const servers = await MCPServer.getById(-1);
       expect(servers).toEqual([]);
     });
   });
@@ -207,7 +171,7 @@ describe('MCPServer Model', () => {
   describe('database constraints', () => {
     it('should not allow null name', async () => {
       await expect(
-        db.insert(mcpServersTable).values({
+        MCPServer.create({
           name: null as any,
           serverConfig: createMockServerConfig(),
         })
@@ -216,7 +180,7 @@ describe('MCPServer Model', () => {
 
     it('should not allow null serverConfig', async () => {
       await expect(
-        db.insert(mcpServersTable).values({
+        MCPServer.create({
           name: 'test-server',
           serverConfig: null as any,
         })
@@ -226,28 +190,27 @@ describe('MCPServer Model', () => {
     it('should auto-generate timestamps', async () => {
       const before = new Date();
 
-      const created = await MCPServer.create.call({ db }, createMockMcpServer());
+      const [createdMcpServer] = await MCPServer.create(createMockMcpServer());
 
       const after = new Date();
 
-      expect(created.createdAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
-      expect(created.createdAt.getTime()).toBeLessThanOrEqual(after.getTime());
+      const createdAt = new Date(createdMcpServer.createdAt);
+
+      expect(createdAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
+      expect(createdAt.getTime()).toBeLessThanOrEqual(after.getTime());
     });
   });
 
   describe('concurrent operations', () => {
     it('should handle concurrent creates with unique names', async () => {
       const creates = Array.from({ length: 5 }, (_, i) =>
-        MCPServer.create.call(
-          { db },
-          {
-            name: `concurrent-server-${i}`,
-            serverConfig: createMockServerConfig(),
-          }
-        )
+        MCPServer.create({
+          name: `concurrent-server-${i}`,
+          serverConfig: createMockServerConfig(),
+        })
       );
 
-      const results = await Promise.all(creates);
+      const results = (await Promise.all(creates)).flat();
 
       expect(results).toHaveLength(5);
       const names = results.map((r) => r.name);
@@ -259,29 +222,23 @@ describe('MCPServer Model', () => {
     it('should handle very long server names', async () => {
       const longName = 'a'.repeat(255);
 
-      const created = await MCPServer.create.call(
-        { db },
-        {
-          name: longName,
-          serverConfig: createMockServerConfig(),
-        }
-      );
+      const [createdMcpServer] = await MCPServer.create({
+        name: longName,
+        serverConfig: createMockServerConfig(),
+      });
 
-      expect(created.name).toBe(longName);
+      expect(createdMcpServer.name).toBe(longName);
     });
 
     it('should handle special characters in names', async () => {
       const specialName = 'test-server_123!@#$%^&*()';
 
-      const created = await MCPServer.create.call(
-        { db },
-        {
-          name: specialName,
-          serverConfig: createMockServerConfig(),
-        }
-      );
+      const [createdMcpServer] = await MCPServer.create({
+        name: specialName,
+        serverConfig: createMockServerConfig(),
+      });
 
-      expect(created.name).toBe(specialName);
+      expect(createdMcpServer.name).toBe(specialName);
     });
 
     it('should handle unicode in serverConfig', async () => {
@@ -294,15 +251,12 @@ describe('MCPServer Model', () => {
         },
       };
 
-      const created = await MCPServer.create.call(
-        { db },
-        {
-          name: 'unicode-server',
-          serverConfig: unicodeConfig,
-        }
-      );
+      const [createdMcpServer] = await MCPServer.create({
+        name: 'unicode-server',
+        serverConfig: unicodeConfig,
+      });
 
-      expect(created.serverConfig).toEqual(unicodeConfig);
+      expect(createdMcpServer.serverConfig).toEqual(unicodeConfig);
     });
   });
 });
