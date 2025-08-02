@@ -1,6 +1,8 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
-import path from 'node:path';
 import started from 'electron-squirrel-startup';
+import path from 'node:path';
+import { runDatabaseMigrations } from './database';
+import { MCPServer } from './models';
 import { startServer, stopServer } from './server';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -18,7 +20,7 @@ const createWindow = () => {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
     },
   });
 
@@ -26,12 +28,14 @@ const createWindow = () => {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    mainWindow.loadFile(
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
+    );
   }
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
-  
+
   // Send server port to renderer when ready
   mainWindow.webContents.on('did-finish-load', () => {
     if (serverPort) {
@@ -44,6 +48,8 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', async () => {
+  await runDatabaseMigrations();
+
   try {
     serverPort = await startServer();
     console.log(`Server started on port ${serverPort}`);
@@ -51,6 +57,14 @@ app.on('ready', async () => {
     console.error('Failed to start server:', error);
   }
   createWindow();
+
+  // TODO: this is just an example for testing, remove this later
+  MCPServer.create('test', {
+    url: 'http://localhost:3000',
+  });
+
+  const servers = await MCPServer.getAll();
+  console.log(servers);
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common
