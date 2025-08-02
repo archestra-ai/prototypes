@@ -19,7 +19,9 @@
     */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@backend/*": ["src/backend/*"],
+      "@ui/*": ["src/ui/*"]
     }
   }
 }
