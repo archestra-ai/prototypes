@@ -429,6 +429,15 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - Concurrency control cancels in-progress runs when new commits are pushed
 - Consolidates functionality from the removed `claude-code-review.yml` workflow
 
+#### Claude Pull Requests Workflow (`.github/workflows/claude-pull-requests.yml`)
+
+- **Authentication**: Uses custom GitHub App authentication instead of default GitHub token:
+  - Generates a GitHub App installation token using `actions/create-github-app-token@v1`
+  - Token is created from `ARCHESTRA_RELEASER_GITHUB_APP_ID` and `ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY` secrets
+  - Generated token is passed to Claude Code action for enhanced permissions and security
+- **Purpose**: Provides automated PR assistance including adding descriptions and updating documentation
+- **Model**: Uses Claude Opus 4 as primary model with Claude Sonnet 4 as fallback
+
 #### Release Please Workflow (`.github/workflows/release-please.yml`)
 
 - Manages automated releases using Google's release-please action
