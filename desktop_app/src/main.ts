@@ -38,16 +38,31 @@ const createWindow = () => {
   mainWindow.webContents.openDevTools();
 };
 
-// Function to start the Fastify server in a child process
+/**
+ * Start the Fastify server in a separate Node.js process
+ * 
+ * This function spawns the server as a child process because:
+ * 1. The server needs access to native Node.js modules (better-sqlite3)
+ * 2. Electron's renderer process has restrictions on native modules
+ * 3. Running in a separate process allows for better error isolation
+ * 4. The server can be restarted independently of the Electron app
+ */
 function startFastifyServer(): void {
+  // server-process.js is built by Vite from src/server-process.ts
+  // It's placed in the same directory as main.js after building
   const serverPath = path.join(__dirname, 'server-process.js');
 
   console.log(`Fastify server starting on port ${SERVER_PORT}`);
 
-  // Fork the server process
+  // Fork creates a new Node.js process that can communicate with the parent
   serverProcess = fork(serverPath, [], {
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
-    silent: false, // Allow console output from child process
+    env: { 
+      ...process.env, 
+      // CRITICAL: This flag tells Electron to run this process as pure Node.js
+      // Without it, the process would run as an Electron process and fail to load native modules
+      ELECTRON_RUN_AS_NODE: '1' 
+    },
+    silent: false, // Allow console output from child process for debugging
   });
 
   // Handle server process errors

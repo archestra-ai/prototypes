@@ -31,6 +31,9 @@ const config: ForgeConfig = {
           target: 'preload',
         },
         {
+          // Server process entry point - built separately from main process
+          // This creates server-process.js that runs our Fastify server
+          // in an isolated Node.js process (not Electron)
           entry: 'src/server-process.ts',
           config: 'vite.server.config.ts',
           target: 'main',
