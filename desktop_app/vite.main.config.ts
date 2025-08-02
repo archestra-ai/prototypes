@@ -7,6 +7,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@backend': path.resolve(__dirname, './src/backend'),
+      '@ui': path.resolve(__dirname, './src/ui'),
     },
   },
   build: {
@@ -15,8 +17,32 @@ export default defineConfig({
     },
   },
   test: {
-    environment: 'jsdom',
+    environment: 'node',
     globals: true,
     setupFiles: './setup-tests.ts',
+    // projects: [
+    //   'src/*',
+    //   {
+    //     extends: true,
+    //     test: {
+    //       include: ['**/*.{browser}.test.{ts,tsx}'],
+    //       name: {
+    //         label: 'browser',
+    //         color: 'cyan',
+    //       },
+    //       environment: 'jsdom',
+    //     },
+    //   },
+    //   {
+    //     test: {
+    //       include: ['**/*.{node}.test.{ts,tsx}'],
+    //       name: {
+    //         label: 'node',
+    //         color: 'green',
+    //       },
+    //       environment: 'node',
+    //     },
+    //   },
+    // ],
   },
 });

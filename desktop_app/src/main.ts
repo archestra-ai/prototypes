@@ -3,8 +3,8 @@ import started from 'electron-squirrel-startup';
 import { ChildProcess, fork } from 'node:child_process';
 import path from 'node:path';
 
-import { runDatabaseMigrations } from '@/database';
-import { OllamaServer } from '@/llms/ollama';
+import { runDatabaseMigrations } from '@backend/database';
+import { OllamaServer } from '@backend/llms/ollama';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {

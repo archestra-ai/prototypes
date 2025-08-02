@@ -10,7 +10,7 @@
     "outDir": "dist",
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "jsx": "react",
+    "jsx": "react-jsx",
 
     "types": ["vitest/globals"],
 
@@ -19,7 +19,9 @@
     */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@backend/*": ["src/backend/*"],
+      "@ui/*": ["src/ui/*"]
     }
   }
 }

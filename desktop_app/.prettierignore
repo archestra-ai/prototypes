@@ -2,5 +2,5 @@ coverage
 dist
 pnpm-lock.yaml
 CHANGELOG.md
-src/database/migrations
+src/backend/database/migrations
 .claude
