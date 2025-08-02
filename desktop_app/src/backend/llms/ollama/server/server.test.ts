@@ -1,24 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
-
 import OllamaServer from '.';
-
-vi.mock('child_process');
-vi.mock('@backend/lib/utils/binaries', () => ({
-  getBinaryExecPath: vi.fn((binaryName: string) => `/mock/path/${binaryName}`),
-  default: vi.fn().mockImplementation(function (
-    processName: string,
-    binaryName: string,
-    commandArgs: string[],
-    commandEnv: NodeJS.ProcessEnv
-  ) {
-    this.PROCESS_NAME = processName;
-    this.BINARY_NAME = binaryName;
-    this.COMMAND_ARGS = commandArgs;
-    this.COMMAND_ENV = commandEnv;
-    this.startProcess = vi.fn();
-    this.stopProcess = vi.fn();
-  }),
-}));
 
 describe('OllamaServer', () => {
   it('should initialize with correct parameters for Ollama', () => {
