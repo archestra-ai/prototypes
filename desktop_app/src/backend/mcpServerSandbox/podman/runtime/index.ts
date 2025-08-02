@@ -35,9 +35,11 @@ class PodmanRuntime {
     await this.checkInstalledMachines();
 
     if (!this.installedMachineName) {
-      throw new Error('Podman is not installed');
+      console.error('Podman is not installed');
+      return false;
     } else {
       console.log(`Podman is installed and running on machine ${this.installedMachineName}`);
+      return true;
     }
   }
 }
