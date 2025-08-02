@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import { app } from 'electron';
 
-import OllamaServer from './';
+import OllamaServer from '.';
 
 vi.mock('child_process');
 vi.mock('net');
