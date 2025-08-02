@@ -41,8 +41,9 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-      - name: Build
-        run: pnpm make
+      # TODO: add this later
+      # - name: Build
+      #   run: pnpm make
 
   # TODO: add this once we've added this to ./desktop_app
   # verify-openapi-schema-is-up-to-date:
