@@ -5,7 +5,7 @@ import { mcpServersTable } from '@backend/database/schema/mcpServer';
 
 export default class MCPServer {
   static async create(data: typeof mcpServersTable.$inferInsert) {
-    return db.insert(mcpServersTable).values(data);
+    return db.insert(mcpServersTable).values(data).returning();
   }
 
   static async getAll() {

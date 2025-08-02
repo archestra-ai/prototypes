@@ -82,7 +82,6 @@ export default class OllamaServer {
 
       // Set up environment variables
       const env = {
-        ...process.env,
         OLLAMA_HOST: `127.0.0.1:${this.port}`,
         OLLAMA_ORIGINS: 'http://localhost:54587',
         OLLAMA_DEBUG: '0',
@@ -121,9 +120,6 @@ export default class OllamaServer {
       });
 
       this.isRunning = true;
-
-      // Give the server a moment to start up
-      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       console.log(`Ollama server started successfully on port ${this.port}`);
     } catch (error) {

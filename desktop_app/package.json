@@ -100,11 +100,11 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "electron"
+      "electron",
+      "better-sqlite3"
     ],
     "ignoredBuiltDependencies": [
       "@tailwindcss/oxide",
-      "better-sqlite3",
       "electron-winstaller",
       "esbuild"
     ]

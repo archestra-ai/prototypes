@@ -12,10 +12,3 @@ export const app = {
   getName: vi.fn(() => 'test-app'),
   getVersion: vi.fn(() => '1.0.0'),
 };
-
-export const dialog = {
-  showMessageBox: vi.fn(),
-  showErrorBox: vi.fn(),
-  showOpenDialog: vi.fn(),
-  showSaveDialog: vi.fn(),
-};

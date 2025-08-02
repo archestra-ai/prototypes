@@ -21,7 +21,8 @@
     "paths": {
       "@/*": ["src/*"],
       "@backend/*": ["src/backend/*"],
-      "@ui/*": ["src/ui/*"]
+      "@ui/*": ["src/ui/*"],
+      "@types": ["src/types"]
     }
   }
 }
