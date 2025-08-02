@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 
-import db from '../../database';
-import { mcpServersTable } from '../../database/schema/mcpServer';
+import db from '@/database';
+import { mcpServersTable } from '@/database/schema/mcpServer';
 
 export default class MCPServer {
   static async create(data: typeof mcpServersTable.$inferInsert) {

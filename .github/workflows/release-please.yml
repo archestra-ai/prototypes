@@ -25,7 +25,7 @@ jobs:
       issues: write
       id-token: write
     outputs:
-      desktop_release_created: ${{ steps.release-please.outputs['desktop--release_created'] }}
+      desktop_release_created: ${{ steps.release-please.outputs['desktop_app--release_created'] }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -83,22 +83,7 @@ jobs:
           app-id: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_ID }}
           private-key: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY }}
 
-      - name: Setup frontend dependencies
-        uses: ./.github/actions/setup-frontend
+      - name: Setup environment
+        uses: ./.github/actions/setup-env
 
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-        with:
-          platform: ${{ matrix.platform }}
-
-      - uses: tauri-apps/tauri-action@564aea5a8075c7a54c167bb0cf5b3255314a7f9d # v0.5.22
-        env:
-          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
-        with:
-          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          projectPath: desktop
-          releaseName: "App v__VERSION__"
-          releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
-          prerelease: false
-          args: ${{ matrix.args }}
+      # TODO: add Electron Forge steps here

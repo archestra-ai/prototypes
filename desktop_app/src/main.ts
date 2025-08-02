@@ -4,8 +4,8 @@ import { ChildProcess, fork } from 'node:child_process';
 import crypto from 'node:crypto';
 import path from 'node:path';
 
-import { runDatabaseMigrations } from './database';
-import { MCPServer } from './models';
+import { runDatabaseMigrations } from '@/database';
+import { MCPServer } from '@/models';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {

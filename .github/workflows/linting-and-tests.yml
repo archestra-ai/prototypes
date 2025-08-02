@@ -20,80 +20,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # See here for more information
-  # https://github.com/tauri-apps/tauri-action
-  rust-linting-and-tests:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: "Ubuntu"
-            platform: "ubuntu-latest"
-            args: ""
-          - name: "macOS (Arm)"
-            platform: "macos-latest" # for Arm based macs (M1 and above).
-            args: "--target aarch64-apple-darwin"
-          - name: "macOS (Intel)"
-            platform: "macos-latest" # for Intel based macs.
-            args: "--target x86_64-apple-darwin"
-          - name: "Windows"
-            platform: "windows-latest"
-            args: ""
-    runs-on: ${{ matrix.platform }}
-    defaults:
-      run:
-        working-directory: ./desktop/src-tauri
-    name: Rust Linting and Tests (${{ matrix.name }})
-    steps:
-      - name: Checkout project
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: true
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-        with:
-          platform: ${{ matrix.platform }}
-
-      - name: Apply Rust fixes and formatting
-        shell: bash
-        run: |
-          cargo fix --allow-dirty --allow-staged
-          cargo fmt
-
-          if ! git diff --exit-code; then
-            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
-            git add .
-            git commit -m "fix: apply cargo fix and formatting changes"
-            git push --no-verify
-          fi
-
-      - name: Run tests
-        run: cargo test
-
-      - name: Run Clippy Linting
-        working-directory: desktop/src-tauri
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-
-      - name: Run tests
-        working-directory: desktop/src-tauri
-        run: cargo test
-
-  frontend-linting-and-tests:
-    name: Frontend Linting and Tests
+  desktop-app-linting-and-tests:
+    name: Desktop App Linting and Tests
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./desktop
+        working-directory: ./desktop_app
     steps:
       - name: Checkout project
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
-      - name: Setup frontend dependencies
-        uses: ./.github/actions/setup-frontend
+      - name: Setup environment
+        uses: ./.github/actions/setup-env
 
       - name: Check prettier formatting
         run: pnpm prettier --check .
@@ -102,40 +42,41 @@ jobs:
         run: pnpm test
 
       - name: Build
-        run: pnpm build
+        run: pnpm make
 
-  verify-openapi-schema-is-up-to-date:
-    name: Verify Open API schema is up to date
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout project
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: true
+  # TODO: add this once we've added this to ./desktop_app
+  # verify-openapi-schema-is-up-to-date:
+  #   name: Verify Open API schema is up to date
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout project
+  #       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+  #       with:
+  #         persist-credentials: true
 
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-        with:
-          platform: ubuntu-latest
+  #     - name: Setup Rust
+  #       uses: ./.github/actions/setup-rust
+  #       with:
+  #         platform: ubuntu-latest
 
-      - name: Setup frontend dependencies
-        uses: ./.github/actions/setup-frontend
+  #     - name: Setup frontend dependencies
+  #       uses: ./.github/actions/setup-frontend
 
-      - name: Codegen
-        working-directory: desktop/src-tauri
-        run: cargo run --bin codegen
+  #     - name: Codegen
+  #       working-directory: desktop/src-tauri
+  #       run: cargo run --bin codegen
 
-      - name: Check for changes and commit if needed
-        working-directory: desktop
-        run: |
-          # Check both unstaged and staged changes
-          if ! git diff --exit-code || ! git diff --cached --exit-code; then
-            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
-            git add .
-            git commit -m "chore: update OpenAPI schema and TypeScript client"
-            git push --no-verify
-          fi
+  #     - name: Check for changes and commit if needed
+  #       working-directory: desktop
+  #       run: |
+  #         # Check both unstaged and staged changes
+  #         if ! git diff --exit-code || ! git diff --cached --exit-code; then
+  #           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+  #           git config --local user.name "github-actions[bot]"
+  #           git add .
+  #           git commit -m "chore: update OpenAPI schema and TypeScript client"
+  #           git push --no-verify
+  #         fi
 
   zizmor:
     name: Zizmor GitHub Actions static analysis

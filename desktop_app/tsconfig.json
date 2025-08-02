@@ -7,14 +7,19 @@
     "esModuleInterop": true,
     "noImplicitAny": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "outDir": "dist",
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "jsx": "react",
-    // Added for shadcn/ui
+
+    "types": ["vitest/globals"],
+
+    /*
+     Aliasing (added for shadcn/ui
+    */
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["src/*"]
     }
   }
 }

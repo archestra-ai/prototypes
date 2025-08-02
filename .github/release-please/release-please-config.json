@@ -1,7 +1,9 @@
 {
-  "bootstrap-sha": "d78ec51d21f8f58b0ff6f87795811aa2d7900099",
+  "bootstrap-sha": "526d27aa0bd5e618de4b2f7e8c49d0b35c50b2dd",
   "changelog-path": "CHANGELOG.md",
   "changelog-type": "default",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
   "changelog-sections": [
     {
       "section": "Features",
@@ -55,28 +57,9 @@
     }
   ],
   "packages": {
-    "desktop": {
-      "component": "desktop",
-      "release-type": "simple",
-      "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": true,
-      "extra-files": [
-        {
-          "type": "json",
-          "path": "package.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "toml",
-          "path": "src-tauri/Cargo.toml",
-          "jsonpath": "$.package.version"
-        },
-        {
-          "type": "json",
-          "path": "src-tauri/tauri.conf.json",
-          "jsonpath": "$.version"
-        }
-      ]
+    "desktop_app": {
+      "component": "desktop_app",
+      "release-type": "node"
     }
   },
   "plugins": [],

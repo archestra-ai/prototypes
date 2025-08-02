@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import path from 'path';
 import { defineConfig } from 'vite';
 
@@ -12,5 +13,10 @@ export default defineConfig({
     rollupOptions: {
       external: ['@ai-sdk/openai', 'ai', 'better-sqlite3', 'cors', 'dotenv', 'express', 'ollama-ai-provider'],
     },
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './setup-tests.ts',
   },
 });

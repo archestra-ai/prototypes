@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: desktop
+    directory: desktop_app
     schedule:
       interval: weekly
     groups:
@@ -15,19 +15,6 @@ updates:
       - dependencies
     commit-message:
       prefix: deps(frontend)
-
-  - package-ecosystem: cargo
-    directory: desktop/src-tauri
-    schedule:
-      interval: weekly
-    groups:
-      rust-dependencies:
-        patterns:
-          - "*"
-    labels:
-      - dependencies
-    commit-message:
-      prefix: deps(backend)
 
   - package-ecosystem: github-actions
     directory: .github
