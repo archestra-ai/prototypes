@@ -22,7 +22,9 @@
     "@electron-forge/plugin-vite": "^7.8.2",
     "@electron/fuses": "^1.8.0",
     "@types/better-sqlite3": "^7.6.13",
+    "@tailwindcss/vite": "^4.1.11",
     "@types/electron-squirrel-startup": "^1.0.2",
+    "@types/node": "^24.1.0",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
@@ -32,24 +34,32 @@
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.32.0",
     "tsx": "^4.20.3",
+    "tailwindcss": "^4.1.11",
     "typescript": "~4.5.4",
     "vite": "^5.4.19"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/react": "^2.0.0",
+    "@radix-ui/react-slot": "^1.2.3",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
+    "@vitejs/plugin-react": "^4.7.0",
     "ai": "^5.0.0",
     "better-sqlite3": "^12.2.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.4",
     "electron-squirrel-startup": "^1.0.1",
     "express": "^5.1.0",
+    "lucide-react": "^0.536.0",
     "ollama-ai-provider": "^1.2.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "tailwind-merge": "^3.3.1",
+    "tw-animate-css": "^1.3.6"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

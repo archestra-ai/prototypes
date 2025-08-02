@@ -11,6 +11,10 @@
     "outDir": "dist",
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "jsx": "react"
+    "jsx": "react",
+    // Added for shadcn/ui
+    "paths": {
+      "@/*": ["./*"]
+    }
   }
 }
