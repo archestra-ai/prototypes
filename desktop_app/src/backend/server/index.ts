@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 
 import { config } from './config/server';
+import { runServerMigrations } from './database';
 import corsPlugin from './plugins/cors';
 import chatRoutes from './routes/chat';
-import { runServerMigrations } from './database';
 
 /**
  * Main server initialization function
@@ -15,7 +15,7 @@ import { runServerMigrations } from './database';
 async function startServer() {
   // Run database migrations before starting the server
   await runServerMigrations();
-  
+
   const app = fastify({
     logger: config.logger,
     // Note: prettyPrint was removed from config as it's no longer supported

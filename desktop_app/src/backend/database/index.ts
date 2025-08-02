@@ -21,7 +21,7 @@ export async function runDatabaseMigrations() {
     // In development, migrations are in src folder
     // In production, they should be bundled with the app
     const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-    
+
     let migrationsFolder: string;
     if (isDev) {
       // Development: Use absolute path from project root
@@ -30,7 +30,7 @@ export async function runDatabaseMigrations() {
       // Production: Migrations should be bundled with the app
       migrationsFolder = path.join(__dirname, '../../src/backend/database/migrations');
     }
-    
+
     console.log('Migrations folder:', migrationsFolder);
 
     // Run migrations

@@ -212,11 +212,11 @@ describe('binaries utilities', () => {
         // First reset the module cache
         vi.resetModules();
 
-        setupMocks({ 
-          platform: 'darwin', 
-          arch: 'arm64', 
+        setupMocks({
+          platform: 'darwin',
+          arch: 'arm64',
           fileExists: false,
-          appPath: '/test/app'
+          appPath: '/test/app',
         });
 
         const { getBinaryExecPath } = await import('./');
@@ -250,10 +250,10 @@ describe('binaries utilities', () => {
         // First reset the module cache
         vi.resetModules();
 
-        setupMocks({ 
-          platform: 'darwin', 
-          arch: 'arm64', 
-          appPath: '/path with spaces/app'
+        setupMocks({
+          platform: 'darwin',
+          arch: 'arm64',
+          appPath: '/path with spaces/app',
         });
 
         const { getBinaryExecPath } = await import('./');
