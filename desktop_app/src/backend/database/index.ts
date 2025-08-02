@@ -6,12 +6,6 @@ import path from 'node:path';
 const DATABASE_NAME = 'archestra.db';
 const DATABASE_PATH = path.join(app.getPath('userData'), DATABASE_NAME);
 
-/**
- * TODO: this is a bit of a hack to get the path to the migrations folder "working"
- * (it's sorta clashing with .vite/build, investigate this further)
- */
-const MIGRATIONS_FOLDER = '../../src/backend/database/migrations';
-
 const db = drizzle({
   connection: DATABASE_PATH,
   // https://orm.drizzle.team/docs/sql-schema-declaration#camel-and-snake-casing
@@ -22,9 +16,22 @@ const db = drizzle({
 export async function runDatabaseMigrations() {
   try {
     console.log('Running database migrations...');
+    console.log('Database path:', DATABASE_PATH);
 
-    // Get the absolute path to the migrations folder
-    const migrationsFolder = path.join(__dirname, MIGRATIONS_FOLDER);
+    // In development, migrations are in src folder
+    // In production, they should be bundled with the app
+    const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+    
+    let migrationsFolder: string;
+    if (isDev) {
+      // Development: Use absolute path from project root
+      migrationsFolder = path.join(process.cwd(), 'src/backend/database/migrations');
+    } else {
+      // Production: Migrations should be bundled with the app
+      migrationsFolder = path.join(__dirname, '../../src/backend/database/migrations');
+    }
+    
+    console.log('Migrations folder:', migrationsFolder);
 
     // Run migrations
     await migrate(db, { migrationsFolder });

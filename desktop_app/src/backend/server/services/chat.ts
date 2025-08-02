@@ -9,7 +9,7 @@ import db from '@backend/server/database';
  * Request/Response types for the chat API
  */
 export interface CreateChatRequest {
-  llmProvider: string;
+  // Currently no required fields for creating a chat
 }
 
 export interface UpdateChatRequest {
@@ -20,7 +20,6 @@ export interface Chat {
   id: number;
   sessionId: string;
   title: string | null;
-  llmProvider: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,12 +50,7 @@ export class ChatService {
     // defined in the schema (see chat.ts schema file)
     const [chat] = await db
       .insert(chatsTable)
-      .values({
-        llmProvider: request.llmProvider,
-        // title is optional and defaults to null
-        // sessionId is auto-generated
-        // timestamps are auto-generated
-      })
+      .values({}) // No required fields, all handled by defaults
       .returning(); // SQLite returns the inserted row
 
     return chat;

@@ -1,4 +1,5 @@
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -58,5 +59,26 @@ const sqlite = new Database(DATABASE_PATH);
 const db = drizzle(sqlite, {
   casing: 'snake_case', // Match the desktop app's database convention
 });
+
+/**
+ * Run database migrations
+ * This ensures the database schema is up to date before the server starts
+ */
+export async function runServerMigrations() {
+  try {
+    console.log('Running server database migrations...');
+
+    // Get the absolute path to the migrations folder
+    const migrationsFolder = path.join(__dirname, '../../src/backend/database/migrations');
+
+    // Run migrations
+    await migrate(db, { migrationsFolder });
+
+    console.log('Server database migrations completed successfully');
+  } catch (error) {
+    console.error('Failed to run server migrations:', error);
+    throw error;
+  }
+}
 
 export default db;
