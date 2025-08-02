@@ -1,11 +1,10 @@
 import { BrowserWindow, app } from 'electron';
 import started from 'electron-squirrel-startup';
 import { ChildProcess, fork } from 'node:child_process';
-import crypto from 'node:crypto';
 import path from 'node:path';
 
 import { runDatabaseMigrations } from '@/database';
-import { MCPServer } from '@/models';
+import { OllamaServer } from '@/llms/ollama';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -14,6 +13,7 @@ if (started) {
 
 const SERVER_PORT = 3456;
 let serverProcess: ChildProcess | null = null;
+let ollamaServer: OllamaServer | null = null;
 
 const createWindow = () => {
   // Create the browser window.
@@ -42,6 +42,8 @@ const createWindow = () => {
 function startExpressServer(): void {
   const serverPath = path.join(__dirname, 'server-process.js');
 
+  console.log(`Express server starting on port ${SERVER_PORT}`);
+
   // Fork the server process
   serverProcess = fork(serverPath, [], {
     env: { ...process.env },
@@ -66,18 +68,11 @@ function startExpressServer(): void {
 app.on('ready', async () => {
   await runDatabaseMigrations();
 
+  ollamaServer = new OllamaServer();
+  await ollamaServer.startServer();
+
   startExpressServer();
-  console.log(`Express server starting on port ${SERVER_PORT}`);
   createWindow();
-
-  MCPServer.create({
-    name: crypto.randomUUID(),
-    serverConfig: {
-      url: 'http://localhost:3000',
-    },
-  });
-
-  console.log(await MCPServer.getAll());
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -99,31 +94,43 @@ app.on('activate', () => {
 
 // Gracefully stop server on quit
 app.on('before-quit', async (event) => {
-  if (serverProcess) {
+  if (serverProcess || ollamaServer) {
     event.preventDefault();
 
-    // Kill the server process gracefully
-    serverProcess.kill('SIGTERM');
-
-    // Wait for process to exit
-    await new Promise<void>((resolve) => {
-      if (!serverProcess) {
-        resolve();
-        return;
+    // Stop Ollama server
+    if (ollamaServer) {
+      try {
+        await ollamaServer.stopServer();
+        console.log('Ollama server stopped');
+      } catch (error) {
+        console.error('Error stopping Ollama server:', error);
       }
+    }
 
-      serverProcess.on('exit', () => {
-        resolve();
-      });
+    // Kill the server process gracefully
+    if (serverProcess) {
+      serverProcess.kill('SIGTERM');
 
-      // Force kill after 5 seconds
-      setTimeout(() => {
-        if (serverProcess) {
-          serverProcess.kill('SIGKILL');
+      // Wait for process to exit
+      await new Promise<void>((resolve) => {
+        if (!serverProcess) {
+          resolve();
+          return;
         }
-        resolve();
-      }, 5000);
-    });
+
+        serverProcess.on('exit', () => {
+          resolve();
+        });
+
+        // Force kill after 5 seconds
+        setTimeout(() => {
+          if (serverProcess) {
+            serverProcess.kill('SIGKILL');
+          }
+          resolve();
+        }, 5000);
+      });
+    }
 
     app.exit();
   }
