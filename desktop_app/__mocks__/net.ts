@@ -1,5 +1,3 @@
-import { vi } from 'vitest';
-
 export const createServer = vi.fn(() => ({
   listen: vi.fn((port, host, callback) => {
     if (callback) callback();

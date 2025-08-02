@@ -94,12 +94,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             selectedProvider === 'chatgpt' ? 'openai' : selectedProvider === 'claude' ? 'anthropic' : 'ollama',
         },
       });
-      
+
       // The API client returns { data: ... } wrapper
       if (!response.data) {
         throw new Error('No data returned from create chat API');
       }
-      
+
       const initializedChat = initializeChat(response.data as ServerChatWithMessages);
 
       set((state) => ({

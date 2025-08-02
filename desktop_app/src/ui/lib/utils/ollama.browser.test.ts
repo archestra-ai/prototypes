@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest';
-
 import type { ToolWithMCPServerName } from '@ui/types';
 
 import { convertMCPServerToolsToOllamaTools } from './ollama';
