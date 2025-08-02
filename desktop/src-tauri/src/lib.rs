@@ -72,7 +72,7 @@ pub fn run() {
             let db_for_mcp = db.clone();
             let app_data_dir_for_mcp = app_data_dir.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = sandbox::start_all_mcp_servers(&db_for_mcp, &app_data_dir_for_mcp).await {
+                if let Err(e) = sandbox::start_all_mcp_servers(db_for_mcp, &app_data_dir_for_mcp).await {
                     error!("Failed to start MCP servers: {e}");
                 }
             });

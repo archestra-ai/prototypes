@@ -114,7 +114,7 @@ impl Model {
         let result = Self::save_server_without_lifecycle(db, definition).await?;
 
         // Start the server after saving
-        if let Err(e) = sandbox::start_mcp_server(&result, app_data_dir).await {
+        if let Err(e) = sandbox::start_mcp_server(definition, app_data_dir).await {
             error!("Warning: Failed to start server after save: {e}");
             // Don't fail the save operation, but log the error
         }

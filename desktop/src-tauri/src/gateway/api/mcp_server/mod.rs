@@ -94,55 +94,24 @@ impl Service {
             mcp_server_catalog_id
         );
 
-        // TODO: once we've properly set-up different environment variable loading for different
-        // environments, and once we have a "production" oauth-proxy server, uncomment this out
-        // Get OAuth proxy base URL from environment - required
-        // let oauth_proxy_base_url = match std::env::var("OAUTH_PROXY_BASE_URL") {
-        //     Ok(url) => url,
-        //     Err(_) => {
-        //         error!("OAUTH_PROXY_BASE_URL environment variable must be set");
-        //         return Err(format!("OAUTH_PROXY_BASE_URL environment variable must be set"));
-        //     }
-        // };
-        let oauth_proxy_base_url = String::from("https://oauth.dev.archestra.ai");
+        // Route to provider-specific handler
+        if provider == "google" {
+            let auth_url = oauth::providers::google::get_google_oauth_auth_url(mcp_server_catalog_id).await?;
+            debug!("OAuth proxy URL: {}", auth_url);
 
-        let auth_url = format!("{oauth_proxy_base_url}/v1/auth/{provider}?mcp_catalog_connector_id={mcp_server_catalog_id}", );
-        debug!("OAuth proxy URL: {}", auth_url);
+            self.app_handle
+                .opener()
+                .open_url(&auth_url, None::<&str>)
+                .map_err(|e| {
+                    error!("Failed to open browser for auth URL: {}", e);
+                    format!("Failed to open auth URL: {e}")
+                })?;
 
-        // Call the cloud OAuth proxy service with dynamic "provider" parameter and including
-        // the mcp catalog connector id in the query parameters
-        let client = reqwest::Client::new();
-        let response = client.get(&auth_url).send().await.map_err(|e| {
-            error!("Failed to connect to OAuth proxy at {}: {}", auth_url, e);
-            format!("Failed to connect to OAuth proxy: {e}")
-        })?;
-
-        let status = response.status();
-        debug!("OAuth proxy response status: {}", status);
-
-        if !status.is_success() {
-            error!("OAuth proxy returned error status: {}", status);
-            return Err(format!("OAuth proxy returned error status: {status}"));
+            info!("Successfully opened browser for OAuth authentication");
+            Ok(())
+        } else {
+            return Err(format!("Unsupported OAuth provider: {provider}"));
         }
-
-        let auth_data: OAuthProxyResponse = response.json().await.map_err(|e| {
-            error!("Failed to parse OAuth proxy response: {}", e);
-            format!("Failed to parse auth response: {e}")
-        })?;
-
-        info!("Received auth URL from OAuth proxy, opening browser");
-        debug!("Auth URL: {}", auth_data.auth_url);
-
-        self.app_handle
-            .opener()
-            .open_url(&auth_data.auth_url, None::<&str>)
-            .map_err(|e| {
-                error!("Failed to open browser for auth URL: {}", e);
-                format!("Failed to open auth URL: {e}")
-            })?;
-
-        info!("Successfully opened browser for OAuth authentication");
-        Ok(())
     }
 }
 

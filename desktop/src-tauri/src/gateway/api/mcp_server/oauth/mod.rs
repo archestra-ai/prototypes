@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use url::Url;
 
 use crate::gateway::websocket::Service as WebSocketService;
-use crate::sandbox;
 
 pub mod providers;
 pub mod utils;

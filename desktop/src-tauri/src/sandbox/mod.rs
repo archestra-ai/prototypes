@@ -1,17 +1,18 @@
 pub mod node;
 
-use crate::models::mcp_server::{Model as MCPServerModel, ServerConfig};
 use sea_orm::DatabaseConnection;
+use crate::models::mcp_server::{MCPServerDefinition, Model as MCPServerModel, ServerConfig};
 use rmcp::model::{Resource as MCPResource, Tool as MCPTool};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
-use std::path::PathBuf;
 use std::process::Stdio;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, Mutex as TokioMutex, RwLock};
+use tracing::{debug, error, info};
 
 // Constants for resource management
 const MAX_BUFFER_SIZE: usize = 1000;
@@ -106,23 +107,19 @@ impl MCPServerManager {
     /// Start an MCP server
     pub async fn start_server(
         &self,
+        name: String,
+        command: String,
+        args: Vec<String>,
+        env: Option<HashMap<String, String>>,
         app_data_dir: &PathBuf,
-        mcp_server: &MCPServerModel,
     ) -> Result<(), String> {
-        let name = &mcp_server.name;
-
-        let config: ServerConfig = serde_json::from_value(mcp_server.server_config.clone())
-                .map_err(|e| format!("Failed to parse server config for {}: {e}", name))?;
-
-        let command = config.command;
-        let args = config.args;
-        let env: HashMap<String, String> = config.env;
-
         // Check if server already exists
-        let servers = self.servers.read().await;
-        if let Some(existing) = servers.get(name) {
-            if existing.is_running {
-                return Err(format!("MCP server '{}' is already running", name));
+        {
+            let servers = self.servers.read().await;
+            if let Some(existing) = servers.get(&name) {
+                if existing.is_running {
+                    return Err(format!("MCP server '{name}' is already running"));
+                }
             }
         }
 
@@ -132,11 +129,13 @@ impl MCPServerManager {
 
             if !node_info.is_available() {
                 let instructions = node::get_node_installation_instructions();
-                return Err(format!("Cannot start MCP server '{}': {instructions}", name));
+                return Err(format!("Cannot start MCP server '{name}': {instructions}"));
             }
 
             if args.is_empty() {
-                return Err(format!("No package specified for npx command in server '{}'", name));
+                return Err(format!(
+                    "No package specified for npx command in server '{name}'"
+                ));
             }
 
             let package_name = &args[0];
@@ -152,10 +151,18 @@ impl MCPServerManager {
             }
         } else if command == "http" {
             // Handle HTTP-based MCP server
-            return self.start_http_mcp_server(name, &args, &env).await;
+            return self.start_http_mcp_server(name, args, env).await;
         } else {
-            return Ok(());
+            (command.clone(), args.clone())
         };
+
+        let env_vars = env.unwrap_or_default();
+        debug!(
+            "🚀 MCP [{}] Starting: {} {}",
+            name,
+            actual_command,
+            actual_args.join(" ")
+        );
 
         // Start the process with sandbox-exec for security (macOS only)
         let mut cmd = if cfg!(target_os = "macos") {
@@ -181,15 +188,8 @@ impl MCPServerManager {
             regular_cmd
         };
 
-        debug!(
-            "MCP [{}] Starting: {} {}",
-            name,
-            actual_command,
-            actual_args.join(" ")
-        );
-
         // Set environment variables
-        for (key, value) in env {
+        for (key, value) in env_vars {
             let value_with_resolved_template_values = self.resolve_templated_env_var_value(
                 app_data_dir,
                 value
@@ -269,7 +269,7 @@ impl MCPServerManager {
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                error!("MCP [{server_name_clone2}] {line}");
+                error!("⚠️ MCP [{server_name_clone2}] {line}");
             }
         });
 
@@ -294,33 +294,33 @@ impl MCPServerManager {
             servers.insert(name.clone(), server);
         }
 
-        debug!("MCP [{name}] Started successfully");
+        debug!("✅ MCP [{name}] Started successfully");
         Ok(())
     }
 
     /// Start an HTTP-based MCP server
     async fn start_http_mcp_server(
         &self,
-        name: &String,
-        args: &Vec<String>,
-        env: &HashMap<String, String>,
+        name: String,
+        args: Vec<String>,
+        env: Option<HashMap<String, String>>,
     ) -> Result<(), String> {
         if args.is_empty() {
             return Err(format!("No URL specified for HTTP MCP server '{name}'"));
         }
 
         let url = args[0].clone();
+        let headers = env.unwrap_or_default();
 
         info!("🚀 MCP [{name}] Starting HTTP server at: {url}");
 
-        // TODO: fix the .clone()s here once I learn about "lifetimes"
         let server = MCPServer {
             name: name.clone(),
             command: "http".to_string(),
             args: vec![url.clone()],
             server_type: ServerType::Http {
                 url: url.clone(),
-                headers: env.clone(),
+                headers: headers.clone(),
             },
             tools: Vec::new(),
             resources: Vec::new(),
@@ -336,13 +336,13 @@ impl MCPServerManager {
             servers.insert(name.clone(), server);
         }
 
-        info!("MCP [{name}] HTTP server started successfully");
+        info!("✅ MCP [{name}] HTTP server started successfully");
         Ok(())
     }
 
     /// Stop an MCP server
     pub async fn stop_server(&self, server_name: &str) -> Result<(), String> {
-        info!("MCP [{server_name}] Stopping server");
+        info!("🛑 MCP [{server_name}] Stopping server");
 
         let server = {
             let mut servers = self.servers.write().await;
@@ -359,14 +359,14 @@ impl MCPServerManager {
             if let Some(process_handle) = server.process_handle {
                 let mut child = process_handle.lock().await;
                 if let Err(e) = child.kill().await {
-                    error!("MCP [{server_name}] Failed to kill process: {e}");
+                    error!("⚠️ MCP [{server_name}] Failed to kill process: {e}");
                 }
             }
 
-            info!("MCP [{server_name}] Stopped successfully");
+            info!("✅ MCP [{server_name}] Stopped successfully");
             Ok(())
         } else {
-            error!("MCP [{server_name}] Server not found");
+            error!("❌ MCP [{server_name}] Server not found");
             Err(format!("MCP server '{server_name}' not found"))
         }
     }
@@ -386,7 +386,7 @@ impl MCPServerManager {
             } else {
                 available.join(", ")
             };
-            error!("MCP [{server_name}] Server not found. Available: [{available_str}]");
+            error!("❌ MCP [{server_name}] Server not found. Available: [{available_str}]");
             format!("Server '{server_name}' not found")
         })?;
 
@@ -421,26 +421,26 @@ impl MCPServerManager {
                 }
 
                 let response = req.send().await.map_err(|e| {
-                    error!("MCP [{server_name}] HTTP request failed: {e}");
+                    error!("❌ MCP [{server_name}] HTTP request failed: {e}");
                     format!("HTTP request failed: {e}")
                 })?;
 
                 let status = response.status();
                 let response_text = response.text().await.map_err(|e| {
-                    error!("MCP [{server_name}] Failed to read response: {e}");
+                    error!("❌ MCP [{server_name}] Failed to read response: {e}");
                     format!("Failed to read response: {e}")
                 })?;
 
                 if status.is_success() {
-                    debug!("MCP [{server_name}] HTTP {method} completed");
+                    debug!("✅ MCP [{server_name}] HTTP {method} completed");
                 } else {
-                    error!("MCP [{server_name}] HTTP {method} returned {status}");
+                    error!("⚠️ MCP [{server_name}] HTTP {method} returned {status}");
                 }
                 Ok(response_text)
             }
             ServerType::Process => {
                 let stdin_tx = server.stdin_tx.as_ref().ok_or_else(|| {
-                    error!("MCP [{server_name}] No stdin channel available");
+                    error!("❌ MCP [{server_name}] No stdin channel available");
                     "No stdin channel available".to_string()
                 })?;
 
@@ -448,20 +448,20 @@ impl MCPServerManager {
                     .send(format!("{request_body}\n"))
                     .await
                     .map_err(|e| {
-                        error!("MCP [{server_name}] Failed to send to stdin: {e}");
+                        error!("❌ MCP [{server_name}] Failed to send to stdin: {e}");
                         format!("Failed to send request: {e}")
                     })?;
 
                 // Parse request using our flexible structure
                 let request: FlexibleJsonRpcRequest =
                     serde_json::from_str(&request_body).map_err(|e| {
-                        error!("MCP [{server_name}] Invalid JSON-RPC: {e}");
+                        error!("❌ MCP [{server_name}] Invalid JSON-RPC: {e}");
                         format!("Failed to parse request: {e}")
                     })?;
 
                 // Check if this is a notification (no ID) or a regular request
                 if request.id.is_none() {
-                    debug!("MCP [{server_name}] {method} notification sent");
+                    debug!("📢 MCP [{server_name}] {method} notification sent");
                     return Ok("".to_string()); // Notifications don't expect responses
                 }
                 // Wait for response with matching ID
@@ -473,7 +473,9 @@ impl MCPServerManager {
                     let elapsed = start_time.elapsed();
 
                     if elapsed > REQUEST_TIMEOUT {
-                        error!("MCP [{server_name}] {method} (id: {request_id}) timed out after {elapsed:?}");
+                        error!(
+                            "⏰ MCP [{server_name}] {method} (id: {request_id}) timed out after {elapsed:?}"
+                        );
                         return Err("Request timeout".to_string());
                     }
 
@@ -481,7 +483,7 @@ impl MCPServerManager {
                     if elapsed.saturating_sub(last_status_log.elapsed()) >= Duration::from_secs(5) {
                         let buffer_size = server.response_buffer.lock().await.len();
                         if buffer_size > 0 || discarded_count > 0 {
-                            debug!("MCP [{server_name}] Waiting for {method} response (buffer: {buffer_size}, discarded: {discarded_count})");
+                            debug!("⏳ MCP [{server_name}] Waiting for {method} response (buffer: {buffer_size}, discarded: {discarded_count})");
                         }
                         last_status_log = Instant::now();
                     }
@@ -505,7 +507,7 @@ impl MCPServerManager {
                                     };
 
                                     if ids_match {
-                                        debug!("MCP [{server_name}] {method} completed");
+                                        debug!("✅ MCP [{server_name}] {method} completed");
                                         return Ok(entry.content);
                                     } else {
                                         // Silently discard non-matching responses (like init responses)
@@ -531,11 +533,16 @@ impl MCPServerManager {
     }
 }
 
-/// Start all configured MCP servers
-pub async fn start_all_mcp_servers(db: &DatabaseConnection, app_data_dir: &PathBuf) -> Result<(), String> {
+// Create a global instance of the manager
+lazy_static::lazy_static! {
+    static ref MCP_SERVER_MANAGER: MCPServerManager = MCPServerManager::new();
+}
+
+/// Start all configured MCP servers using the global manager
+pub async fn start_all_mcp_servers(db: DatabaseConnection, app_data_dir: &PathBuf) -> Result<(), String> {
     info!("Starting all persisted MCP servers...");
 
-    let installed_mcp_servers = MCPServerModel::load_installed_mcp_servers(db)
+    let installed_mcp_servers = MCPServerModel::load_installed_mcp_servers(&db)
         .await
         .map_err(|e| format!("Failed to load MCP servers: {e}"))?;
 
@@ -546,30 +553,56 @@ pub async fn start_all_mcp_servers(db: &DatabaseConnection, app_data_dir: &PathB
 
     info!("Found {} MCP servers to start", installed_mcp_servers.len());
 
+    let server_count = installed_mcp_servers.len();
+
     for server in &installed_mcp_servers {
-        match MCP_SERVER_MANAGER.start_server(app_data_dir, server).await {
-            Ok(_) => {} // Success already logged by start_server
-            Err(e) => error!("MCP [{}] Startup failed: {e}", server.name),
-        }
+        let server_name = server.name.clone();
+
+        let config: ServerConfig = serde_json::from_value(server.server_config.clone())
+            .map_err(|e| format!("Failed to parse server config for {server_name}: {e}"))?;
+
+        debug!(
+            "🚀 MCP [{}] Queuing startup: {} {}",
+            server_name,
+            config.command,
+            config.args.join(" ")
+        );
+
+        let name = server_name.clone();
+        let app_data_dir = app_data_dir.clone();
+        tauri::async_runtime::spawn(async move {
+            match MCP_SERVER_MANAGER
+                .start_server(
+                    server_name.clone(),
+                    config.command,
+                    config.args,
+                    Some(config.env),
+                    &app_data_dir,
+                )
+                .await
+            {
+                Ok(_) => {} // Success already logged by start_server
+                Err(e) => error!("❌ MCP [{name}] Startup failed: {e}"),
+            }
+        });
     }
 
-    let server_count = installed_mcp_servers.len();
     if server_count > 0 {
-        debug!("Queued {server_count} MCP servers for startup");
+        debug!("✅ Queued {server_count} MCP servers for startup");
     }
     Ok(())
 }
 
-// Create a global instance of the manager
-lazy_static::lazy_static! {
-    static ref MCP_SERVER_MANAGER: MCPServerManager = MCPServerManager::new();
-}
-
-
 /// Start an MCP server using the global manager
-pub async fn start_mcp_server(mcp_server: &MCPServerModel, app_data_dir: &PathBuf) -> Result<(), String> {
+pub async fn start_mcp_server(definition: &MCPServerDefinition, app_data_dir: &PathBuf) -> Result<(), String> {
     MCP_SERVER_MANAGER
-        .start_server(app_data_dir, mcp_server)
+        .start_server(
+            definition.name.clone(),
+            definition.server_config.command.clone(),
+            definition.server_config.args.clone(),
+            Some(definition.server_config.env.clone()),
+            app_data_dir,
+        )
         .await
 }
 

@@ -214,7 +214,7 @@ impl Model {
             let server_name = installed_mcp_server.name.clone();
             let server_key = format!("{server_name} {INSTALLED_MCP_SERVER_KEY_SUFFIX}");
             let server_config = MCPServerConfig {
-                url: format!("{ARCHESTRA_SERVER_BASE_URL}/proxy/{server_name}"),
+                url: format!("{ARCHESTRA_SERVER_BASE_URL}/mcp_proxy/{server_name}"),
             };
 
             if !external_client_mcp_servers_config.contains_key(&server_key) {
@@ -525,7 +525,7 @@ mod tests {
         // Add a new server
         let server_key = format!("GitHub {INSTALLED_MCP_SERVER_KEY_SUFFIX}");
         let server_config = MCPServerConfig {
-            url: format!("{ARCHESTRA_SERVER_BASE_URL}/proxy/GitHub"),
+            url: format!("{ARCHESTRA_SERVER_BASE_URL}/mcp_proxy/GitHub"),
         };
         mcp_servers.insert(
             server_key.to_string(),
@@ -539,7 +539,7 @@ mod tests {
         let github_config = &mcp_servers["GitHub (archestra.ai)"];
         assert_eq!(
             github_config["url"],
-            format!("{ARCHESTRA_SERVER_BASE_URL}/proxy/GitHub")
+            format!("{ARCHESTRA_SERVER_BASE_URL}/mcp_proxy/GitHub")
         );
     }
 
@@ -554,11 +554,11 @@ mod tests {
             "mcpServers": {
                 "GitHub (archestra.ai)": {
                     "command": "curl",
-                    "args": ["-X", "POST", "http://localhost:54587/proxy/GitHub"]
+                    "args": ["-X", "POST", "http://localhost:54587/mcp_proxy/GitHub"]
                 },
                 "Slack (archestra.ai)": {
                     "command": "curl",
-                    "args": ["-X", "POST", "http://localhost:54587/proxy/Slack"]
+                    "args": ["-X", "POST", "http://localhost:54587/mcp_proxy/Slack"]
                 },
                 "archestra.ai": {
                     "command": "curl",
