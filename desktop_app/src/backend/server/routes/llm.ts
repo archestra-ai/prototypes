@@ -2,23 +2,33 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { openai } from '@ai-sdk/openai';
 import { type UIMessage, convertToModelMessages, streamText } from 'ai';
-import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { FastifyPluginAsync, FastifyPluginOptions } from 'fastify';
 import { createOllama } from 'ollama-ai-provider';
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 import { chatService } from '@backend/services/chat-service';
+import { LLMStreamRequestSchema, LLMErrorResponseSchema } from '@/types/llm';
 
-interface StreamRequestBody {
-  provider: 'openai' | 'anthropic' | 'ollama';
-  model: string;
-  messages: Array<any>;
-  apiKey?: string;
-  sessionId?: string;
-}
-
-export default async function llmRoutes(fastify: FastifyInstance) {
-  fastify.post<{ Body: StreamRequestBody }>(
+const llmRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider> = async (fastify) => {
+  fastify.post(
     '/api/llm/stream',
-    async (request: FastifyRequest<{ Body: StreamRequestBody }>, reply: FastifyReply) => {
+    {
+      schema: {
+        tags: ['llm'],
+        summary: 'Stream LLM response',
+        description: 'Stream a response from the specified LLM provider',
+        body: LLMStreamRequestSchema,
+        response: {
+          200: {
+            description: 'Streaming response',
+            type: 'string',
+            contentMediaType: 'text/event-stream'
+          },
+          500: LLMErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
       const { messages, sessionId } = request.body;
       console.log(request.body);
 
@@ -54,4 +64,6 @@ export default async function llmRoutes(fastify: FastifyInstance) {
       }
     }
   );
-}
+};
+
+export default llmRoutes;

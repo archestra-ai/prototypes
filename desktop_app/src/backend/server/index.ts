@@ -1,8 +1,10 @@
 import fastify from 'fastify';
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
 
 import { config } from './config/server';
 import { runDatabaseMigrations } from '@backend/database';
 import corsPlugin from './plugins/cors';
+import swaggerPlugin from './plugins/swagger';
 import websocketPlugin from './plugins/websocket';
 import chatRoutes from './routes/chat';
 import llmRoutes from './routes/llm';
@@ -23,10 +25,17 @@ async function startServer() {
     logger: config.logger,
     // Note: prettyPrint was removed from config as it's no longer supported
     // Use pino-pretty package if pretty logging is needed in development
-  });
+  }).withTypeProvider<ZodTypeProvider>();
+
+  // Add Zod validation support
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
   // Register CORS plugin to allow requests from the Electron renderer
   await app.register(corsPlugin);
+
+  // Register Swagger documentation
+  await app.register(swaggerPlugin);
 
   // Register WebSocket plugin for real-time communication
   await app.register(websocketPlugin);

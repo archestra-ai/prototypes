@@ -13,6 +13,7 @@
     "jsx": "react-jsx",
 
     "types": ["vitest/globals"],
+    "strict": true,
 
     /*
      Aliasing (added for shadcn/ui

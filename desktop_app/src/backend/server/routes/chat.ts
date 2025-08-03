@@ -1,14 +1,29 @@
-import { FastifyPluginAsync } from 'fastify';
+import { FastifyPluginAsync, FastifyPluginOptions } from 'fastify';
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 
-import { CreateChatRequest, UpdateChatRequest, chatService } from '@backend/services/chat-service';
+import { chatService } from '@backend/services/chat-service';
+import { 
+  ChatSchema, 
+  CreateChatRequestSchema, 
+  UpdateChatRequestSchema, 
+  ErrorResponseSchema,
+  ChatIdParamsSchema
+} from '@/types/chat';
 
-interface ChatParams {
-  id: string;
-}
-
-const chatRoutes: FastifyPluginAsync = async (fastify) => {
+const chatRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider> = async (fastify) => {
   // Get all chats
-  fastify.get('/api/chat', async (request, reply) => {
+  fastify.get('/api/chat', {
+    schema: {
+      tags: ['chat'],
+      summary: 'Get all chats',
+      description: 'Retrieve all chat sessions with their messages',
+      response: {
+        200: z.array(ChatSchema),
+        500: ErrorResponseSchema
+      }
+    }
+  }, async (request, reply) => {
     try {
       const chats = await chatService.getAllChats();
       return reply.code(200).send(chats);
@@ -19,7 +34,20 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Get single chat with messages
-  fastify.get<{ Params: ChatParams }>('/api/chat/:id', async (request, reply) => {
+  fastify.get('/api/chat/:id', {
+    schema: {
+      tags: ['chat'],
+      summary: 'Get a single chat',
+      description: 'Retrieve a specific chat session by ID with all its messages',
+      params: ChatIdParamsSchema,
+      response: {
+        200: ChatSchema,
+        400: ErrorResponseSchema,
+        404: ErrorResponseSchema,
+        500: ErrorResponseSchema
+      }
+    }
+  }, async (request, reply) => {
     try {
       const chatId = parseInt(request.params.id, 10);
       if (isNaN(chatId)) {
@@ -39,7 +67,18 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Create new chat
-  fastify.post<{ Body: CreateChatRequest }>('/api/chat', async (request, reply) => {
+  fastify.post('/api/chat', {
+    schema: {
+      tags: ['chat'],
+      summary: 'Create a new chat',
+      description: 'Create a new chat session',
+      body: CreateChatRequestSchema,
+      response: {
+        201: ChatSchema,
+        500: ErrorResponseSchema
+      }
+    }
+  }, async (request, reply) => {
     try {
       const chat = await chatService.createChat(request.body);
       return reply.code(201).send(chat);
@@ -50,7 +89,21 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Update chat
-  fastify.patch<{ Params: ChatParams; Body: UpdateChatRequest }>('/api/chat/:id', async (request, reply) => {
+  fastify.patch('/api/chat/:id', {
+    schema: {
+      tags: ['chat'],
+      summary: 'Update a chat',
+      description: 'Update chat properties (e.g., title)',
+      params: ChatIdParamsSchema,
+      body: UpdateChatRequestSchema,
+      response: {
+        200: ChatSchema,
+        400: ErrorResponseSchema,
+        404: ErrorResponseSchema,
+        500: ErrorResponseSchema
+      }
+    }
+  }, async (request, reply) => {
     try {
       const chatId = parseInt(request.params.id, 10);
       if (isNaN(chatId)) {
@@ -70,7 +123,19 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Delete chat
-  fastify.delete<{ Params: ChatParams }>('/api/chat/:id', async (request, reply) => {
+  fastify.delete('/api/chat/:id', {
+    schema: {
+      tags: ['chat'],
+      summary: 'Delete a chat',
+      description: 'Delete a chat session and all its messages',
+      params: ChatIdParamsSchema,
+      response: {
+        204: z.null().describe('Chat deleted successfully'),
+        400: ErrorResponseSchema,
+        500: ErrorResponseSchema
+      }
+    }
+  }, async (request, reply) => {
     try {
       const chatId = parseInt(request.params.id, 10);
       if (isNaN(chatId)) {

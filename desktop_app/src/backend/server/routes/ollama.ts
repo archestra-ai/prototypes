@@ -1,10 +1,46 @@
 import FastifyHttpProxy from '@fastify/http-proxy';
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyPluginAsync, FastifyPluginOptions } from 'fastify';
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 // Default Ollama port - can be overridden by environment variable
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
 
-export default async function ollamaRoutes(fastify: FastifyInstance) {
+const ollamaRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider> = async (fastify) => {
+  // Document common Ollama endpoints for Swagger UI
+  // Note: These are just for documentation - actual requests are proxied
+  
+  // Document the chat endpoint
+  fastify.route({
+    method: 'POST',
+    url: '/llm/ollama/api/chat',
+    schema: {
+      hide: true, // Hide from swagger UI since it's proxied
+      tags: ['ollama'],
+      summary: 'Chat with Ollama model',
+      description: 'Proxied to Ollama API - Send chat messages to an Ollama model',
+      body: {
+        type: 'object',
+        properties: {
+          model: { type: 'string', description: 'Model name' },
+          messages: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                role: { type: 'string', enum: ['system', 'user', 'assistant'] },
+                content: { type: 'string' }
+              }
+            }
+          },
+          stream: { type: 'boolean', description: 'Enable streaming response' }
+        }
+      }
+    },
+    handler: async () => {
+      // This handler is never called - requests are proxied
+    }
+  });
+
   // Register proxy for all Ollama API routes
   await fastify.register(FastifyHttpProxy, {
     upstream: OLLAMA_HOST,
@@ -34,4 +70,6 @@ export default async function ollamaRoutes(fastify: FastifyInstance) {
 
   // Log proxy registration
   fastify.log.info(`Ollama proxy registered: /llm/ollama/* -> ${OLLAMA_HOST}/*`);
-}
+};
+
+export default ollamaRoutes;
