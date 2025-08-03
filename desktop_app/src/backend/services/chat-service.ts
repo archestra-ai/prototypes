@@ -8,8 +8,8 @@ import {
   type CreateChatRequest, 
   type UpdateChatRequest, 
   type ChatWithMessages as Chat,
-  toAISDKMessage,
-  fromAISDKMessage
+  type InsertMessage,
+  type Message
 } from '@/types/db-schemas';
 
 /**
@@ -27,10 +27,10 @@ export class ChatService {
     return Promise.all(
       chats.map(async (chat) => ({
         id: chat.id,
-        session_id: chat.sessionId,
+        sessionId: chat.sessionId,
         title: chat.title,
-        created_at: chat.createdAt,
-        updated_at: chat.updatedAt,
+        createdAt: chat.createdAt,
+        updatedAt: chat.updatedAt,
         llm_provider: 'ollama', // Default provider for now
         messages: await this.getChatMessages(chat.id),
       }))
@@ -45,10 +45,10 @@ export class ChatService {
 
     return {
       id: chat.id,
-      session_id: chat.sessionId,
+      sessionId: chat.sessionId,
       title: chat.title,
-      created_at: chat.createdAt,
-      updated_at: chat.updatedAt,
+      createdAt: chat.createdAt,
+      updatedAt: chat.updatedAt,
       llm_provider: 'ollama', // Default provider for now
       messages: await this.getChatMessages(chat.id),
     };
@@ -64,12 +64,12 @@ export class ChatService {
 
     return {
       id: chat.id,
-      session_id: chat.sessionId,
+      sessionId: chat.sessionId,
       title: chat.title,
-      created_at: chat.createdAt,
-      updated_at: chat.updatedAt,
+      createdAt: chat.createdAt,
+      updatedAt: chat.updatedAt,
       llm_provider: request.llm_provider || 'ollama', // Use provided provider or default to ollama
-      messages: [], // Empty messages array - these would come from chat_interactions table
+      messages: [], // Empty messages array
     };
   }
 
@@ -92,12 +92,12 @@ export class ChatService {
 
     return {
       id: updatedChat.id,
-      session_id: updatedChat.sessionId,
+      sessionId: updatedChat.sessionId,
       title: updatedChat.title,
-      created_at: updatedChat.createdAt,
-      updated_at: updatedChat.updatedAt,
+      createdAt: updatedChat.createdAt,
+      updatedAt: updatedChat.updatedAt,
       llm_provider: 'ollama', // Default provider for now
-      messages: [], // Empty messages array - these would come from chat_interactions table
+      messages: await this.getChatMessages(updatedChat.id),
     };
   }
 
@@ -119,21 +119,39 @@ export class ChatService {
     // Clear existing messages for this chat to avoid duplicates
     await db.delete(messagesTable).where(eq(messagesTable.chatId, chat.id));
 
-    // Save each message using the converter
-    for (const message of messages) {
-      const dbMessage = fromAISDKMessage(message, chat.id);
-      await db.insert(messagesTable).values(dbMessage);
-    }
+    if (messages.length === 0) return;
+
+    // Prepare all messages for batch insert
+    const messagesToInsert = messages.map(message => ({
+      chatId: chat.id,
+      role: message.role,
+      content: typeof message.content === 'string' ? message.content : JSON.stringify(message.content),
+      metadata: message.images || message.thinking || message.toolCalls || message.tool_calls ? {
+        images: message.images,
+        thinking: message.thinking,
+        toolCalls: message.toolCalls || message.tool_calls,
+      } : undefined,
+    }));
+
+    // Batch insert all messages at once
+    await db.insert(messagesTable).values(messagesToInsert);
   }
 
-  async getChatMessages(chatId: number): Promise<any[]> {
+  async getChatMessages(chatId: number): Promise<Message[]> {
     const messages = await db
       .select()
       .from(messagesTable)
       .where(eq(messagesTable.chatId, chatId))
       .orderBy(asc(messagesTable.createdAt));
     
-    return messages.map(toAISDKMessage);
+    return messages.map(msg => ({
+      id: msg.id,
+      chatId: msg.chatId,
+      role: msg.role,
+      content: msg.content,
+      metadata: msg.metadata,
+      createdAt: msg.createdAt,
+    }));
   }
 }
 

@@ -182,16 +182,12 @@ The application uses SQLite with Drizzle ORM for database management. Key tables
   - `llm_provider`: LLM provider used (e.g., "ollama")
   - `created_at`: Timestamp
 
-- **messages**: Stores individual messages within chats (replaces chat_interactions)
+- **messages**: Stores individual messages within chats
   - `id` (Primary Key): Auto-incrementing integer
   - `chat_id` (Foreign Key): References chats.id with CASCADE delete
-  - `role`: Message role (system, user, assistant, tool) - required
-  - `content`: Simple text content - required
-  - `parts` (JSON): Complex multi-part content for AI SDK compatibility
-    - Supports text, image, tool-call, and tool-result parts
-  - `tool_calls` (JSON): Tool calls for assistant messages
-  - `images` (JSON): Array of image URLs
-  - `thinking`: Assistant's thinking/reasoning content
+  - `role`: Message role (system, user, assistant, tool)
+  - `content`: Message text content
+  - `metadata` (JSON): Optional metadata for images, thinking, tool calls, etc.
   - `created_at`: Timestamp
 
 The relationship ensures that deleting a chat automatically removes all associated messages via CASCADE delete.
@@ -305,9 +301,10 @@ Response: 204 No Content
 3. User message is persisted to `messages` table before sending to LLM
 4. Response streams to frontend while being accumulated in background
 5. Complete assistant response is persisted after streaming completes
-6. Messages are stored with Vercel AI SDK compatible format:
-   - Simple messages: `role` and `content` fields
-   - Complex messages: Additional `parts`, `tool_calls`, `images`, `thinking` fields
+6. Messages have a simple format:
+   - `role`: Message sender (user, assistant, system, tool)
+   - `content`: Text content of the message
+   - `metadata`: Optional JSON object for additional data (images, thinking, etc.)
 
 **Chat Title Generation**:
 
@@ -360,7 +357,6 @@ The application uses multiple Vite configurations for different Electron process
   - `@fastify/swagger`: OpenAPI schema generation
   - `fastify-type-provider-zod`: Zod integration for Fastify
   - `drizzle-zod`: Generate Zod schemas from Drizzle tables
-  - `ai`: Vercel AI SDK for message schema compatibility
 
 ### API Documentation & Type Safety
 
@@ -369,10 +365,9 @@ The application uses multiple Vite configurations for different Electron process
   - View online at: https://editor.swagger.io/ (paste the JSON)
 - **Zod Schemas**: All API endpoints use Zod for runtime validation
 - **Type Generation**: Database schemas drive API validation via `drizzle-zod`
-- **AI SDK Integration**: Messages use Vercel AI SDK's CoreMessage format
+- **Simple Message Format**: Messages have role, content, and optional metadata
 - **Type Files**:
-  - `src/types/db-schemas.ts`: Generated Zod schemas from database tables
-  - Includes conversion helpers between DB format and AI SDK format
+  - `src/types/db-schemas.ts`: Simple Zod schemas generated from database tables
 
 ### CI/CD Workflow
 

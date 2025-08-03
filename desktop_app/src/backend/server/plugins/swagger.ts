@@ -3,12 +3,11 @@ import fastifyPlugin from 'fastify-plugin';
 
 async function swaggerPlugin(fastify: FastifyInstance) {
   await fastify.register(import('@fastify/swagger'), {
-    mode: 'dynamic',
     openapi: {
       openapi: '3.0.0',
       info: {
         title: 'Archestra API',
-        description: 'API for managing chats, LLM integrations, and MCP servers in Archestra',
+        description: 'API for managing chats and messages',
         version: '1.0.0',
       },
       servers: [

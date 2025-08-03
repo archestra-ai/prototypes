@@ -8,34 +8,17 @@ export const messagesTable = sqliteTable('messages', {
     .notNull()
     .references(() => chatsTable.id, { onDelete: 'cascade' }),
   
-  // Core AI SDK message fields
+  // Simple message fields
   role: text('role', { enum: ['system', 'user', 'assistant', 'tool'] }).notNull(),
-  content: text('content').notNull(), // Simple text content
+  content: text('content').notNull(),
   
-  // Complex content for multi-part messages (optional)
-  parts: text('parts', { mode: 'json' }).$type<Array<{
-    type: 'text' | 'image' | 'tool-call' | 'tool-result';
-    text?: string;
-    image?: string;
-    toolCallId?: string;
-    toolName?: string;
-    input?: any;
-    output?: any;
-  }>>(),
-  
-  // Tool calls for assistant messages
-  toolCalls: text('tool_calls', { mode: 'json' }).$type<Array<{
-    id: string;
-    type: 'function';
-    function: {
-      name: string;
-      arguments: string;
-    };
-  }>>(),
-  
-  // Custom fields
-  images: text('images', { mode: 'json' }).$type<string[]>(),
-  thinking: text('thinking'),
+  // Optional metadata stored as JSON
+  metadata: text('metadata', { mode: 'json' }).$type<{
+    images?: string[];
+    thinking?: string;
+    toolCalls?: any[];
+    [key: string]: any;
+  }>(),
   
   createdAt: text('created_at')
     .notNull()
