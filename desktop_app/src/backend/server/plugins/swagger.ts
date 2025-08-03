@@ -39,14 +39,6 @@ async function swaggerPlugin(fastify: FastifyInstance) {
       docExpansion: 'list',
       deepLinking: false,
     },
-    uiHooks: {
-      onRequest: function (_request, _reply, next) {
-        next();
-      },
-      preHandler: function (_request, _reply, next) {
-        next();
-      },
-    },
     staticCSP: true,
     transformSpecificationClone: true,
   });
