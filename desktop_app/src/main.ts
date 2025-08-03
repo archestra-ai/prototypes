@@ -92,14 +92,20 @@ app.on('ready', async () => {
   await ollamaServer.startServer();
 
   /**
-   * NOTE: for now the podman mcp server sandbox is still super experimental/WIP so don't
-   * crash the app if it fails to start
+   * NOTE: for now the podman mcp server sandbox is still super experimental/WIP
+   *
+   * NOTE: for now we'll just console out success/error from spinning everything up in the sandbox
+   * In the near-future we should hook this up to our websocket server and send a message to the renderer
+   * to show a notifications/progress-bar to the user in the app UI
    */
-  try {
-    await MCPServerSandboxManager.startAllInstalledMcpServers();
-  } catch (error) {
-    console.error('Error starting MCP servers:', error);
-  }
+  MCPServerSandboxManager.onSandboxStartupSuccess = () => {
+    console.log('Sandbox startup successful 🥳🥳🥳🥳🥳🥳🥳🥳🥳🥳🥳');
+  };
+  MCPServerSandboxManager.onSandboxStartupError = (error) => {
+    console.error('Sandbox startup error 🤮🤮🤮🤮🤮🤮🤮🤮🤮🤮🤮:', error);
+  };
+
+  MCPServerSandboxManager.startAllInstalledMcpServers();
 
   startFastifyServer();
   createWindow();
@@ -137,8 +143,7 @@ app.on('before-quit', async (event) => {
       }
     }
 
-    // Stop all installed MCP servers
-    await MCPServerSandboxManager.stopAllInstalledMcpServers();
+    MCPServerSandboxManager.turnOffSandbox();
 
     // Kill the server process gracefully
     if (serverProcess) {
@@ -179,15 +184,7 @@ process.on('exit', async () => {
     await ollamaServer.stopServer();
   }
 
-  /**
-   * NOTE: for now the podman mcp server sandbox is still super experimental/WIP so don't
-   * prevent shutting down the app if it fails to stop the podman machine
-   */
-  try {
-    await MCPServerSandboxManager.stopAllInstalledMcpServers();
-  } catch (error) {
-    console.error('Error stopping MCP servers:', error);
-  }
+  MCPServerSandboxManager.turnOffSandbox();
 });
 
 // In this file you can include the rest of your app's specific main process

@@ -2,183 +2,233 @@ import { spawn } from 'node:child_process';
 
 import { getBinaryExecPath } from '@backend/lib/utils/binaries';
 
-class PodmanRuntime {
+import { PodmanMachineListOutput } from './types';
+
+type RunCommandPipes<T extends object | object[]> = {
+  onStdout?: {
+    callback: (data: T | string) => void;
+    attemptToParseOutputAsJson?: boolean;
+  };
+  onStderr?: (data: string) => void;
+  onExit?: (code: number, signal: string) => void;
+  onError?: (error: Error) => void;
+};
+
+type RunCommandOptions<T extends object | object[]> = {
+  command: string[];
+  pipes: RunCommandPipes<T>;
+};
+
+export default class PodmanRuntime {
   private ARCHESTRA_MACHINE_NAME = 'archestra-ai-machine';
-  private machineIsInstalled: boolean = false;
-  private machineIsRunning: boolean = false;
+
+  private onMachineInstallationSuccess: () => void = () => {};
+  private onMachineInstallationError: (error: Error) => void = () => {};
 
   private binaryPath = getBinaryExecPath('podman-remote-static-v5.5.2');
 
-  private runCommand(
-    command: string[],
-    onStdout: (data: string) => void,
-    onStderr: (data: string) => void,
-    onExit: (code: number, signal: string) => void,
-    onError: (error: Error) => void,
-    asJsonFormat = false
-  ): void;
-  private runCommand<T>(
-    command: string[],
-    onStdout: (data: T) => void,
-    onStderr: (data: string) => void,
-    onExit: (code: number, signal: string) => void,
-    onError: (error: Error) => void,
-    asJsonFormat = true
-  ): void {
-    const commandArgs = asJsonFormat ? [...command, '--format=json'] : command;
-    const process = spawn(this.binaryPath, commandArgs, {
+  constructor(onMachineInstallationSuccess: () => void, onMachineInstallationError: (error: Error) => void) {
+    this.onMachineInstallationSuccess = onMachineInstallationSuccess;
+    this.onMachineInstallationError = onMachineInstallationError;
+  }
+
+  private runCommand<T extends object | object[]>({
+    command,
+    pipes: { onStdout, onStderr, onExit, onError },
+  }: RunCommandOptions<T>): void {
+    const commandForLogs = `${this.binaryPath} ${command.join(' ')}`;
+
+    console.log(`[Podman command]: running ${commandForLogs}`);
+
+    const process = spawn(this.binaryPath, command, {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
-    process.stdout?.on('data', (data) => {
-      let parsedData;
-      if (asJsonFormat) {
-        parsedData = JSON.parse(data.toString()) as T;
-      } else {
-        parsedData = data.toString();
-      }
+    if (onStdout) {
+      process.stdout?.on('data', (data) => {
+        console.log(`[Podman stdout]: ${data}`);
 
-      console.log(`[Podman stdout]: ${parsedData}`);
-      onStdout(parsedData);
-    });
-    process.stderr?.on('data', (data) => {
-      onStderr(data.toString());
-    });
-    process.on('exit', onExit);
-    process.on('error', onError);
+        let parsedData: T | string;
+        if (onStdout.attemptToParseOutputAsJson) {
+          try {
+            parsedData = JSON.parse(data.toString()) as T;
+          } catch (e) {
+            console.error(`[Podman stdout]: error parsing JSON: ${data}. Falling back to string parsing.`, e);
+            parsedData = data.toString();
+          }
+        } else {
+          parsedData = data.toString();
+        }
+
+        onStdout.callback(parsedData);
+      });
+    }
+
+    if (onStderr) {
+      process.stderr?.on('data', (data) => {
+        console.log(`[Podman stderr]: ${data}`);
+
+        onStderr(data.toString());
+      });
+    }
+
+    if (onExit) {
+      console.log(`[Podman exit]: ${onExit}`);
+
+      process.on('exit', onExit);
+    }
+
+    if (onError) {
+      console.log(`[Podman error]: ${onError}`);
+
+      process.on('error', onError);
+    }
   }
 
   /**
    * Output looks like this:
-   *
-   * ❯ ./podman-remote-static-v5.5.2 machine start
-   * Starting machine "podman-machine-default"
+   * ❯ ./podman-remote-static-v5.5.2 machine start archestra-ai-machine
+   * Starting machine "archestra-ai-machine"
    *
    * This machine is currently configured in rootless mode. If your containers
    * require root permissions (e.g. ports < 1024), or if you run into compatibility
    * issues with non-podman clients, you can switch using the following command:
    *
-   *   podman machine set --rootful
+   *   podman machine set --rootful archestra-ai-machine
    *
    * API forwarding listening on: /var/run/docker.sock
    * Docker API clients default to this address. You do not need to set DOCKER_HOST.
    *
-   *   Machine "podman-machine-default" started successfully
+   * Machine "archestra-ai-machine" started successfully
    *
+   * ==============================
+   *
+   * NOTE: we can ignore stdio and stderr here and just use onExit and onError callbacks
    */
-  private async startMachine() {
-    console.log('Starting podman machine');
-
-    this.runCommand(
-      ['machine', 'start'],
-      (output) => {
-        console.log(`[Podman stdout]: ${output}`);
+  private async startArchestraMachine() {
+    this.runCommand({
+      command: ['machine', 'start', this.ARCHESTRA_MACHINE_NAME],
+      pipes: {
+        onExit: (code, signal) => {
+          if (code === 0) {
+            this.onMachineInstallationSuccess();
+          } else {
+            this.onMachineInstallationError(
+              new Error(`Podman machine start failed with code ${code} and signal ${signal}`)
+            );
+          }
+        },
+        onError: this.onMachineInstallationError,
       },
-      (error) => {
-        console.error(`[Podman stderr]: ${error}`);
-      },
-      (code, signal) => {
-        console.log(`[Podman exit]: ${code} ${signal}`);
-      },
-      (error) => {
-        console.error(`[Podman error]: ${error}`);
-      }
-    );
+    });
   }
 
   /**
-   *
    * Output looks like this (while installing):
-   * ❯ ./podman-remote-static-v5.5.2 machine init
+   * ❯ ./podman-remote-static-v5.5.2 machine init archestra-ai-machine --now
    * Looking up Podman Machine image at quay.io/podman/machine-os:5.5 to create VM
    * Extracting compressed file: podman-machine-default-arm64.raw [=============================================================================>] 885.6MiB / 885.7MiB
    *
    *
-   * Once installation is complete, output looks like this:
+   * Once installation is complete, and the machine is started, output looks like this:
    *
-   * ❯ ./podman-remote-static-v5.5.2 machine init
+   * ❯ ./podman-remote-static-v5.5.2 machine init archestra-ai-machine --now
    * Looking up Podman Machine image at quay.io/podman/machine-os:5.5 to create VM
-   * Extracting compressed file: podman-machine-default-arm64.raw: done
+   * Extracting compressed file: archestra-ai-machine-arm64.raw: done
    * Machine init complete
-   * To start your machine run:
+   * Starting machine "archestra-ai-machine"
    *
-   *   podman machine start
+   * This machine is currently configured in rootless mode. If your containers
+   * require root permissions (e.g. ports < 1024), or if you run into compatibility
+   * issues with non-podman clients, you can switch using the following command:
    *
+   *   podman machine set --rootful archestra-ai-machine
+   *
+   * API forwarding listening on: /var/run/docker.sock
+   * Docker API clients default to this address. You do not need to set DOCKER_HOST.
+   *
+   *   Machine "archestra-ai-machine" started successfully
+   *
+   * ==============================
+   * --now = Start machine now
+   *
+   * NOTE: we can ignore stdio and stderr here and just use onExit and onError callbacks
    */
-  private initMachine() {
-    console.log('Initializing podman machine');
-
-    this.runCommand(
-      ['machine', 'init'],
-      (output) => {},
-      (error) => {},
-      (code, signal) => {},
-      (error) => {
-        console.error(`[Podman error]: ${error}`);
-      }
-    );
+  private initArchestraMachine() {
+    this.runCommand({
+      command: ['machine', 'init', '--now', this.ARCHESTRA_MACHINE_NAME],
+      pipes: {
+        onExit: (code, signal) => {
+          if (code === 0) {
+            this.onMachineInstallationSuccess();
+          } else {
+            this.onMachineInstallationError(
+              new Error(`Podman machine init failed with code ${code} and signal ${signal}`)
+            );
+          }
+        },
+        onError: this.onMachineInstallationError,
+      },
+    });
   }
 
   /**
-   * An example of the output of the `podman machine ls` command:
+   * This method will check if the archesta podman machine is installed and running.
+   * - If it's not installed, it will install it and start it.
+   * - If it's installed but not running, it will start it.
+   * - If it's installed and running, it will do nothing.
    *
-   * When there is no machine installed:
+   * ==============================
    *
-   * ❯ ./podman-remote-static-v5.5.2 machine ls
-   * NAME        VM TYPE     CREATED     LAST UP     CPUS        MEMORY      DISK SIZE
-   *
-   * When a machine is installed, but not started:
-   *
-   * ❯ ./podman-remote-static-v5.5.2 machine ls
-   * NAME                     VM TYPE     CREATED        LAST UP     CPUS        MEMORY      DISK SIZE
-   * podman-machine-default*  applehv     3 minutes ago  Never       5           2GiB        100GiB
-   *
-   * When a machine is installed, and started:
-   *
-   * ❯ ./podman-remote-static-v5.5.2 machine ls
-   * NAME                     VM TYPE     CREATED         LAST UP            CPUS        MEMORY      DISK SIZE
-   * podman-machine-default*  applehv     14 minutes ago  Currently running  5           2GiB        100GiB
-   *
-   *
+   * NOTE: not sure under which circumstances podman machine ls will exit with a non-zero code,
+   * or output to stderr, so we're not going to do anything with it for now
    */
-  async checkInstalledMachines() {
-    console.log('Checking podman installed machines');
+  ensureArchestraMachineIsRunning() {
+    this.runCommand<PodmanMachineListOutput>({
+      command: ['machine', 'ls'],
+      pipes: {
+        onStdout: {
+          attemptToParseOutputAsJson: true,
+          callback: (installedPodmanMachines) => {
+            if (!Array.isArray(installedPodmanMachines)) {
+              this.onMachineInstallationError(
+                new Error(`Podman machine ls returned non-array data: ${installedPodmanMachines}`)
+              );
+              return;
+            }
 
-    const machineLsCommand = this.getPodmanBinaryRunner(['machine', 'ls'], (output) => {
-      const lines = output.split('\n');
-      const firstLine = lines[1];
-      const machineName = firstLine.split(' ')[0];
+            const archestraMachine = installedPodmanMachines.find(
+              (machine) => machine.Name === this.ARCHESTRA_MACHINE_NAME
+            );
 
-      /**
-       * TODO: need to properly handle all of the above documented cases
-       */
-      if (firstLine.includes('Currently running')) {
-        this.installedMachineName = machineName;
-        this.installedMachineIsRunning = true;
-      } else if (firstLine.includes('Never')) {
-        this.installedMachineName = machineName;
-      } else {
-      }
+            if (!archestraMachine) {
+              // archestra podman machine is not installed, install (and start it)
+              this.initArchestraMachine();
+            } else if (archestraMachine.Running) {
+              // We're all good to go. The archesta podman machine is installed and running.
+              this.onMachineInstallationSuccess();
+            } else {
+              // The archesta podman machine is installed, but not running. Let's start it.
+              this.startArchestraMachine();
+            }
+          },
+        },
+        onError: this.onMachineInstallationError,
+      },
     });
-    machineLsCommand.startProcess();
   }
 
-  async ensurePodmanIsInstalled() {
-    await this.checkInstalledMachines();
-
-    // if (!this.installedMachineName) {
-    //   console.error('Podman is not installed');
-    //   return false;
-    // } else {
-    //   console.log(`Podman is installed and running on machine ${this.installedMachineName}`);
-    //   return true;
-    // }
-  }
-
-  async stopPodmanMachine() {
-    const stopMachineCommand = this.getPodmanBinaryRunner(['machine', 'stop']);
-    stopMachineCommand.startProcess();
+  /**
+   * This method will stop the archesta podman machine.
+   *
+   * NOTE: for now we can just ignore stdio, stderr, and onExit callbacks..
+   */
+  stopArchestraMachine() {
+    this.runCommand({
+      command: ['machine', 'stop', this.ARCHESTRA_MACHINE_NAME],
+      pipes: {
+        onError: this.onMachineInstallationError,
+      },
+    });
   }
 }
-
-export default new PodmanRuntime();

@@ -15,24 +15,17 @@ type InstalledMcpServer = {
 };
 
 class MCPServerSandboxManager {
-  private podmanRuntime: typeof PodmanRuntime;
+  private podmanRuntime: InstanceType<typeof PodmanRuntime>;
   private mcpServerIdToSandboxedMCPMap: Map<number, SandboxedMCP> = new Map();
 
+  onSandboxStartupSuccess: () => void = () => {};
+  onSandboxStartupError: (error: Error) => void = () => {};
+
   constructor() {
-    this.podmanRuntime = PodmanRuntime;
-  }
-
-  private async startServer(mcpServer: InstalledMcpServer) {
-    const mcpServerContainerHostPort = await getPort();
-    const sandboxedMCP = new SandboxedMCP(
-      mcpServer.dockerImage,
-      mcpServer.containerPort,
-      mcpServerContainerHostPort,
-      mcpServer.envVars
+    this.podmanRuntime = new PodmanRuntime(
+      this.onPodmanMachineInstallationSuccess,
+      this.onPodmanMachineInstallationError
     );
-
-    this.mcpServerIdToSandboxedMCPMap.set(mcpServer.id, sandboxedMCP);
-    await sandboxedMCP.start();
   }
 
   private async getInstalledMcpServers(): Promise<InstalledMcpServer[]> {
@@ -66,17 +59,60 @@ class MCPServerSandboxManager {
     ];
   }
 
-  async startAllInstalledMcpServers() {
-    await this.podmanRuntime.ensurePodmanIsInstalled();
+  private async onPodmanMachineInstallationSuccess() {
+    console.log('Podman machine installation successful. Starting all installed MCP servers...');
 
     const mcpServers = await this.getInstalledMcpServers();
+
+    // TODO: parallelize this and use Promise.allSettled to wait for all servers to start in parallel
     for (const mcpServer of mcpServers) {
       await this.startServer(mcpServer);
     }
+
+    console.log('All MCP server containers started successfully');
+
+    this.onSandboxStartupSuccess();
   }
 
-  async stopAllInstalledMcpServers() {
-    await this.podmanRuntime.stopPodmanMachine();
+  private onPodmanMachineInstallationError(error: Error) {
+    console.log('Podman machine installation error', error, this.onSandboxStartupError);
+
+    this.onSandboxStartupError(new Error(`There was an error starting up podman machine: ${error.message}`));
+  }
+
+  async startServer(mcpServer: InstalledMcpServer) {
+    const mcpServerContainerHostPort = await getPort();
+    const sandboxedMCP = new SandboxedMCP(
+      mcpServer.dockerImage,
+      mcpServer.containerPort,
+      mcpServerContainerHostPort,
+      mcpServer.envVars
+    );
+
+    this.mcpServerIdToSandboxedMCPMap.set(mcpServer.id, sandboxedMCP);
+    await sandboxedMCP.start();
+  }
+
+  /**
+   * Start the archestra podman machine and all installed MCP server containers
+   */
+  startAllInstalledMcpServers() {
+    this.podmanRuntime.ensureArchestraMachineIsRunning();
+  }
+
+  /**
+   * Stop the archestra podman machine (which will stop all installed MCP server containers)
+   */
+  turnOffSandbox() {
+    this.podmanRuntime.stopArchestraMachine();
+  }
+
+  proxyRequestToMcpServerContainer(mcpServerId: number, request: any) {
+    const sandboxedMCP = this.mcpServerIdToSandboxedMCPMap.get(mcpServerId);
+    if (!sandboxedMCP) {
+      throw new Error(`MCP server with id ${mcpServerId} not found`);
+    }
+    return sandboxedMCP.proxyRequestToContainer(request);
   }
 }
 

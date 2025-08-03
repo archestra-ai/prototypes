@@ -1,8 +1,22 @@
-export type PodmanMachine = {
+export type PodmanMachineListOutput = {
   Name: string;
-  State: string;
+  Default: boolean;
   Created: string;
+  Running: boolean;
+  Starting: boolean;
   LastUp: string;
+  Stream: string;
+  VMType: string;
+  CPUs: number;
+  Memory: string;
+  DiskSize: string;
+  Port: number;
+  RemoteUsername: string;
+  IdentityPath: string;
+  UserModeNetworking: boolean;
+}[];
+
+export type PodmanMachineInspectOutput = {
   ConfigDir: {
     Path: string;
   };
@@ -12,21 +26,18 @@ export type PodmanMachine = {
     };
     PodmanPipe: null;
   };
-
-  // NOTE: for now we're not using these fields, but we can add them later if needed
-  // Resources: {
-  //   CPUs: number;
-  //   DiskSize: number;
-  //   Memory: number;
-  //   USBs: string[];
-  // };
-  // SSHConfig: {
-  //   IdentityPath: string;
-  //   Port: number;
-  //   RemoteUsername: string;
-  // };
-
-  // UserModeNetworking: boolean;
-  // Rootful: boolean;
-  // Rosetta: boolean;
-};
+  Resources: {
+    CPUs: number;
+    DiskSize: number;
+    Memory: number;
+    USBs: string[];
+  };
+  SSHConfig: {
+    IdentityPath: string;
+    Port: number;
+    RemoteUsername: string;
+  };
+  UserModeNetworking: boolean;
+  Rootful: boolean;
+  Rosetta: boolean;
+}[];
