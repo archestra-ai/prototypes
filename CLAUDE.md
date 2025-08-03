@@ -182,12 +182,17 @@ The application uses SQLite with Drizzle ORM for database management. Key tables
   - `llm_provider`: LLM provider used (e.g., "ollama")
   - `created_at`: Timestamp
 
-- **chat_interactions**: Stores individual messages within chats
+- **messages**: Stores individual messages within chats (replaces chat_interactions)
   - `id` (Primary Key): Auto-incrementing integer
   - `chat_id` (Foreign Key): References chats.id with CASCADE delete
-  - `content` (JSON): Message data with role and content
+  - `role`: Message role (system, user, assistant, tool) - required
+  - `content`: Simple text content - required
+  - `parts` (JSON): Complex multi-part content for AI SDK compatibility
+    - Supports text, image, tool-call, and tool-result parts
+  - `tool_calls` (JSON): Tool calls for assistant messages
+  - `images` (JSON): Array of image URLs
+  - `thinking`: Assistant's thinking/reasoning content
   - `created_at`: Timestamp
-  - Index on `chat_id` for query performance
 
 The relationship ensures that deleting a chat automatically removes all associated messages via CASCADE delete.
 
@@ -288,7 +293,7 @@ PATCH /api/chat/{id}
 Body: { title: string }
 Response: Chat
 
-// Delete chat and all messages (CASCADE deletes all interactions)
+// Delete chat and all messages (CASCADE deletes all messages)
 DELETE /api/chat/{id}
 Response: 204 No Content
 ```
@@ -297,10 +302,12 @@ Response: 204 No Content
 
 1. Frontend sends chat request with `session_id` to `/llm/ollama/api/chat`
 2. Backend checks if chat exists by `session_id`, creates new chat if not found
-3. User message is persisted to `chat_interactions` table before sending to LLM
+3. User message is persisted to `messages` table before sending to LLM
 4. Response streams to frontend while being accumulated in background
 5. Complete assistant response is persisted after streaming completes
-6. Messages are stored as JSON: `{"role": "user|assistant", "content": "text"}`
+6. Messages are stored with Vercel AI SDK compatible format:
+   - Simple messages: `role` and `content` fields
+   - Complex messages: Additional `parts`, `tool_calls`, `images`, `thinking` fields
 
 **Chat Title Generation**:
 
@@ -350,6 +357,20 @@ The application uses multiple Vite configurations for different Electron process
   - `@fastify/websocket`: WebSocket support
   - `drizzle-orm`: Type-safe ORM for SQLite
   - `better-sqlite3`: SQLite database driver
+  - `@fastify/swagger` & `@fastify/swagger-ui`: API documentation
+  - `fastify-type-provider-zod`: Zod integration for Fastify
+  - `drizzle-zod`: Generate Zod schemas from Drizzle tables
+  - `ai`: Vercel AI SDK for message schema compatibility
+
+### API Documentation & Type Safety
+
+- **OpenAPI/Swagger**: Available at `/docs` when running the backend server
+- **Zod Schemas**: All API endpoints use Zod for runtime validation
+- **Type Generation**: Database schemas drive API validation via `drizzle-zod`
+- **AI SDK Integration**: Messages use Vercel AI SDK's CoreMessage format
+- **Type Files**:
+  - `src/types/db-schemas.ts`: Generated Zod schemas from database tables
+  - Includes conversion helpers between DB format and AI SDK format
 
 ### CI/CD Workflow
 

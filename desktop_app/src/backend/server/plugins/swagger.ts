@@ -25,10 +25,6 @@ async function swaggerPlugin(fastify: FastifyInstance) {
           name: 'llm',
           description: 'LLM streaming operations',
         },
-        {
-          name: 'ollama',
-          description: 'Ollama proxy endpoints - proxies requests to local Ollama instance',
-        },
       ],
     },
     transform: ({ schema, url }) => {

@@ -6,42 +6,7 @@ import { ZodTypeProvider } from 'fastify-type-provider-zod';
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
 
 const ollamaRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider> = async (fastify) => {
-  // Document common Ollama endpoints for Swagger UI
-  // Note: These are just for documentation - actual requests are proxied
-  
-  // Document the chat endpoint
-  fastify.route({
-    method: 'POST',
-    url: '/llm/ollama/api/chat',
-    schema: {
-      hide: true, // Hide from swagger UI since it's proxied
-      tags: ['ollama'],
-      summary: 'Chat with Ollama model',
-      description: 'Proxied to Ollama API - Send chat messages to an Ollama model',
-      body: {
-        type: 'object',
-        properties: {
-          model: { type: 'string', description: 'Model name' },
-          messages: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                role: { type: 'string', enum: ['system', 'user', 'assistant'] },
-                content: { type: 'string' }
-              }
-            }
-          },
-          stream: { type: 'boolean', description: 'Enable streaming response' }
-        }
-      }
-    },
-    handler: async () => {
-      // This handler is never called - requests are proxied
-    }
-  });
-
-  // Register proxy for all Ollama API routes
+  // Register proxy for all Ollama API routes - no OpenAPI documentation needed
   await fastify.register(FastifyHttpProxy, {
     upstream: OLLAMA_HOST,
     prefix: '/llm/ollama', // All requests to /llm/ollama/* will be proxied
