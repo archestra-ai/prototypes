@@ -10,7 +10,8 @@
     "publish": "electron-forge publish",
     "test": "vitest --config vite.main.config.ts",
     "prepare": "cd .. && husky desktop_app/.husky",
-    "prettier": "prettier --write ."
+    "prettier": "prettier --write .",
+    "codegen:libpod": "openapi-ts --file openapi-ts.libpod.config.ts"
   },
   "packageManager": "pnpm@10.13.1",
   "devDependencies": {
@@ -24,6 +25,7 @@
     "@electron-forge/plugin-vite": "^7.8.2",
     "@electron/fuses": "^2.0.0",
     "@electron/rebuild": "^4.0.1",
+    "@hey-api/openapi-ts": "^0.80.1",
     "@tailwindcss/vite": "^4.1.11",
     "@testing-library/jest-dom": "^6.6.4",
     "@testing-library/react": "^16.3.0",
@@ -98,6 +100,7 @@
     "shiki": "^3.9.1",
     "tailwind-merge": "^3.3.1",
     "tw-animate-css": "^1.3.6",
+    "undici": "^7.13.0",
     "zod": "^4.0.14",
     "zod-to-json-schema": "^3.24.6",
     "zustand": "^5.0.7"

@@ -93,7 +93,15 @@ app.on('ready', async () => {
   ollamaServer = new OllamaServer(ollamaPort);
   await ollamaServer.startProcess();
 
-  await MCPServerSandboxManager.startAllInstalledMcpServers();
+  /**
+   * NOTE: for now the podman mcp server sandbox is still super experimental/WIP so don't
+   * crash the app if it fails to start
+   */
+  try {
+    await MCPServerSandboxManager.startAllInstalledMcpServers();
+  } catch (error) {
+    console.error('Error starting MCP servers:', error);
+  }
 
   startFastifyServer();
   createWindow();
@@ -131,6 +139,9 @@ app.on('before-quit', async (event) => {
       }
     }
 
+    // Stop all installed MCP servers
+    await MCPServerSandboxManager.stopAllInstalledMcpServers();
+
     // Kill the server process gracefully
     if (serverProcess) {
       serverProcess.kill('SIGTERM');
@@ -161,9 +172,23 @@ app.on('before-quit', async (event) => {
 });
 
 // Clean up on unexpected exit
-process.on('exit', () => {
+process.on('exit', async () => {
   if (serverProcess) {
     serverProcess.kill('SIGKILL');
+  }
+
+  if (ollamaServer) {
+    await ollamaServer.stopProcess();
+  }
+
+  /**
+   * NOTE: for now the podman mcp server sandbox is still super experimental/WIP so don't
+   * prevent shutting down the app if it fails to stop the podman machine
+   */
+  try {
+    await MCPServerSandboxManager.stopAllInstalledMcpServers();
+  } catch (error) {
+    console.error('Error stopping MCP servers:', error);
   }
 });
 
