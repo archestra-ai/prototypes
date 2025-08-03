@@ -1,7 +1,7 @@
 import fastify from 'fastify';
 
 import { config } from './config/server';
-import { runServerMigrations } from './database';
+import { runDatabaseMigrations } from '@backend/database';
 import corsPlugin from './plugins/cors';
 import websocketPlugin from './plugins/websocket';
 import chatRoutes from './routes/chat';
@@ -17,7 +17,7 @@ import ollamaRoutes from './routes/ollama';
  */
 async function startServer() {
   // Run database migrations before starting the server
-  await runServerMigrations();
+  await runDatabaseMigrations();
 
   const app = fastify({
     logger: config.logger,

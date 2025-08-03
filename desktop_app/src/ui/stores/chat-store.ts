@@ -71,6 +71,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ isLoadingChats: true });
     try {
       const { data } = await getAllChats();
+      console.log('Initializing chats...');
+      console.log(data);
       if (data) {
         const initializedChats = data.map(initializeChat);
         set({

@@ -2,9 +2,7 @@ import { asc, desc, eq } from 'drizzle-orm';
 
 import { chatsTable } from '@backend/database/schema/chat';
 import { messagesTable } from '@backend/database/schema/messages';
-// IMPORTANT: Import from server/database, not the main database module
-// The main database module uses Electron APIs which aren't available in the server process
-import db from '@backend/server/database';
+import db from '@backend/database';
 
 /**
  * Request/Response types for the chat API

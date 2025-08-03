@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify';
 
-import { CreateChatRequest, UpdateChatRequest, chatService } from '@backend/server/services/chat';
+import { CreateChatRequest, UpdateChatRequest, chatService } from '@backend/services/chat-service';
 
 interface ChatParams {
   id: string;

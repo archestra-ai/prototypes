@@ -109,7 +109,7 @@ export const initializeChat = (chat: ServerChatWithMessages): ChatWithMessages =
       return {
         ...message,
         id: generateNewMessageId(),
-        toolCalls: initializeToolCalls(message.tool_calls),
+        // toolCalls: initializeToolCalls(message.tool_calls),
         content: response,
         thinkingContent: thinking,
         isStreaming: false,

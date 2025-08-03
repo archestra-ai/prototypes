@@ -1,7 +1,7 @@
 import fastifyWebsocket from '@fastify/websocket';
 import { FastifyPluginAsync } from 'fastify';
 
-import { websocketService } from '../services/websocket';
+import { websocketService } from '@backend/services/websocket-service';
 
 /**
  * WebSocket plugin for real-time communication

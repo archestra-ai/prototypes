@@ -5,7 +5,7 @@ import { type UIMessage, convertToModelMessages, streamText } from 'ai';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { createOllama } from 'ollama-ai-provider';
 
-import { chatService } from '@backend/server/services/chat';
+import { chatService } from '@backend/services/chat-service';
 
 interface StreamRequestBody {
   provider: 'openai' | 'anthropic' | 'ollama';
