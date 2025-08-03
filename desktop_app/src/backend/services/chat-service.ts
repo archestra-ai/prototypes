@@ -4,26 +4,11 @@ import { chatsTable } from '@backend/database/schema/chat';
 import { messagesTable } from '@backend/database/schema/messages';
 import db from '@backend/database';
 
-/**
- * Request/Response types for the chat API
- */
-export interface CreateChatRequest {
-  llm_provider?: string;
-}
-
-export interface UpdateChatRequest {
-  title?: string | null;
-}
-
-export interface Chat {
-  id: number;
-  session_id: string;
-  title: string | null;
-  created_at: string;
-  updated_at: string;
-  llm_provider: string;
-  messages: any[];
-}
+import type { 
+  CreateChatRequest, 
+  UpdateChatRequest, 
+  ChatWithMessages as Chat 
+} from '@/types/db-schemas';
 
 /**
  * Service layer for chat operations

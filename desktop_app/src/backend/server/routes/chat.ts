@@ -4,12 +4,12 @@ import { z } from 'zod';
 
 import { chatService } from '@backend/services/chat-service';
 import { 
-  ChatSchema, 
+  ChatWithMessagesSchema, 
   CreateChatRequestSchema, 
   UpdateChatRequestSchema, 
   ErrorResponseSchema,
   ChatIdParamsSchema
-} from '@/types/ai-chat';
+} from '@/types/db-schemas';
 
 const chatRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider> = async (fastify) => {
   // Get all chats
@@ -19,7 +19,7 @@ const chatRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider>
       summary: 'Get all chats',
       description: 'Retrieve all chat sessions with their messages',
       response: {
-        200: z.array(ChatSchema),
+        200: z.array(ChatWithMessagesSchema),
         500: ErrorResponseSchema
       }
     }
@@ -41,7 +41,7 @@ const chatRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider>
       description: 'Retrieve a specific chat session by ID with all its messages',
       params: ChatIdParamsSchema,
       response: {
-        200: ChatSchema,
+        200: ChatWithMessagesSchema,
         400: ErrorResponseSchema,
         404: ErrorResponseSchema,
         500: ErrorResponseSchema
@@ -74,7 +74,7 @@ const chatRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider>
       description: 'Create a new chat session',
       body: CreateChatRequestSchema,
       response: {
-        201: ChatSchema,
+        201: ChatWithMessagesSchema,
         500: ErrorResponseSchema
       }
     }
@@ -97,7 +97,7 @@ const chatRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider>
       params: ChatIdParamsSchema,
       body: UpdateChatRequestSchema,
       response: {
-        200: ChatSchema,
+        200: ChatWithMessagesSchema,
         400: ErrorResponseSchema,
         404: ErrorResponseSchema,
         500: ErrorResponseSchema
