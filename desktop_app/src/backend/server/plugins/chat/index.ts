@@ -18,6 +18,26 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
+  // Get single chat with messages
+  fastify.get<{ Params: ChatParams }>('/api/chat/:id', async (request, reply) => {
+    try {
+      const chatId = parseInt(request.params.id, 10);
+      if (isNaN(chatId)) {
+        return reply.code(400).send({ error: 'Invalid chat ID' });
+      }
+
+      const chat = await chatService.getChatById(chatId);
+      if (!chat) {
+        return reply.code(404).send({ error: 'Chat not found' });
+      }
+
+      return reply.code(200).send(chat);
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
   // Create new chat
   fastify.post<{ Body: CreateChatRequest }>('/api/chat', async (request, reply) => {
     try {
