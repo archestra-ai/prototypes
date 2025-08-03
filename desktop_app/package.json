@@ -59,6 +59,7 @@
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/react": "^2.0.0",
     "@fastify/cors": "^11.1.0",
+    "@fastify/http-proxy": "^11.3.0",
     "@fastify/websocket": "^11.2.0",
     "@hookform/resolvers": "^5.2.1",
     "@icons-pack/react-simple-icons": "^13.7.0",
@@ -105,9 +106,9 @@
     "shiki": "^3.9.1",
     "tailwind-merge": "^3.3.1",
     "tw-animate-css": "^1.3.6",
+    "undici": "^7.13.0",
     "utf-8-validate": "^6.0.5",
     "zod": "^3.25.76",
-    "undici": "^7.13.0",
     "zod-to-json-schema": "^3.24.6",
     "zustand": "^5.0.7"
   },

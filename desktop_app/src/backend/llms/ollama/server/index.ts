@@ -79,6 +79,13 @@ export default class OllamaServer {
   }
 
   /**
+   * Get the current port the Ollama server is running on
+   */
+  getPort(): number | null {
+    return this.port;
+  }
+
+  /**
    * Stop the Ollama server
    */
   async stopServer(): Promise<void> {

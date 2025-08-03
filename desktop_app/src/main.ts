@@ -52,12 +52,15 @@ const createWindow = () => {
  * 3. Running in a separate process allows for better error isolation
  * 4. The server can be restarted independently of the Electron app
  */
-function startFastifyServer(): void {
+function startFastifyServer(ollamaPort: number | null): void {
   // server-process.js is built by Vite from src/server-process.ts
   // It's placed in the same directory as main.js after building
   const serverPath = path.join(__dirname, 'server-process.js');
 
   console.log(`Fastify server starting on port ${SERVER_PORT}`);
+  if (ollamaPort) {
+    console.log(`Ollama server running on port ${ollamaPort}`);
+  }
 
   // Fork creates a new Node.js process that can communicate with the parent
   serverProcess = fork(serverPath, [], {
@@ -66,6 +69,8 @@ function startFastifyServer(): void {
       // CRITICAL: This flag tells Electron to run this process as pure Node.js
       // Without it, the process would run as an Electron process and fail to load native modules
       ELECTRON_RUN_AS_NODE: '1',
+      // Pass Ollama port to server process
+      OLLAMA_HOST: ollamaPort ? `http://localhost:${ollamaPort}` : undefined,
     },
     silent: false, // Allow console output from child process for debugging
   });
@@ -107,7 +112,9 @@ app.on('ready', async () => {
 
   MCPServerSandboxManager.startAllInstalledMcpServers();
 
-  startFastifyServer();
+  // Start Fastify server with Ollama port
+  const ollamaPort = ollamaServer.getPort();
+  startFastifyServer(ollamaPort);
   createWindow();
 });
 

@@ -6,7 +6,7 @@ import corsPlugin from './plugins/cors';
 import websocketPlugin from './plugins/websocket';
 import chatRoutes from './routes/chat';
 import llmRoutes from './routes/llm';
-import { runServerMigrations } from './database';
+import ollamaRoutes from './routes/ollama';
 
 /**
  * Main server initialization function
@@ -36,6 +36,9 @@ async function startServer() {
 
   // Register LLM streaming routes
   await app.register(llmRoutes);
+
+  // Register Ollama proxy routes
+  await app.register(ollamaRoutes);
 
   const PORT = config.server.port; // Default: 3456
   const HOST = config.server.host; // Default: 127.0.0.1
