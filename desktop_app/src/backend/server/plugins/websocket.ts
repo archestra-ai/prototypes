@@ -1,6 +1,8 @@
 import fastifyWebsocket from '@fastify/websocket';
 import { FastifyPluginAsync } from 'fastify';
 
+import { websocketService } from '../services/websocket';
+
 /**
  * WebSocket plugin for real-time communication
  *
@@ -12,18 +14,24 @@ const websocketPlugin: FastifyPluginAsync = async (fastify) => {
   // Register the WebSocket plugin
   await fastify.register(fastifyWebsocket);
 
+  // Initialize the WebSocket service with the Fastify instance
+  websocketService.initialize(fastify);
+
   // Add WebSocket route
-  fastify.get('/ws', { websocket: true }, (connection, req) => {
+  fastify.get('/ws', { websocket: true }, async (socket, req) => {
     console.log('WebSocket client connected');
 
+    // Add this connection to the service
+    websocketService.addConnection(socket);
+
     // Handle incoming messages
-    connection.socket.on('message', (message) => {
+    socket.on('message', (message) => {
       try {
         const data = JSON.parse(message.toString());
         console.log('Received WebSocket message:', data);
 
         // Echo back for now (can be extended to handle different message types)
-        connection.socket.send(
+        socket.send(
           JSON.stringify({
             type: 'echo',
             payload: data,
@@ -35,12 +43,13 @@ const websocketPlugin: FastifyPluginAsync = async (fastify) => {
     });
 
     // Handle connection close
-    connection.socket.on('close', () => {
+    socket.on('close', () => {
       console.log('WebSocket client disconnected');
+      websocketService.removeConnection(socket);
     });
 
     // Handle errors
-    connection.socket.on('error', (error) => {
+    socket.on('error', (error) => {
       console.error('WebSocket error:', error);
     });
   });
