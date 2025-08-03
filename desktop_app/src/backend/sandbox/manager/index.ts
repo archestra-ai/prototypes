@@ -75,8 +75,6 @@ class MCPServerSandboxManager {
   }
 
   private onPodmanMachineInstallationError(error: Error) {
-    console.log('Podman machine installation error', error, this.onSandboxStartupError);
-
     this.onSandboxStartupError(new Error(`There was an error starting up podman machine: ${error.message}`));
   }
 

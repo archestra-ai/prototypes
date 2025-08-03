@@ -99,10 +99,10 @@ app.on('ready', async () => {
    * to show a notifications/progress-bar to the user in the app UI
    */
   MCPServerSandboxManager.onSandboxStartupSuccess = () => {
-    console.log('Sandbox startup successful 🥳🥳🥳🥳🥳🥳🥳🥳🥳🥳🥳');
+    console.log('Sandbox startup successful 🥳');
   };
   MCPServerSandboxManager.onSandboxStartupError = (error) => {
-    console.error('Sandbox startup error 🤮🤮🤮🤮🤮🤮🤮🤮🤮🤮🤮:', error);
+    console.error('Sandbox startup error 🥲:', error);
   };
 
   MCPServerSandboxManager.startAllInstalledMcpServers();

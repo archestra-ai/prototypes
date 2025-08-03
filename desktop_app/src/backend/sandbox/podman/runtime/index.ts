@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 
-import { getBinaryExecPath } from '@backend/lib/utils/binaries';
+import { getBinariesDirectory, getBinaryExecPath } from '@backend/lib/utils/binaries';
 
 import { PodmanMachineListOutput } from './types';
 
@@ -27,6 +27,19 @@ export default class PodmanRuntime {
 
   private binaryPath = getBinaryExecPath('podman-remote-static-v5.5.2');
 
+  /**
+   * NOTE: see here as to why we need to bundle, and configure, `gvproxy`, alongside `podman`:
+   * https://podman-desktop.io/docs/troubleshooting/troubleshooting-podman-on-macos#unable-to-set-custom-binary-path-for-podman-on-macos
+   * https://github.com/containers/podman/issues/11960#issuecomment-953672023
+   *
+   * NOTE: `gvproxy` MUST be named explicitly `gvproxy`. It cannot have the version appended to it, this is because
+   * `podman` internally is looking specifically for that binary naming convention. As of this writing, the version
+   * of `gvproxy` that we are using is [`v0.8.6`](https://github.com/containers/gvisor-tap-vsock/releases/tag/v0.8.6)
+   *
+   * See also `CONTAINERS_HELPER_BINARY_DIR` env var which is being passed into our podman commands below.
+   */
+  private gvproxyBinaryDirectory = getBinariesDirectory();
+
   constructor(onMachineInstallationSuccess: () => void, onMachineInstallationError: (error: Error) => void) {
     this.onMachineInstallationSuccess = onMachineInstallationSuccess;
     this.onMachineInstallationError = onMachineInstallationError;
@@ -40,20 +53,32 @@ export default class PodmanRuntime {
 
     console.log(`[Podman command]: running ${commandForLogs}`);
 
-    const process = spawn(this.binaryPath, command, {
+    const commandProcess = spawn(this.binaryPath, command, {
+      env: {
+        ...process.env,
+        /**
+         * See here, `CONTAINERS_HELPER_BINARY_DIR` isn't well documented, but here is what I've found:
+         * https://github.com/containers/podman/blob/0c4c9e4fbc0cf9cdcdcb5ea1683a2ffeddb03e77/hack/bats#L131
+         * https://docs.podman.io/en/stable/markdown/podman.1.html#environment-variables
+         */
+        CONTAINERS_HELPER_BINARY_DIR: this.gvproxyBinaryDirectory,
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
     if (onStdout) {
-      process.stdout?.on('data', (data) => {
-        console.log(`[Podman stdout]: ${data}`);
+      commandProcess.stdout?.on('data', (data) => {
+        console.log(`[Podman stdout]: ${commandForLogs} ${data}`);
 
         let parsedData: T | string;
         if (onStdout.attemptToParseOutputAsJson) {
           try {
             parsedData = JSON.parse(data.toString()) as T;
           } catch (e) {
-            console.error(`[Podman stdout]: error parsing JSON: ${data}. Falling back to string parsing.`, e);
+            console.error(
+              `[Podman stdout]: ${commandForLogs} error parsing JSON: ${data}. Falling back to string parsing.`,
+              e
+            );
             parsedData = data.toString();
           }
         } else {
@@ -65,23 +90,24 @@ export default class PodmanRuntime {
     }
 
     if (onStderr) {
-      process.stderr?.on('data', (data) => {
-        console.log(`[Podman stderr]: ${data}`);
-
+      commandProcess.stderr?.on('data', (data) => {
+        console.log(`[Podman stderr]: ${commandForLogs} ${data}`);
         onStderr(data.toString());
       });
     }
 
     if (onExit) {
-      console.log(`[Podman exit]: ${onExit}`);
-
-      process.on('exit', onExit);
+      commandProcess.on('exit', (code, signal) => {
+        console.log(`[Podman exit]: ${commandForLogs} code=${code} signal=${signal}`);
+        onExit(code, signal);
+      });
     }
 
     if (onError) {
-      console.log(`[Podman error]: ${onError}`);
-
-      process.on('error', onError);
+      commandProcess.on('error', (error) => {
+        console.log(`[Podman error]: ${commandForLogs} ${error}`);
+        onError(error);
+      });
     }
   }
 
@@ -106,15 +132,19 @@ export default class PodmanRuntime {
    * NOTE: we can ignore stdio and stderr here and just use onExit and onError callbacks
    */
   private async startArchestraMachine() {
+    let stderrOutput = '';
     this.runCommand({
       command: ['machine', 'start', this.ARCHESTRA_MACHINE_NAME],
       pipes: {
+        onStderr: (data) => {
+          stderrOutput += data;
+        },
         onExit: (code, signal) => {
           if (code === 0) {
             this.onMachineInstallationSuccess();
           } else {
             this.onMachineInstallationError(
-              new Error(`Podman machine start failed with code ${code} and signal ${signal}`)
+              new Error(`Podman machine start failed with code ${code} and signal ${signal}. Error: ${stderrOutput}`)
             );
           }
         },
@@ -185,7 +215,7 @@ export default class PodmanRuntime {
    */
   ensureArchestraMachineIsRunning() {
     this.runCommand<PodmanMachineListOutput>({
-      command: ['machine', 'ls'],
+      command: ['machine', 'ls', '--format', 'json'],
       pipes: {
         onStdout: {
           attemptToParseOutputAsJson: true,

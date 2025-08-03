@@ -10,7 +10,13 @@ import path from 'path';
 
 type SupportedPlatform = 'linux' | 'mac' | 'win';
 type SupportedArchitecture = 'arm64' | 'x86_64';
-type SupportedBinary = 'ollama-v0.9.6' | 'podman-remote-static-v5.5.2';
+
+/**
+ * NOTE: `gvproxy` MUST be named explicitly `gvproxy`. It cannot have the version appended to it, this is because
+ * `podman` internally is looking specifically for that binary naming convention. As of this writing, the version
+ * of `gvproxy` that we are using is [`v0.8.6`](https://github.com/containers/gvisor-tap-vsock/releases/tag/v0.8.6)
+ */
+type SupportedBinary = 'ollama-v0.9.6' | 'podman-remote-static-v5.5.2' | 'gvproxy';
 
 const getPlatform = (): SupportedPlatform => {
   switch (platform()) {
@@ -50,12 +56,15 @@ const getArchitecture = (): SupportedArchitecture => {
 const PLATFORM = getPlatform();
 const ARCHITECTURE = getArchitecture();
 
-const binariesPath = app.isPackaged
-  ? path.join(process.resourcesPath, 'bin')
-  : path.join(app.getAppPath(), 'resources', 'bin', PLATFORM, ARCHITECTURE);
+export const getBinariesDirectory = () =>
+  app.isPackaged
+    ? path.join(process.resourcesPath, 'bin')
+    : path.join(app.getAppPath(), 'resources', 'bin', PLATFORM, ARCHITECTURE);
 
 export const getBinaryExecPath = (binaryName: SupportedBinary) => {
-  const binaryPath = path.resolve(path.join(binariesPath, `${binaryName}${PLATFORM === 'win' ? '.exe' : ''}`));
+  const binaryPath = path.resolve(
+    path.join(getBinariesDirectory(), `${binaryName}${PLATFORM === 'win' ? '.exe' : ''}`)
+  );
   if (!fs.existsSync(binaryPath)) {
     throw new Error(`Binary ${binaryName} not found at ${binaryPath}`);
   }
