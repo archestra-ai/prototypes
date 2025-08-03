@@ -7,7 +7,7 @@ import { createOllama } from 'ollama-ai-provider';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 import { chatService } from '@backend/services/chat-service';
-import { LLMStreamRequestSchema, LLMErrorResponseSchema } from '@/types/llm';
+import { LLMStreamRequestSchema, LLMErrorResponseSchema } from '@/types/ai-llm';
 
 const llmRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider> = async (fastify) => {
   fastify.post(

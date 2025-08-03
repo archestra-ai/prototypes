@@ -9,7 +9,7 @@ import {
   UpdateChatRequestSchema, 
   ErrorResponseSchema,
   ChatIdParamsSchema
-} from '@/types/chat';
+} from '@/types/ai-chat';
 
 const chatRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider> = async (fastify) => {
   // Get all chats
