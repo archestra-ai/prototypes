@@ -175,6 +175,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
     let retries = 0;
 
     const attemptConnection = async (): Promise<boolean> => {
+      return true;
       try {
         const client = await configureMCPClient(`${ARCHESTRA_MCP_SERVER_NAME}-client`, ARCHESTRA_SERVER_MCP_URL, {
           tools: {},
