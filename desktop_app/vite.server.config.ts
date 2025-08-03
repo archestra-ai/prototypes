@@ -1,6 +1,5 @@
 import path from 'path';
 import { defineConfig } from 'vite';
-import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 /**
  * Vite configuration for the server process build
@@ -9,16 +8,6 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
  * JavaScript file that can be executed by Node.js (not Electron)
  */
 export default defineConfig({
-  plugins: [
-    viteStaticCopy({
-      targets: [
-        {
-          src: 'src/backend/server/static/*',
-          dest: 'static'
-        }
-      ]
-    })
-  ],
   resolve: {
     alias: {
       // Allow @/ imports in server code to match the rest of the codebase

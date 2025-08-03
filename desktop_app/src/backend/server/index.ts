@@ -34,7 +34,7 @@ async function startServer() {
   // Register CORS plugin to allow requests from the Electron renderer
   await app.register(corsPlugin);
 
-  // Register Swagger documentation
+  // Register Swagger documentation (only JSON schema, no UI)
   await app.register(swaggerPlugin);
 
   // Register WebSocket plugin for real-time communication
@@ -48,6 +48,11 @@ async function startServer() {
 
   // Register Ollama proxy routes
   await app.register(ollamaRoutes);
+
+  // Add OpenAPI JSON endpoint after all routes are registered
+  app.get('/openapi.json', async (request, reply) => {
+    return app.swagger();
+  });
 
   const PORT = config.server.port; // Default: 3456
   const HOST = config.server.host; // Default: 127.0.0.1

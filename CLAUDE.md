@@ -357,14 +357,16 @@ The application uses multiple Vite configurations for different Electron process
   - `@fastify/websocket`: WebSocket support
   - `drizzle-orm`: Type-safe ORM for SQLite
   - `better-sqlite3`: SQLite database driver
-  - `@fastify/swagger` & `@fastify/swagger-ui`: API documentation
+  - `@fastify/swagger`: OpenAPI schema generation
   - `fastify-type-provider-zod`: Zod integration for Fastify
   - `drizzle-zod`: Generate Zod schemas from Drizzle tables
   - `ai`: Vercel AI SDK for message schema compatibility
 
 ### API Documentation & Type Safety
 
-- **OpenAPI/Swagger**: Available at `/docs` when running the backend server
+- **OpenAPI Schema**: Available at `/openapi.json` endpoint
+  - Can be used with Swagger UI, Postman, or other OpenAPI tools
+  - View online at: https://editor.swagger.io/ (paste the JSON)
 - **Zod Schemas**: All API endpoints use Zod for runtime validation
 - **Type Generation**: Database schemas drive API validation via `drizzle-zod`
 - **AI SDK Integration**: Messages use Vercel AI SDK's CoreMessage format

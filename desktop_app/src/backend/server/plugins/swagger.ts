@@ -3,6 +3,7 @@ import fastifyPlugin from 'fastify-plugin';
 
 async function swaggerPlugin(fastify: FastifyInstance) {
   await fastify.register(import('@fastify/swagger'), {
+    mode: 'dynamic',
     openapi: {
       openapi: '3.0.0',
       info: {
@@ -21,26 +22,8 @@ async function swaggerPlugin(fastify: FastifyInstance) {
           name: 'chat',
           description: 'Chat management operations',
         },
-        {
-          name: 'llm',
-          description: 'LLM streaming operations',
-        },
       ],
     },
-    transform: ({ schema, url }) => {
-      // Add descriptions to schemas if needed
-      return { schema, url };
-    },
-  });
-
-  await fastify.register(import('@fastify/swagger-ui'), {
-    routePrefix: '/docs',
-    uiConfig: {
-      docExpansion: 'list',
-      deepLinking: false,
-    },
-    staticCSP: true,
-    transformSpecificationClone: true,
   });
 }
 

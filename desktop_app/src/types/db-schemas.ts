@@ -104,6 +104,15 @@ export const UpdateChatRequestSchema = insertChatSchema
   .pick({ title: true })
   .describe('Update chat request');
 
+// Simplified message schema for OpenAPI compatibility
+export const SimpleMessageSchema = z.object({
+  role: z.enum(['system', 'user', 'assistant', 'tool']),
+  content: z.union([z.string(), z.any()]).describe('Message content'),
+  images: z.array(z.string()).optional(),
+  thinking: z.string().optional(),
+  toolCalls: z.any().optional(),
+});
+
 // Extended message type with custom fields - extend AI SDK's schema
 export const AISDKMessageWithCustomFields = coreMessageSchema.and(
   z.object({
@@ -112,11 +121,11 @@ export const AISDKMessageWithCustomFields = coreMessageSchema.and(
   })
 );
 
-// Chat with messages schema
+// Chat with messages schema - use simplified version for OpenAPI
 export const ChatWithMessagesSchema = selectChatSchema
   .extend({
     llm_provider: z.string().describe('LLM provider used for this chat'),
-    messages: z.array(AISDKMessageWithCustomFields).describe('Array of AI SDK messages with custom fields'),
+    messages: z.array(SimpleMessageSchema).describe('Array of messages'),
   })
   .describe('Chat with messages');
 
