@@ -13,16 +13,17 @@ import SystemPrompt from './SystemPrompt';
 interface ChatPageProps {}
 
 export default function ChatPage(_props: ChatPageProps) {
-  const { getCurrentChat, createNewChat, selectedAIModel } = useChatStore();
+  const { getCurrentChat, createNewChat, selectedAIModel, isLoadingChats } = useChatStore();
   const currentChat = getCurrentChat();
   const [localInput, setLocalInput] = useState('');
 
   // Ensure we have a chat session
   useEffect(() => {
-    if (!currentChat) {
+    // Only create a new chat if we're not loading and there's no current chat
+    if (!isLoadingChats && !currentChat) {
       createNewChat();
     }
-  }, [currentChat, createNewChat]);
+  }, [currentChat, createNewChat, isLoadingChats]);
 
   // Always use selectedAIModel from centralized config
   const model = selectedAIModel || '';
