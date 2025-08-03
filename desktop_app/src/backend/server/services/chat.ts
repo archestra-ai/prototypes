@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 
 import { chatsTable } from '@backend/database/schema/chat';
 import { messagesTable } from '@backend/database/schema/messages';
@@ -145,7 +145,11 @@ export class ChatService {
   }
 
   async getChatMessages(chatId: number): Promise<any[]> {
-    const messages = await db.select().from(messagesTable).where(eq(messagesTable.chatId, chatId));
+    const messages = await db
+      .select()
+      .from(messagesTable)
+      .where(eq(messagesTable.chatId, chatId))
+      .orderBy(asc(messagesTable.createdAt)); // Order by creation time ascending
     return messages.map((msg) => JSON.parse(msg.content));
   }
 }
