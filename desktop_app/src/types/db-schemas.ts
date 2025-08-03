@@ -2,6 +2,7 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { chatsTable } from '@backend/database/schema/chat';
 import { messagesTable } from '@backend/database/schema/messages';
+import type { CoreMessage } from 'ai';
 
 // Generate Zod schemas from Drizzle tables
 export const insertChatSchema = createInsertSchema(chatsTable, {
@@ -17,18 +18,92 @@ export const selectChatSchema = createSelectSchema(chatsTable, {
   updatedAt: z.string().describe('ISO 8601 timestamp of last update'),
 });
 
-export const insertMessageSchema = createInsertSchema(messagesTable, {
-  role: z.enum(['user', 'assistant', 'system']).describe('Message role'),
-  content: z.string().describe('JSON stringified message content'),
+// Message part schemas
+const MessagePartSchema = z.object({
+  type: z.enum(['text', 'image', 'tool-call', 'tool-result']),
+  text: z.string().optional(),
+  image: z.string().optional(),
+  toolCallId: z.string().optional(),
+  toolName: z.string().optional(),
+  input: z.any().optional(),
+  output: z.any().optional(),
 });
 
-export const selectMessageSchema = createSelectSchema(messagesTable, {
-  id: z.number().describe('Unique message identifier'),
-  chatId: z.number().describe('Reference to parent chat'),
-  role: z.enum(['user', 'assistant', 'system']).describe('Message role'),
-  content: z.string().describe('JSON stringified message content'),
-  createdAt: z.string().describe('ISO 8601 timestamp of message creation'),
+const ToolCallSchema = z.object({
+  id: z.string(),
+  type: z.literal('function'),
+  function: z.object({
+    name: z.string(),
+    arguments: z.string(),
+  }),
 });
+
+// Generate schemas from Drizzle
+export const insertMessageSchema = createInsertSchema(messagesTable);
+export const selectMessageSchema = createSelectSchema(messagesTable);
+
+// Helper to convert DB message to AI SDK format
+export const toAISDKMessage = (dbMsg: z.infer<typeof selectMessageSchema>): CoreMessage & {
+  images?: string[];
+  thinking?: string;
+} => {
+  const base = {
+    role: dbMsg.role,
+    content: dbMsg.content,
+    ...(dbMsg.images && { images: dbMsg.images }),
+    ...(dbMsg.thinking && { thinking: dbMsg.thinking }),
+  };
+
+  // Add parts if they exist
+  if (dbMsg.parts && dbMsg.parts.length > 0) {
+    return { ...base, content: dbMsg.parts } as any;
+  }
+
+  // Add tool calls if they exist
+  if (dbMsg.toolCalls && dbMsg.toolCalls.length > 0) {
+    return { ...base, tool_calls: dbMsg.toolCalls } as any;
+  }
+
+  return base;
+};
+
+// Helper to convert AI SDK message to DB format
+export const fromAISDKMessage = (msg: CoreMessage & { images?: string[]; thinking?: string }, chatId: number) => {
+  const base = {
+    chatId,
+    role: msg.role,
+    images: (msg as any).images,
+    thinking: (msg as any).thinking,
+  };
+
+  // Handle string content
+  if (typeof msg.content === 'string') {
+    return { ...base, content: msg.content };
+  }
+
+  // Handle array content (parts)
+  if (Array.isArray(msg.content)) {
+    const textParts = msg.content.filter((p: any) => p.type === 'text');
+    const textContent = textParts.map((p: any) => p.text).join('\n');
+    
+    return {
+      ...base,
+      content: textContent || 'No text content',
+      parts: msg.content,
+    };
+  }
+
+  // Handle tool calls
+  if ((msg as any).tool_calls) {
+    return {
+      ...base,
+      content: 'Tool calls',
+      toolCalls: (msg as any).tool_calls,
+    };
+  }
+
+  return { ...base, content: JSON.stringify(msg.content) };
+};
 
 // API request/response schemas based on DB schemas
 export const CreateChatRequestSchema = insertChatSchema
@@ -42,11 +117,20 @@ export const UpdateChatRequestSchema = insertChatSchema
   .pick({ title: true })
   .describe('Update chat request');
 
+// Extended message type with custom fields
+export const AISDKMessageWithCustomFields = z.object({
+  role: z.enum(['system', 'user', 'assistant', 'tool']),
+  content: z.union([z.string(), z.array(MessagePartSchema)]),
+  tool_calls: z.array(ToolCallSchema).optional(),
+  images: z.array(z.string()).optional(),
+  thinking: z.string().optional(),
+});
+
 // Chat with messages schema
 export const ChatWithMessagesSchema = selectChatSchema
   .extend({
     llm_provider: z.string().describe('LLM provider used for this chat'),
-    messages: z.array(z.any()).describe('Array of chat messages'), // We'll parse this separately
+    messages: z.array(AISDKMessageWithCustomFields).describe('Array of AI SDK messages with custom fields'),
   })
   .describe('Chat with messages');
 

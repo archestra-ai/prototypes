@@ -4,10 +4,12 @@ import { chatsTable } from '@backend/database/schema/chat';
 import { messagesTable } from '@backend/database/schema/messages';
 import db from '@backend/database';
 
-import type { 
-  CreateChatRequest, 
-  UpdateChatRequest, 
-  ChatWithMessages as Chat 
+import { 
+  type CreateChatRequest, 
+  type UpdateChatRequest, 
+  type ChatWithMessages as Chat,
+  toAISDKMessage,
+  fromAISDKMessage
 } from '@/types/db-schemas';
 
 /**
@@ -117,13 +119,10 @@ export class ChatService {
     // Clear existing messages for this chat to avoid duplicates
     await db.delete(messagesTable).where(eq(messagesTable.chatId, chat.id));
 
-    // Save each message
+    // Save each message using the converter
     for (const message of messages) {
-      await db.insert(messagesTable).values({
-        chatId: chat.id,
-        role: message.role,
-        content: JSON.stringify(message),
-      });
+      const dbMessage = fromAISDKMessage(message, chat.id);
+      await db.insert(messagesTable).values(dbMessage);
     }
   }
 
@@ -132,8 +131,9 @@ export class ChatService {
       .select()
       .from(messagesTable)
       .where(eq(messagesTable.chatId, chatId))
-      .orderBy(asc(messagesTable.createdAt)); // Order by creation time ascending
-    return messages.map((msg) => JSON.parse(msg.content));
+      .orderBy(asc(messagesTable.createdAt));
+    
+    return messages.map(toAISDKMessage);
   }
 }
 
