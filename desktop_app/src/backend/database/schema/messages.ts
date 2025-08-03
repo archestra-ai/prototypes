@@ -21,7 +21,7 @@ export const messagesTable = sqliteTable('messages', {
     toolName?: string;
     input?: any;
     output?: any;
-  }>>()
+  }>>(),
   
   // Tool calls for assistant messages
   toolCalls: text('tool_calls', { mode: 'json' }).$type<Array<{
@@ -31,11 +31,11 @@ export const messagesTable = sqliteTable('messages', {
       name: string;
       arguments: string;
     };
-  }>>()
+  }>>(),
   
   // Custom fields
   images: text('images', { mode: 'json' }).$type<string[]>(),
-  thinking: text('thinking')
+  thinking: text('thinking'),
   
   createdAt: text('created_at')
     .notNull()
