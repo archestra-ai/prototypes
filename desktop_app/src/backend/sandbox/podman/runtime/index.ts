@@ -1,15 +1,51 @@
-import BinaryRunner from '@backend/lib/utils/binaries';
+import { spawn } from 'node:child_process';
+
+import { getBinaryExecPath } from '@backend/lib/utils/binaries';
 
 class PodmanRuntime {
-  private installedMachineName: string | null = null;
-  private installedMachineIsRunning: boolean = false;
+  private ARCHESTRA_MACHINE_NAME = 'archestra-ai-machine';
+  private machineIsInstalled: boolean = false;
+  private machineIsRunning: boolean = false;
 
-  private getPodmanBinaryRunner(
-    commandArgs: string[],
-    onStdout?: (data: string) => void,
-    onStderr?: (data: string) => void
-  ) {
-    return new BinaryRunner('podman', 'podman-remote-static-v5.5.2', commandArgs, {}, onStdout, onStderr);
+  private binaryPath = getBinaryExecPath('podman-remote-static-v5.5.2');
+
+  private runCommand(
+    command: string[],
+    onStdout: (data: string) => void,
+    onStderr: (data: string) => void,
+    onExit: (code: number, signal: string) => void,
+    onError: (error: Error) => void,
+    asJsonFormat = false
+  ): void;
+  private runCommand<T>(
+    command: string[],
+    onStdout: (data: T) => void,
+    onStderr: (data: string) => void,
+    onExit: (code: number, signal: string) => void,
+    onError: (error: Error) => void,
+    asJsonFormat = true
+  ): void {
+    const commandArgs = asJsonFormat ? [...command, '--format=json'] : command;
+    const process = spawn(this.binaryPath, commandArgs, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    process.stdout?.on('data', (data) => {
+      let parsedData;
+      if (asJsonFormat) {
+        parsedData = JSON.parse(data.toString()) as T;
+      } else {
+        parsedData = data.toString();
+      }
+
+      console.log(`[Podman stdout]: ${parsedData}`);
+      onStdout(parsedData);
+    });
+    process.stderr?.on('data', (data) => {
+      onStderr(data.toString());
+    });
+    process.on('exit', onExit);
+    process.on('error', onError);
   }
 
   /**
@@ -33,8 +69,21 @@ class PodmanRuntime {
   private async startMachine() {
     console.log('Starting podman machine');
 
-    const startMachineCommand = this.getPodmanBinaryRunner(['machine', 'start']);
-    startMachineCommand.startProcess();
+    this.runCommand(
+      ['machine', 'start'],
+      (output) => {
+        console.log(`[Podman stdout]: ${output}`);
+      },
+      (error) => {
+        console.error(`[Podman stderr]: ${error}`);
+      },
+      (code, signal) => {
+        console.log(`[Podman exit]: ${code} ${signal}`);
+      },
+      (error) => {
+        console.error(`[Podman error]: ${error}`);
+      }
+    );
   }
 
   /**
@@ -59,8 +108,15 @@ class PodmanRuntime {
   private initMachine() {
     console.log('Initializing podman machine');
 
-    const initMachineCommand = this.getPodmanBinaryRunner(['machine', 'init']);
-    initMachineCommand.startProcess();
+    this.runCommand(
+      ['machine', 'init'],
+      (output) => {},
+      (error) => {},
+      (code, signal) => {},
+      (error) => {
+        console.error(`[Podman error]: ${error}`);
+      }
+    );
   }
 
   /**
@@ -110,13 +166,13 @@ class PodmanRuntime {
   async ensurePodmanIsInstalled() {
     await this.checkInstalledMachines();
 
-    if (!this.installedMachineName) {
-      console.error('Podman is not installed');
-      return false;
-    } else {
-      console.log(`Podman is installed and running on machine ${this.installedMachineName}`);
-      return true;
-    }
+    // if (!this.installedMachineName) {
+    //   console.error('Podman is not installed');
+    //   return false;
+    // } else {
+    //   console.log(`Podman is installed and running on machine ${this.installedMachineName}`);
+    //   return true;
+    // }
   }
 
   async stopPodmanMachine() {

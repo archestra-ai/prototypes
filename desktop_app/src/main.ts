@@ -1,6 +1,5 @@
 import { BrowserWindow, app } from 'electron';
 import started from 'electron-squirrel-startup';
-import getPort from 'get-port';
 import { ChildProcess, fork } from 'node:child_process';
 import path from 'node:path';
 
@@ -89,9 +88,8 @@ function startFastifyServer(): void {
 app.on('ready', async () => {
   await runDatabaseMigrations();
 
-  const ollamaPort = await getPort();
-  ollamaServer = new OllamaServer(ollamaPort);
-  await ollamaServer.startProcess();
+  ollamaServer = new OllamaServer();
+  await ollamaServer.startServer();
 
   /**
    * NOTE: for now the podman mcp server sandbox is still super experimental/WIP so don't
@@ -132,7 +130,7 @@ app.on('before-quit', async (event) => {
     // Stop Ollama server
     if (ollamaServer) {
       try {
-        await ollamaServer.stopProcess();
+        await ollamaServer.stopServer();
         console.log('Ollama server stopped');
       } catch (error) {
         console.error('Error stopping Ollama server:', error);
@@ -178,7 +176,7 @@ process.on('exit', async () => {
   }
 
   if (ollamaServer) {
-    await ollamaServer.stopProcess();
+    await ollamaServer.stopServer();
   }
 
   /**
