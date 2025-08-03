@@ -1,6 +1,4 @@
-import getPort from 'get-port';
-
-import { PodmanContainer, PodmanImage } from '@backend/mcpServerSandbox/podman';
+import { PodmanContainer, PodmanImage } from '@backend/sandbox/podman';
 
 export default class SandboxedMCP {
   private imageName: string;

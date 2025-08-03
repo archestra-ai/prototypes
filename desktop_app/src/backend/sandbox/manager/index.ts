@@ -1,9 +1,8 @@
 // import { mcpServersTable } from '@/backend/database/schema/mcpServer';
 import getPort from 'get-port';
 
-import PodmanRuntime from '@backend/mcpServerSandbox/podman/runtime';
-
-import SandboxedMCP from './sandboxedMCP';
+import PodmanRuntime from '@backend/sandbox/podman/runtime';
+import SandboxedMCP from '@backend/sandbox/sandboxedMCP';
 
 // TODO: this should use the MCPServer model schema once we agree w/ Matvey what the catalog schema will look like
 type InstalledMcpServer = {

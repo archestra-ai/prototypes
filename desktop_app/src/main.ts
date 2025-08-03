@@ -6,7 +6,7 @@ import path from 'node:path';
 
 import { runDatabaseMigrations } from '@backend/database';
 import { OllamaServer } from '@backend/llms/ollama';
-import { MCPServerSandboxManager } from '@backend/mcpServerSandbox';
+import { MCPServerSandboxManager } from '@backend/sandbox';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
