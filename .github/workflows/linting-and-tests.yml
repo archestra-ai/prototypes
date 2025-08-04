@@ -90,8 +90,7 @@ jobs:
     name: Build MCP Server Base Docker Image
     permissions:
       contents: read
-      # packages: write
-      # id-token: write
+      id-token: write # Required for Workload Identity Federation
     uses: ./.github/workflows/build-base-mcp-server-docker-image.yml
     with:
       # TODO: remove this when done testing

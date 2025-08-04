@@ -96,6 +96,9 @@ jobs:
     if: needs.release-please.outputs.mcp_server_docker_image_release_created
     needs:
       - release-please
+    permissions:
+      contents: read
+      id-token: write # Required for Workload Identity Federation
     with:
       push_to_gcr: true
       version: ${{ needs.release-please.outputs.mcp_server_docker_image_version }}
