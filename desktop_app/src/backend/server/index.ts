@@ -1,5 +1,5 @@
+import cors from '@fastify/cors';
 import fastify from 'fastify';
-import cors from 'fastify/cors';
 
 import config from '@backend/config';
 import chatRoutes from '@backend/server/plugins/chat';
