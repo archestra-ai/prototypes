@@ -25,6 +25,13 @@ const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
 const llmRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: StreamRequestBody }>(
     '/api/llm/stream',
+    {
+      schema: {
+        operationId: 'streamLlmResponse',
+        description: 'Stream LLM response',
+        tags: ['LLM'],
+      },
+    },
     async (request: FastifyRequest<{ Body: StreamRequestBody }>, reply: FastifyReply) => {
       const { messages, sessionId } = request.body;
 
@@ -59,30 +66,32 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
         // );
         let messageId = generateId();
         let fullText = '';
-        
+
         reply.raw.write(`data: {"type":"start"} \n\n`);
         reply.raw.write(`data: {"type":"start-step"}\n\n`);
         reply.raw.write(`data: ${JSON.stringify({ type: 'text-start', id: messageId })}\n\n`);
-        
+
         for await (const chunk of result.textStream) {
           fullText += chunk;
           reply.raw.write(`data: ${JSON.stringify({ type: 'text-delta', id: messageId, delta: chunk })}\n\n`);
         }
-        
+
         reply.raw.write(`data: ${JSON.stringify({ type: 'end', id: messageId })}\n\n`);
         reply.raw.write(`data: [DONE]\n\n`);
         reply.raw.end();
-        
+
         // Save messages after streaming completes
         if (sessionId) {
           const assistantMessage = {
             id: messageId,
             role: 'assistant',
             content: fullText,
-            parts: [{
-              type: 'text',
-              text: fullText
-            }]
+            parts: [
+              {
+                type: 'text',
+                text: fullText,
+              },
+            ],
           };
           const finalMessages = [...messages, assistantMessage];
           await chatService.saveMessages(sessionId, finalMessages);

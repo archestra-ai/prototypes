@@ -26,6 +26,7 @@ const mcpServerRoutes: FastifyPluginAsync = async (fastify) => {
     '/api/mcp_server',
     {
       schema: {
+        operationId: 'getMcpServers',
         description: 'Get all installed MCP servers',
         tags: ['MCP Server'],
         response: {
@@ -92,6 +93,7 @@ const mcpServerRoutes: FastifyPluginAsync = async (fastify) => {
     '/api/mcp_server/install',
     {
       schema: {
+        operationId: 'installMcpServer',
         description: 'Install MCP server from catalog',
         tags: ['MCP Server'],
         body: {
@@ -161,6 +163,7 @@ const mcpServerRoutes: FastifyPluginAsync = async (fastify) => {
     '/api/mcp_server/:mcp_server_name',
     {
       schema: {
+        operationId: 'uninstallMcpServer',
         description: 'Uninstall MCP server',
         tags: ['MCP Server'],
         params: {
@@ -219,6 +222,7 @@ const mcpServerRoutes: FastifyPluginAsync = async (fastify) => {
     '/api/mcp_server/start_oauth',
     {
       schema: {
+        operationId: 'startMcpServerOauth',
         description: 'Start MCP server OAuth flow',
         tags: ['MCP Server'],
         body: {

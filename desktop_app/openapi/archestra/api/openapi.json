@@ -8,8 +8,11 @@
     "schemas": {}
   },
   "paths": {
-    "/chat/api/chat": {
+    "/api/chat": {
       "get": {
+        "operationId": "getChats",
+        "tags": ["Chat"],
+        "description": "Get all chats",
         "responses": {
           "200": {
             "description": "Default Response"
@@ -17,6 +20,9 @@
         }
       },
       "post": {
+        "operationId": "createChat",
+        "tags": ["Chat"],
+        "description": "Create new chat",
         "responses": {
           "200": {
             "description": "Default Response"
@@ -24,8 +30,11 @@
         }
       }
     },
-    "/chat/api/chat/{id}": {
+    "/api/chat/{id}": {
       "get": {
+        "operationId": "getChatById",
+        "tags": ["Chat"],
+        "description": "Get single chat with messages",
         "parameters": [
           {
             "schema": {
@@ -43,6 +52,9 @@
         }
       },
       "patch": {
+        "operationId": "updateChat",
+        "tags": ["Chat"],
+        "description": "Update chat",
         "parameters": [
           {
             "schema": {
@@ -60,6 +72,9 @@
         }
       },
       "delete": {
+        "operationId": "deleteChat",
+        "tags": ["Chat"],
+        "description": "Delete chat",
         "parameters": [
           {
             "schema": {
@@ -77,8 +92,11 @@
         }
       }
     },
-    "/externalMcpClient/api/external_mcp_client": {
+    "/api/external_mcp_client": {
       "get": {
+        "operationId": "getConnectedExternalMcpClients",
+        "tags": ["External MCP Client"],
+        "description": "Get all connected external MCP clients",
         "responses": {
           "200": {
             "description": "Default Response"
@@ -86,8 +104,11 @@
         }
       }
     },
-    "/externalMcpClient/api/external_mcp_client/supported": {
+    "/api/external_mcp_client/supported": {
       "get": {
+        "operationId": "getSupportedExternalMcpClients",
+        "tags": ["External MCP Client"],
+        "description": "Get supported external MCP client names",
         "responses": {
           "200": {
             "description": "Default Response"
@@ -95,8 +116,11 @@
         }
       }
     },
-    "/externalMcpClient/api/external_mcp_client/connect": {
+    "/api/external_mcp_client/connect": {
       "post": {
+        "operationId": "connectExternalMcpClient",
+        "tags": ["External MCP Client"],
+        "description": "Connect an external MCP client",
         "responses": {
           "200": {
             "description": "Default Response"
@@ -104,8 +128,11 @@
         }
       }
     },
-    "/externalMcpClient/api/external_mcp_client/{client_name}/disconnect": {
+    "/api/external_mcp_client/{client_name}/disconnect": {
       "delete": {
+        "operationId": "disconnectExternalMcpClient",
+        "tags": ["External MCP Client"],
+        "description": "Disconnect an external MCP client",
         "parameters": [
           {
             "schema": {
@@ -123,8 +150,11 @@
         }
       }
     },
-    "/llm/api/llm/stream": {
+    "/api/llm/stream": {
       "post": {
+        "operationId": "streamLlmResponse",
+        "tags": ["LLM"],
+        "description": "Stream LLM response",
         "responses": {
           "200": {
             "description": "Default Response"
@@ -132,8 +162,445 @@
         }
       }
     },
-    "/mcpServer/api/mcp_server": {
+    "/api/mcp_request_log": {
       "get": {
+        "operationId": "getMcpRequestLogs",
+        "tags": ["MCP Request Log"],
+        "description": "Get MCP request logs with filtering and pagination",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "server_name",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "method",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["success", "error"]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "date_from",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "date_to",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "in": "query",
+            "name": "page_size",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of MCP request logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Paginated list of MCP request logs",
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "request_id": {
+                            "type": "string"
+                          },
+                          "session_id": {
+                            "type": "string"
+                          },
+                          "mcp_session_id": {
+                            "type": "string"
+                          },
+                          "server_name": {
+                            "type": "string"
+                          },
+                          "client_info": {
+                            "type": "string"
+                          },
+                          "method": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["pending", "success", "error"]
+                          },
+                          "duration_ms": {
+                            "type": "number"
+                          },
+                          "timestamp": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "request": {
+                            "type": "string"
+                          },
+                          "response": {
+                            "type": "string"
+                          },
+                          "error": {
+                            "type": "string"
+                          },
+                          "headers": {
+                            "type": "object"
+                          }
+                        },
+                        "required": ["id", "server_name", "method", "status", "timestamp"]
+                      }
+                    },
+                    "total": {
+                      "type": "number"
+                    },
+                    "page": {
+                      "type": "number"
+                    },
+                    "page_size": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["data", "total", "page", "page_size"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "clearMcpRequestLogs",
+        "tags": ["MCP Request Log"],
+        "description": "Clear MCP request logs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clear_all": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Number of logs cleared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Number of logs cleared",
+                  "type": "object",
+                  "properties": {
+                    "cleared": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["cleared"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp_request_log/{id}": {
+      "get": {
+        "operationId": "getMcpRequestLogById",
+        "tags": ["MCP Request Log"],
+        "description": "Get a single MCP request log by ID",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MCP request log",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "MCP request log",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "session_id": {
+                      "type": "string"
+                    },
+                    "mcp_session_id": {
+                      "type": "string"
+                    },
+                    "server_name": {
+                      "type": "string"
+                    },
+                    "client_info": {
+                      "type": "string"
+                    },
+                    "method": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["pending", "success", "error"]
+                    },
+                    "duration_ms": {
+                      "type": "number"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "request": {
+                      "type": "string"
+                    },
+                    "response": {
+                      "type": "string"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "headers": {
+                      "type": "object"
+                    }
+                  },
+                  "required": ["id", "server_name", "method", "status", "timestamp"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp_request_log/stats": {
+      "get": {
+        "operationId": "getMcpRequestLogStats",
+        "tags": ["MCP Request Log"],
+        "description": "Get MCP request log statistics",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "server_name",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "method",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["success", "error"]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "date_from",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "in": "query",
+            "name": "date_to",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MCP request log statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "MCP request log statistics",
+                  "type": "object",
+                  "properties": {
+                    "totalRequests": {
+                      "type": "number"
+                    },
+                    "successCount": {
+                      "type": "number"
+                    },
+                    "errorCount": {
+                      "type": "number"
+                    },
+                    "avgDurationMs": {
+                      "type": "number"
+                    },
+                    "requestsPerServer": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "required": ["totalRequests", "successCount", "errorCount", "avgDurationMs", "requestsPerServer"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp_server": {
+      "get": {
+        "operationId": "getMcpServers",
         "tags": ["MCP Server"],
         "description": "Get all installed MCP servers",
         "responses": {
@@ -214,8 +681,9 @@
         }
       }
     },
-    "/mcpServer/api/mcp_server/install": {
+    "/api/mcp_server/install": {
       "post": {
+        "operationId": "installMcpServer",
         "tags": ["MCP Server"],
         "description": "Install MCP server from catalog",
         "requestBody": {
@@ -298,8 +766,9 @@
         }
       }
     },
-    "/mcpServer/api/mcp_server/{mcp_server_name}": {
+    "/api/mcp_server/{mcp_server_name}": {
       "delete": {
+        "operationId": "uninstallMcpServer",
         "tags": ["MCP Server"],
         "description": "Uninstall MCP server",
         "parameters": [
@@ -361,8 +830,9 @@
         }
       }
     },
-    "/mcpServer/api/mcp_server/start_oauth": {
+    "/api/mcp_server/start_oauth": {
       "post": {
+        "operationId": "startMcpServerOauth",
         "tags": ["MCP Server"],
         "description": "Start MCP server OAuth flow",
         "requestBody": {

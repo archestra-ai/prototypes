@@ -1,30 +1,12 @@
 import { create } from 'zustand';
 
-// MCP logs functionality has been removed from the API
-// Define types locally until the functionality is restored
-interface McpClientInfo {
-  name: string;
-  [key: string]: any;
-}
-
-interface McpRequestLog {
-  id: string;
-  [key: string]: any;
-}
-
-interface McpRequestLogFilters {
-  [key: string]: any;
-}
-
-interface McpRequestLogStats {
-  [key: string]: any;
-}
-
-// Stub functions until the API is restored
-const clearMcpRequestLogs = async () => ({ data: { success: true } });
-const getMcpRequestLogById = async (options: any) => ({ data: null });
-const getMcpRequestLogStats = async (options: any) => ({ data: {} });
-const getMcpRequestLogs = async (options: any) => ({ data: [], totalPages: 0 });
+import {
+  clearMcpRequestLogs,
+  getMcpRequestLogById,
+  getMcpRequestLogStats,
+  getMcpRequestLogs,
+} from '@clients/archestra/api/gen';
+import type { McpClientInfo, McpRequestLog, McpRequestLogFilters, McpRequestLogStats } from '@types';
 
 interface MCPLogsStore {
   // State
@@ -140,7 +122,7 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
       const currentLog = get().logs.find((log) => log.id === id);
       if (currentLog) {
         const response = await getMcpRequestLogById({
-          path: { request_id: currentLog.request_id },
+          path: { id: String(id) },
         });
 
         if ('data' in response && response.data) {
@@ -178,7 +160,7 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
   clearLogs: async (clearAll = false) => {
     try {
       const response = await clearMcpRequestLogs({
-        query: { clear_all: clearAll },
+        body: { clear_all: clearAll },
       });
 
       if ('data' in response && response.data !== undefined) {

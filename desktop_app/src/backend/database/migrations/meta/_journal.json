@@ -8,6 +8,13 @@
       "when": 1754262275875,
       "tag": "0000_watery_red_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1754321298265,
+      "tag": "0001_amusing_giant_man",
+      "breakpoints": true
     }
   ]
 }

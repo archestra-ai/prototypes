@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 
 import {
-  deleteExternalMcpClientApiExternalMcpClientByClientNameDisconnect,
-  getExternalMcpClientApiExternalMcpClient,
-  getExternalMcpClientApiExternalMcpClientSupported,
-  postExternalMcpClientApiExternalMcpClientConnect,
+  connectExternalMcpClient,
+  disconnectExternalMcpClient,
+  getConnectedExternalMcpClients,
+  getSupportedExternalMcpClients,
 } from '@clients/archestra/api/gen';
+import { type ExternalMcpClient } from '@types';
 
 // Define type for external MCP client since it's not exported
 interface ExternalMcpClient {
