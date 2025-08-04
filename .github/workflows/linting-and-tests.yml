@@ -45,39 +45,32 @@ jobs:
       # - name: Build
       #   run: pnpm make
 
-  # TODO: add this once we've added this to ./desktop_app
-  # verify-openapi-schema-is-up-to-date:
-  #   name: Verify Open API schema is up to date
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout project
-  #       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-  #       with:
-  #         persist-credentials: true
+  verify-codegend-code-is-up-to-date:
+    name: Verify generated code is up to date
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./desktop_app
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: true
 
-  #     - name: Setup Rust
-  #       uses: ./.github/actions/setup-rust
-  #       with:
-  #         platform: ubuntu-latest
+      - name: Setup frontend dependencies
+        uses: ./.github/actions/setup-frontend
 
-  #     - name: Setup frontend dependencies
-  #       uses: ./.github/actions/setup-frontend
+      - name: Codegen
+        run: pnpm codegen:all
 
-  #     - name: Codegen
-  #       working-directory: desktop/src-tauri
-  #       run: cargo run --bin codegen
-
-  #     - name: Check for changes and commit if needed
-  #       working-directory: desktop
-  #       run: |
-  #         # Check both unstaged and staged changes
-  #         if ! git diff --exit-code || ! git diff --cached --exit-code; then
-  #           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-  #           git config --local user.name "github-actions[bot]"
-  #           git add .
-  #           git commit -m "chore: update OpenAPI schema and TypeScript client"
-  #           git push --no-verify
-  #         fi
+      - name: Check for changes and commit if needed
+        run: |
+          # Check both unstaged and staged changes
+          if ! git diff --exit-code || ! git diff --cached --exit-code; then
+            git add .
+            git commit -m "chore: update generated code"
+            git push --no-verify
+          fi
 
   zizmor:
     name: Zizmor GitHub Actions static analysis
