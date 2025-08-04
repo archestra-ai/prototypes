@@ -258,6 +258,9 @@ importers:
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
+      chokidar:
+        specifier: ^4.0.3
+        version: 4.0.3
       drizzle-kit:
         specifier: ^0.31.4
         version: 0.31.4

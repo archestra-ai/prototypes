@@ -1,3 +1,4 @@
+import chokidar from 'chokidar';
 import { BrowserWindow, app } from 'electron';
 import started from 'electron-squirrel-startup';
 import { ChildProcess, fork } from 'node:child_process';
@@ -56,6 +57,8 @@ function startFastifyServer(ollamaPort: number | null): void {
   // server-process.js is built by Vite from src/server-process.ts
   // It's placed in the same directory as main.js after building
   const serverPath = path.join(__dirname, 'server-process.js');
+
+  if (serverProcess) serverProcess.kill();
 
   console.log(`Fastify server starting on port ${SERVER_PORT}`);
   if (ollamaPort) {
@@ -116,6 +119,15 @@ app.on('ready', async () => {
 
   // Start Fastify server with Ollama port
   const ollamaPort = ollamaServer.getPort();
+
+  if (process.env.NODE_ENV === 'development') {
+    const serverPath = path.resolve(__dirname, '.vite/build/server-process.js');
+
+    chokidar.watch(serverPath).on('change', () => {
+      console.log('Restarting server..');
+      startFastifyServer(ollamaPort);
+    });
+  }
   startFastifyServer(ollamaPort);
   createWindow();
 });

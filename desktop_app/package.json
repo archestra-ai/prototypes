@@ -4,7 +4,7 @@
   "description": "Archestra AI",
   "main": ".vite/build/main.js",
   "scripts": {
-    "start": "electron-forge start 2>&1 | pino-pretty  --single-line",
+    "start": "electron-forge start 2>&1 | pino-pretty  --single-line --colorize",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
@@ -45,6 +45,7 @@
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
     "@types/ws": "^8.18.1",
+    "chokidar": "^4.0.3",
     "drizzle-kit": "^0.31.4",
     "electron": "37.2.5",
     "husky": "^9.1.7",
