@@ -9,9 +9,7 @@ export default {
   server: {
     port: ARCHESTRA_API_SERVER_PORT,
     host: ARCHESTRA_API_SERVER_HOST,
-    logger: {
-      level: process.env.LOG_LEVEL || 'info',
-    },
+
   },
   ai: {
     defaultProvider: process.env.DEFAULT_AI_PROVIDER || 'openai',

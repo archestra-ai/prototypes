@@ -11,9 +11,13 @@ import ollamaRoutes from '@backend/server/plugins/ollama';
 import websocketPlugin from '@backend/server/plugins/websocket';
 
 const app = fastify({
-  logger: config.server.logger,
-  // Note: prettyPrint was removed from config as it's no longer supported
-  // Use pino-pretty package if pretty logging is needed in development
+  logger: {
+    level: 'info',
+    serializers: {
+      req: (req) => ({ method: req.method, url: req.url }),
+      res: (res) => ({ statusCode: res.statusCode }),
+    },
+  },
 });
 
 app.register(cors, {
