@@ -24,4 +24,5 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      id-token: write
     uses: ./.github/workflows/linting-and-tests.yml
