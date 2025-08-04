@@ -14,15 +14,10 @@ import { initializeChat } from '@ui/lib/utils/chat';
 import { websocketService } from '@ui/lib/websocket';
 import { type ChatWithMessages } from '@ui/types';
 
-export type LLMProvider = 'ollama' | 'chatgpt' | 'claude';
-
 interface ChatState {
   chats: ChatWithMessages[];
   currentChatSessionId: string | null;
   isLoadingChats: boolean;
-  selectedProvider: LLMProvider;
-  openaiApiKey: string | null;
-  anthropicApiKey: string | null;
   selectedAIModel: string | null;
 }
 
@@ -36,10 +31,6 @@ interface ChatActions {
   deleteCurrentChat: () => Promise<void>;
   updateChatTitle: (chatId: number, title: string) => Promise<void>;
   initializeStore: () => Promise<void>;
-  // Provider operations
-  setSelectedProvider: (provider: LLMProvider) => void;
-  setOpenAIApiKey: (apiKey: string) => void;
-  setAnthropicApiKey: (apiKey: string) => void;
   setSelectedAIModel: (model: string) => void;
 }
 
@@ -62,9 +53,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   chats: [],
   currentChatSessionId: null,
   isLoadingChats: false,
-  selectedProvider: 'ollama',
-  openaiApiKey: null,
-  anthropicApiKey: null,
   selectedAIModel: getDefaultModel('ollama'),
 
   // Actions
@@ -90,11 +78,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   createNewChat: async () => {
     try {
-      const { selectedProvider } = get();
       const response = await createChat({
         body: {
-          llm_provider:
-            selectedProvider === 'chatgpt' ? 'openai' : selectedProvider === 'claude' ? 'anthropic' : 'ollama',
+          llm_provider: 'ollama',
         },
       });
 
@@ -121,15 +107,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     try {
       // Fetch the chat with its messages from the API
       const { data } = await getChatById({ path: { id: chatId.toString() } });
-      
+
       if (data) {
         const initializedChat = initializeChat(data);
-        
+
         // Update the chat in the store with the fetched data
         set((state) => ({
-          chats: state.chats.map((chat) => 
-            chat.id === chatId ? initializedChat : chat
-          ),
+          chats: state.chats.map((chat) => (chat.id === chatId ? initializedChat : chat)),
           currentChatSessionId: initializedChat.session_id,
         }));
       }
@@ -195,32 +179,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     } catch (error) {
       console.error('Failed to establish WebSocket connection:', error);
     }
-  },
-
-  // Provider operations
-  setSelectedProvider: (provider: LLMProvider) => {
-    // Map provider to AI provider key
-    const providerMap = {
-      chatgpt: 'openai',
-      claude: 'anthropic',
-      ollama: 'ollama',
-    } as const;
-
-    const aiProviderKey = providerMap[provider];
-    const defaultModel = getDefaultModel(aiProviderKey);
-
-    set({
-      selectedProvider: provider,
-      selectedAIModel: defaultModel,
-    });
-  },
-
-  setOpenAIApiKey: (apiKey: string) => {
-    set({ openaiApiKey: apiKey });
-  },
-
-  setAnthropicApiKey: (apiKey: string) => {
-    set({ anthropicApiKey: apiKey });
   },
 
   setSelectedAIModel: (model: string) => {

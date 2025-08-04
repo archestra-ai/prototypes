@@ -17,12 +17,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
     '/api/llm/stream',
     async (request: FastifyRequest<{ Body: StreamRequestBody }>, reply: FastifyReply) => {
       const { messages, sessionId } = request.body;
-      console.log(request.body);
-
-      console.log('SESSION', sessionId);
-
-      console.log('LLM stream request:', request.body);
-      console.log(convertToModelMessages(messages));
       try {
         // Create the stream
         const result = streamText({

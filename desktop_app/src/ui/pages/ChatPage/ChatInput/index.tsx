@@ -35,17 +35,10 @@ interface ChatInputProps {
 export default function ChatInput({ input, handleInputChange, handleSubmit, isLoading, stop }: ChatInputProps) {
   const { selectedTools } = useMCPServersStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
-  const { selectedProvider, selectedAIModel, setSelectedAIModel } = useChatStore();
+  const { selectedAIModel, setSelectedAIModel } = useChatStore();
 
-  // Map provider to AI provider key
-  const providerMap = {
-    chatgpt: 'openai',
-    claude: 'anthropic',
-    ollama: 'ollama',
-  } as const;
-
-  const aiProviderKey = providerMap[selectedProvider];
-  const aiProviderModels = aiProviderKey ? Object.entries(AI_PROVIDERS[aiProviderKey].models) : [];
+  // Always use Ollama as the provider
+  const aiProviderModels = Object.entries(AI_PROVIDERS.ollama.models);
 
   // Always use the centralized config
   const currentModel = selectedAIModel || '';

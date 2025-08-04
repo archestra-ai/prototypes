@@ -2,7 +2,6 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { useEffect, useState } from 'react';
 
-import { ProviderSelector } from '@ui/components/ProviderSelector';
 import { useChatProvider } from '@ui/hooks/use-chat-provider';
 import { useChatStore } from '@ui/stores/chat-store';
 
@@ -68,9 +67,6 @@ export default function ChatPage(_props: ChatPageProps) {
 
   return (
     <div className="flex flex-col h-full gap-2 max-w-full overflow-hidden">
-      <div className="flex justify-end px-4 py-2">
-        <ProviderSelector />
-      </div>
       <div className="flex-1 min-h-0 overflow-hidden max-w-full">
         <ChatHistory messages={messages} />
       </div>
