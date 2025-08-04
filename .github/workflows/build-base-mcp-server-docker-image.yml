@@ -11,6 +11,11 @@ on:
         description: "Version tag for the Docker image"
         required: true
         type: string
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER:
+        required: false
+      GCP_SERVICE_ACCOUNT_NAME:
+        required: false
 
 jobs:
   build:
@@ -23,6 +28,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
@@ -31,8 +38,8 @@ jobs:
         if: inputs.push_to_gcr
         uses: google-github-actions/auth@6fc4af4b145ae7821d527454aa9bd537d1f2dc5f # v2.1.7
         with:
-          service_account: ${{ secrets.DEVELOPMENT_OAUTH_PROXY_RELEASER_GCP_SERVICE_ACCOUNT_NAME }}
-          workload_identity_provider: ${{ secrets.DEVELOPMENT_OAUTH_PROXY_RELEASER_GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_NAME }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER }}
 
       - name: Set up Google Cloud
         if: inputs.push_to_gcr

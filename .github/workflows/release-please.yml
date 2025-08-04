@@ -99,4 +99,6 @@ jobs:
     with:
       push_to_gcr: true
       version: ${{ needs.release-please.outputs.mcp_server_docker_image_version }}
-    secrets: inherit
+    secrets:
+      GCP_SERVICE_ACCOUNT_NAME: ${{ secrets.DEVELOPMENT_OAUTH_PROXY_RELEASER_GCP_SERVICE_ACCOUNT_NAME }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER: ${{ secrets.DEVELOPMENT_OAUTH_PROXY_RELEASER_GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER }}
