@@ -4,8 +4,8 @@ import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/t
 import { create } from 'zustand';
 
 import { getMcpServers } from '@clients/archestra/api/gen';
-import config from '@ui/config';
 import { ConnectedMCPServer, MCPServer, MCPServerStatus, MCPServerToolsMap, ToolWithMCPServerName } from '@types';
+import config from '@ui/config';
 import { getToolsGroupedByServer } from '@ui/lib/utils/mcp-server';
 import { formatToolName } from '@ui/lib/utils/tools';
 

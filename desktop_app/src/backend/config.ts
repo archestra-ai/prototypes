@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const ARCHESTRA_API_SERVER_PORT = parseInt(process.env.PORT || '3456', 10);
-const ARCHESTRA_API_SERVER_HOST = process.env.HOST || '127.0.0.1';
+const ARCHESTRA_API_SERVER_HOST = process.env.HOST || 'localhost';
 
 export default {
   server: {
