@@ -1,12 +1,17 @@
 import { create } from 'zustand';
 
 import {
-  type ExternalMcpClient,
-  connectExternalMcpClient,
-  disconnectExternalMcpClient,
-  getConnectedExternalMcpClients,
-  getSupportedExternalMcpClients,
+  deleteExternalMcpClientApiExternalMcpClientByClientNameDisconnect,
+  getExternalMcpClientApiExternalMcpClient,
+  getExternalMcpClientApiExternalMcpClientSupported,
+  postExternalMcpClientApiExternalMcpClientConnect,
 } from '@clients/archestra/api/gen';
+
+// Define type for external MCP client since it's not exported
+interface ExternalMcpClient {
+  name: string;
+  [key: string]: any;
+}
 
 interface ExternalMCPClientsState {
   supportedExternalMCPClientNames: string[];
@@ -51,9 +56,9 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
         errorLoadingSupportedExternalMCPClientNames: null,
       });
 
-      const response = await getSupportedExternalMcpClients();
+      const response = await getExternalMcpClientApiExternalMcpClientSupported();
       if ('data' in response && response.data) {
-        set({ supportedExternalMCPClientNames: response.data });
+        set({ supportedExternalMCPClientNames: response.data as string[] });
       } else if ('error' in response) {
         throw new Error(response.error as string);
       }
@@ -71,9 +76,9 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
         errorLoadingConnectedExternalMCPClients: null,
       });
 
-      const response = await getConnectedExternalMcpClients();
+      const response = await getExternalMcpClientApiExternalMcpClient();
       if ('data' in response && response.data) {
-        set({ connectedExternalMCPClients: response.data });
+        set({ connectedExternalMCPClients: response.data as ExternalMcpClient[] });
       } else if ('error' in response) {
         throw new Error(response.error as string);
       }
@@ -91,7 +96,7 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
         errorConnectingExternalMCPClient: null,
       });
 
-      const response = await connectExternalMcpClient({
+      const response = await postExternalMcpClientApiExternalMcpClientConnect({
         body: { client_name: clientName },
       });
       if ('error' in response) {
@@ -114,7 +119,7 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
         errorDisconnectingExternalMCPClient: null,
       });
 
-      const response = await disconnectExternalMcpClient({
+      const response = await deleteExternalMcpClientApiExternalMcpClientByClientNameDisconnect({
         path: { client_name: clientName },
       });
       if ('error' in response) {

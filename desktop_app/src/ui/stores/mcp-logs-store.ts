@@ -1,15 +1,30 @@
 import { create } from 'zustand';
 
-import {
-  type McpClientInfo,
-  type McpRequestLog,
-  type McpRequestLogFilters,
-  type McpRequestLogStats,
-  clearMcpRequestLogs,
-  getMcpRequestLogById,
-  getMcpRequestLogStats,
-  getMcpRequestLogs,
-} from '@clients/archestra/api/gen';
+// MCP logs functionality has been removed from the API
+// Define types locally until the functionality is restored
+interface McpClientInfo {
+  name: string;
+  [key: string]: any;
+}
+
+interface McpRequestLog {
+  id: string;
+  [key: string]: any;
+}
+
+interface McpRequestLogFilters {
+  [key: string]: any;
+}
+
+interface McpRequestLogStats {
+  [key: string]: any;
+}
+
+// Stub functions until the API is restored
+const clearMcpRequestLogs = async () => ({ data: { success: true } });
+const getMcpRequestLogById = async (options: any) => ({ data: null });
+const getMcpRequestLogStats = async (options: any) => ({ data: {} });
+const getMcpRequestLogs = async (options: any) => ({ data: [], totalPages: 0 });
 
 interface MCPLogsStore {
   // State
