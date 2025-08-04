@@ -90,8 +90,8 @@ jobs:
     name: Build MCP Server Base Docker Image
     permissions:
       contents: read
-      packages: write
-      id-token: write
+      # packages: write
+      # id-token: write
     uses: ./.github/workflows/build-base-mcp-server-docker-image.yml
     with:
       # TODO: remove this when done testing
