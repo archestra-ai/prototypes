@@ -1,4 +1,4 @@
-import type { ToolWithMCPServerName } from '@ui/types';
+import type { ToolWithMCPServerName } from '@types';
 
 import { convertMCPServerToolsToOllamaTools } from './ollama';
 

@@ -6,7 +6,7 @@ import {
   installMcpServerFromCatalog,
   startMcpServerOauth,
   uninstallMcpServer,
-} from '@ui/lib/api-client';
+} from '@clients/archestra/api/gen';
 
 import { useMCPServersStore } from './mcp-servers-store';
 

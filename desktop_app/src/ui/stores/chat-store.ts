@@ -1,7 +1,5 @@
 import { create } from 'zustand';
 
-import { DEFAULT_CHAT_TITLE } from '@ui/consts';
-import { getDefaultModel } from '@ui/hooks/use-ai-chat-backend';
 import {
   ChatWithMessages as ServerChatWithMessages,
   createChat,
@@ -9,10 +7,12 @@ import {
   getAllChats,
   getChatById,
   updateChat,
-} from '@ui/lib/api-client';
+} from '@clients/archestra/api/gen';
+import config from '@config';
+import { type ChatWithMessages } from '@types';
+import { getDefaultModel } from '@ui/hooks/use-ai-chat-backend';
 import { initializeChat } from '@ui/lib/utils/chat';
 import { websocketService } from '@ui/lib/websocket';
-import { type ChatWithMessages } from '@ui/types';
 
 interface ChatState {
   chats: ChatWithMessages[];
@@ -134,7 +134,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   getCurrentChatTitle: () => {
     const currentChat = get().getCurrentChat();
-    return currentChat?.title || DEFAULT_CHAT_TITLE;
+    return currentChat?.title || config.ui.chat.defaultTitle;
   },
 
   deleteCurrentChat: async () => {
