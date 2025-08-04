@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 
-import { getBinariesDirectory, getBinaryExecPath } from '@backend/lib/utils/binaries';
+import { getBinariesDirectory, getBinaryExecPath } from '@backend/utils/binaries';
 
 import { PodmanMachineListOutput } from './types';
 

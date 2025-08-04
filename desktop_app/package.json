@@ -15,8 +15,9 @@
     "db:push": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/drizzle-kit/bin.cjs push",
     "db:generate": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/drizzle-kit/bin.cjs migrate",
-    "codegen:libpod": "openapi-ts --file openapi-ts.libpod.config.ts",
-    "generate:openapi": "tsx scripts/generate-openapi.ts"
+    "codegen:libpod": "openapi-ts --file openapi/libpod/openapi-ts.config.ts",
+    "codegen:archestra:api": "tsx openapi/archestra/api/generate-openapi.ts && openapi-ts --file openapi/archestra/api/openapi-ts.config.ts",
+    "codegen:archestra:catalog": "openapi-ts --file openapi/archestra/catalog/openapi-ts.config.ts"
   },
   "packageManager": "pnpm@10.14.0",
   "devDependencies": {

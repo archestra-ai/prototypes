@@ -1,8 +1,4 @@
-import {
-  containerCreateLibpod,
-  containerStartLibpod,
-  containerWaitLibpod,
-} from '@backend/lib/clients/libpod/gen/sdk.gen';
+import { containerCreateLibpod, containerStartLibpod, containerWaitLibpod } from '@clients/libpod/gen/sdk.gen';
 
 export default class PodmanContainer {
   private containerName: string;

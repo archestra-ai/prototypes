@@ -22,6 +22,7 @@
       "@/*": ["src/*"],
       "@backend/*": ["src/backend/*"],
       "@ui/*": ["src/ui/*"],
+      "@clients/*": ["src/clients/*"],
       "@types": ["src/types"]
     }
   }

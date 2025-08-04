@@ -14,6 +14,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       '@backend': path.resolve(__dirname, './src/backend'),
       '@ui': path.resolve(__dirname, './src/ui'),
+      '@clients': path.resolve(__dirname, './src/clients'),
       '@types': path.resolve(__dirname, './src/types'),
     },
   },

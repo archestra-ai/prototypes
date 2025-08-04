@@ -32,10 +32,8 @@ async function generateOpenAPISpec() {
   const __dirname = path.dirname(__filename);
 
   app.register(autoLoad, {
-    dir: path.join(__dirname, '../src/backend/server/plugins'),
+    dir: path.join(__dirname, '../../../src/backend/server/plugins'),
   });
-
-  console.log('PATH IS', path.join(__dirname, '../src/backend/server/plugins'));
 
   // Wait for the app to be ready
   await app.ready();
@@ -44,7 +42,7 @@ async function generateOpenAPISpec() {
   const spec = app.swagger();
 
   // Write to file
-  const outputPath = path.resolve(process.cwd(), 'openapi.json');
+  const outputPath = path.join(__dirname, 'openapi.json');
   writeFileSync(outputPath, JSON.stringify(spec, null, 2));
 
   console.log(`OpenAPI spec written to: ${outputPath}`);
