@@ -46,7 +46,6 @@
     "@types/ws": "^8.18.1",
     "drizzle-kit": "^0.31.4",
     "electron": "37.2.5",
-    "fastify-cli": "^7.4.0",
     "husky": "^9.1.7",
     "jsdom": "^26.1.0",
     "lint-staged": "^16.1.2",
