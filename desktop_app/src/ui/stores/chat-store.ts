@@ -2,11 +2,11 @@ import { create } from 'zustand';
 
 import {
   ChatWithMessages as ServerChatWithMessages,
-  createChat,
-  deleteChat,
-  getAllChats,
-  getChatById,
-  updateChat,
+  deleteChatApiChatById,
+  getChatApiChat,
+  getChatApiChatById,
+  patchChatApiChatById,
+  postChatApiChat,
 } from '@clients/archestra/api/gen';
 import config from '@config';
 import { type ChatWithMessages } from '@types';
@@ -59,7 +59,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   loadChats: async () => {
     set({ isLoadingChats: true });
     try {
-      const { data } = await getAllChats();
+      const { data } = await getChatApiChat();
       console.log('Initializing chats...');
       console.log(data);
       if (data) {
@@ -78,7 +78,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   createNewChat: async () => {
     try {
-      const response = await createChat({
+      const response = await postChatApiChat({
         body: {
           llm_provider: 'ollama',
         },
@@ -106,7 +106,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   selectChat: async (chatId: number) => {
     try {
       // Fetch the chat with its messages from the API
-      const { data } = await getChatById({ path: { id: chatId.toString() } });
+      const { data } = await getChatApiChatById({ path: { id: chatId.toString() } });
 
       if (data) {
         const initializedChat = initializeChat(data);
@@ -142,7 +142,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (!currentChat) return;
 
     try {
-      await deleteChat({ path: { id: currentChat.id.toString() } });
+      await deleteChatApiChatById({ path: { id: currentChat.id.toString() } });
       set((state) => {
         const newChats = state.chats.filter((chat) => chat.id !== currentChat.id);
         return {
@@ -157,7 +157,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   updateChatTitle: async (chatId: number, title: string) => {
     try {
-      await updateChat({
+      await patchChatApiChatById({
         path: { id: chatId.toString() },
         body: { title },
       });
