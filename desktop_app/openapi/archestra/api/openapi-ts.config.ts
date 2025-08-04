@@ -1,6 +1,6 @@
 import { defineConfig } from '@hey-api/openapi-ts';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,12 +18,12 @@ export default defineConfig({
    * See here for why we need this, basically to configure the baseUrl of the API
    * https://heyapi.dev/openapi-ts/clients/fetch#runtime-api
    *
-   * The runtimeConfigPath should be relative to the output directory, NOT the config file
+   * NOTE: DON'T use an absolute path here, won't work
    */
   plugins: [
     {
       name: '@hey-api/client-fetch',
-      runtimeConfigPath: '../client.ts',
+      runtimeConfigPath: '../../../src/clients/archestra/api/client.ts',
     },
   ],
 });
