@@ -1,5 +1,12 @@
 import { createOpenAI, openai } from '@ai-sdk/openai';
-import { convertToModelMessages, createUIMessageStreamResponse, readUIMessageStream, streamText } from 'ai';
+import {
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  generateId,
+  readUIMessageStream,
+  streamText,
+} from 'ai';
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { createOllama } from 'ollama-ai-provider-v2';
 
@@ -25,13 +32,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
         baseURL: OLLAMA_HOST + '/api',
       });
 
-      let customOllama2 = createOpenAI({
-        baseURL: OLLAMA_HOST + '/v1',
-        apiKey: 'ollama',
-      });
-
-      console.log(messages);
-
       try {
         // Create the stream
         const result = streamText({
@@ -40,28 +40,9 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
           messages: convertToModelMessages(messages),
           // providerOptions: { ollama: { think: true } },
         });
-        console.log('Streaming result:', result.toUIMessageStreamResponse());
 
-        console.log('LLM STREAMING1', result);
-        console.log('LLM STREAMING2', result.textStream);
-        console.log('LLM STREAMING3', result.toUIMessageStreamResponse().body);
-
-        for await (const textPart of result.textStream) {
-          console.log(textPart);
-        }
-
-        console.log(
-          'LLM STREAMING4',
-          readUIMessageStream({
-            stream: result.toUIMessageStream(),
-          })
-        );
-
-        // console.log('LLM STREAMING4', result.toUIMessageStreamResponse());
-
-        let textStream1 = result.textStream;
-        return createUIMessageStreamResponse({ result });
-
+        // There is a bug with toUIMessageStreamResponse and ollama provider
+        // se we send sse stream manually, otherwise we could use:
         return reply.send(
           result.toUIMessageStreamResponse({
             originalMessages: messages,
@@ -74,6 +55,17 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
             },
           })
         );
+        // let messageId = generateId();
+        // reply.raw.write(`data: {"type":"start"} \n\n`);
+        // reply.raw.write(`data: {"type":"start-step"}\n\n`);
+        // reply.raw.write(`data: ${JSON.stringify({ type: 'text-start', id: messageId })}\n\n`);
+        // for await (const chunk of result.textStream) {
+        //   reply.raw.write(`data: ${JSON.stringify({ type: 'text-delta', id: messageId, delta: chunk })}\n\n`);
+        // }
+        // reply.raw.write(`data: ${JSON.stringify({ type: 'end', id: messageId })}\n\n`);
+        // reply.raw.write(`data: [DONE]\n\n`);
+        // reply.raw.end();
+
       } catch (error) {
         fastify.log.error('LLM streaming error:', error);
         return reply.code(500).send({

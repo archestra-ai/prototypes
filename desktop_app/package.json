@@ -59,6 +59,7 @@
     "@ai-sdk/anthropic": "^2.0.0",
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/react": "^2.0.0",
+    "@fastify/compress": "^8.1.0",
     "@fastify/cors": "^11.1.0",
     "@fastify/http-proxy": "^11.3.0",
     "@fastify/websocket": "^11.2.0",

@@ -1,3 +1,4 @@
+import fastifyCompress from '@fastify/compress';
 import fastify from 'fastify';
 
 import { config } from './config/server';
@@ -28,6 +29,8 @@ async function startServer() {
 
   // Register WebSocket plugin for real-time communication
   await app.register(websocketPlugin);
+
+  await app.register(fastifyCompress, { global: false });
 
   // Register all chat-related routes under /api/chat
   await app.register(chatRoutes);
