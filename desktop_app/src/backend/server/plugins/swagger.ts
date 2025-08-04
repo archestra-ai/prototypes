@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import fastifyPlugin from 'fastify-plugin';
+import { jsonSchemaTransform } from 'fastify-type-provider-zod';
 
 async function swaggerPlugin(fastify: FastifyInstance) {
   await fastify.register(import('@fastify/swagger'), {
@@ -23,6 +24,7 @@ async function swaggerPlugin(fastify: FastifyInstance) {
         },
       ],
     },
+    transform: jsonSchemaTransform,
   });
 }
 

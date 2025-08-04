@@ -1,6 +1,7 @@
 import { FastifyPluginAsync, FastifyPluginOptions } from 'fastify';
-import { ZodTypeProvider } from 'fastify-type-provider-zod';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { chatService } from '@backend/services/chat-service';
 import { 
@@ -12,18 +13,12 @@ import {
 } from '@/types/db-schemas';
 
 const chatRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider> = async (fastify) => {
+  // Simple test endpoint
+  fastify.get('/api/chat/test', async (request, reply) => {
+    return { message: 'Chat routes are working!' };
+  });
   // Get all chats
-  fastify.get('/api/chat', {
-    schema: {
-      tags: ['chat'],
-      summary: 'Get all chats',
-      description: 'Retrieve all chat sessions with their messages',
-      response: {
-        200: z.array(ChatWithMessagesSchema),
-        500: ErrorResponseSchema
-      }
-    }
-  }, async (request, reply) => {
+  fastify.get('/api/chat', async (request, reply) => {
     try {
       const chats = await chatService.getAllChats();
       return reply.code(200).send(chats);
@@ -34,20 +29,7 @@ const chatRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider>
   });
 
   // Get single chat with messages
-  fastify.get('/api/chat/:id', {
-    schema: {
-      tags: ['chat'],
-      summary: 'Get a single chat',
-      description: 'Retrieve a specific chat session by ID with all its messages',
-      params: ChatIdParamsSchema,
-      response: {
-        200: ChatWithMessagesSchema,
-        400: ErrorResponseSchema,
-        404: ErrorResponseSchema,
-        500: ErrorResponseSchema
-      }
-    }
-  }, async (request, reply) => {
+  fastify.get<{ Params: { id: string } }>('/api/chat/:id', async (request, reply) => {
     try {
       const chatId = parseInt(request.params.id, 10);
       if (isNaN(chatId)) {
@@ -67,18 +49,7 @@ const chatRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider>
   });
 
   // Create new chat
-  fastify.post('/api/chat', {
-    schema: {
-      tags: ['chat'],
-      summary: 'Create a new chat',
-      description: 'Create a new chat session',
-      body: CreateChatRequestSchema,
-      response: {
-        201: ChatWithMessagesSchema,
-        500: ErrorResponseSchema
-      }
-    }
-  }, async (request, reply) => {
+  fastify.post('/api/chat', async (request, reply) => {
     try {
       const chat = await chatService.createChat(request.body);
       return reply.code(201).send(chat);
@@ -96,12 +67,6 @@ const chatRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider>
       description: 'Update chat properties (e.g., title)',
       params: ChatIdParamsSchema,
       body: UpdateChatRequestSchema,
-      response: {
-        200: ChatWithMessagesSchema,
-        400: ErrorResponseSchema,
-        404: ErrorResponseSchema,
-        500: ErrorResponseSchema
-      }
     }
   }, async (request, reply) => {
     try {
@@ -129,11 +94,6 @@ const chatRoutes: FastifyPluginAsync<FastifyPluginOptions, any, ZodTypeProvider>
       summary: 'Delete a chat',
       description: 'Delete a chat session and all its messages',
       params: ChatIdParamsSchema,
-      response: {
-        204: z.null().describe('Chat deleted successfully'),
-        400: ErrorResponseSchema,
-        500: ErrorResponseSchema
-      }
     }
   }, async (request, reply) => {
     try {

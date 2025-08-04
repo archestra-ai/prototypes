@@ -1,10 +1,10 @@
 import fastify from 'fastify';
-import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 
 import { config } from './config/server';
 import { runDatabaseMigrations } from '@backend/database';
 import corsPlugin from './plugins/cors';
-import swaggerPlugin from './plugins/swagger';
 import websocketPlugin from './plugins/websocket';
 import chatRoutes from './routes/chat';
 import llmRoutes from './routes/llm';
@@ -27,18 +27,18 @@ async function startServer() {
     // Use pino-pretty package if pretty logging is needed in development
   }).withTypeProvider<ZodTypeProvider>();
 
-  // Add Zod validation support
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
   // Register CORS plugin to allow requests from the Electron renderer
   await app.register(corsPlugin);
 
-  // Register Swagger documentation (only JSON schema, no UI)
-  await app.register(swaggerPlugin);
-
   // Register WebSocket plugin for real-time communication
   await app.register(websocketPlugin);
+  
+  // Register Swagger documentation (only JSON schema, no UI)
+  // Note: Register after WebSocket to avoid conflicts
+  // await app.register(swaggerPlugin); // Temporarily disabled to debug route issues
 
   // Register all chat-related routes under /api/chat
   await app.register(chatRoutes);
