@@ -3,9 +3,9 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/types';
 import { create } from 'zustand';
 
-import { type McpServer, getInstalledMcpServers } from '@clients/archestra/api/gen';
+import { getMcpServerApiMcpServer } from '@clients/archestra/api/gen';
 import config from '@config';
-import { ConnectedMCPServer, MCPServerStatus, MCPServerToolsMap, ToolWithMCPServerName } from '@types';
+import { ConnectedMCPServer, MCPServer, MCPServerStatus, MCPServerToolsMap, ToolWithMCPServerName } from '@types';
 import { getToolsGroupedByServer } from '@ui/lib/utils/mcp-server';
 import { formatToolName } from '@ui/lib/utils/tools';
 
@@ -21,7 +21,7 @@ interface MCPServersState {
 }
 
 interface MCPServersActions {
-  addMCPServerToInstalledMCPServers: (mcpServer: McpServer) => void;
+  addMCPServerToInstalledMCPServers: (mcpServer: MCPServer) => void;
   removeMCPServerFromInstalledMCPServers: (mcpServerName: string) => void;
   executeTool: (serverName: string, request: CallToolRequest['params']) => Promise<any>;
   loadInstalledMCPServers: () => Promise<void>;
@@ -86,7 +86,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
   toolSearchQuery: '',
 
   // Actions
-  addMCPServerToInstalledMCPServers: (mcpServer: McpServer) => {
+  addMCPServerToInstalledMCPServers: (mcpServer: MCPServer) => {
     set((state) => ({
       installedMCPServers: [
         ...state.installedMCPServers,
@@ -150,7 +150,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
         errorLoadingInstalledMCPServers: null,
       });
 
-      const response = await getInstalledMcpServers();
+      const response = await getMcpServerApiMcpServer();
 
       if ('data' in response && response.data) {
         // Add servers and connect to them

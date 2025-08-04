@@ -1,3 +1,4 @@
+import config from '@config';
 import fastify from 'fastify';
 
 import chatRoutes from '@backend/server/plugins/chat';
@@ -7,7 +8,6 @@ import llmRoutes from '@backend/server/plugins/llm';
 import mcpServerRoutes from '@backend/server/plugins/mcpServer';
 import ollamaRoutes from '@backend/server/plugins/ollama';
 import websocketPlugin from '@backend/server/plugins/websocket';
-import config from '@config';
 
 const app = fastify({
   logger: config.archestra.server.logger,
@@ -24,13 +24,12 @@ app.register(mcpServerRoutes);
 app.register(ollamaRoutes);
 
 export const startServer = async () => {
-  const PORT = config.archestra.server.port; // Default: 3456
-  const HOST = config.archestra.server.host; // Default: 127.0.0.1
+  const { port, host } = config.archestra.server;
 
   // Start the Fastify server
   try {
-    await app.listen({ port: PORT, host: HOST });
-    console.log(`Fastify server running on port ${PORT}`);
+    await app.listen({ port, host });
+    app.log.info(`Fastify server running on port ${port}`);
   } catch (err) {
     app.log.error(err);
     // Exit with error code to signal failure to parent process
@@ -39,9 +38,9 @@ export const startServer = async () => {
 
   // Handle graceful shutdown for clean process termination
   const gracefulShutdown = async () => {
-    console.log('Shutdown signal received, closing server...');
+    app.log.info('Shutdown signal received, closing server...');
     await app.close(); // Close all connections properly
-    console.log('Server closed');
+    app.log.info('Server closed');
     process.exit(0);
   };
 
