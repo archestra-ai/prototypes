@@ -1,4 +1,3 @@
-import fastifyCompress from '@fastify/compress';
 import fastify from 'fastify';
 
 import config from '@backend/server/config';
@@ -18,34 +17,11 @@ const app = fastify({
 
 app.register(corsPlugin);
 app.register(websocketPlugin);
-
-<<<<<<< HEAD
-  // Register WebSocket plugin for real-time communication
-  await app.register(websocketPlugin);
-
-  await app.register(fastifyCompress, { global: false });
-
-  // Register all chat-related routes under /api/chat
-  await app.register(chatRoutes);
-
-  // Register LLM streaming routes
-  await app.register(llmRoutes);
-
-  // Register Ollama proxy routes
-  await app.register(ollamaRoutes);
-
-  // Register external MCP client routes
-  await app.register(externalMcpClientRoutes);
-
-  // Register MCP server routes
-  await app.register(mcpServerRoutes);
-=======
 app.register(chatRoutes);
 app.register(llmRoutes);
 app.register(externalMcpClientRoutes);
 app.register(mcpServerRoutes);
 app.register(ollamaRoutes);
->>>>>>> main
 
 export const startServer = async () => {
   const PORT = config.server.port; // Default: 3456
