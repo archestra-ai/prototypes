@@ -64,13 +64,30 @@ export type McpServer = {
    * Configuration for MCP clients
    */
   configForClients?: {
-    [key: string]: unknown;
+    mcpServers?: {
+      [key: string]: {
+        command: string;
+        args?: Array<string>;
+        env?: {
+          [key: string]: string;
+        };
+      };
+    };
   } | null;
   /**
    * Configuration specific to Archestra
    */
   configForArchestra?: {
-    [key: string]: unknown;
+    command: string;
+    args?: Array<string>;
+    env: {
+      [key: string]: string;
+    };
+    transport: 'http' | 'stdio';
+    oauth?: {
+      provider: string;
+      required: boolean;
+    };
   } | null;
 };
 

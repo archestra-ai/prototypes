@@ -3,9 +3,10 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/types';
 import { create } from 'zustand';
 
-import { getMcpServers } from '@clients/archestra/api/gen';
-import config from '@ui/config';
+import { getMcpServers, installMcpServer, startMcpServerOauth, uninstallMcpServer } from '@clients/archestra/api/gen';
+import { type McpServer as McpServerCatalogEntry, getSearch as searchCatalog } from '@clients/archestra/catalog/gen';
 import { ConnectedMCPServer, MCPServer, MCPServerStatus, MCPServerToolsMap, ToolWithMCPServerName } from '@types';
+import config from '@ui/config';
 import { getToolsGroupedByServer } from '@ui/lib/utils/mcp-server';
 import { formatToolName } from '@ui/lib/utils/tools';
 
@@ -13,26 +14,46 @@ const ARCHESTRA_MCP_SERVER_NAME = 'archestra';
 
 interface MCPServersState {
   archestraMCPServer: ConnectedMCPServer | null;
+
   installedMCPServers: ConnectedMCPServer[];
   loadingInstalledMCPServers: boolean;
   errorLoadingInstalledMCPServers: string | null;
+
+  connectorCatalog: McpServerCatalogEntry[];
+  loadingConnectorCatalog: boolean;
+  errorFetchingConnectorCatalog: string | null;
+
+  installingMCPServerName: string | null;
+  errorInstallingMCPServer: string | null;
+
+  uninstallingMCPServerName: string | null;
+  errorUninstallingMCPServer: string | null;
+
   selectedTools: ToolWithMCPServerName[];
   toolSearchQuery: string;
 }
 
 interface MCPServersActions {
+  loadInstalledMCPServers: () => Promise<void>;
   addMCPServerToInstalledMCPServers: (mcpServer: MCPServer) => void;
   removeMCPServerFromInstalledMCPServers: (mcpServerName: string) => void;
-  executeTool: (serverName: string, request: CallToolRequest['params']) => Promise<any>;
-  loadInstalledMCPServers: () => Promise<void>;
+
+  loadConnectorCatalog: () => Promise<void>;
+  installMCPServerFromConnectorCatalog: (mcpServer: McpServerCatalogEntry) => Promise<void>;
+  uninstallMCPServer: (mcpServerName: string) => Promise<void>;
+
   connectToArchestraMCPServer: () => Promise<void>;
   connectToMCPServer: (serverName: string, url: string) => Promise<Client | null>;
+
+  executeTool: (serverName: string, request: CallToolRequest['params']) => Promise<any>;
   getAllAvailableTools: () => ToolWithMCPServerName[];
   getFilteredTools: () => ToolWithMCPServerName[];
   getAllAvailableToolsGroupedByServer: () => MCPServerToolsMap;
   getFilteredToolsGroupedByServer: () => MCPServerToolsMap;
+
   addSelectedTool: (tool: ToolWithMCPServerName) => void;
   removeSelectedTool: (tool: ToolWithMCPServerName) => void;
+
   setToolSearchQuery: (query: string) => void;
 }
 
@@ -79,13 +100,51 @@ const initializeConnectedMCPServerTools = async (
 export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
   // State
   archestraMCPServer: null,
+
   installedMCPServers: [],
   loadingInstalledMCPServers: false,
   errorLoadingInstalledMCPServers: null,
+
+  connectorCatalog: [],
+  loadingConnectorCatalog: false,
+  errorFetchingConnectorCatalog: null,
+
+  installingMCPServerName: null,
+  errorInstallingMCPServer: null,
+
+  uninstallingMCPServerName: null,
+  errorUninstallingMCPServer: null,
+
   selectedTools: [],
   toolSearchQuery: '',
 
   // Actions
+  loadInstalledMCPServers: async () => {
+    try {
+      set({
+        loadingInstalledMCPServers: true,
+        errorLoadingInstalledMCPServers: null,
+      });
+
+      const response = await getMcpServers();
+
+      if ('data' in response && response.data) {
+        // Add servers and connect to them
+        for (const server of response.data) {
+          get().addMCPServerToInstalledMCPServers(server);
+        }
+      } else if ('error' in response) {
+        const errorMessage = typeof response.error === 'string' ? response.error : JSON.stringify(response.error);
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      set({ errorLoadingInstalledMCPServers: errorMessage });
+    } finally {
+      set({ loadingInstalledMCPServers: false });
+    }
+  },
+
   addMCPServerToInstalledMCPServers: (mcpServer: MCPServer) => {
     set((state) => ({
       installedMCPServers: [
@@ -120,52 +179,97 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
     }));
   },
 
-  executeTool: async (serverName: string, toolCallRequest: CallToolRequest['params']) => {
-    const { archestraMCPServer, installedMCPServers } = get();
-
-    let client: Client | null = null;
-    if (serverName === ARCHESTRA_MCP_SERVER_NAME && archestraMCPServer) {
-      client = archestraMCPServer.client;
-    } else {
-      const server = installedMCPServers.find((s) => s.name === serverName);
-      client = server?.client || null;
-    }
-
-    if (!client) {
-      throw new Error(`No connection to server ${serverName}`);
-    }
-
+  loadConnectorCatalog: async () => {
     try {
-      const result = await client.callTool(toolCallRequest);
-      return result;
+      set({
+        loadingConnectorCatalog: true,
+        errorFetchingConnectorCatalog: null,
+      });
+
+      const response = await searchCatalog();
+
+      if ('data' in response && response.data) {
+        // Type assertion since the API doesn't return proper types yet
+        const entries = response.data as McpServerCatalogEntry[];
+        set({
+          connectorCatalog: entries,
+        });
+      } else if ('error' in response) {
+        throw new Error(response.error as string);
+      }
     } catch (error) {
-      throw error;
+      set({ errorFetchingConnectorCatalog: error as string });
+    } finally {
+      set({ loadingConnectorCatalog: false });
     }
   },
 
-  loadInstalledMCPServers: async () => {
+  installMCPServerFromConnectorCatalog: async (mcpServer: McpServerCatalogEntry) => {
+    const { oauth, title, id } = mcpServer;
+
     try {
       set({
-        loadingInstalledMCPServers: true,
-        errorLoadingInstalledMCPServers: null,
+        installingMCPServerName: mcpServer.title,
+        errorInstallingMCPServer: null,
       });
 
-      const response = await getMcpServers();
+      // Check if OAuth is required
+      if (oauth?.required) {
+        try {
+          // Start OAuth flow
+          const response = await startMcpServerOauth({
+            body: { mcp_connector_id: id },
+          });
 
-      if ('data' in response && response.data) {
-        // Add servers and connect to them
-        for (const server of response.data) {
-          get().addMCPServerToInstalledMCPServers(server);
+          if ('data' in response && response.data) {
+            // For OAuth connectors, the backend will handle the installation after successful auth
+            alert(`OAuth setup started for ${title}. Please complete the authentication in your browser.`);
+          } else if ('error' in response) {
+            throw new Error(response.error as string);
+          }
+        } catch (error) {
+          set({ errorInstallingMCPServer: error as string });
         }
-      } else if ('error' in response) {
-        const errorMessage = typeof response.error === 'string' ? response.error : JSON.stringify(response.error);
-        throw new Error(errorMessage);
+      } else {
+        const response = await installMcpServer({
+          body: { mcp_connector_id: id },
+        });
+
+        if ('error' in response) {
+          throw new Error(response.error as string);
+        }
+
+        // Refresh the MCP servers list
+        await useMCPServersStore.getState().loadInstalledMCPServers();
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      set({ errorLoadingInstalledMCPServers: errorMessage });
+      set({ errorInstallingMCPServer: error as string });
     } finally {
-      set({ loadingInstalledMCPServers: false });
+      set({ installingMCPServerName: null });
+    }
+  },
+
+  uninstallMCPServer: async (mcpServerName: string) => {
+    try {
+      set({
+        uninstallingMCPServerName: mcpServerName,
+        errorUninstallingMCPServer: null,
+      });
+
+      const response = await uninstallMcpServer({
+        path: { mcp_server_name: mcpServerName },
+      });
+
+      if ('error' in response) {
+        throw new Error(response.error as string);
+      }
+
+      // Remove from MCP servers store
+      useMCPServersStore.getState().removeMCPServerFromInstalledMCPServers(mcpServerName);
+    } catch (error) {
+      set({ errorUninstallingMCPServer: error as string });
+    } finally {
+      set({ uninstallingMCPServerName: null });
     }
   },
 
@@ -281,8 +385,27 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
     }
   },
 
-  setToolSearchQuery: (query: string) => {
-    set({ toolSearchQuery: query });
+  executeTool: async (serverName: string, toolCallRequest: CallToolRequest['params']) => {
+    const { archestraMCPServer, installedMCPServers } = get();
+
+    let client: Client | null = null;
+    if (serverName === ARCHESTRA_MCP_SERVER_NAME && archestraMCPServer) {
+      client = archestraMCPServer.client;
+    } else {
+      const server = installedMCPServers.find((s) => s.name === serverName);
+      client = server?.client || null;
+    }
+
+    if (!client) {
+      throw new Error(`No connection to server ${serverName}`);
+    }
+
+    try {
+      const result = await client.callTool(toolCallRequest);
+      return result;
+    } catch (error) {
+      throw error;
+    }
   },
 
   getAllAvailableTools: () => {
@@ -330,11 +453,16 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
       selectedTools: selectedTools.filter((t) => t.name !== tool.name),
     }));
   },
+
+  setToolSearchQuery: (query: string) => {
+    set({ toolSearchQuery: query });
+  },
 }));
 
 // Initialize connections on store creation
 useMCPServersStore.getState().connectToArchestraMCPServer();
 useMCPServersStore.getState().loadInstalledMCPServers();
+useMCPServersStore.getState().loadConnectorCatalog();
 
 // Cleanup on window unload
 if (typeof window !== 'undefined') {

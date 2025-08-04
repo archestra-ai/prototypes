@@ -1,5 +1,33 @@
-[![MCP Quality](https://archestra.ai/api/badge/quality/archestra-ai/archestra)](https://archestra.ai/mcp-catalog/archestra-ai__archestra)
+<div align="center">  
+  
+  # Archestra
+  
+  **Enterprise MCP Platform for AI Agents**
+  
+  [![License](https://img.shields.io/github/license/archestra-ai/archestra)](LICENSE)
+  [![Contributors](https://img.shields.io/github/contributors/archestra-ai/archestra)](https://github.com/archestra-ai/archestra/graphs/contributors)
+  [![Slack](https://img.shields.io/badge/Slack-Join%20Community-4A154B?logo=slack)](https://join.slack.com/t/archestracommunity/shared_invite/zt-39yk4skox-zBF1NoJ9u4t59OU8XxQChg)
+  
+  [Website](https://archestra.ai)
+</div>
 
-Hello! You're witnessing the birth of Archestra, a project dedicated to simplifying and securing the communication between AI and the data.
+---
 
-[Please join our Slack](https://join.slack.com/t/archestracommunity/shared_invite/zt-39yk4skox-zBF1NoJ9u4t59OU8XxQChg) to meet the team!
+## ⚠️ Early Development Notice
+
+**Archestra is in very early development.** We're currently crafting the first version of the application, and it's not yet ready for general download. Engineers are welcome to build and try the app, but please do so at your own risk. Expect bugs, breaking changes, and incomplete features as we work towards our first stable release.
+
+**Want to get notified when we launch?** Drop your email at [archestra.ai](https://www.archestra.ai/) to be the first to know when Archestra is ready.
+
+## 🚀 Overview
+
+Archestra is an enterprise-grade platform that enables non-technical users to safely leverage AI agents and MCP (Model Context Protocol) servers. Built as a privacy-focused desktop application, Archestra provides a secure runtime environment for AI interactions with sandboxing, resource controls, and prompt injection prevention.
+
+### Key Features
+
+- 🔒 **Secure Runtime** - Isolated execution environment for AI agents with sandboxing and resource controls
+- 🛡️ **Prompt Injection Prevention** - Advanced security to prevent context leakage and behavior manipulation
+- 🔌 **MCP Protocol Support** - Compatible with thousands of existing MCP servers and custom implementations
+- 💻 **Local-First Architecture** - Privacy-focused design with local LLM
+- 🎯 **Enterprise Ready** - Built for non-technical users with enterprise-level security and compliance
+- 🔧 **Extensible Tool System** - Support most of MCP servers: GitHub, Gmail, Slack, PostgreSQL, filesystem, and more

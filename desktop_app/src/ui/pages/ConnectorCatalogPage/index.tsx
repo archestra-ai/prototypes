@@ -14,21 +14,20 @@ import {
 import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@ui/components/ui/card';
-import { useConnectorCatalogStore } from '@ui/stores/connector-catalog-store';
 import { useMCPServersStore } from '@ui/stores/mcp-servers-store';
 
 interface ConnectorCatalogPageProps {}
 
 export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) {
-  const { installedMCPServers } = useMCPServersStore();
   const {
     connectorCatalog,
+    installedMCPServers,
     loadingConnectorCatalog,
     installingMCPServerName,
     uninstallingMCPServerName,
     installMCPServerFromConnectorCatalog,
     uninstallMCPServer,
-  } = useConnectorCatalogStore();
+  } = useMCPServersStore();
 
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {

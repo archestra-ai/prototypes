@@ -1,11 +1,12 @@
-import { AlertCircle, CheckCircle, ChevronDown, Loader2, Server, Wrench } from 'lucide-react';
+import { AlertCircle, ChevronDown, Loader2, Server } from 'lucide-react';
 
-import { ConnectedMCPServer, MCPServerStatus } from '@types';
-import { Badge } from '@ui/components/ui/badge';
+import { MCPServerStatus } from '@types';
 import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@ui/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/components/ui/collapsible';
 import { useMCPServersStore } from '@ui/stores/mcp-servers-store';
+
+import MCPServer from './MCPServer';
 
 interface MCPServersProps {}
 
@@ -14,40 +15,6 @@ export default function MCPServers(_props: MCPServersProps) {
 
   const totalNumberOfMCPTools = installedMCPServers.reduce((acc, server) => acc + server.tools.length, 0);
   const hasErrorLoadingInstalledMCPServers = errorLoadingInstalledMCPServers !== null;
-
-  const getStatusIcon = (status: ConnectedMCPServer['status']) => {
-    switch (status) {
-      case MCPServerStatus.Connecting:
-        return <Loader2 className="h-4 w-4 animate-spin text-yellow-500" />;
-      case MCPServerStatus.Connected:
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case MCPServerStatus.Error:
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-    }
-  };
-
-  const getStatusBadge = (status: ConnectedMCPServer['status']) => {
-    switch (status) {
-      case MCPServerStatus.Connecting:
-        return (
-          <Badge variant="outline" className="text-yellow-600 border-yellow-500">
-            Connecting
-          </Badge>
-        );
-      case MCPServerStatus.Connected:
-        return (
-          <Badge variant="outline" className="text-green-600 border-green-500">
-            Connected
-          </Badge>
-        );
-      case MCPServerStatus.Error:
-        return (
-          <Badge variant="outline" className="text-red-600 border-red-500">
-            Error
-          </Badge>
-        );
-    }
-  };
 
   return (
     <Collapsible defaultOpen>
@@ -88,71 +55,9 @@ export default function MCPServers(_props: MCPServersProps) {
               </div>
             ) : (
               <div className="space-y-3">
-                {installedMCPServers.map((server) => {
-                  return (
-                    <Card key={server.name} className="border-l-4 border-l-blue-500/20">
-                      <CardContent className="pt-4">
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {getStatusIcon(server.status)}
-                              <h4 className="font-medium">{server.name}</h4>
-                              {getStatusBadge(server.status)}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {server.tools.length} tool
-                              {server.tools.length !== 1 ? 's' : ''}
-                            </div>
-                          </div>
-
-                          <div className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded">
-                            {server.url}
-                          </div>
-
-                          {server.status === MCPServerStatus.Error && server.error && (
-                            <div className="text-xs text-red-600 bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded border border-red-200 dark:border-red-800">
-                              Error: {server.error}
-                            </div>
-                          )}
-
-                          {server.tools.length > 0 && (
-                            <div className="space-y-2">
-                              <h5 className="text-sm font-medium flex items-center gap-1">
-                                <Wrench className="h-3 w-3" />
-                                Available Tools
-                              </h5>
-                              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                {server.tools.map((tool) => (
-                                  <div
-                                    key={`${server.name}-${tool.name}`}
-                                    className="p-2 border rounded-md bg-background/50 hover:bg-background transition-colors"
-                                  >
-                                    <div className="flex items-start justify-between">
-                                      <div className="min-w-0 flex-1">
-                                        <div className="font-mono text-sm font-medium truncate">{tool.name}</div>
-                                        {tool.description && (
-                                          <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                            {tool.description}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {server.status === MCPServerStatus.Connected && server.tools.length === 0 && (
-                            <div className="text-sm text-muted-foreground italic">
-                              No tools available from this server
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                {installedMCPServers.map((server) => (
+                  <MCPServer key={server.name} mcpServer={server} />
+                ))}
               </div>
             )}
 
