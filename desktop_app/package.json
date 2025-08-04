@@ -16,7 +16,7 @@
     "db:migrate": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/drizzle-kit/bin.cjs migrate",
     "codegen:all": "pnpm codegen:libpod && pnpm codegen:archestra:api && pnpm codegen:archestra:catalog",
     "codegen:libpod": "openapi-ts --file openapi/libpod/openapi-ts.config.ts",
-    "codegen:archestra:api": "tsx openapi/archestra/api/generate-openapi.ts && prettier --write ./openapi/archestra/api/openapi.json && openapi-ts --file openapi/archestra/api/openapi-ts.config.ts",
+    "codegen:archestra:api": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/.bin/tsx openapi/archestra/api/generate-openapi.ts && prettier --write ./openapi/archestra/api/openapi.json && openapi-ts --file openapi/archestra/api/openapi-ts.config.ts",
     "codegen:archestra:catalog": "openapi-ts --file openapi/archestra/catalog/openapi-ts.config.ts"
   },
   "packageManager": "pnpm@10.14.0",
