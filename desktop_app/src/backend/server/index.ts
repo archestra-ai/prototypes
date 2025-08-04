@@ -10,7 +10,7 @@ import websocketPlugin from '@backend/server/plugins/websocket';
 import config from '@config';
 
 const app = fastify({
-  logger: config.server.logger,
+  logger: config.archestra.server.logger,
   // Note: prettyPrint was removed from config as it's no longer supported
   // Use pino-pretty package if pretty logging is needed in development
 });
@@ -24,8 +24,8 @@ app.register(mcpServerRoutes);
 app.register(ollamaRoutes);
 
 export const startServer = async () => {
-  const PORT = config.server.port; // Default: 3456
-  const HOST = config.server.host; // Default: 127.0.0.1
+  const PORT = config.archestra.server.port; // Default: 3456
+  const HOST = config.archestra.server.host; // Default: 127.0.0.1
 
   // Start the Fastify server
   try {
