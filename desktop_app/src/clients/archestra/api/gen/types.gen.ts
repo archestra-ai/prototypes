@@ -44,6 +44,22 @@ export type DeleteChatApiChatByIdResponses = {
   200: unknown;
 };
 
+export type GetChatApiChatByIdData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/chat/api/chat/{id}';
+};
+
+export type GetChatApiChatByIdResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
 export type PatchChatApiChatByIdData = {
   body?: never;
   path: {
