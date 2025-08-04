@@ -5,7 +5,7 @@ import { NavigationItem, NavigationViewKey } from '@types';
 // Frontend configuration using Vite's environment variables
 // These values can be overridden by VITE_* prefixed environment variables
 const ARCHESTRA_API_SERVER_PORT = import.meta.env.VITE_PORT || '3456';
-const ARCHESTRA_API_SERVER_HOST = import.meta.env.VITE_HOST || 'localhost';
+const ARCHESTRA_API_SERVER_HOST = import.meta.env.VITE_HOST || '127.0.0.1';
 
 const ARCHESTRA_SERVER_BASE_URL = `${ARCHESTRA_API_SERVER_HOST}:${ARCHESTRA_API_SERVER_PORT}`;
 const ARCHESTRA_SERVER_BASE_HTTP_URL = `http://${ARCHESTRA_SERVER_BASE_URL}`;

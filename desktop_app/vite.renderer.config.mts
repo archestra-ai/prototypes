@@ -14,4 +14,12 @@ export default defineConfig({
       '@ui': path.resolve(__dirname, './src/ui'),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:3456',
+        changeOrigin: true,
+      },
+    },
+  },
 });

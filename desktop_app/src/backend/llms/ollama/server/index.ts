@@ -32,8 +32,8 @@ export default class OllamaServer {
          * so that it can write to the user's .ollama directory
          */
         HOME: process.env.HOME,
-        OLLAMA_HOST: `localhost:${this.port}`,
-        OLLAMA_ORIGINS: 'http://localhost:5173',
+        OLLAMA_HOST: `127.0.0.1:${this.port}`,
+        OLLAMA_ORIGINS: 'http://localhost:54587',
         OLLAMA_DEBUG: '0',
       };
 
