@@ -1,20 +1,17 @@
 import { create } from 'zustand';
 
 import {
-  type McpConnectorCatalogEntry,
-  getMcpConnectorCatalog,
-  installMcpServerFromCatalog,
-  startMcpServerOauth,
-  uninstallMcpServer,
+  getMcpServerApiMcpServerCatalog,
+  postMcpServerApiMcpServerCatalogInstall,
+  postMcpServerApiMcpServerStartOauth,
+  deleteMcpServerApiMcpServerByMcpServerName,
 } from '@clients/archestra/api/gen';
+import { type McpServer as McpServerCatalogEntry } from '@clients/archestra/catalog/gen';
 
 import { useMCPServersStore } from './mcp-servers-store';
 
-// Use the generated types but maintain backwards compatibility
-type ConnectorCatalogEntry = McpConnectorCatalogEntry;
-
 interface ConnectorCatalogState {
-  connectorCatalog: ConnectorCatalogEntry[];
+  connectorCatalog: McpServerCatalogEntry[];
   loadingConnectorCatalog: boolean;
   errorFetchingConnectorCatalog: string | null;
   installingMCPServerName: string | null;
@@ -24,7 +21,7 @@ interface ConnectorCatalogState {
 }
 
 interface ConnectorCatalogActions {
-  installMCPServerFromConnectorCatalog: (mcpServer: ConnectorCatalogEntry) => Promise<void>;
+  installMCPServerFromConnectorCatalog: (mcpServer: McpServerCatalogEntry) => Promise<void>;
   uninstallMCPServer: (mcpServerName: string) => Promise<void>;
   loadConnectorCatalog: () => Promise<void>;
 }
@@ -49,14 +46,13 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
         errorFetchingConnectorCatalog: null,
       });
 
-      const response = await getMcpConnectorCatalog();
+      const response = await getMcpServerApiMcpServerCatalog();
 
       if ('data' in response && response.data) {
+        // Type assertion since the API doesn't return proper types yet
+        const entries = response.data as McpServerCatalogEntry[];
         set({
-          connectorCatalog: response.data.map((entry) => ({
-            ...entry,
-            tools: [],
-          })),
+          connectorCatalog: entries,
         });
       } else if ('error' in response) {
         throw new Error(response.error as string);
@@ -68,7 +64,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
     }
   },
 
-  installMCPServerFromConnectorCatalog: async (mcpServer: ConnectorCatalogEntry) => {
+  installMCPServerFromConnectorCatalog: async (mcpServer: McpServerCatalogEntry) => {
     const { oauth, title, id } = mcpServer;
 
     try {
@@ -81,7 +77,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
       if (oauth?.required) {
         try {
           // Start OAuth flow
-          const response = await startMcpServerOauth({
+          const response = await postMcpServerApiMcpServerStartOauth({
             body: { mcp_connector_id: id },
           });
 
@@ -95,7 +91,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
           set({ errorInstallingMCPServer: error as string });
         }
       } else {
-        const response = await installMcpServerFromCatalog({
+        const response = await postMcpServerApiMcpServerCatalogInstall({
           body: { mcp_connector_id: id },
         });
 
@@ -120,7 +116,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
         errorUninstallingMCPServer: null,
       });
 
-      const response = await uninstallMcpServer({
+      const response = await deleteMcpServerApiMcpServerByMcpServerName({
         path: { mcp_server_name: mcpServerName },
       });
 

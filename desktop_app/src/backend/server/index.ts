@@ -10,7 +10,7 @@ import websocketPlugin from '@backend/server/plugins/websocket';
 import config from '@config';
 
 const app = fastify({
-  logger: config.server.logger,
+  logger: config.archestra.server.logger,
   // Note: prettyPrint was removed from config as it's no longer supported
   // Use pino-pretty package if pretty logging is needed in development
 });
@@ -25,13 +25,12 @@ app.register(mcpServerRoutes);
 app.register(ollamaRoutes);
 
 export const startServer = async () => {
-  const PORT = config.server.port; // Default: 3456
-  const HOST = config.server.host; // Default: 127.0.0.1
+  const { port, host } = config.archestra.server;
 
   // Start the Fastify server
   try {
-    await app.listen({ port: PORT, host: HOST });
-    console.log(`Fastify server running on port ${PORT}`);
+    await app.listen({ port, host });
+    app.log.info(`Fastify server running on port ${port}`);
   } catch (err) {
     app.log.error(err);
     // Exit with error code to signal failure to parent process
@@ -40,9 +39,9 @@ export const startServer = async () => {
 
   // Handle graceful shutdown for clean process termination
   const gracefulShutdown = async () => {
-    console.log('Shutdown signal received, closing server...');
+    app.log.info('Shutdown signal received, closing server...');
     await app.close(); // Close all connections properly
-    console.log('Server closed');
+    app.log.info('Server closed');
     process.exit(0);
   };
 

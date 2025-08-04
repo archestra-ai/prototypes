@@ -139,12 +139,43 @@ export type GetMcpServerApiMcpServerData = {
   url: '/mcpServer/api/mcp_server';
 };
 
-export type GetMcpServerApiMcpServerResponses = {
+export type GetMcpServerApiMcpServerErrors = {
   /**
    * Default Response
    */
-  200: unknown;
+  500: {
+    error?: string;
+  };
 };
+
+export type GetMcpServerApiMcpServerError = GetMcpServerApiMcpServerErrors[keyof GetMcpServerApiMcpServerErrors];
+
+export type GetMcpServerApiMcpServerResponses = {
+  /**
+   * List of installed MCP servers
+   */
+  200: Array<{
+    name: string;
+    config: {
+      command: string;
+      args?: Array<string>;
+      env?: {
+        [key: string]: unknown;
+      };
+      transport?: string;
+    };
+    tools?: Array<{
+      name: string;
+      description?: string;
+      inputSchema?: {
+        [key: string]: unknown;
+      };
+    }>;
+  }>;
+};
+
+export type GetMcpServerApiMcpServerResponse =
+  GetMcpServerApiMcpServerResponses[keyof GetMcpServerApiMcpServerResponses];
 
 export type GetMcpServerApiMcpServerCatalogData = {
   body?: never;
@@ -153,40 +184,131 @@ export type GetMcpServerApiMcpServerCatalogData = {
   url: '/mcpServer/api/mcp_server/catalog';
 };
 
-export type GetMcpServerApiMcpServerCatalogResponses = {
+export type GetMcpServerApiMcpServerCatalogErrors = {
   /**
    * Default Response
    */
-  200: unknown;
+  500: {
+    error?: string;
+  };
 };
 
+export type GetMcpServerApiMcpServerCatalogError =
+  GetMcpServerApiMcpServerCatalogErrors[keyof GetMcpServerApiMcpServerCatalogErrors];
+
+export type GetMcpServerApiMcpServerCatalogResponses = {
+  /**
+   * List of available MCP connectors
+   */
+  200: Array<{
+    id: string;
+    title: string;
+    description: string;
+    provider?: string;
+    slug?: string;
+    githubRepo?: string;
+    serverPath?: string;
+    installInstructions?: Array<string>;
+    configurationInstructions?: Array<string>;
+    oauth?: {
+      required?: boolean;
+      provider?: string;
+    };
+    featured?: boolean;
+    core?: boolean;
+    tools?: Array<{
+      name?: string;
+      description?: string;
+    }>;
+  }>;
+};
+
+export type GetMcpServerApiMcpServerCatalogResponse =
+  GetMcpServerApiMcpServerCatalogResponses[keyof GetMcpServerApiMcpServerCatalogResponses];
+
 export type PostMcpServerApiMcpServerCatalogInstallData = {
-  body?: never;
+  body: {
+    mcp_connector_id: string;
+  };
   path?: never;
   query?: never;
   url: '/mcpServer/api/mcp_server/catalog/install';
 };
 
+export type PostMcpServerApiMcpServerCatalogInstallErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error?: string;
+  };
+};
+
+export type PostMcpServerApiMcpServerCatalogInstallError =
+  PostMcpServerApiMcpServerCatalogInstallErrors[keyof PostMcpServerApiMcpServerCatalogInstallErrors];
+
 export type PostMcpServerApiMcpServerCatalogInstallResponses = {
   /**
    * Default Response
    */
-  200: unknown;
+  200: {
+    success?: boolean;
+  };
 };
 
+export type PostMcpServerApiMcpServerCatalogInstallResponse =
+  PostMcpServerApiMcpServerCatalogInstallResponses[keyof PostMcpServerApiMcpServerCatalogInstallResponses];
+
 export type PostMcpServerApiMcpServerStartOauthData = {
-  body?: never;
+  body: {
+    mcp_connector_id: string;
+  };
   path?: never;
   query?: never;
   url: '/mcpServer/api/mcp_server/start_oauth';
 };
 
+export type PostMcpServerApiMcpServerStartOauthErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error?: string;
+  };
+};
+
+export type PostMcpServerApiMcpServerStartOauthError =
+  PostMcpServerApiMcpServerStartOauthErrors[keyof PostMcpServerApiMcpServerStartOauthErrors];
+
 export type PostMcpServerApiMcpServerStartOauthResponses = {
   /**
    * Default Response
    */
-  200: unknown;
+  200: {
+    auth_url?: string;
+  };
 };
+
+export type PostMcpServerApiMcpServerStartOauthResponse =
+  PostMcpServerApiMcpServerStartOauthResponses[keyof PostMcpServerApiMcpServerStartOauthResponses];
 
 export type DeleteMcpServerApiMcpServerByMcpServerNameData = {
   body?: never;
@@ -197,12 +319,35 @@ export type DeleteMcpServerApiMcpServerByMcpServerNameData = {
   url: '/mcpServer/api/mcp_server/{mcp_server_name}';
 };
 
+export type DeleteMcpServerApiMcpServerByMcpServerNameErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error?: string;
+  };
+};
+
+export type DeleteMcpServerApiMcpServerByMcpServerNameError =
+  DeleteMcpServerApiMcpServerByMcpServerNameErrors[keyof DeleteMcpServerApiMcpServerByMcpServerNameErrors];
+
 export type DeleteMcpServerApiMcpServerByMcpServerNameResponses = {
   /**
    * Default Response
    */
-  200: unknown;
+  200: {
+    success?: boolean;
+  };
 };
+
+export type DeleteMcpServerApiMcpServerByMcpServerNameResponse =
+  DeleteMcpServerApiMcpServerByMcpServerNameResponses[keyof DeleteMcpServerApiMcpServerByMcpServerNameResponses];
 
 export type DeleteOllamaLlmOllamaData = {
   body?: never;
