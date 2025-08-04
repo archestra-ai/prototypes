@@ -1,49 +1,30 @@
 import fastify from 'fastify';
 
-import { config } from './config/server';
-import corsPlugin from './plugins/cors';
-import websocketPlugin from './plugins/websocket';
-import chatRoutes from './routes/chat';
-import externalMcpClientRoutes from './routes/externalMcpClient';
-import llmRoutes from './routes/llm';
-import mcpServerRoutes from './routes/mcpServer';
-import ollamaRoutes from './routes/ollama';
+import config from '@backend/server/config';
+import chatRoutes from '@backend/server/plugins/chat';
+import corsPlugin from '@backend/server/plugins/cors';
+import externalMcpClientRoutes from '@backend/server/plugins/externalMcpClient';
+import llmRoutes from '@backend/server/plugins/llm';
+import mcpServerRoutes from '@backend/server/plugins/mcpServer';
+import ollamaRoutes from '@backend/server/plugins/ollama';
+import websocketPlugin from '@backend/server/plugins/websocket';
 
-/**
- * Main server initialization function
- *
- * IMPORTANT: Everything is wrapped in an async function to avoid top-level await.
- * Top-level await is not supported in CommonJS modules, which is what Vite
- * builds for the server target. This caused the server-process.js build to fail.
- */
-async function startServer() {
-  const app = fastify({
-    logger: config.logger,
-    // Note: prettyPrint was removed from config as it's no longer supported
-    // Use pino-pretty package if pretty logging is needed in development
-  });
+const app = fastify({
+  logger: config.logger,
+  // Note: prettyPrint was removed from config as it's no longer supported
+  // Use pino-pretty package if pretty logging is needed in development
+});
 
-  // Register CORS plugin to allow requests from the Electron renderer
-  await app.register(corsPlugin);
+app.register(corsPlugin);
+app.register(websocketPlugin);
 
-  // Register WebSocket plugin for real-time communication
-  await app.register(websocketPlugin);
+app.register(chatRoutes);
+app.register(llmRoutes);
+app.register(externalMcpClientRoutes);
+app.register(mcpServerRoutes);
+app.register(ollamaRoutes);
 
-  // Register all chat-related routes under /api/chat
-  await app.register(chatRoutes);
-
-  // Register LLM streaming routes
-  await app.register(llmRoutes);
-
-  // Register Ollama proxy routes
-  await app.register(ollamaRoutes);
-
-  // Register external MCP client routes
-  await app.register(externalMcpClientRoutes);
-
-  // Register MCP server routes
-  await app.register(mcpServerRoutes);
-
+export const startServer = async () => {
   const PORT = config.server.port; // Default: 3456
   const HOST = config.server.host; // Default: 127.0.0.1
 
@@ -68,11 +49,4 @@ async function startServer() {
   // Listen for termination signals from the parent process
   process.on('SIGTERM', gracefulShutdown); // Standard termination signal
   process.on('SIGINT', gracefulShutdown); // Ctrl+C signal
-}
-
-// Start the server and handle any initialization errors
-startServer().catch((err) => {
-  console.error('Failed to start server:', err);
-  // Exit with error code to signal failure to parent process
-  process.exit(1);
-});
+};

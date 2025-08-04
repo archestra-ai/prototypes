@@ -13,4 +13,6 @@
  * The forge.config.ts defines this as a build target, producing server-process.js
  * which main.ts spawns as a child process with ELECTRON_RUN_AS_NODE=1
  */
-import './backend/server/index';
+import { startServer } from '@backend/server';
+
+startServer();

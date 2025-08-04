@@ -15,7 +15,8 @@
     "db:push": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/drizzle-kit/bin.cjs push",
     "db:generate": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/drizzle-kit/bin.cjs migrate",
-    "codegen:libpod": "openapi-ts --file openapi-ts.libpod.config.ts"
+    "codegen:libpod": "openapi-ts --file openapi-ts.libpod.config.ts",
+    "generate:openapi": "tsx scripts/generate-openapi.ts"
   },
   "packageManager": "pnpm@10.14.0",
   "devDependencies": {
@@ -45,6 +46,7 @@
     "@types/ws": "^8.18.1",
     "drizzle-kit": "^0.31.4",
     "electron": "37.2.5",
+    "fastify-cli": "^7.4.0",
     "husky": "^9.1.7",
     "jsdom": "^26.1.0",
     "lint-staged": "^16.1.2",
@@ -59,8 +61,10 @@
     "@ai-sdk/anthropic": "^2.0.0",
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/react": "^2.0.0",
+    "@fastify/autoload": "^6.3.1",
     "@fastify/cors": "^11.1.0",
     "@fastify/http-proxy": "^11.3.0",
+    "@fastify/swagger": "^9.5.1",
     "@fastify/websocket": "^11.2.0",
     "@hookform/resolvers": "^5.2.1",
     "@icons-pack/react-simple-icons": "^13.7.0",
