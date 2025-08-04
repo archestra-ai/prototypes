@@ -1,11 +1,11 @@
-import Sidebar from './components/Sidebar';
-import { SidebarInset } from './components/ui/sidebar';
-import ChatPage from './pages/ChatPage';
-import ConnectorCatalogPage from './pages/ConnectorCatalogPage';
-import LLMProvidersPage from './pages/LLMProvidersPage';
-import SettingsPage from './pages/SettingsPage';
-import { useNavigationStore } from './stores/navigation-store';
-import { NavigationViewKey } from './types';
+import { NavigationViewKey } from '@types';
+import Sidebar from '@ui/components/Sidebar';
+import { SidebarInset } from '@ui/components/ui/sidebar';
+import ChatPage from '@ui/pages/ChatPage';
+import ConnectorCatalogPage from '@ui/pages/ConnectorCatalogPage';
+import LLMProvidersPage from '@ui/pages/LLMProvidersPage';
+import SettingsPage from '@ui/pages/SettingsPage';
+import { useNavigationStore } from '@ui/stores/navigation-store';
 
 export default function App() {
   const { activeView, activeSubView } = useNavigationStore();

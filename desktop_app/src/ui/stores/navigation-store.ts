@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { NavigationSubViewKey, NavigationViewKey } from '@ui/types';
+import { NavigationSubViewKey, NavigationViewKey } from '@types';
 
 interface NavigationState {
   activeView: NavigationViewKey;

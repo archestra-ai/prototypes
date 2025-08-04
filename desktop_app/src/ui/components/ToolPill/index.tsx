@@ -1,10 +1,10 @@
 import { XIcon } from 'lucide-react';
 
+import type { ToolWithMCPServerName } from '@types';
 import { ToolHoverCard } from '@ui/components/ToolHoverCard';
 import { Badge } from '@ui/components/ui/badge';
 import { formatToolName } from '@ui/lib/utils/tools';
 import { useMCPServersStore } from '@ui/stores/mcp-servers-store';
-import type { ToolWithMCPServerName } from '@ui/types';
 
 import { ToolServerIcon } from '../ToolServerIcon';
 import ToolStatusIcon from '../ToolStatusIcon';

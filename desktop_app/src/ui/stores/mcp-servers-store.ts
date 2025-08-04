@@ -3,11 +3,11 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/types';
 import { create } from 'zustand';
 
-import { ARCHESTRA_SERVER_MCP_PROXY_URL, ARCHESTRA_SERVER_MCP_URL } from '@ui/consts';
-import { type McpServer, getInstalledMcpServers } from '@ui/lib/api-client';
+import { type McpServer, getInstalledMcpServers } from '@clients/archestra/api/gen';
+import config from '@config';
+import { ConnectedMCPServer, MCPServerStatus, MCPServerToolsMap, ToolWithMCPServerName } from '@types';
 import { getToolsGroupedByServer } from '@ui/lib/utils/mcp-server';
 import { formatToolName } from '@ui/lib/utils/tools';
-import { ConnectedMCPServer, MCPServerStatus, MCPServerToolsMap, ToolWithMCPServerName } from '@ui/types';
 
 const ARCHESTRA_MCP_SERVER_NAME = 'archestra';
 
@@ -39,7 +39,7 @@ interface MCPServersActions {
 type MCPServersStore = MCPServersState & MCPServersActions;
 
 export function constructProxiedMCPServerUrl(mcpServerName: string) {
-  return `${ARCHESTRA_SERVER_MCP_PROXY_URL}/${mcpServerName}`;
+  return `${config.archestra.mcpProxyUrl}/${mcpServerName}`;
 }
 
 const configureMCPClient = async (
@@ -176,42 +176,6 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
 
     const attemptConnection = async (): Promise<boolean> => {
       return true;
-      try {
-        const client = await configureMCPClient(`${ARCHESTRA_MCP_SERVER_NAME}-client`, ARCHESTRA_SERVER_MCP_URL, {
-          tools: {},
-        });
-
-        if (client) {
-          const tools = await initializeConnectedMCPServerTools(client, ARCHESTRA_MCP_SERVER_NAME);
-          /**
-           * name, id, created_at and server_config aren't needed for the Archestra MCP server, they're simply added
-           * here to appease the ConnectedMCPServer type.
-           */
-          set({
-            archestraMCPServer: {
-              name: ARCHESTRA_MCP_SERVER_NAME,
-              id: 0,
-              created_at: new Date().toISOString(),
-              server_config: {
-                transport: 'http',
-                command: '',
-                args: [],
-                env: {},
-              },
-              url: ARCHESTRA_SERVER_MCP_URL,
-              client,
-              tools,
-              status: MCPServerStatus.Connected,
-              error: null,
-            },
-          });
-
-          return true;
-        }
-        return false;
-      } catch (error) {
-        return false;
-      }
     };
 
     // Keep trying to connect until successful or max retries reached
@@ -239,7 +203,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
           args: [],
           env: {},
         },
-        url: ARCHESTRA_SERVER_MCP_URL,
+        url: config.archestra.mcpUrl,
         client: null,
         tools: [],
         status: MCPServerStatus.Error,

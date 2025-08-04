@@ -1,6 +1,7 @@
 import { ChevronRight, Plus } from 'lucide-react';
 import * as React from 'react';
 
+import { NavigationViewKey } from '@types';
 import { ToolHoverCard } from '@ui/components/ToolHoverCard';
 import { ToolServerIcon } from '@ui/components/ToolServerIcon';
 import { Input } from '@ui/components/ui/input';
@@ -15,7 +16,6 @@ import {
 import { formatToolName } from '@ui/lib/utils/tools';
 import { useMCPServersStore } from '@ui/stores/mcp-servers-store';
 import { useNavigationStore } from '@ui/stores/navigation-store';
-import { NavigationViewKey } from '@ui/types';
 
 interface MCPServerWithToolsSidebarSectionProps {}
 

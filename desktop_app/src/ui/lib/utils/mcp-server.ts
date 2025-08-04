@@ -1,4 +1,4 @@
-import type { MCPServerToolsMap, ToolWithMCPServerName } from '@ui/types';
+import type { MCPServerToolsMap, ToolWithMCPServerName } from '@types';
 
 export const getToolsGroupedByServer = (tools: ToolWithMCPServerName[]) => {
   return tools.reduce((acc, tool) => {

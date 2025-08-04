@@ -1,7 +1,10 @@
 import ReconnectingWebSocket from 'reconnecting-websocket';
 
-import { ARCHESTRA_SERVER_WEBSOCKET_URL } from '@ui/consts';
-import { WebSocketMessage } from '@ui/lib/api';
+import config from '@config';
+
+// TODO: Remove this once the WebSocketMessage type is defined in the backend
+// import { WebSocketMessage } from '@types';
+type WebSocketMessage = any;
 
 type MessageHandler = (message: WebSocketMessage) => void;
 
@@ -16,7 +19,7 @@ class WebSocketService {
     }
 
     this.connectionPromise = new Promise((resolve, reject) => {
-      this.ws = new ReconnectingWebSocket(ARCHESTRA_SERVER_WEBSOCKET_URL, [], {
+      this.ws = new ReconnectingWebSocket(config.archestra.websocketUrl, [], {
         WebSocket: window.WebSocket,
         maxReconnectionDelay: 10000,
         minReconnectionDelay: 1000,

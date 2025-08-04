@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
 
-import { MCPServerStatus } from '@ui/types';
+import { MCPServerStatus } from '@types';
 
 import ArchestraMCPServer from '.';
 

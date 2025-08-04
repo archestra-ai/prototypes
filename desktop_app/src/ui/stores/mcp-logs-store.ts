@@ -9,7 +9,7 @@ import {
   getMcpRequestLogById,
   getMcpRequestLogStats,
   getMcpRequestLogs,
-} from '@ui/lib/api-client';
+} from '@clients/archestra/api/gen';
 
 interface MCPLogsStore {
   // State

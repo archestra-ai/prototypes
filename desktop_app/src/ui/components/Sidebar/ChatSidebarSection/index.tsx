@@ -1,9 +1,9 @@
 import { Plus } from 'lucide-react';
 
+import config from '@config';
 import { DeleteChatConfirmation } from '@ui/components/DeleteChatConfirmation';
 import { EditableTitle } from '@ui/components/EditableTitle';
 import { SidebarMenuButton, SidebarMenuItem } from '@ui/components/ui/sidebar';
-import { DEFAULT_CHAT_TITLE } from '@ui/consts';
 import { useChatStore } from '@ui/stores/chat-store';
 
 interface ChatSidebarProps {}
@@ -48,7 +48,7 @@ export default function ChatSidebarSection(_props: ChatSidebarProps) {
                 >
                   <EditableTitle
                     className="truncate"
-                    title={title || DEFAULT_CHAT_TITLE}
+                    title={title || config.ui.chat.defaultTitle}
                     onSave={(newTitle) => updateChatTitle(id, newTitle)}
                     isAnimated
                   />
