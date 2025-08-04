@@ -8,7 +8,13 @@ interface ChatParams {
 
 const chatRoutes: FastifyPluginAsync = async (fastify) => {
   // Get all chats
-  fastify.get('/api/chat', async (request, reply) => {
+  fastify.get('/api/chat', {
+    schema: {
+      operationId: 'getChats',
+      description: 'Get all chats',
+      tags: ['Chat'],
+    },
+  }, async (request, reply) => {
     try {
       const chats = await chatService.getAllChats();
       return reply.code(200).send(chats);
@@ -19,7 +25,13 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Get single chat with messages
-  fastify.get<{ Params: ChatParams }>('/api/chat/:id', async (request, reply) => {
+  fastify.get<{ Params: ChatParams }>('/api/chat/:id', {
+    schema: {
+      operationId: 'getChatById',
+      description: 'Get single chat with messages',
+      tags: ['Chat'],
+    },
+  }, async (request, reply) => {
     try {
       const chatId = parseInt(request.params.id, 10);
       if (isNaN(chatId)) {
@@ -39,7 +51,13 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Create new chat
-  fastify.post<{ Body: CreateChatRequest }>('/api/chat', async (request, reply) => {
+  fastify.post<{ Body: CreateChatRequest }>('/api/chat', {
+    schema: {
+      operationId: 'createChat',
+      description: 'Create new chat',
+      tags: ['Chat'],
+    },
+  }, async (request, reply) => {
     try {
       const chat = await chatService.createChat(request.body);
       return reply.code(201).send(chat);
@@ -50,7 +68,13 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Update chat
-  fastify.patch<{ Params: ChatParams; Body: UpdateChatRequest }>('/api/chat/:id', async (request, reply) => {
+  fastify.patch<{ Params: ChatParams; Body: UpdateChatRequest }>('/api/chat/:id', {
+    schema: {
+      operationId: 'updateChat',
+      description: 'Update chat',
+      tags: ['Chat'],
+    },
+  }, async (request, reply) => {
     try {
       const chatId = parseInt(request.params.id, 10);
       if (isNaN(chatId)) {
@@ -70,7 +94,13 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Delete chat
-  fastify.delete<{ Params: ChatParams }>('/api/chat/:id', async (request, reply) => {
+  fastify.delete<{ Params: ChatParams }>('/api/chat/:id', {
+    schema: {
+      operationId: 'deleteChat',
+      description: 'Delete chat',
+      tags: ['Chat'],
+    },
+  }, async (request, reply) => {
     try {
       const chatId = parseInt(request.params.id, 10);
       if (isNaN(chatId)) {

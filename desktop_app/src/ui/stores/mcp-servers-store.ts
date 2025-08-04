@@ -3,7 +3,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/types';
 import { create } from 'zustand';
 
-import { getMcpServerApiMcpServer } from '@clients/archestra/api/gen';
+import { getMcpServers } from '@clients/archestra/api/gen';
 import config from '@config';
 import { ConnectedMCPServer, MCPServer, MCPServerStatus, MCPServerToolsMap, ToolWithMCPServerName } from '@types';
 import { getToolsGroupedByServer } from '@ui/lib/utils/mcp-server';
@@ -150,7 +150,7 @@ export const useMCPServersStore = create<MCPServersStore>((set, get) => ({
         errorLoadingInstalledMCPServers: null,
       });
 
-      const response = await getMcpServerApiMcpServer();
+      const response = await getMcpServers();
 
       if ('data' in response && response.data) {
         // Add servers and connect to them

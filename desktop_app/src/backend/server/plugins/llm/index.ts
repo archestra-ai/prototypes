@@ -25,6 +25,13 @@ const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
 const llmRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: StreamRequestBody }>(
     '/api/llm/stream',
+    {
+      schema: {
+        operationId: 'streamLlmResponse',
+        description: 'Stream LLM response',
+        tags: ['LLM'],
+      },
+    },
     async (request: FastifyRequest<{ Body: StreamRequestBody }>, reply: FastifyReply) => {
       const { messages, sessionId } = request.body;
 

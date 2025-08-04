@@ -15,7 +15,13 @@ const externalMcpClientRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Get all connected external MCP clients
    */
-  fastify.get('/api/external_mcp_client', async (request, reply) => {
+  fastify.get('/api/external_mcp_client', {
+    schema: {
+      operationId: 'getConnectedExternalMcpClients',
+      description: 'Get all connected external MCP clients',
+      tags: ['External MCP Client'],
+    },
+  }, async (request, reply) => {
     try {
       const clients = await ExternalMcpClient.getConnectedExternalMcpClients();
       return reply.send(clients);
@@ -28,7 +34,13 @@ const externalMcpClientRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Get supported external MCP client names
    */
-  fastify.get('/api/external_mcp_client/supported', async (request, reply) => {
+  fastify.get('/api/external_mcp_client/supported', {
+    schema: {
+      operationId: 'getSupportedExternalMcpClients',
+      description: 'Get supported external MCP client names',
+      tags: ['External MCP Client'],
+    },
+  }, async (request, reply) => {
     try {
       const supportedClients = ExternalMcpClient.getSupportedExternalMcpClients();
       return reply.send(supportedClients);
@@ -41,7 +53,13 @@ const externalMcpClientRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Connect an external MCP client
    */
-  fastify.post<{ Body: ConnectRequestBody }>('/api/external_mcp_client/connect', async (request, reply) => {
+  fastify.post<{ Body: ConnectRequestBody }>('/api/external_mcp_client/connect', {
+    schema: {
+      operationId: 'connectExternalMcpClient',
+      description: 'Connect an external MCP client',
+      tags: ['External MCP Client'],
+    },
+  }, async (request, reply) => {
     try {
       const { client_name } = request.body;
 
@@ -62,6 +80,13 @@ const externalMcpClientRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.delete<{ Params: DisconnectParams }>(
     '/api/external_mcp_client/:client_name/disconnect',
+    {
+      schema: {
+        operationId: 'disconnectExternalMcpClient',
+        description: 'Disconnect an external MCP client',
+        tags: ['External MCP Client'],
+      },
+    },
     async (request, reply) => {
       try {
         const { client_name } = request.params;

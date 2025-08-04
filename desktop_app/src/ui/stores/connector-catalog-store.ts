@@ -1,12 +1,7 @@
 import { create } from 'zustand';
 
-import {
-  getMcpServerApiMcpServerCatalog,
-  postMcpServerApiMcpServerCatalogInstall,
-  postMcpServerApiMcpServerStartOauth,
-  deleteMcpServerApiMcpServerByMcpServerName,
-} from '@clients/archestra/api/gen';
-import { type McpServer as McpServerCatalogEntry } from '@clients/archestra/catalog/gen';
+import { installMcpServer, startMcpServerOauth, uninstallMcpServer } from '@clients/archestra/api/gen';
+import { type McpServer as McpServerCatalogEntry, getSearch as searchCatalog } from '@clients/archestra/catalog/gen';
 
 import { useMCPServersStore } from './mcp-servers-store';
 
@@ -46,7 +41,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
         errorFetchingConnectorCatalog: null,
       });
 
-      const response = await getMcpServerApiMcpServerCatalog();
+      const response = await searchCatalog();
 
       if ('data' in response && response.data) {
         // Type assertion since the API doesn't return proper types yet
@@ -77,7 +72,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
       if (oauth?.required) {
         try {
           // Start OAuth flow
-          const response = await postMcpServerApiMcpServerStartOauth({
+          const response = await startMcpServerOauth({
             body: { mcp_connector_id: id },
           });
 
@@ -91,7 +86,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
           set({ errorInstallingMCPServer: error as string });
         }
       } else {
-        const response = await postMcpServerApiMcpServerCatalogInstall({
+        const response = await installMcpServer({
           body: { mcp_connector_id: id },
         });
 
@@ -116,7 +111,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set) => (
         errorUninstallingMCPServer: null,
       });
 
-      const response = await deleteMcpServerApiMcpServerByMcpServerName({
+      const response = await uninstallMcpServer({
         path: { mcp_server_name: mcpServerName },
       });
 
