@@ -1,0 +1,96 @@
+# Changelog
+
+## 1.0.0 (2025-08-04)
+
+
+### Features
+
+* `podman` container runtime is working! ([#145](https://github.com/archestra-ai/archestra/issues/145)) ([3c7587e](https://github.com/archestra-ai/archestra/commit/3c7587ed6f14b5fadd87aa0b7a6aef04714f25fb))
+* `podman` first-pass ([#140](https://github.com/archestra-ai/archestra/issues/140)) ([1e0f78a](https://github.com/archestra-ai/archestra/commit/1e0f78afe2337ff6da89896276b1e7dfeac3d694))
+* add `external_mcp_clients` + `mcp_servers` API routes ([023a623](https://github.com/archestra-ai/archestra/commit/023a623f4b307072046cd5767297a15c96ded12d))
+* Add chat crud ([#132](https://github.com/archestra-ai/archestra/issues/132)) ([9f7a92c](https://github.com/archestra-ai/archestra/commit/9f7a92ccebb923445b239a6dc2123162167d1a81))
+* create generic `BinaryRunner` class (used for both `ollama` + `podman` binaries) ([#138](https://github.com/archestra-ai/archestra/issues/138)) ([e7d52e5](https://github.com/archestra-ai/archestra/commit/e7d52e5d52dcb9cc0ab62000116f376f870d00e2))
+* get `ollama serve` running on app startup ([#123](https://github.com/archestra-ai/archestra/issues/123)) ([bd04511](https://github.com/archestra-ai/archestra/commit/bd04511ad24ef261fa552c3d7f78bf6f8aaa6dc8))
+* get archestra api, archestra catalog, and lipod codegen'd clients/scripts setup ([#153](https://github.com/archestra-ai/archestra/issues/153)) ([7071ab9](https://github.com/archestra-ai/archestra/commit/7071ab968ef0f71d64e90d5b0e3fea7970e8f013))
+* get mcp catalog working ([27fc5e4](https://github.com/archestra-ai/archestra/commit/27fc5e478acf0f50f307537a9c5368cb3aa4da1d))
+* get swagger/openapi-schema generation working ([#152](https://github.com/archestra-ai/archestra/issues/152)) ([9910dcf](https://github.com/archestra-ai/archestra/commit/9910dcfee4559dc241362d953386bc2356960f2b))
+* good progress on sandboxed mcp server containers ([34405fa](https://github.com/archestra-ai/archestra/commit/34405fa90d6212aead85dd212b0691af7e270e81))
+* laying groundwork of `MCPServerSandboxManager`, `SandboxedMCP`, `PodmanMachine`, `PodmanContainer, and `PodmanImage` ([#141](https://github.com/archestra-ai/archestra/issues/141)) ([ecea53b](https://github.com/archestra-ai/archestra/commit/ecea53b8b1af5df9c5728c2fda3a285c1c74a4cb))
+* **WIP:** get `podman` sandbox functional ([#142](https://github.com/archestra-ai/archestra/issues/142)) ([5d5d3fd](https://github.com/archestra-ai/archestra/commit/5d5d3fd75a0386b8aa63e5d4d95d0944b5bd11d3))
+
+
+### Bug Fixes
+
+* `MCPServerSandboxManager` `this` binding issue ([bc5e210](https://github.com/archestra-ai/archestra/commit/bc5e2108d7a21ff71d07b7697705745773868429))
+* add remaining files for ws ([121a5b5](https://github.com/archestra-ai/archestra/commit/121a5b5e21f6f56bea0fcd2bf4a8c4fd1c3bd1af))
+* attempt to fix websockets ([#148](https://github.com/archestra-ai/archestra/issues/148)) ([9d3dbd1](https://github.com/archestra-ai/archestra/commit/9d3dbd15c8bee7691bb0355be3cd69c61ef9fc73))
+* bug with new chats ([#150](https://github.com/archestra-ai/archestra/issues/150)) ([e8658f4](https://github.com/archestra-ai/archestra/commit/e8658f45e9e6ba98ca72d296ea49a631cecae904))
+* Chat streaming fix ([ab5ccd8](https://github.com/archestra-ai/archestra/commit/ab5ccd833876efbb9f8948ae9fcc1a4084477ef3))
+* coreect assistant response ([83f6389](https://github.com/archestra-ai/archestra/commit/83f6389a29f466f98f10f7f1f0cd3903106c864d))
+* cors plugin ([#159](https://github.com/archestra-ai/archestra/issues/159)) ([679a295](https://github.com/archestra-ai/archestra/commit/679a295261a5606031b6205e51d90ac2ee6f3356))
+* Exclude ollama from openapi schema as it causes invalid function names with * in the name ([#155](https://github.com/archestra-ai/archestra/issues/155)) ([8ecadf6](https://github.com/archestra-ai/archestra/commit/8ecadf655cf990f59887d670a6bca05752d89dc2))
+* Fix chat bugs ([#151](https://github.com/archestra-ai/archestra/issues/151)) ([e1bc792](https://github.com/archestra-ai/archestra/commit/e1bc79277d3543f892bf4dcff9bbb7998467e95a))
+* Fix chat initialization ([089a3b0](https://github.com/archestra-ai/archestra/commit/089a3b0da884ca23304d76ca61b7edcce89f1298))
+* Fix chat streaming ([#143](https://github.com/archestra-ai/archestra/issues/143)) ([a2bbac3](https://github.com/archestra-ai/archestra/commit/a2bbac3b86c1a01d23412c15975009c262ccc79f))
+* Fix cors ([#160](https://github.com/archestra-ai/archestra/issues/160)) ([7198f9b](https://github.com/archestra-ai/archestra/commit/7198f9b4c0c050fd650c2806ae3e79807c6a99ed))
+* Fix duplicated chats ([075b66f](https://github.com/archestra-ai/archestra/commit/075b66ff416465c9ce4cb0bf0f0bcd8c064aeb42))
+* Fix import ([#139](https://github.com/archestra-ai/archestra/issues/139)) ([1d21c14](https://github.com/archestra-ai/archestra/commit/1d21c149b89f4652d1f8f724d3ecd59ece9c0cad))
+* Fix migrations after resolving merge conflict ([#135](https://github.com/archestra-ai/archestra/issues/135)) ([732832c](https://github.com/archestra-ai/archestra/commit/732832cbbe0d8a0235b68703b509b3f3a5640e16))
+* Import new client for chat ([#157](https://github.com/archestra-ai/archestra/issues/157)) ([413a652](https://github.com/archestra-ai/archestra/commit/413a6520254c8729a305a9f49e6715fc0795cf72))
+* Messages persistance ([ef37c21](https://github.com/archestra-ai/archestra/commit/ef37c212ed2aa14f99e58ae0dd42a8f424d06be7))
+* pnpm fix ([#134](https://github.com/archestra-ai/archestra/issues/134)) ([5b842dd](https://github.com/archestra-ai/archestra/commit/5b842dd9447f910774a850834afa5864c16431ea))
+* Proxy to ollama api ([#146](https://github.com/archestra-ai/archestra/issues/146)) ([81b4d6b](https://github.com/archestra-ai/archestra/commit/81b4d6b0e392e7a79c6d3b82366ebbbe206375d1))
+* Route llm through backend ([c8a9661](https://github.com/archestra-ai/archestra/commit/c8a966138a1181de4c605c5b510b7da0f7d6cc37))
+* streaming works ([a837878](https://github.com/archestra-ai/archestra/commit/a8378783204ac5eb04fe9d5f6eb7da71a7945f5c))
+* Switch UI to UIMessage format ([2129598](https://github.com/archestra-ai/archestra/commit/2129598fff81476bb0a033cf73bad5d8bb354ee2))
+
+
+### Dependencies
+
+* **frontend:** bump @electron/fuses from 1.8.0 to 2.0.0 in /desktop_app ([#122](https://github.com/archestra-ai/archestra/issues/122)) ([7663fba](https://github.com/archestra-ai/archestra/commit/7663fba32104051672359352b78a19c04698459e))
+* **frontend:** bump typescript from 5.8.3 to 5.9.2 in /desktop_app in the frontend-dependencies group ([#121](https://github.com/archestra-ai/archestra/issues/121)) ([038ab86](https://github.com/archestra-ai/archestra/commit/038ab86cc3d272a3139c376b72c9a85206a3394d))
+
+
+### Miscellaneous Chores
+
+* (step towards) getting app working ([#156](https://github.com/archestra-ai/archestra/issues/156)) ([cde97f8](https://github.com/archestra-ai/archestra/commit/cde97f8f51b5dcf55cc1be77cd3a658b45fc6e17))
+* `pnpm prettier` ([2ae80b3](https://github.com/archestra-ai/archestra/commit/2ae80b3d06887abca203d21bdbff22a57bcfd1ba))
+* add `[@types](https://github.com/types)` alias to `vite.server.config.ts` ([2ac906f](https://github.com/archestra-ai/archestra/commit/2ac906f927480189046f78522e001c539c0b4af8))
+* add `@types/ws` dep ([a06705d](https://github.com/archestra-ai/archestra/commit/a06705d61b1fe4006e336387e0d668e9e8e4734e))
+* add `getBinaryExecPath` (precursor to setting up `podman`) ([#136](https://github.com/archestra-ai/archestra/issues/136)) ([f08b1f6](https://github.com/archestra-ai/archestra/commit/f08b1f64bf9d4c617270830014a474fbbb02a47d))
+* add colored logging ([e9301b6](https://github.com/archestra-ai/archestra/commit/e9301b6661de030ed42eea458b7bf6a48e722775))
+* Add db how-to to README.md ([c6e491a](https://github.com/archestra-ai/archestra/commit/c6e491a1bf801f9f156b0035e4b7dd774c3f18b7))
+* add placeholder hey-api config ([f34ecb0](https://github.com/archestra-ai/archestra/commit/f34ecb03672613e92eceaf726b2199119902189c))
+* all tests passing! ([#133](https://github.com/archestra-ai/archestra/issues/133)) ([77b5c2f](https://github.com/archestra-ai/archestra/commit/77b5c2f9499af59eed19c7b0a95abe73c4b56db3))
+* bump version of `pnpm` that is used ([8902501](https://github.com/archestra-ai/archestra/commit/89025017ee7b66b33eefe418a4cfc57f7d6194d6))
+* cleanup websocket service ([81f34f7](https://github.com/archestra-ai/archestra/commit/81f34f70debf6fc2af117f32a3528c6626263d6b))
+* Configure drizzle studio ([#126](https://github.com/archestra-ai/archestra/issues/126)) ([ce96d0f](https://github.com/archestra-ai/archestra/commit/ce96d0fd02e27bfd47a08b64ec2af464f88a7c4a))
+* configure hot-reload for server ([0455830](https://github.com/archestra-ai/archestra/commit/0455830fb78f440d71e9177efd4dc1e8763af797))
+* configure vercel/ai ([e11ff22](https://github.com/archestra-ai/archestra/commit/e11ff22f32b98173bbdb53f9f78450246c73d26b))
+* continue fixing clients and types ([#158](https://github.com/archestra-ai/archestra/issues/158)) ([8834c35](https://github.com/archestra-ai/archestra/commit/8834c35f7ed37ae336af9cfdb8ad27d346e65481))
+* don't run database migration on express server startup ([c208bd3](https://github.com/archestra-ai/archestra/commit/c208bd3a2c9e1f51f357d0182514e016b2ea5426))
+* extract `MCPServer` from `MCPServers` as a separate component ([bd5a4d0](https://github.com/archestra-ai/archestra/commit/bd5a4d00af9e82dca6bab9db012111328dae53be))
+* few more type/import updates ([8fbb9b7](https://github.com/archestra-ai/archestra/commit/8fbb9b72afcee8a0391472623806535267551bce))
+* fix `ollama serve` + make window slightly larger ([7226c5b](https://github.com/archestra-ai/archestra/commit/7226c5b53ed9cccd7f573c718fa49254568e96d7))
+* fix `prettier` issues ([9afa634](https://github.com/archestra-ai/archestra/commit/9afa6348026ac34a2f81f2a474ef4d35b585177a))
+* Fix chat initialization and route llms though backend ([#137](https://github.com/archestra-ai/archestra/issues/137)) ([e848a50](https://github.com/archestra-ai/archestra/commit/e848a50c5364ac3a266da2d2a15a2aa376270b4b))
+* fix drizzle kit command ([d3881dd](https://github.com/archestra-ai/archestra/commit/d3881dda85caf7975f5dfbebe3b1513d4f9a539e))
+* get all current tests passing ([#131](https://github.com/archestra-ai/archestra/issues/131)) ([9f6b096](https://github.com/archestra-ai/archestra/commit/9f6b0960616e0bbece13db5b87b32b337cd1f6b7))
+* merge `connector-catalog-store` into `mcp-servers-store` ([27b9248](https://github.com/archestra-ai/archestra/commit/27b924826fe8df78ff6e0440046430c342d4285d))
+* Merge db files on server and backend ([#149](https://github.com/archestra-ai/archestra/issues/149)) ([1bfc17c](https://github.com/archestra-ai/archestra/commit/1bfc17c8679bdddb4321f04ec54fb4d2dd6fa294))
+* minor refactor on `backend/services` ([efdc325](https://github.com/archestra-ai/archestra/commit/efdc3255f490cafa9a3dd3ca20c357aca8841118))
+* move config to root `src/config.ts` ([abcc40e](https://github.com/archestra-ai/archestra/commit/abcc40eec2f9b7a6a4ef0c04e34f7fef553fcd0c))
+* move custom ollama client to `src/clients` ([0388e40](https://github.com/archestra-ai/archestra/commit/0388e4064611325b5701bb7e69977a1b36261b2c))
+* Move UI to new app ([#120](https://github.com/archestra-ai/archestra/issues/120)) ([48b728b](https://github.com/archestra-ai/archestra/commit/48b728b87c3dac6a3b18e8c9395a72c309690948))
+* recreate db migrations ([b440ba8](https://github.com/archestra-ai/archestra/commit/b440ba817db2842a28ff3c22f4b1c415026bc994))
+* remove leftover/outdated codegen'd code ([46df146](https://github.com/archestra-ai/archestra/commit/46df146f62e7797c0a1b509a46d44893a94bb012))
+* reorg file-structure to `src/ui` + `src/backend` ([#130](https://github.com/archestra-ai/archestra/issues/130)) ([2b7c93c](https://github.com/archestra-ai/archestra/commit/2b7c93c29b734927a4b5dc16e1cd4c1f8e8f6a4b))
+* single `src/config.ts` file + single `src/types` directory ([#154](https://github.com/archestra-ai/archestra/issues/154)) ([7d05b2b](https://github.com/archestra-ai/archestra/commit/7d05b2bf6b5c9bd5f5540c98482806c9e7bf113f))
+* small update to codegen method imports in chat-store ([3f119af](https://github.com/archestra-ai/archestra/commit/3f119afa1fbbdf7d75a7078d0961cbff83f34b85))
+* split server code ([#129](https://github.com/archestra-ai/archestra/issues/129)) ([475cd64](https://github.com/archestra-ai/archestra/commit/475cd64f45d81ed89195078a8cac1277941b07e5))
+* Switch to fastify ([#128](https://github.com/archestra-ai/archestra/issues/128)) ([19e2680](https://github.com/archestra-ai/archestra/commit/19e2680e71a2d46cdc6d8a76354269aa8d1c4149))
+* temporarily stop attemts to connect to /mcp ([#147](https://github.com/archestra-ai/archestra/issues/147)) ([8c53dba](https://github.com/archestra-ai/archestra/commit/8c53dba433f33ee89ebff8d7e6ed89be1427e312))
+* trying to fix cors (still 🥲) ([2ce1cdf](https://github.com/archestra-ai/archestra/commit/2ce1cdfdba9a42bd00fd4fb6acb5e0d5beb82fc7))
+* tweak `jsx` tsconfig setting to `react-jsx` ([4dda33d](https://github.com/archestra-ai/archestra/commit/4dda33d4b67c0db1449b12bf4ccaf0436d8f1fb3))
+* update codegen'd types for archestra catalog ([fd5c80b](https://github.com/archestra-ai/archestra/commit/fd5c80b60e6921c2b2d349d34574a2f3eaa9d81f))
+* **WIP:** setup testing ([#127](https://github.com/archestra-ai/archestra/issues/127)) ([0deca34](https://github.com/archestra-ai/archestra/commit/0deca345b44cebbacd4eaf48886f98d865860aa9))
