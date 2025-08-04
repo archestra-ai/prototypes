@@ -1,6 +1,6 @@
 import { SidebarIcon } from 'lucide-react';
 
-import config from '@config';
+import config from '@ui/config';
 import { NavigationSubViewKey, NavigationViewKey } from '@types';
 import { ThemeToggler } from '@ui/components/ThemeToggler';
 import { Button } from '@ui/components/ui/button';

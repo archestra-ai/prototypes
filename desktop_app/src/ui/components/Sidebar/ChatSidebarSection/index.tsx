@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react';
 
-import config from '@config';
+import config from '@ui/config';
 import { DeleteChatConfirmation } from '@ui/components/DeleteChatConfirmation';
 import { EditableTitle } from '@ui/components/EditableTitle';
 import { SidebarMenuButton, SidebarMenuItem } from '@ui/components/ui/sidebar';

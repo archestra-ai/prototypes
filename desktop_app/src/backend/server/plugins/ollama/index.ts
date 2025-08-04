@@ -1,7 +1,7 @@
 import FastifyHttpProxy from '@fastify/http-proxy';
 import { FastifyPluginAsync } from 'fastify';
 
-import config from '@config';
+import config from '@backend/config';
 
 const ollamaRoutes: FastifyPluginAsync = async (fastify) => {
   // Register proxy for all Ollama API routes

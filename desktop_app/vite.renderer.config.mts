@@ -10,7 +10,6 @@ export default defineConfig({
     alias: {
       '@backend': path.resolve(__dirname, './src/backend'),
       '@clients': path.resolve(__dirname, './src/clients'),
-      '@config': path.resolve(__dirname, './src/config'),
       '@types': path.resolve(__dirname, './src/types'),
       '@ui': path.resolve(__dirname, './src/ui'),
     },

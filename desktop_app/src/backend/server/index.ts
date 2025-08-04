@@ -1,4 +1,4 @@
-import config from '@config';
+import config from '@backend/config';
 import fastify from 'fastify';
 
 import chatRoutes from '@backend/server/plugins/chat';
@@ -10,7 +10,7 @@ import ollamaRoutes from '@backend/server/plugins/ollama';
 import websocketPlugin from '@backend/server/plugins/websocket';
 
 const app = fastify({
-  logger: config.archestra.server.logger,
+  logger: config.server.logger,
   // Note: prettyPrint was removed from config as it's no longer supported
   // Use pino-pretty package if pretty logging is needed in development
 });
@@ -24,7 +24,7 @@ app.register(mcpServerRoutes);
 app.register(ollamaRoutes);
 
 export const startServer = async () => {
-  const { port, host } = config.archestra.server;
+  const { port, host } = config.server;
 
   // Start the Fastify server
   try {

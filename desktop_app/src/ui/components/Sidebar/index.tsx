@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import config from '@config';
+import config from '@ui/config';
 import { NavigationSubViewKey, NavigationViewKey } from '@types';
 import { SiteHeader } from '@ui/components/SiteHeader';
 import {

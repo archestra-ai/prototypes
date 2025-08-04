@@ -1,6 +1,6 @@
 import ReconnectingWebSocket from 'reconnecting-websocket';
 
-import config from '@config';
+import config from '@ui/config';
 
 // TODO: Remove this once the WebSocketMessage type is defined in the backend
 // import { WebSocketMessage } from '@types';

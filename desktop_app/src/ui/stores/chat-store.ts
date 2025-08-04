@@ -8,7 +8,7 @@ import {
   patchChatApiChatById,
   postChatApiChat,
 } from '@clients/archestra/api/gen';
-import config from '@config';
+import config from '@ui/config';
 import { type ChatWithMessages } from '@types';
 import { getDefaultModel } from '@ui/hooks/use-ai-chat-backend';
 import { initializeChat } from '@ui/lib/utils/chat';

@@ -21,7 +21,6 @@
     "paths": {
       "@backend/*": ["src/backend/*"],
       "@clients/*": ["src/clients/*"],
-      "@config": ["src/config"],
       "@types": ["src/types"],
       "@ui/*": ["src/ui/*"]
     }
