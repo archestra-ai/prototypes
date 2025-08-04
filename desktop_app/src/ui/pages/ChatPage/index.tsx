@@ -43,6 +43,17 @@ export default function ChatPage(_props: ChatPageProps) {
       // Handle all data parts as they arrive (including transient parts)
       console.log('Received data part:', dataPart);
     },
+    onFinish: (message) => {
+      console.log('Message finished:', message);
+      if (message.toolInvocations && message.toolInvocations.length > 0) {
+        console.log('🔧 Tool invocations:', message.toolInvocations);
+        message.toolInvocations.forEach((tool, index) => {
+          console.log(`  Tool ${index + 1}: ${tool.toolName}`);
+          console.log(`    Args:`, tool.args);
+          console.log(`    Result:`, tool.result);
+        });
+      }
+    },
     messages: currentChat?.messages,
     transport: new DefaultChatTransport({
       api: '/api/llm/stream',

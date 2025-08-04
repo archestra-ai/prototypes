@@ -20,8 +20,23 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
   }
 
   return (
-    <div className="relative">
-      <AIResponse>{textContent}</AIResponse>
+    <div className="relative space-y-2">
+      {message.toolInvocations && message.toolInvocations.length > 0 && (
+        <div className="space-y-2">
+          {message.toolInvocations.map((tool, index) => (
+            <div key={index} className="p-2 bg-muted rounded text-sm">
+              <div className="font-semibold">🔧 {tool.toolName}</div>
+              <div className="text-xs opacity-70">Args: {JSON.stringify(tool.args)}</div>
+              {tool.result && (
+                <div className="mt-1 text-xs">
+                  Result: {JSON.stringify(tool.result)}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {textContent && <AIResponse>{textContent}</AIResponse>}
     </div>
   );
 }
