@@ -60,6 +60,12 @@
       "release-type": "node",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true
+    },
+    "mcp_server_docker_image": {
+      "component": "mcp_server_docker_image",
+      "release-type": "simple",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true
     }
   },
   "plugins": [],

@@ -1,0 +1,89 @@
+# Multi-stage build for minimal final image
+FROM python:3.12-alpine AS python-builder
+
+# Install Python build dependencies
+RUN apk add --no-cache \
+   gcc \
+   musl-dev \
+   libffi-dev \
+   openssl-dev \
+   python3-dev
+
+# Install uv for fast Python package management
+RUN pip install --no-cache-dir uv
+
+# Create virtual environment and install Python MCP dependencies
+RUN uv venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN uv pip install --no-cache-dir \
+   mcp[cli]>=1.2.0 \
+   httpx \
+   fastapi \
+   uvicorn \
+   requests>=2.31.0 \
+   python-dotenv>=1.0.0
+
+# Node.js stage
+FROM node:20-alpine AS node-builder
+
+# Install Node.js MCP dependencies globally
+RUN npm install -g \
+   @modelcontextprotocol/sdk \
+   typescript@5 \
+   zod \
+   express
+
+# Final stage - minimal runtime image
+FROM alpine:3.19
+
+# Install runtime dependencies only
+RUN apk add --no-cache \
+   python3 \
+   py3-pip \
+   nodejs \
+   npm \
+   libstdc++ \
+   libgcc \
+   openssl \
+   ca-certificates \
+   # Required for some Python packages
+   libffi \
+   # Process management
+   tini
+
+# Copy Python environment from builder
+COPY --from=python-builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+
+# Copy Node.js global modules from builder
+COPY --from=node-builder /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=node-builder /usr/local/bin /usr/local/bin
+
+# Create non-root user for running MCP servers
+RUN addgroup -g 1000 mcp && \
+   adduser -u 1000 -G mcp -D -h /home/mcp mcp
+
+# Set up working directory
+WORKDIR /home/mcp
+USER mcp
+
+# Common environment variables for MCP servers
+ENV MCP_ENV=production
+ENV NODE_ENV=production
+
+# Health check for container monitoring
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+   CMD node -e "process.exit(0)" && python3 -c "exit(0)"
+
+# Use tini for proper signal handling
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Default command (override when running specific MCP servers)
+CMD ["sh", "-c", "echo 'MCP base container ready. Override CMD to run your MCP server.'"]
+
+# Labels for container metadata
+LABEL org.opencontainers.image.title="MCP Server Base Image"
+LABEL org.opencontainers.image.description="Minimal base image for running Model Context Protocol servers"
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
