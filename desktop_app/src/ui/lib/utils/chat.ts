@@ -30,16 +30,6 @@ export function addCancellationText(content: string): string {
   return content.includes('[Cancelled]') ? content : content + ' [Cancelled]';
 }
 
-export function markChatMessageAsCancelled(message: ChatMessage): ChatMessage {
-  return {
-    ...message,
-    isStreaming: false,
-    isToolExecuting: false,
-    isThinkingStreaming: false,
-    content: addCancellationText(message.content),
-  };
-}
-
 export function parseThinkingContent(content: string): ParsedContent {
   if (!content) {
     return { thinking: '', response: '', isThinkingStreaming: false };
@@ -112,7 +102,7 @@ export const initializeChat = (chat: ServerChatWithMessages): ChatWithMessages =
       return {
         ...message,
         id: generateNewMessageId(),
-        // toolCalls: initializeToolCalls(message.tool_calls),
+        toolCalls: initializeToolCalls(message.tool_calls || []),
         content: response,
         thinkingContent: thinking,
         isStreaming: false,

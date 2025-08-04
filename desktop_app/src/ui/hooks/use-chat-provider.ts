@@ -1,5 +1,3 @@
-import { useChatStore } from '@ui/stores/chat-store';
-
 import { getDefaultModel, useAIChatBackend } from './use-ai-chat-backend';
 
 interface UseChatProviderOptions {
@@ -9,32 +7,11 @@ interface UseChatProviderOptions {
 }
 
 export function useChatProvider({ model, sessionId, initialMessages = [] }: UseChatProviderOptions) {
-  const { selectedProvider, openaiApiKey, anthropicApiKey } = useChatStore();
-
-  // Map the provider names to the AI provider keys
-  const providerMap = {
-    chatgpt: 'openai',
-    claude: 'anthropic',
-    ollama: 'ollama',
-  } as const;
-
-  const aiProviderKey = providerMap[selectedProvider];
-
-  // Get the appropriate API key based on provider
-  let apiKey: string | undefined;
-  if (selectedProvider === 'chatgpt') {
-    apiKey = openaiApiKey || undefined;
-  } else if (selectedProvider === 'claude') {
-    apiKey = anthropicApiKey || undefined;
-  }
-  // ollama doesn't need an API key
-
   const aiChat = useAIChatBackend({
-    provider: aiProviderKey,
-    model: model || getDefaultModel(aiProviderKey),
+    provider: 'ollama',
+    model: model || getDefaultModel('ollama'),
     sessionId,
     initialMessages,
-    apiKey,
   });
 
   return aiChat;

@@ -73,7 +73,6 @@ export function useAIChatBackend({
       api: 'http://localhost:3456/api/llm/stream',
       initialMessages,
       body: {
-        provider,
         model: model || getDefaultModel(provider),
         apiKey,
         sessionId,

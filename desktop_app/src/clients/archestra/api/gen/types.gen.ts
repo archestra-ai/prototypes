@@ -44,6 +44,22 @@ export type DeleteChatApiChatByIdResponses = {
   200: unknown;
 };
 
+export type GetChatApiChatByIdData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: '/chat/api/chat/{id}';
+};
+
+export type GetChatApiChatByIdResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
 export type PatchChatApiChatByIdData = {
   body?: never;
   path: {
@@ -177,65 +193,16 @@ export type GetMcpServerApiMcpServerResponses = {
 export type GetMcpServerApiMcpServerResponse =
   GetMcpServerApiMcpServerResponses[keyof GetMcpServerApiMcpServerResponses];
 
-export type GetMcpServerApiMcpServerCatalogData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/mcpServer/api/mcp_server/catalog';
-};
-
-export type GetMcpServerApiMcpServerCatalogErrors = {
-  /**
-   * Default Response
-   */
-  500: {
-    error?: string;
-  };
-};
-
-export type GetMcpServerApiMcpServerCatalogError =
-  GetMcpServerApiMcpServerCatalogErrors[keyof GetMcpServerApiMcpServerCatalogErrors];
-
-export type GetMcpServerApiMcpServerCatalogResponses = {
-  /**
-   * List of available MCP connectors
-   */
-  200: Array<{
-    id: string;
-    title: string;
-    description: string;
-    provider?: string;
-    slug?: string;
-    githubRepo?: string;
-    serverPath?: string;
-    installInstructions?: Array<string>;
-    configurationInstructions?: Array<string>;
-    oauth?: {
-      required?: boolean;
-      provider?: string;
-    };
-    featured?: boolean;
-    core?: boolean;
-    tools?: Array<{
-      name?: string;
-      description?: string;
-    }>;
-  }>;
-};
-
-export type GetMcpServerApiMcpServerCatalogResponse =
-  GetMcpServerApiMcpServerCatalogResponses[keyof GetMcpServerApiMcpServerCatalogResponses];
-
-export type PostMcpServerApiMcpServerCatalogInstallData = {
+export type PostMcpServerApiMcpServerInstallData = {
   body: {
     mcp_connector_id: string;
   };
   path?: never;
   query?: never;
-  url: '/mcpServer/api/mcp_server/catalog/install';
+  url: '/mcpServer/api/mcp_server/install';
 };
 
-export type PostMcpServerApiMcpServerCatalogInstallErrors = {
+export type PostMcpServerApiMcpServerInstallErrors = {
   /**
    * Default Response
    */
@@ -256,10 +223,10 @@ export type PostMcpServerApiMcpServerCatalogInstallErrors = {
   };
 };
 
-export type PostMcpServerApiMcpServerCatalogInstallError =
-  PostMcpServerApiMcpServerCatalogInstallErrors[keyof PostMcpServerApiMcpServerCatalogInstallErrors];
+export type PostMcpServerApiMcpServerInstallError =
+  PostMcpServerApiMcpServerInstallErrors[keyof PostMcpServerApiMcpServerInstallErrors];
 
-export type PostMcpServerApiMcpServerCatalogInstallResponses = {
+export type PostMcpServerApiMcpServerInstallResponses = {
   /**
    * Default Response
    */
@@ -268,47 +235,8 @@ export type PostMcpServerApiMcpServerCatalogInstallResponses = {
   };
 };
 
-export type PostMcpServerApiMcpServerCatalogInstallResponse =
-  PostMcpServerApiMcpServerCatalogInstallResponses[keyof PostMcpServerApiMcpServerCatalogInstallResponses];
-
-export type PostMcpServerApiMcpServerStartOauthData = {
-  body: {
-    mcp_connector_id: string;
-  };
-  path?: never;
-  query?: never;
-  url: '/mcpServer/api/mcp_server/start_oauth';
-};
-
-export type PostMcpServerApiMcpServerStartOauthErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error?: string;
-  };
-};
-
-export type PostMcpServerApiMcpServerStartOauthError =
-  PostMcpServerApiMcpServerStartOauthErrors[keyof PostMcpServerApiMcpServerStartOauthErrors];
-
-export type PostMcpServerApiMcpServerStartOauthResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    auth_url?: string;
-  };
-};
-
-export type PostMcpServerApiMcpServerStartOauthResponse =
-  PostMcpServerApiMcpServerStartOauthResponses[keyof PostMcpServerApiMcpServerStartOauthResponses];
+export type PostMcpServerApiMcpServerInstallResponse =
+  PostMcpServerApiMcpServerInstallResponses[keyof PostMcpServerApiMcpServerInstallResponses];
 
 export type DeleteMcpServerApiMcpServerByMcpServerNameData = {
   body?: never;
@@ -349,215 +277,44 @@ export type DeleteMcpServerApiMcpServerByMcpServerNameResponses = {
 export type DeleteMcpServerApiMcpServerByMcpServerNameResponse =
   DeleteMcpServerApiMcpServerByMcpServerNameResponses[keyof DeleteMcpServerApiMcpServerByMcpServerNameResponses];
 
-export type DeleteOllamaLlmOllamaData = {
-  body?: never;
+export type PostMcpServerApiMcpServerStartOauthData = {
+  body: {
+    mcp_connector_id: string;
+  };
   path?: never;
   query?: never;
-  url: '/ollama/llm/ollama/';
+  url: '/mcpServer/api/mcp_server/start_oauth';
 };
 
-export type DeleteOllamaLlmOllamaResponses = {
+export type PostMcpServerApiMcpServerStartOauthErrors = {
   /**
    * Default Response
    */
-  200: unknown;
-};
-
-export type GetOllamaLlmOllamaData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/ollama/llm/ollama/';
-};
-
-export type GetOllamaLlmOllamaResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
-export type HeadOllamaLlmOllamaData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/ollama/llm/ollama/';
-};
-
-export type HeadOllamaLlmOllamaResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
-export type OptionsOllamaLlmOllamaData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/ollama/llm/ollama/';
-};
-
-export type OptionsOllamaLlmOllamaResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
-export type PatchOllamaLlmOllamaData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/ollama/llm/ollama/';
-};
-
-export type PatchOllamaLlmOllamaResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
-export type PostOllamaLlmOllamaData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/ollama/llm/ollama/';
-};
-
-export type PostOllamaLlmOllamaResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
-export type PutOllamaLlmOllamaData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/ollama/llm/ollama/';
-};
-
-export type PutOllamaLlmOllamaResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
-export type DeleteOllamaLlmOllamaBy__Data = {
-  body?: never;
-  path: {
-    '*': string;
+  400: {
+    error?: string;
   };
-  query?: never;
-  url: '/ollama/llm/ollama/{*}';
-};
-
-export type DeleteOllamaLlmOllamaBy__Responses = {
   /**
    * Default Response
    */
-  200: unknown;
-};
-
-export type GetOllamaLlmOllamaBy__Data = {
-  body?: never;
-  path: {
-    '*': string;
+  500: {
+    error?: string;
   };
-  query?: never;
-  url: '/ollama/llm/ollama/{*}';
 };
 
-export type GetOllamaLlmOllamaBy__Responses = {
+export type PostMcpServerApiMcpServerStartOauthError =
+  PostMcpServerApiMcpServerStartOauthErrors[keyof PostMcpServerApiMcpServerStartOauthErrors];
+
+export type PostMcpServerApiMcpServerStartOauthResponses = {
   /**
    * Default Response
    */
-  200: unknown;
-};
-
-export type HeadOllamaLlmOllamaBy__Data = {
-  body?: never;
-  path: {
-    '*': string;
+  200: {
+    auth_url?: string;
   };
-  query?: never;
-  url: '/ollama/llm/ollama/{*}';
 };
 
-export type HeadOllamaLlmOllamaBy__Responses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
-export type OptionsOllamaLlmOllamaBy__Data = {
-  body?: never;
-  path: {
-    '*': string;
-  };
-  query?: never;
-  url: '/ollama/llm/ollama/{*}';
-};
-
-export type OptionsOllamaLlmOllamaBy__Responses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
-export type PatchOllamaLlmOllamaBy__Data = {
-  body?: never;
-  path: {
-    '*': string;
-  };
-  query?: never;
-  url: '/ollama/llm/ollama/{*}';
-};
-
-export type PatchOllamaLlmOllamaBy__Responses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
-export type PostOllamaLlmOllamaBy__Data = {
-  body?: never;
-  path: {
-    '*': string;
-  };
-  query?: never;
-  url: '/ollama/llm/ollama/{*}';
-};
-
-export type PostOllamaLlmOllamaBy__Responses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
-export type PutOllamaLlmOllamaBy__Data = {
-  body?: never;
-  path: {
-    '*': string;
-  };
-  query?: never;
-  url: '/ollama/llm/ollama/{*}';
-};
-
-export type PutOllamaLlmOllamaBy__Responses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
+export type PostMcpServerApiMcpServerStartOauthResponse =
+  PostMcpServerApiMcpServerStartOauthResponses[keyof PostMcpServerApiMcpServerStartOauthResponses];
 
 export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});

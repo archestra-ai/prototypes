@@ -6,11 +6,17 @@ interface ToolMessageProps {
 }
 
 export default function ToolMessage({ message }: ToolMessageProps) {
-  // Extract text content from parts
-  const textContent = message.parts
-    .filter((part) => part.type === 'text')
-    .map((part) => (part as { text: string }).text)
-    .join('');
+  // Extract text content from parts if available, otherwise use content
+  let textContent = '';
+
+  if (message.content) {
+    textContent = message.content;
+  } else if (message.parts) {
+    textContent = message.parts
+      .filter((part) => part.type === 'text')
+      .map((part) => (part as { text: string }).text)
+      .join('');
+  }
 
   return (
     <div className="space-y-2">

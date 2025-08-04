@@ -17,7 +17,6 @@ const app = fastify({
 
 app.register(corsPlugin);
 app.register(websocketPlugin);
-
 app.register(chatRoutes);
 app.register(llmRoutes);
 app.register(externalMcpClientRoutes);

@@ -5,6 +5,7 @@ import {
   createChat,
   deleteChat,
   getAllChats,
+  getChatById,
   updateChat,
 } from '@clients/archestra/api/gen';
 import config from '@config';
@@ -13,15 +14,10 @@ import { getDefaultModel } from '@ui/hooks/use-ai-chat-backend';
 import { initializeChat } from '@ui/lib/utils/chat';
 import { websocketService } from '@ui/lib/websocket';
 
-export type LLMProvider = 'ollama' | 'chatgpt' | 'claude';
-
 interface ChatState {
   chats: ChatWithMessages[];
   currentChatSessionId: string | null;
   isLoadingChats: boolean;
-  selectedProvider: LLMProvider;
-  openaiApiKey: string | null;
-  anthropicApiKey: string | null;
   selectedAIModel: string | null;
 }
 
@@ -29,16 +25,12 @@ interface ChatActions {
   // Chat operations
   loadChats: () => Promise<void>;
   createNewChat: () => Promise<ChatWithMessages>;
-  selectChat: (chatId: number) => void;
+  selectChat: (chatId: number) => Promise<void>;
   getCurrentChat: () => ChatWithMessages | null;
   getCurrentChatTitle: () => string;
   deleteCurrentChat: () => Promise<void>;
   updateChatTitle: (chatId: number, title: string) => Promise<void>;
   initializeStore: () => Promise<void>;
-  // Provider operations
-  setSelectedProvider: (provider: LLMProvider) => void;
-  setOpenAIApiKey: (apiKey: string) => void;
-  setAnthropicApiKey: (apiKey: string) => void;
   setSelectedAIModel: (model: string) => void;
 }
 
@@ -61,9 +53,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   chats: [],
   currentChatSessionId: null,
   isLoadingChats: false,
-  selectedProvider: 'ollama',
-  openaiApiKey: null,
-  anthropicApiKey: null,
   selectedAIModel: getDefaultModel('ollama'),
 
   // Actions
@@ -89,11 +78,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   createNewChat: async () => {
     try {
-      const { selectedProvider } = get();
       const response = await createChat({
         body: {
-          llm_provider:
-            selectedProvider === 'chatgpt' ? 'openai' : selectedProvider === 'claude' ? 'anthropic' : 'ollama',
+          llm_provider: 'ollama',
         },
       });
 
@@ -116,10 +103,27 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  selectChat: (chatId: number) => {
-    const chat = get().chats.find((c) => c.id === chatId);
-    if (chat) {
-      set({ currentChatSessionId: chat.session_id });
+  selectChat: async (chatId: number) => {
+    try {
+      // Fetch the chat with its messages from the API
+      const { data } = await getChatById({ path: { id: chatId.toString() } });
+
+      if (data) {
+        const initializedChat = initializeChat(data);
+
+        // Update the chat in the store with the fetched data
+        set((state) => ({
+          chats: state.chats.map((chat) => (chat.id === chatId ? initializedChat : chat)),
+          currentChatSessionId: initializedChat.session_id,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load chat messages:', error);
+      // Fall back to just switching without loading messages
+      const chat = get().chats.find((c) => c.id === chatId);
+      if (chat) {
+        set({ currentChatSessionId: chat.session_id });
+      }
     }
   },
 
@@ -175,32 +179,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     } catch (error) {
       console.error('Failed to establish WebSocket connection:', error);
     }
-  },
-
-  // Provider operations
-  setSelectedProvider: (provider: LLMProvider) => {
-    // Map provider to AI provider key
-    const providerMap = {
-      chatgpt: 'openai',
-      claude: 'anthropic',
-      ollama: 'ollama',
-    } as const;
-
-    const aiProviderKey = providerMap[provider];
-    const defaultModel = getDefaultModel(aiProviderKey);
-
-    set({
-      selectedProvider: provider,
-      selectedAIModel: defaultModel,
-    });
-  },
-
-  setOpenAIApiKey: (apiKey: string) => {
-    set({ openaiApiKey: apiKey });
-  },
-
-  setAnthropicApiKey: (apiKey: string) => {
-    set({ anthropicApiKey: apiKey });
   },
 
   setSelectedAIModel: (model: string) => {
