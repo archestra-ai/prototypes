@@ -1,13 +1,12 @@
 import FastifyHttpProxy from '@fastify/http-proxy';
-import { FastifyInstance } from 'fastify';
+import { FastifyPluginAsync } from 'fastify';
 
-// Default Ollama port - can be overridden by environment variable
-const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
+import config from '@backend/server/config';
 
-export default async function ollamaRoutes(fastify: FastifyInstance) {
+const ollamaRoutes: FastifyPluginAsync = async (fastify) => {
   // Register proxy for all Ollama API routes
-  await fastify.register(FastifyHttpProxy, {
-    upstream: OLLAMA_HOST,
+  fastify.register(FastifyHttpProxy, {
+    upstream: config.ollama.host,
     prefix: '/llm/ollama', // All requests to /llm/ollama/* will be proxied
     rewritePrefix: '', // Remove the /llm/ollama prefix when forwarding
     websocket: false, // Disable WebSocket to avoid conflicts with existing WebSocket plugin
@@ -26,12 +25,14 @@ export default async function ollamaRoutes(fastify: FastifyInstance) {
           .send({
             error: 'Bad Gateway',
             message: 'Failed to connect to Ollama server',
-            details: error.message,
+            details: error.error.message,
           });
       },
     },
   });
 
   // Log proxy registration
-  fastify.log.info(`Ollama proxy registered: /llm/ollama/* -> ${OLLAMA_HOST}/*`);
-}
+  fastify.log.info(`Ollama proxy registered: /llm/ollama/* -> ${config.ollama.host}/*`);
+};
+
+export default ollamaRoutes;

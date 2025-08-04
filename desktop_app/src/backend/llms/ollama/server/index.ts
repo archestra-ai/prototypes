@@ -1,7 +1,7 @@
 import { ChildProcess, spawn } from 'child_process';
 import getPort from 'get-port';
 
-import { getBinaryExecPath } from '@backend/lib/utils/binaries';
+import { getBinaryExecPath } from '@backend/utils/binaries';
 
 export default class OllamaServer {
   private serverProcess: ChildProcess | null = null;

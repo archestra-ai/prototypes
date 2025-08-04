@@ -1,8 +1,8 @@
-import BinaryRunner from '@backend/lib/utils/binaries';
+import BinaryRunner from '@backend/utils/binaries';
 
 import PodmanRuntime from './';
 
-vi.mock('@backend/lib/utils/binaries');
+vi.mock('@backend/utils/binaries');
 
 describe('PodmanRuntime', () => {
   let mockBinaryRunner: any;

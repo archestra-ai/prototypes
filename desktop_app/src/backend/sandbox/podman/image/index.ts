@@ -1,4 +1,4 @@
-import { imageExistsLibpod, imagePullLibpod } from '@backend/lib/clients/libpod/gen/sdk.gen';
+import { imageExistsLibpod, imagePullLibpod } from '@clients/libpod/gen/sdk.gen';
 
 export default class PodmanImage {
   private imageName: string;

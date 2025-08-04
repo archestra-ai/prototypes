@@ -1,6 +1,9 @@
 import fastifyCors from '@fastify/cors';
 import { FastifyPluginAsync } from 'fastify';
 
+/**
+ * Allow requests from the Electron renderer
+ */
 const corsPlugin: FastifyPluginAsync = async (fastify) => {
   await fastify.register(fastifyCors, {
     // Allow all origins in development

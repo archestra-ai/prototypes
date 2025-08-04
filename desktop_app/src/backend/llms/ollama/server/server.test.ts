@@ -5,7 +5,7 @@ import OllamaServer from '.';
 vi.mock('child_process');
 vi.mock('net');
 vi.mock('electron');
-vi.mock('@backend/lib/utils/binaries', () => ({
+vi.mock('@backend/utils/binaries', () => ({
   getBinaryExecPath: vi.fn((binaryName: string) => `/mock/path/${binaryName}`),
   getPlatform: vi.fn(() => 'mock-platform'),
   getArchitecture: vi.fn(() => 'mock-architecture'),

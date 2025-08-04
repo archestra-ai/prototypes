@@ -1,8 +1,8 @@
-import PodmanLibpodApiClient from '@backend/lib/utils/podman';
+import PodmanLibpodApiClient from '@backend/utils/podman';
 
 import PodmanImage from './';
 
-vi.mock('@backend/lib/utils/podman');
+vi.mock('@backend/utils/podman');
 
 describe('PodmanImage', () => {
   let mockApiClient: any;

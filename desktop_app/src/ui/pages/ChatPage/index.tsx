@@ -48,6 +48,13 @@ export default function ChatPage(_props: ChatPageProps) {
     }),
   });
 
+  // Update messages when current chat changes
+  useEffect(() => {
+    if (currentChat?.messages) {
+      setMessages(currentChat.messages);
+    }
+  }, [currentChat?.session_id, currentChat?.messages, setMessages]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setLocalInput(e.target.value);
   };

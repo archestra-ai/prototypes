@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-export const config = {
+export default {
   server: {
     port: parseInt(process.env.PORT || '3456', 10),
     host: process.env.HOST || '127.0.0.1',
@@ -15,4 +15,7 @@ export const config = {
     openaiApiKey: process.env.OPENAI_API_KEY,
     ollamaModel: process.env.OLLAMA_MODEL || 'llama3.2',
   },
-} as const;
+  ollama: {
+    host: process.env.OLLAMA_HOST || 'http://localhost:11434',
+  },
+};

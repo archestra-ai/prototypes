@@ -10,12 +10,14 @@
     "publish": "electron-forge publish",
     "test": "vitest --config vite.main.config.ts",
     "prepare": "cd .. && husky desktop_app/.husky",
-    "prettier": "prettier --write .",
     "db:studio": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/drizzle-kit/bin.cjs studio",
     "db:push": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/drizzle-kit/bin.cjs push",
     "db:generate": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/drizzle-kit/bin.cjs migrate",
-    "codegen:libpod": "openapi-ts --file openapi-ts.libpod.config.ts"
+    "codegen:all": "pnpm codegen:libpod && pnpm codegen:archestra:api && pnpm codegen:archestra:catalog",
+    "codegen:libpod": "openapi-ts --file openapi/libpod/openapi-ts.config.ts",
+    "codegen:archestra:api": "tsx openapi/archestra/api/generate-openapi.ts && prettier --write ./openapi/archestra/api/openapi.json && openapi-ts --file openapi/archestra/api/openapi-ts.config.ts",
+    "codegen:archestra:catalog": "openapi-ts --file openapi/archestra/catalog/openapi-ts.config.ts"
   },
   "packageManager": "pnpm@10.14.0",
   "devDependencies": {
@@ -60,8 +62,10 @@
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/react": "^2.0.0",
     "@fastify/compress": "^8.1.0",
+    "@fastify/autoload": "^6.3.1",
     "@fastify/cors": "^11.1.0",
     "@fastify/http-proxy": "^11.3.0",
+    "@fastify/swagger": "^9.5.1",
     "@fastify/websocket": "^11.2.0",
     "@hookform/resolvers": "^5.2.1",
     "@icons-pack/react-simple-icons": "^13.7.0",
