@@ -79,6 +79,13 @@ export const getAllChats = <ThrowOnError extends boolean = false>(options?: Opti
   });
 };
 
+export const getChatById = <ThrowOnError extends boolean = false>(options: Options<GetChatByIdData, ThrowOnError>) => {
+  return (options.client ?? _heyApiClient).get<GetChatByIdResponses, GetChatByIdErrors, ThrowOnError>({
+    url: '/api/chat/{id}',
+    ...options,
+  });
+};
+
 export const createChat = <ThrowOnError extends boolean = false>(options: Options<CreateChatData, ThrowOnError>) => {
   return (options.client ?? _heyApiClient).post<CreateChatResponses, CreateChatErrors, ThrowOnError>({
     url: '/api/chat',

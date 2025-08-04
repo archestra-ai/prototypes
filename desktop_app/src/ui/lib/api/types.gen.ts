@@ -238,6 +238,48 @@ export type CreateChatResponses = {
 
 export type CreateChatResponse = CreateChatResponses[keyof CreateChatResponses];
 
+export type GetChatByIdData = {
+  body?: never;
+  path: {
+    /**
+     * Chat ID
+     */
+    id: string;
+  };
+  query?: never;
+  url: '/api/chat/{id}';
+};
+
+export type GetChatByIdErrors = {
+  /**
+   * Invalid chat ID
+   */
+  400: {
+    error?: string;
+  };
+  /**
+   * Chat not found
+   */
+  404: {
+    error?: string;
+  };
+  /**
+   * Internal server error
+   */
+  500: {
+    error?: string;
+  };
+};
+
+export type GetChatByIdResponses = {
+  /**
+   * Successful response
+   */
+  200: ChatWithMessages;
+};
+
+export type GetChatByIdResponse = GetChatByIdResponses[keyof GetChatByIdResponses];
+
 export type DeleteChatData = {
   body?: never;
   path: {

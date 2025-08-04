@@ -7,6 +7,7 @@ import {
   createChat,
   deleteChat,
   getAllChats,
+  getChatById,
   updateChat,
 } from '@ui/lib/api-client';
 import { initializeChat } from '@ui/lib/utils/chat';
@@ -29,7 +30,7 @@ interface ChatActions {
   // Chat operations
   loadChats: () => Promise<void>;
   createNewChat: () => Promise<ChatWithMessages>;
-  selectChat: (chatId: number) => void;
+  selectChat: (chatId: number) => Promise<void>;
   getCurrentChat: () => ChatWithMessages | null;
   getCurrentChatTitle: () => string;
   deleteCurrentChat: () => Promise<void>;
@@ -116,10 +117,29 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  selectChat: (chatId: number) => {
-    const chat = get().chats.find((c) => c.id === chatId);
-    if (chat) {
-      set({ currentChatSessionId: chat.session_id });
+  selectChat: async (chatId: number) => {
+    try {
+      // Fetch the chat with its messages from the API
+      const { data } = await getChatById({ path: { id: chatId.toString() } });
+      
+      if (data) {
+        const initializedChat = initializeChat(data);
+        
+        // Update the chat in the store with the fetched data
+        set((state) => ({
+          chats: state.chats.map((chat) => 
+            chat.id === chatId ? initializedChat : chat
+          ),
+          currentChatSessionId: initializedChat.session_id,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load chat messages:', error);
+      // Fall back to just switching without loading messages
+      const chat = get().chats.find((c) => c.id === chatId);
+      if (chat) {
+        set({ currentChatSessionId: chat.session_id });
+      }
     }
   },
 
