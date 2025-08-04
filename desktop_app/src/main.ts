@@ -63,7 +63,9 @@ function startFastifyServer(ollamaPort: number | null): void {
   }
 
   // Fork creates a new Node.js process that can communicate with the parent
-  serverProcess = fork(serverPath, [], {
+  // pass --transpileOnly (disable type checking) to increase startup speed
+  // https://github.com/fastify/fastify/discussions/3795#discussioncomment-4690921
+  serverProcess = fork(serverPath, ['--transpileOnly'], {
     env: {
       ...process.env,
       // CRITICAL: This flag tells Electron to run this process as pure Node.js
