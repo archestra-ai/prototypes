@@ -1,6 +1,5 @@
 import fastify from 'fastify';
 
-import config from '@backend/server/config';
 import chatRoutes from '@backend/server/plugins/chat';
 import corsPlugin from '@backend/server/plugins/cors';
 import externalMcpClientRoutes from '@backend/server/plugins/externalMcpClient';
@@ -8,9 +7,10 @@ import llmRoutes from '@backend/server/plugins/llm';
 import mcpServerRoutes from '@backend/server/plugins/mcpServer';
 import ollamaRoutes from '@backend/server/plugins/ollama';
 import websocketPlugin from '@backend/server/plugins/websocket';
+import config from '@config';
 
 const app = fastify({
-  logger: config.logger,
+  logger: config.server.logger,
   // Note: prettyPrint was removed from config as it's no longer supported
   // Use pino-pretty package if pretty logging is needed in development
 });

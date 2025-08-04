@@ -19,11 +19,11 @@
     */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
       "@backend/*": ["src/backend/*"],
-      "@ui/*": ["src/ui/*"],
       "@clients/*": ["src/clients/*"],
-      "@types": ["src/types"]
+      "@config": ["src/config"],
+      "@types": ["src/types"],
+      "@ui/*": ["src/ui/*"]
     }
   }
 }
