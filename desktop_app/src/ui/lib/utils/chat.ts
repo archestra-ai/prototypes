@@ -1,5 +1,5 @@
 import type { ChatWithMessages as ServerChatWithMessages, ToolCall as ServerToolCall } from '@ui/lib/api-client';
-import { type ChatMessage, type ChatWithMessages, type ToolCall, ToolCallStatus } from '@ui/types';
+import { type ChatWithMessages, type ToolCall, ToolCallStatus } from '@ui/types';
 
 import { convertArchestraToolNameToServerAndToolName } from './tools';
 
@@ -25,16 +25,6 @@ export function checkModelSupportsTools(model: string): boolean {
 
 export function addCancellationText(content: string): string {
   return content.includes('[Cancelled]') ? content : content + ' [Cancelled]';
-}
-
-export function markChatMessageAsCancelled(message: ChatMessage): ChatMessage {
-  return {
-    ...message,
-    isStreaming: false,
-    isToolExecuting: false,
-    isThinkingStreaming: false,
-    content: addCancellationText(message.content),
-  };
 }
 
 export function parseThinkingContent(content: string): ParsedContent {
@@ -109,7 +99,7 @@ export const initializeChat = (chat: ServerChatWithMessages): ChatWithMessages =
       return {
         ...message,
         id: generateNewMessageId(),
-        // toolCalls: initializeToolCalls(message.tool_calls),
+        toolCalls: initializeToolCalls(message.tool_calls || []),
         content: response,
         thinkingContent: thinking,
         isStreaming: false,

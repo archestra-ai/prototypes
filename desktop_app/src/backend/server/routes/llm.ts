@@ -1,5 +1,5 @@
 import { createOpenAI, openai } from '@ai-sdk/openai';
-import { convertToModelMessages, readUIMessageStream, streamText, createUIMessageStreamResponse } from 'ai';
+import { convertToModelMessages, createUIMessageStreamResponse, readUIMessageStream, streamText } from 'ai';
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { createOllama } from 'ollama-ai-provider-v2';
 
@@ -58,7 +58,7 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
         );
 
         // console.log('LLM STREAMING4', result.toUIMessageStreamResponse());
-        
+
         let textStream1 = result.textStream;
         return createUIMessageStreamResponse({ result });
 

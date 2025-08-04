@@ -5,8 +5,9 @@ interface UserMessageProps {
 }
 
 export default function UserMessage({ message }: UserMessageProps) {
-  // Extract text content from parts
-  const textContent = message.parts
+  // Extract text content from parts if available, otherwise use content
+
+  let textContent = message.parts
     .filter((part) => part.type === 'text')
     .map((part) => (part as { text: string }).text)
     .join('');
