@@ -1,3 +1,4 @@
+use crate::credibility::PromptCredibilityService;
 use crate::gateway::websocket::{
     ChatTitleUpdatedWebSocketPayload, Service as WebSocketService, WebSocketMessage,
 };
@@ -134,11 +135,7 @@ impl Service {
         }
     }
 
-    async fn generate_chat_title(
-        &self,
-        chat_session_id: String,
-        chat_model: String,
-    ) -> Result<(), String> {
+    async fn generate_chat_title(&self, chat_session_id: String) -> Result<(), String> {
         let chat = Chat::load_by_session_id(chat_session_id.clone(), &self.db)
             .await
             .map_err(|_| "Failed to load chat".to_string())?
@@ -159,12 +156,8 @@ impl Service {
         }
 
         let chat_id = chat.id;
-        match self
-            .ollama_client
-            .generate_title(&chat_model, full_chat_context)
-            .await
-        {
-            Ok(title) => {
+        match self.ollama_client.generate_title(full_chat_context).await {
+            Ok(Some(title)) => {
                 debug!("Generated title: {title}");
                 // Update chat title
                 if chat
@@ -184,6 +177,10 @@ impl Service {
                 } else {
                     Err("Failed to update chat title in database".to_string())
                 }
+            }
+            Ok(None) => {
+                debug!("Title generation skipped - model not available");
+                Ok(())
             }
             Err(e) => {
                 error!("Failed to generate chat title: {e}");
@@ -230,6 +227,62 @@ impl Service {
 
         // Extract model name before moving ollama_request
         let model_name = ollama_request.model_name.clone();
+
+        // Check prompt credibility before processing
+        if let Some(last_msg) = ollama_request.messages.last() {
+            let prompt_service = PromptCredibilityService::new();
+            match prompt_service
+                .evaluate_prompt_credibility(last_msg.content.clone())
+                .await
+            {
+                Ok(Some(evaluation)) => {
+                    if !evaluation.credible {
+                        // Return a warning message to the client
+                        let warning_response = ChatMessageResponse {
+                            model: model_name.clone(),
+                            created_at: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string(),
+                            message: OllamaChatMessage {
+                                role: ollama_rs::generation::chat::MessageRole::Assistant,
+                                content: format!(
+                                    "⚠️ Your prompt was flagged as potentially non-credible. Reason: {}. Please rephrase your request.",
+                                    evaluation.reason
+                                ),
+                                thinking: None,
+                                tool_calls: None,
+                                images: None,
+                            },
+                            done: true,
+                            done_reason: Some("credibility_check_failed".to_string()),
+                            total_duration: Some(0),
+                            load_duration: None,
+                            prompt_eval_count: None,
+                            prompt_eval_duration: None,
+                            eval_count: None,
+                            eval_duration: None,
+                        };
+
+                        let json_response = serde_json::to_string(&warning_response)
+                            .unwrap_or_else(|_| {
+                                r#"{"error": "Failed to serialize response"}"#.to_string()
+                            });
+
+                        return Ok(Response::builder()
+                            .status(StatusCode::OK)
+                            .header("content-type", "application/x-ndjson")
+                            .body(Body::from(format!("{}\n", json_response)))
+                            .unwrap());
+                    }
+                }
+                Ok(None) => {
+                    // Guard model not available, continue processing
+                    debug!("Prompt credibility check skipped - guard model not available");
+                }
+                Err(e) => {
+                    // Log error but continue processing
+                    error!("Failed to evaluate prompt credibility: {e}");
+                }
+            }
+        }
 
         // Persist the chat message
         if let Some(last_msg) = ollama_request.messages.last() {
@@ -318,12 +371,8 @@ impl Service {
                                         ollama_client: ollama_client.clone(),
                                         ws_service: ws_service.clone(),
                                     };
-                                    let _ = service
-                                        .generate_chat_title(
-                                            chat_session_id.clone(),
-                                            model_name.clone(),
-                                        )
-                                        .await;
+                                    let _ =
+                                        service.generate_chat_title(chat_session_id.clone()).await;
                                 }
                             }
                         }
@@ -699,7 +748,7 @@ mod tests {
         let service = Service::new(db, _ws_service);
 
         let result = service
-            .generate_chat_title("non-existent-session".to_string(), "llama3.2".to_string())
+            .generate_chat_title("non-existent-session".to_string())
             .await;
 
         assert!(result.is_err());

@@ -7,7 +7,12 @@ use tauri_plugin_shell::{process::CommandChild, ShellExt};
 use tokio::sync::Mutex;
 use tracing::{error, info};
 
+use crate::ollama::client::OllamaClient;
+
 pub const FALLBACK_OLLAMA_SERVER_PORT: u16 = 54588;
+
+// List of required Ollama models that must be downloaded
+pub const REQUIRED_OLLAMA_MODELS: &[&str] = &["llama-guard3:1b", "qwen3:1.7b"];
 
 // Store the allocated port
 static ALLOCATED_PORT: AtomicU16 = AtomicU16::new(0);
@@ -28,6 +33,64 @@ impl Service {
         let _ = APP_HANDLE.set(app_handle.clone());
 
         Self { app_handle }
+    }
+
+    pub async fn ensure_required_models_are_downloaded(&self) -> Result<(), String> {
+        let ollama_client = OllamaClient::new();
+        let mut download_tasks = Vec::new();
+
+        info!("Checking required Ollama models...");
+
+        for model in REQUIRED_OLLAMA_MODELS {
+            let model_name = (*model).to_string();
+            let is_available = ollama_client
+                .model_is_available(&model_name)
+                .await
+                .unwrap_or(false);
+
+            if !is_available {
+                info!("Model '{}' is not available, downloading...", model_name);
+                let client = ollama_client.clone();
+                let model_clone = model_name.clone();
+
+                let download_task = tokio::spawn(async move {
+                    match client.download_model(&model_clone).await {
+                        Ok(_) => {
+                            info!("✅ Successfully downloaded model: {}", model_clone);
+                            Ok(())
+                        }
+                        Err(e) => {
+                            error!("❌ Failed to download model '{}': {}", model_clone, e);
+                            Err(format!("Failed to download model '{}': {}", model_clone, e))
+                        }
+                    }
+                });
+
+                download_tasks.push(download_task);
+            } else {
+                info!("✅ Model '{}' is already available", model_name);
+            }
+        }
+
+        // Wait for all download tasks to complete
+        let results = futures::future::join_all(download_tasks).await;
+
+        // Check if any downloads failed
+        for result in results {
+            match result {
+                Ok(inner_result) => {
+                    if let Err(e) = inner_result {
+                        return Err(e);
+                    }
+                }
+                Err(e) => {
+                    return Err(format!("Task join error: {}", e));
+                }
+            }
+        }
+
+        info!("✅ All required models are available");
+        Ok(())
     }
 
     pub async fn start_server_on_startup(&self) -> Result<(), String> {
