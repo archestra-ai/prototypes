@@ -36,6 +36,10 @@ export default function ChatPage(_props: ChatPageProps) {
   const { sendMessage, messages, setMessages } = useChat({
     id: currentChat?.session_id, // use the provided chat ID
     initialMessages: currentChat?.messages || [],
+    onData: (dataPart) => {
+      // Handle all data parts as they arrive (including transient parts)
+      console.log('Received data part:', dataPart);
+    },
     transport: new DefaultChatTransport({
       api: '/api/llm/stream',
       body: {

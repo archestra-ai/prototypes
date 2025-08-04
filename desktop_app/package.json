@@ -97,6 +97,7 @@
     "lucide-react": "^0.536.0",
     "ollama": "^0.5.16",
     "ollama-ai-provider": "^1.2.0",
+    "ollama-ai-provider-v2": "1.0.0-alpha.3",
     "prettier-plugin-sort-imports": "^1.8.8",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

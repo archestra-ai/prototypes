@@ -4,6 +4,8 @@ import { streamText } from 'ai';
 import { createOllama } from 'ollama-ai-provider';
 import { useCallback, useRef, useState } from 'react';
 
+import { ARCHESTRA_SERVER_OLLAMA_PROXY_URL } from '@ui/consts';
+
 interface Message {
   id?: string;
   role: 'user' | 'assistant';
@@ -76,7 +78,7 @@ export const AI_PROVIDERS: Record<string, AIProviderConfig> = {
     apiKeyEnvVar: '',
     createProvider: () =>
       createOllama({
-        baseURL: 'http://localhost:54587/llm/ollama/api',
+        baseURL: `${ARCHESTRA_SERVER_OLLAMA_PROXY_URL}/api`,
       }),
   },
 };
