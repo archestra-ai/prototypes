@@ -6,7 +6,7 @@ import config from '@config';
 const ollamaRoutes: FastifyPluginAsync = async (fastify) => {
   // Register proxy for all Ollama API routes
   fastify.register(FastifyHttpProxy, {
-    upstream: config.ollama.host,
+    upstream: config.ollama.server.host,
     prefix: '/llm/ollama', // All requests to /llm/ollama/* will be proxied
     rewritePrefix: '', // Remove the /llm/ollama prefix when forwarding
     websocket: false, // Disable WebSocket to avoid conflicts with existing WebSocket plugin
@@ -29,10 +29,11 @@ const ollamaRoutes: FastifyPluginAsync = async (fastify) => {
           });
       },
     },
+    httpMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
   });
 
   // Log proxy registration
-  fastify.log.info(`Ollama proxy registered: /llm/ollama/* -> ${config.ollama.host}/*`);
+  fastify.log.info(`Ollama proxy registered: /llm/ollama/* -> ${config.ollama.server.host}/*`);
 };
 
 export default ollamaRoutes;
