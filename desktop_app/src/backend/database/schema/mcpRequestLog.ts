@@ -15,5 +15,7 @@ export const mcpRequestLogs = sqliteTable('mcp_request_logs', {
   statusCode: integer('status_code').notNull(),
   errorMessage: text('error_message'),
   durationMs: integer('duration_ms'),
-  timestamp: text('timestamp').notNull().$defaultFn(() => new Date().toISOString()),
+  timestamp: text('timestamp')
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
 });

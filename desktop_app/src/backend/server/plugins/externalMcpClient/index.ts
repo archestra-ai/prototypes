@@ -15,65 +15,77 @@ const externalMcpClientRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Get all connected external MCP clients
    */
-  fastify.get('/api/external_mcp_client', {
-    schema: {
-      operationId: 'getConnectedExternalMcpClients',
-      description: 'Get all connected external MCP clients',
-      tags: ['External MCP Client'],
+  fastify.get(
+    '/api/external_mcp_client',
+    {
+      schema: {
+        operationId: 'getConnectedExternalMcpClients',
+        description: 'Get all connected external MCP clients',
+        tags: ['External MCP Client'],
+      },
     },
-  }, async (request, reply) => {
-    try {
-      const clients = await ExternalMcpClient.getConnectedExternalMcpClients();
-      return reply.send(clients);
-    } catch (error) {
-      console.error('Failed to get connected external MCP clients:', error);
-      return reply.code(500).send({ error: 'Internal server error' });
+    async (request, reply) => {
+      try {
+        const clients = await ExternalMcpClient.getConnectedExternalMcpClients();
+        return reply.send(clients);
+      } catch (error) {
+        console.error('Failed to get connected external MCP clients:', error);
+        return reply.code(500).send({ error: 'Internal server error' });
+      }
     }
-  });
+  );
 
   /**
    * Get supported external MCP client names
    */
-  fastify.get('/api/external_mcp_client/supported', {
-    schema: {
-      operationId: 'getSupportedExternalMcpClients',
-      description: 'Get supported external MCP client names',
-      tags: ['External MCP Client'],
+  fastify.get(
+    '/api/external_mcp_client/supported',
+    {
+      schema: {
+        operationId: 'getSupportedExternalMcpClients',
+        description: 'Get supported external MCP client names',
+        tags: ['External MCP Client'],
+      },
     },
-  }, async (request, reply) => {
-    try {
-      const supportedClients = ExternalMcpClient.getSupportedExternalMcpClients();
-      return reply.send(supportedClients);
-    } catch (error) {
-      console.error('Failed to get supported external MCP clients:', error);
-      return reply.code(500).send({ error: 'Internal server error' });
+    async (request, reply) => {
+      try {
+        const supportedClients = ExternalMcpClient.getSupportedExternalMcpClients();
+        return reply.send(supportedClients);
+      } catch (error) {
+        console.error('Failed to get supported external MCP clients:', error);
+        return reply.code(500).send({ error: 'Internal server error' });
+      }
     }
-  });
+  );
 
   /**
    * Connect an external MCP client
    */
-  fastify.post<{ Body: ConnectRequestBody }>('/api/external_mcp_client/connect', {
-    schema: {
-      operationId: 'connectExternalMcpClient',
-      description: 'Connect an external MCP client',
-      tags: ['External MCP Client'],
+  fastify.post<{ Body: ConnectRequestBody }>(
+    '/api/external_mcp_client/connect',
+    {
+      schema: {
+        operationId: 'connectExternalMcpClient',
+        description: 'Connect an external MCP client',
+        tags: ['External MCP Client'],
+      },
     },
-  }, async (request, reply) => {
-    try {
-      const { client_name } = request.body;
+    async (request, reply) => {
+      try {
+        const { client_name } = request.body;
 
-      if (!Object.values(ExternalMcpClientName).includes(client_name)) {
-        return reply.code(400).send({ error: 'Invalid client name' });
+        if (!Object.values(ExternalMcpClientName).includes(client_name)) {
+          return reply.code(400).send({ error: 'Invalid client name' });
+        }
+
+        await ExternalMcpClient.connectExternalMcpClient(client_name);
+        return reply.code(200).send({ success: true });
+      } catch (error) {
+        console.error('Failed to connect external MCP client:', error);
+        return reply.code(500).send({ error: 'Internal server error' });
       }
-
-      await ExternalMcpClient.connectExternalMcpClient(client_name);
-      return reply.code(200).send({ success: true });
-    } catch (error) {
-      console.error('Failed to connect external MCP client:', error);
-      return reply.code(500).send({ error: 'Internal server error' });
     }
-  });
+  );
 
   /**
    * Disconnect an external MCP client
