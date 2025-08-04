@@ -42,30 +42,31 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
         });
 
         // There is a bug with toUIMessageStreamResponse and ollama provider
-        // se we send sse stream manually, otherwise we could use:
-        return reply.send(
-          result.toUIMessageStreamResponse({
-            originalMessages: messages,
-            onFinish: ({ messages: finalMessages }) => {
-              console.log('FINAL MESSAGES', finalMessages);
-              console.log('Session', sessionId);
-              if (sessionId) {
-                chatService.saveMessages(sessionId, finalMessages);
-              }
-            },
-          })
-        );
-        // let messageId = generateId();
-        // reply.raw.write(`data: {"type":"start"} \n\n`);
-        // reply.raw.write(`data: {"type":"start-step"}\n\n`);
-        // reply.raw.write(`data: ${JSON.stringify({ type: 'text-start', id: messageId })}\n\n`);
-        // for await (const chunk of result.textStream) {
-        //   reply.raw.write(`data: ${JSON.stringify({ type: 'text-delta', id: messageId, delta: chunk })}\n\n`);
-        // }
-        // reply.raw.write(`data: ${JSON.stringify({ type: 'end', id: messageId })}\n\n`);
-        // reply.raw.write(`data: [DONE]\n\n`);
-        // reply.raw.end();
-
+        // it cannot parse the response and it throws an error
+        // TypeError: Cannot read properties of undefined (reading 'text')
+        // so we send sse stream manually, otherwise we could use:
+        // return reply.send(
+        //   result.toUIMessageStreamResponse({
+        //     originalMessages: messages,
+        //     onFinish: ({ messages: finalMessages }) => {
+        //       console.log('FINAL MESSAGES', finalMessages);
+        //       console.log('Session', sessionId);
+        //       if (sessionId) {
+        //         chatService.saveMessages(sessionId, finalMessages);
+        //       }
+        //     },
+        //   })
+        // );
+        let messageId = generateId();
+        reply.raw.write(`data: {"type":"start"} \n\n`);
+        reply.raw.write(`data: {"type":"start-step"}\n\n`);
+        reply.raw.write(`data: ${JSON.stringify({ type: 'text-start', id: messageId })}\n\n`);
+        for await (const chunk of result.textStream) {
+          reply.raw.write(`data: ${JSON.stringify({ type: 'text-delta', id: messageId, delta: chunk })}\n\n`);
+        }
+        reply.raw.write(`data: ${JSON.stringify({ type: 'end', id: messageId })}\n\n`);
+        reply.raw.write(`data: [DONE]\n\n`);
+        reply.raw.end();
       } catch (error) {
         fastify.log.error('LLM streaming error:', error);
         return reply.code(500).send({
