@@ -35,30 +35,35 @@ export default function ChatPage(_props: ChatPageProps) {
 
   const { sendMessage, messages, setMessages, stop, isLoading, error } = useChat({
     id: currentChat?.session_id, // use the provided chat ID
-    // api: 'http://localhost:3456/api/llm/stream',
-    body: {
-      provider: 'openai', // Using OpenAI for now
-      model: model || 'gpt-4o',
-      sessionId: currentChat?.session_id,
-    },
-    onError: (error) => {
-      console.error('useChat error:', error);
-    },
     transport: new DefaultChatTransport({
       api: '/api/llm/stream',
       body: {
+        provider: 'openai', // Using OpenAI for now
+        model: model || 'gpt-4o',
         sessionId: currentChat?.session_id,
       },
+      fetch: async (input, init) => {
+        // Override fetch to use the correct backend URL
+        const url = typeof input === 'string' ? input : input.url;
+        const fullUrl = url.startsWith('http') ? url : `http://localhost:3456${url}`;
+        return fetch(fullUrl, init);
+      },
     }),
+    onError: (error) => {
+      console.error('useChat error:', error);
+    },
     onFinish: (message) => {
       console.log('Message finished:', message);
       console.log('Full message object:', JSON.stringify(message, null, 2));
-      if (message.getDynamicToolInvocations() && message.toolInvocations.length > 0) {
+      
+      // Check for dynamic tool invocations
+      if (message.toolInvocations && message.toolInvocations.length > 0) {
         console.log('🔧 Tool invocations found:', message.toolInvocations);
         message.toolInvocations.forEach((tool, index) => {
           console.log(`  Tool ${index + 1}: ${tool.toolName}`);
           console.log(`    Args:`, tool.args);
           console.log(`    Result:`, tool.result);
+          console.log(`    State:`, tool.state);
         });
       } else {
         console.log('No tool invocations in message');
