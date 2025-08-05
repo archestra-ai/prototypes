@@ -54,7 +54,7 @@ jobs:
           context: ./mcp_server_docker_image
           file: ./mcp_server_docker_image/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ inputs.push_to_gcr }}
+          push: ${{ inputs.push_to_gcr == 'true' }}
           tags: |
             europe-west1-docker.pkg.dev/friendly-path-465518-r6/archestra-public/mcp-server-base:${{ inputs.version }}
             europe-west1-docker.pkg.dev/friendly-path-465518-r6/archestra-public/mcp-server-base:latest
