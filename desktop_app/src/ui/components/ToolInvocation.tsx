@@ -47,7 +47,7 @@ export default function ToolInvocation({
     }
   };
 
-  const isConfirmationTool = toolName === 'askForConfirmation' && state === 'requires-action';
+  const isRequiresAction = state === 'requires-action';
 
   return (
     <div className={cn(
@@ -108,8 +108,8 @@ export default function ToolInvocation({
             </div>
           )}
           
-          {/* Confirmation buttons for tools requiring user action */}
-          {isConfirmationTool && toolCallId && onAddToolResult && (
+          {/* Action buttons for tools requiring user input */}
+          {isRequiresAction && toolCallId && onAddToolResult && (
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => onAddToolResult({ 

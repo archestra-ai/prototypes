@@ -41,10 +41,7 @@ export default function AssistantMessage({ message, onAddToolResult }: Assistant
               toolName={tool.toolName}
               args={tool.input || tool.args || {}}
               result={tool.output || tool.result}
-              state={tool.state === 'output-available' ? 'completed' : 
-                     tool.state === 'output-error' ? 'error' : 
-                     tool.state === 'input-streaming' ? 'pending' : 
-                     tool.state === 'requires-action' ? 'requires-action' : 'pending'}
+              state='requires-action'
               startTime={tool.startTime}
               endTime={tool.endTime}
               onAddToolResult={onAddToolResult ? (params: any) => {
