@@ -68,7 +68,6 @@
     "@fastify/cors": "^11.1.0",
     "@fastify/http-proxy": "^11.3.0",
     "@fastify/swagger": "^9.5.1",
-    "@fastify/websocket": "^11.2.0",
     "@hookform/resolvers": "^5.2.1",
     "@icons-pack/react-simple-icons": "^13.7.0",
     "@modelcontextprotocol/sdk": "^1.17.1",
@@ -119,6 +118,7 @@
     "tw-animate-css": "^1.3.6",
     "undici": "^7.13.0",
     "utf-8-validate": "^6.0.5",
+    "ws": "^8.18.3",
     "zod": "^3.25.76",
     "zod-to-json-schema": "^3.24.6",
     "zustand": "^5.0.7"

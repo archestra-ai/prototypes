@@ -7,8 +7,13 @@ const ARCHESTRA_API_SERVER_HOST = process.env.HOST || '127.0.0.1';
 
 export default {
   server: {
-    port: ARCHESTRA_API_SERVER_PORT,
-    host: ARCHESTRA_API_SERVER_HOST,
+    http: {
+      port: ARCHESTRA_API_SERVER_PORT,
+      host: ARCHESTRA_API_SERVER_HOST,
+    },
+    websocket: {
+      port: parseInt(process.env.ARCHESTRA_WEBSOCKET_PORT || '3457', 10),
+    },
   },
   ai: {
     defaultProvider: process.env.DEFAULT_AI_PROVIDER || 'openai',

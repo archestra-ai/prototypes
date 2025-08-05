@@ -9,7 +9,6 @@ import mcpRequestLogRoutes from '@backend/server/plugins/mcpRequestLog';
 import mcpServerRoutes from '@backend/server/plugins/mcpServer';
 import ollamaRoutes from '@backend/server/plugins/ollama';
 import sandboxRoutes from '@backend/server/plugins/sandbox';
-import websocketPlugin from '@backend/server/plugins/websocket';
 
 const app = fastify({
   logger: {
@@ -34,7 +33,6 @@ app.register(cors, {
   // Cache preflight response for 1 hour
   maxAge: 3600,
 });
-app.register(websocketPlugin);
 app.register(chatRoutes);
 app.register(llmRoutes);
 app.register(externalMcpClientRoutes);
@@ -44,12 +42,12 @@ app.register(ollamaRoutes);
 app.register(sandboxRoutes);
 
 export const startServer = async () => {
-  const { port, host } = config.server;
+  const { http } = config.server;
 
   // Start the Fastify server
   try {
-    await app.listen({ port, host });
-    app.log.info(`Fastify server running on port ${port}`);
+    await app.listen({ port: http.port, host: http.host });
+    app.log.info(`Fastify server running on port ${http.port}`);
   } catch (err) {
     app.log.error(err);
     // Exit with error code to signal failure to parent process

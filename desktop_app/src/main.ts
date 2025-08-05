@@ -7,6 +7,7 @@ import path from 'node:path';
 import { runDatabaseMigrations } from '@backend/database';
 import { OllamaServer } from '@backend/llms/ollama';
 import { McpServerSandboxManager } from '@backend/sandbox';
+import WebSocketServer from '@backend/websocket';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -98,6 +99,9 @@ function startFastifyServer(ollamaPort: number | null): void {
 app.on('ready', async () => {
   await runDatabaseMigrations();
 
+  // Start the WebSocket server
+  WebSocketServer.start();
+
   ollamaServer = new OllamaServer();
   await ollamaServer.startServer();
 
@@ -154,6 +158,9 @@ app.on('before-quit', async (event) => {
   if (serverProcess || ollamaServer) {
     event.preventDefault();
 
+    // Stop the WebSocket server
+    WebSocketServer.stop();
+
     // Stop Ollama server
     if (ollamaServer) {
       try {
@@ -200,6 +207,9 @@ process.on('exit', async () => {
   if (serverProcess) {
     serverProcess.kill('SIGKILL');
   }
+
+  // Stop the WebSocket server
+  WebSocketServer.stop();
 
   if (ollamaServer) {
     await ollamaServer.stopServer();

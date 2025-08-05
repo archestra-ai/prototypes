@@ -19,11 +19,12 @@ export default defineConfig({
     },
   },
   server: {
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:3456',
-        changeOrigin: true,
-      },
-    },
+    // NOTE: do we actually need this? Things seem to be working without it
+    // proxy: {
+    //   '/api': {
+    //     target: 'http://127.0.0.1:3456',
+    //     changeOrigin: true,
+    //   },
+    // },
   },
 });
