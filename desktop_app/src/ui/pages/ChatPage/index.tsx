@@ -33,7 +33,7 @@ export default function ChatPage(_props: ChatPageProps) {
   console.log('Current chat session ID:', currentChat?.session_id);
   console.log('Selected AI Model:', model);
 
-  const { sendMessage, messages, setMessages, stop, isLoading, error } = useChat({
+  const { sendMessage, messages, setMessages, stop, isLoading, error, addToolResult } = useChat({
     id: currentChat?.session_id, // use the provided chat ID
     transport: new DefaultChatTransport({
       api: '/api/llm/stream',
@@ -114,7 +114,7 @@ export default function ChatPage(_props: ChatPageProps) {
   return (
     <div className="flex flex-col h-full gap-2 max-w-full overflow-hidden">
       <div className="flex-1 min-h-0 overflow-hidden max-w-full">
-        <ChatHistory messages={messages} />
+        <ChatHistory messages={messages} onAddToolResult={addToolResult} />
       </div>
       <SystemPrompt />
       <div className="flex-shrink-0">

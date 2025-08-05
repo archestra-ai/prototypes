@@ -5,20 +5,24 @@ import { cn } from '@ui/lib/utils/tailwind';
 
 interface ToolInvocationProps {
   toolName: string;
+  toolCallId?: string;
   args: any;
   result?: any;
-  state?: 'pending' | 'completed' | 'error';
+  state?: 'pending' | 'completed' | 'error' | 'requires-action';
   startTime?: number;
   endTime?: number;
+  onAddToolResult?: (params: { toolCallId: string; result: string }) => void;
 }
 
 export default function ToolInvocation({ 
-  toolName, 
+  toolName,
+  toolCallId,
   args, 
   result, 
   state = 'completed',
   startTime,
-  endTime 
+  endTime,
+  onAddToolResult
 }: ToolInvocationProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   
@@ -43,12 +47,15 @@ export default function ToolInvocation({
     }
   };
 
+  const isConfirmationTool = toolName === 'askForConfirmation' && state === 'requires-action';
+
   return (
     <div className={cn(
       "border rounded-lg overflow-hidden transition-all",
       state === 'pending' && "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20",
       state === 'completed' && "border-green-500 bg-green-50/50 dark:bg-green-950/20",
-      state === 'error' && "border-red-500 bg-red-50/50 dark:bg-red-950/20"
+      state === 'error' && "border-red-500 bg-red-50/50 dark:bg-red-950/20",
+      state === 'requires-action' && "border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
     )}>
       <button
         onClick={() => setIsExpanded(!isExpanded)}
@@ -98,6 +105,30 @@ export default function ToolInvocation({
           {state === 'error' && result && (
             <div className="text-xs text-red-600 dark:text-red-400">
               Error: {result.message || String(result)}
+            </div>
+          )}
+          
+          {/* Confirmation buttons for tools requiring user action */}
+          {isConfirmationTool && toolCallId && onAddToolResult && (
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => onAddToolResult({ 
+                  toolCallId, 
+                  result: 'Yes, confirmed.' 
+                })}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
+              >
+                Yes
+              </button>
+              <button
+                onClick={() => onAddToolResult({ 
+                  toolCallId, 
+                  result: 'No, denied.' 
+                })}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
+              >
+                No
+              </button>
             </div>
           )}
         </div>

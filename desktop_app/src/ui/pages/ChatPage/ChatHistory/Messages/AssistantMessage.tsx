@@ -5,9 +5,10 @@ import ToolInvocation from '@ui/components/ToolInvocation';
 
 interface AssistantMessageProps {
   message: UIMessage;
+  onAddToolResult?: any;
 }
 
-export default function AssistantMessage({ message }: AssistantMessageProps) {
+export default function AssistantMessage({ message, onAddToolResult }: AssistantMessageProps) {
   // Extract text content and dynamic tools from parts
   let textContent = '';
   const dynamicTools: any[] = [];
@@ -36,14 +37,22 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
           {dynamicTools.map((tool, index) => (
             <ToolInvocation
               key={tool.toolCallId || index}
+              toolCallId={tool.toolCallId}
               toolName={tool.toolName}
               args={tool.input || tool.args || {}}
               result={tool.output || tool.result}
               state={tool.state === 'output-available' ? 'completed' : 
                      tool.state === 'output-error' ? 'error' : 
-                     tool.state === 'input-streaming' ? 'pending' : 'pending'}
+                     tool.state === 'input-streaming' ? 'pending' : 
+                     tool.state === 'requires-action' ? 'requires-action' : 'pending'}
               startTime={tool.startTime}
               endTime={tool.endTime}
+              onAddToolResult={onAddToolResult ? (params: any) => {
+                onAddToolResult({
+                  toolCallId: params.toolCallId,
+                  result: params.result,
+                });
+              } : undefined}
             />
           ))}
         </div>

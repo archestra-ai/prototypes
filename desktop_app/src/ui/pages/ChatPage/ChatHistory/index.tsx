@@ -11,18 +11,20 @@ const CHAT_SCROLL_AREA_SELECTOR = `#${CHAT_SCROLL_AREA_ID} [data-radix-scroll-ar
 
 interface ChatHistoryProps {
   messages: UIMessage[];
+  onAddToolResult?: any;
 }
 
 interface MessageProps {
   message: UIMessage;
+  onAddToolResult?: any;
 }
 
-const Message = ({ message }: MessageProps) => {
+const Message = ({ message, onAddToolResult }: MessageProps) => {
   switch (message.role) {
     case 'user':
       return <UserMessage message={message} />;
     case 'assistant':
-      return <AssistantMessage message={message} />;
+      return <AssistantMessage message={message} onAddToolResult={onAddToolResult} />;
     case 'system':
       return <OtherMessage message={message} />;
     default:
@@ -43,7 +45,7 @@ const getMessageClassName = (message: UIMessage) => {
   }
 };
 
-export default function ChatHistory({ messages }: ChatHistoryProps) {
+export default function ChatHistory({ messages, onAddToolResult }: ChatHistoryProps) {
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const scrollAreaRef = useRef<HTMLElement | null>(null);
   const isScrollingRef = useRef(false);
@@ -125,7 +127,7 @@ export default function ChatHistory({ messages }: ChatHistoryProps) {
           <div key={message.id} className={cn('p-3 rounded-lg overflow-hidden min-w-0', getMessageClassName(message))}>
             <div className="text-xs font-medium mb-1 opacity-70 capitalize">{message.role}</div>
             <div className="overflow-hidden min-w-0">
-              <Message message={message} />
+              <Message message={message} onAddToolResult={onAddToolResult} />
             </div>
           </div>
         ))}
