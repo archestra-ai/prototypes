@@ -1,5 +1,4 @@
 <div align="center">  
-  
   # Archestra
   
   **Enterprise MCP Platform for AI Agents**
