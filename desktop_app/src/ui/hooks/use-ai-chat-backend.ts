@@ -42,10 +42,8 @@ export const AI_PROVIDERS: Record<string, AIProviderConfig> = {
   ollama: {
     name: 'Ollama',
     models: {
-      'llama3.2:8b': { displayName: 'Llama 3.2', default: true },
-      'llama3.1:8b': { displayName: 'Llama 3.1', default: false },
-      mistral: { displayName: 'Mistral', default: false },
-      codellama: { displayName: 'Code Llama', default: false },
+      'llama3.1:8b': { displayName: 'llama3.1:8b', default: true },
+      'gpt-4o': { displayName: 'gpt-4o', default: false },
     },
     apiKeyPlaceholder: '',
     apiKeyEnvVar: '',

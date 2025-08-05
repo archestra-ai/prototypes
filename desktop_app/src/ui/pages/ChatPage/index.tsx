@@ -36,10 +36,9 @@ export default function ChatPage(_props: ChatPageProps) {
   const { sendMessage, messages, setMessages, stop, isLoading, error } = useChat({
     id: currentChat?.session_id, // use the provided chat ID
     transport: new DefaultChatTransport({
-      api: '/api/llm/stream',
+      api: model === 'gpt-4o' ? '/api/llm/openai/stream' : '/api/llm/ollama/stream',
       body: {
-        provider: 'openai', // Using OpenAI for now
-        model: model || 'gpt-4o',
+        model: model || 'llama3.1:8b',
         sessionId: currentChat?.session_id,
       },
       fetch: async (input, init) => {

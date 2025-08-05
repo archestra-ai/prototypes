@@ -53,7 +53,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   chats: [],
   currentChatSessionId: null,
   isLoadingChats: false,
-  selectedAIModel: getDefaultModel('ollama'),
+  selectedAIModel: 'llama3.1:8b',
 
   // Actions
   loadChats: async () => {
