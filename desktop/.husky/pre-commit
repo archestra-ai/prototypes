@@ -1,2 +1,0 @@
-cd desktop
-pnpm exec lint-staged
