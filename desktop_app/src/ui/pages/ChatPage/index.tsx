@@ -2,7 +2,6 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { useEffect, useState } from 'react';
 
-import { useChatProvider } from '@ui/hooks/use-chat-provider';
 import { useChatStore } from '@ui/stores/chat-store';
 
 import ChatHistory from './ChatHistory';
@@ -31,37 +30,48 @@ export default function ChatPage(_props: ChatPageProps) {
   // Always use selectedAIModel from centralized config
   const model = selectedAIModel || '';
 
-  const { stop, isLoading } = useChatProvider({
-    model,
-    sessionId: currentChat?.session_id,
-    initialMessages: currentChat?.messages || [],
-  });
+  console.log('Current chat session ID:', currentChat?.session_id);
+  console.log('Selected AI Model:', model);
 
-  const { sendMessage, messages, setMessages } = useChat({
+  const { sendMessage, messages, setMessages, stop, isLoading, error } = useChat({
     id: currentChat?.session_id, // use the provided chat ID
-    onData: (dataPart) => {
-      // Handle all data parts as they arrive (including transient parts)
-      console.log('Received data part:', dataPart);
+    // api: 'http://localhost:3456/api/llm/stream',
+    body: {
+      provider: 'openai', // Using OpenAI for now
+      model: model || 'gpt-4o',
+      sessionId: currentChat?.session_id,
     },
-    onFinish: (message) => {
-      console.log('Message finished:', message);
-      if (message.toolInvocations && message.toolInvocations.length > 0) {
-        console.log('🔧 Tool invocations:', message.toolInvocations);
-        message.toolInvocations.forEach((tool, index) => {
-          console.log(`  Tool ${index + 1}: ${tool.toolName}`);
-          console.log(`    Args:`, tool.args);
-          console.log(`    Result:`, tool.result);
-        });
-      }
+    onError: (error) => {
+      console.error('useChat error:', error);
     },
-    messages: currentChat?.messages,
     transport: new DefaultChatTransport({
       api: '/api/llm/stream',
       body: {
         sessionId: currentChat?.session_id,
       },
     }),
+    onFinish: (message) => {
+      console.log('Message finished:', message);
+      console.log('Full message object:', JSON.stringify(message, null, 2));
+      if (message.getDynamicToolInvocations() && message.toolInvocations.length > 0) {
+        console.log('🔧 Tool invocations found:', message.toolInvocations);
+        message.toolInvocations.forEach((tool, index) => {
+          console.log(`  Tool ${index + 1}: ${tool.toolName}`);
+          console.log(`    Args:`, tool.args);
+          console.log(`    Result:`, tool.result);
+        });
+      } else {
+        console.log('No tool invocations in message');
+      }
+    },
   });
+
+  // Log any errors
+  useEffect(() => {
+    if (error) {
+      console.error('Chat error state:', error);
+    }
+  }, [error]);
 
   // Update messages when current chat changes
   useEffect(() => {
@@ -69,6 +79,19 @@ export default function ChatPage(_props: ChatPageProps) {
       setMessages(currentChat.messages);
     }
   }, [currentChat?.session_id, currentChat?.messages, setMessages]);
+
+  // Log messages updates
+  useEffect(() => {
+    console.log('Current messages in chat:', messages);
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage) {
+      console.log('Last message:', {
+        role: lastMessage.role,
+        content: lastMessage.content,
+        toolInvocations: lastMessage.toolInvocations,
+      });
+    }
+  }, [messages]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setLocalInput(e.target.value);
@@ -78,7 +101,6 @@ export default function ChatPage(_props: ChatPageProps) {
     e?.preventDefault();
     if (localInput.trim()) {
       console.log('Sending message:', localInput);
-      // sendMessage({ parts: [{ type: 'text', text: localInput }] });
       sendMessage({ text: localInput });
       setLocalInput('');
     }

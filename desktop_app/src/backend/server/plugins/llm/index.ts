@@ -98,7 +98,7 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request: FastifyRequest<{ Body: StreamRequestBody }>, reply: FastifyReply) => {
-      const { messages, sessionId, provider = 'ollama' } = request.body;
+      const { messages, sessionId, provider = 'openai' } = request.body;
 
       let customOllama = createOllama({
         baseURL: OLLAMA_HOST + '/api',
@@ -113,7 +113,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
         } else {
           fastify.log.info(`Using ${Object.keys(tools).length} MCP tools from Vercel AI SDK`);
         }
-        let provider = 'ollama12';
         // Create the stream
         const streamConfig = {
           model: provider === 'ollama' ? customOllama('llama3.1:8b') : openai('gpt-4o'),

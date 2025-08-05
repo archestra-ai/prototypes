@@ -48,6 +48,18 @@ export default function ChatHistory({ messages }: ChatHistoryProps) {
   const scrollAreaRef = useRef<HTMLElement | null>(null);
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Debug messages
+  useEffect(() => {
+    console.log('ChatHistory received messages:', messages);
+    messages.forEach((msg, idx) => {
+      console.log(`Message ${idx}:`, {
+        role: msg.role,
+        content: msg.content,
+        toolInvocations: msg.toolInvocations,
+      });
+    });
+  }, [messages]);
 
   // Scroll to bottom when new messages are added or content changes
   const scrollToBottom = useCallback(() => {

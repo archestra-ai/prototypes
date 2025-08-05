@@ -1,6 +1,7 @@
 import { UIMessage } from 'ai';
 
 import { AIResponse } from '@ui/components/kibo/ai-response';
+import ToolInvocation from '@ui/components/ToolInvocation';
 
 interface AssistantMessageProps {
   message: UIMessage;
@@ -22,17 +23,15 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
   return (
     <div className="relative space-y-2">
       {message.toolInvocations && message.toolInvocations.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2 mb-3">
           {message.toolInvocations.map((tool, index) => (
-            <div key={index} className="p-2 bg-muted rounded text-sm">
-              <div className="font-semibold">🔧 {tool.toolName}</div>
-              <div className="text-xs opacity-70">Args: {JSON.stringify(tool.args)}</div>
-              {tool.result && (
-                <div className="mt-1 text-xs">
-                  Result: {JSON.stringify(tool.result)}
-                </div>
-              )}
-            </div>
+            <ToolInvocation
+              key={tool.toolCallId || index}
+              toolName={tool.toolName}
+              args={tool.args}
+              result={tool.result}
+              state={tool.state || (tool.result ? 'completed' : 'pending')}
+            />
           ))}
         </div>
       )}
