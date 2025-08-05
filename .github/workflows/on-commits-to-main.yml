@@ -3,8 +3,8 @@ name: On commits to main
 
 on:
   push:
-    branches:
-      - main
+    # branches:
+    #   - main
 
 jobs:
   build-mcp-server-base-image:
