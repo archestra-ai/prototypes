@@ -90,15 +90,7 @@ jobs:
     name: Build MCP Server Base Docker Image
     permissions:
       contents: read
-      id-token: write # Required for Workload Identity Federation
     uses: ./.github/workflows/build-base-mcp-server-docker-image.yml
     with:
-      # TODO: remove this when done testing
-      # push_to_gcr: false
-      # version: ${{ github.sha }}
-      push_to_gcr: true
-      version: 0.0.1
-    # TODO: remove secrets when done testing
-    secrets:
-      GCP_SERVICE_ACCOUNT_NAME: ${{ secrets.DEVELOPMENT_OAUTH_PROXY_RELEASER_GCP_SERVICE_ACCOUNT_NAME }}
-      GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER: ${{ secrets.DEVELOPMENT_OAUTH_PROXY_RELEASER_GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER }}
+      push_to_gcr: false
+      version: ${{ github.sha }}
