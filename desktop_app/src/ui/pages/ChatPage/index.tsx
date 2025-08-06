@@ -1,6 +1,6 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 import { useChatStore } from '@ui/stores/chat-store';
 
@@ -33,10 +33,13 @@ export default function ChatPage(_props: ChatPageProps) {
   console.log('Current chat session ID:', currentChat?.session_id);
   console.log('Selected AI Model:', model);
 
-  const { sendMessage, messages, setMessages, stop, isLoading, error } = useChat({
-    id: currentChat?.session_id, // use the provided chat ID
-    transport: new DefaultChatTransport({
-      api: model === 'gpt-4o' ? '/api/llm/openai/stream' : '/api/llm/ollama/stream',
+  // Create transport that changes based on model selection
+  const transport = useMemo(() => {
+    const apiEndpoint = model === 'gpt-4o' ? '/api/llm/openai/stream' : '/api/llm/ollama/stream';
+    console.log('Creating transport for endpoint:', apiEndpoint, 'model:', model);
+    
+    return new DefaultChatTransport({
+      api: apiEndpoint,
       body: {
         model: model || 'llama3.1:8b',
         sessionId: currentChat?.session_id,
@@ -45,9 +48,15 @@ export default function ChatPage(_props: ChatPageProps) {
         // Override fetch to use the correct backend URL
         const url = typeof input === 'string' ? input : input.url;
         const fullUrl = url.startsWith('http') ? url : `http://localhost:3456${url}`;
+        console.log('Fetching:', fullUrl);
         return fetch(fullUrl, init);
       },
-    }),
+    });
+  }, [model, currentChat?.session_id]);
+
+  const { sendMessage, messages, setMessages, stop, isLoading, error } = useChat({
+    id: currentChat?.session_id, // use the provided chat ID
+    transport,
     onError: (error) => {
       console.error('useChat error:', error);
     },
