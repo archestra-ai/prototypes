@@ -2,15 +2,14 @@
 import type { Client, Options as ClientOptions, TDataShape } from './client';
 import { client as _heyApiClient } from './client.gen';
 import type {
-  GetBadgeQualityByOrgByRepoByPathData,
-  GetBadgeQualityByOrgByRepoByPathResponses,
   GetBadgeQualityByOrgByRepoData,
+  GetBadgeQualityByOrgByRepoErrors,
   GetBadgeQualityByOrgByRepoResponses,
   GetSearchData,
   GetSearchResponses,
-  GetServerBySlugData,
-  GetServerBySlugErrors,
-  GetServerBySlugResponses,
+  GetServerByNameData,
+  GetServerByNameErrors,
+  GetServerByNameResponses,
 } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = ClientOptions<
@@ -42,14 +41,14 @@ export const getSearch = <ThrowOnError extends boolean = false>(options?: Option
 };
 
 /**
- * Get server details
- * Get detailed information about a specific MCP server
+ * Get MCP server by name
+ * Retrieve detailed information about a specific MCP server by its name identifier
  */
-export const getServerBySlug = <ThrowOnError extends boolean = false>(
-  options: Options<GetServerBySlugData, ThrowOnError>
+export const getServerByName = <ThrowOnError extends boolean = false>(
+  options: Options<GetServerByNameData, ThrowOnError>
 ) => {
-  return (options.client ?? _heyApiClient).get<GetServerBySlugResponses, GetServerBySlugErrors, ThrowOnError>({
-    url: '/server/{slug}',
+  return (options.client ?? _heyApiClient).get<GetServerByNameResponses, GetServerByNameErrors, ThrowOnError>({
+    url: '/server/{name}',
     ...options,
   });
 };
@@ -61,21 +60,12 @@ export const getServerBySlug = <ThrowOnError extends boolean = false>(
 export const getBadgeQualityByOrgByRepo = <ThrowOnError extends boolean = false>(
   options: Options<GetBadgeQualityByOrgByRepoData, ThrowOnError>
 ) => {
-  return (options.client ?? _heyApiClient).get<GetBadgeQualityByOrgByRepoResponses, unknown, ThrowOnError>({
+  return (options.client ?? _heyApiClient).get<
+    GetBadgeQualityByOrgByRepoResponses,
+    GetBadgeQualityByOrgByRepoErrors,
+    ThrowOnError
+  >({
     url: '/badge/quality/{org}/{repo}',
-    ...options,
-  });
-};
-
-/**
- * Get quality badge for sub-path
- * Get an SVG quality badge for an MCP server in a repository sub-path
- */
-export const getBadgeQualityByOrgByRepoByPath = <ThrowOnError extends boolean = false>(
-  options: Options<GetBadgeQualityByOrgByRepoByPathData, ThrowOnError>
-) => {
-  return (options.client ?? _heyApiClient).get<GetBadgeQualityByOrgByRepoByPathResponses, unknown, ThrowOnError>({
-    url: '/badge/quality/{org}/{repo}/{path}',
     ...options,
   });
 };

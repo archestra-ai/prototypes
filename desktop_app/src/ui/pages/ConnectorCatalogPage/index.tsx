@@ -13,7 +13,9 @@ import {
   Star,
   Users,
 } from 'lucide-react';
+import { useState } from 'react';
 
+import { McpServerCatalogEntryWithUserConfig, McpServerUserConfigValues } from '@archestra/types';
 import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardHeader } from '@ui/components/ui/card';
@@ -22,9 +24,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@ui/components/ui/separator';
 import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
 
+import McpServerInstallDialog from './McpServerInstallDialog';
+
 interface ConnectorCatalogPageProps {}
 
 export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) {
+  const [selectedServerForInstall, setSelectedServerForInstall] = useState<McpServerCatalogEntryWithUserConfig | null>(
+    null
+  );
+  const [installDialogOpen, setInstallDialogOpen] = useState(false);
+
   const {
     connectorCatalog,
     connectorCatalogCategories,
@@ -80,6 +89,25 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
       return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Good</Badge>;
     } else {
       return <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/20">Fair</Badge>;
+    }
+  };
+
+  const handleInstallClick = (mcpServer: McpServerCatalogEntryWithUserConfig) => {
+    // If server has user_config, show the dialog
+    if (mcpServer.user_config && Object.keys(mcpServer.user_config).length > 0) {
+      setSelectedServerForInstall(mcpServer);
+      setInstallDialogOpen(true);
+    } else {
+      // Otherwise, install directly
+      installMcpServerFromConnectorCatalog(mcpServer);
+    }
+  };
+
+  const handleInstallWithConfig = async (config: McpServerUserConfigValues) => {
+    if (selectedServerForInstall) {
+      await installMcpServerFromConnectorCatalog(selectedServerForInstall, config);
+      setInstallDialogOpen(false);
+      setSelectedServerForInstall(null);
     }
   };
 
@@ -251,11 +279,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
                           )}
                         </Button>
                       ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => installMcpServerFromConnectorCatalog(mcpServer)}
-                          disabled={isInstalling}
-                        >
+                        <Button size="sm" onClick={() => handleInstallClick(mcpServer)} disabled={isInstalling}>
                           {isInstalling ? (
                             <>
                               <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
@@ -310,6 +334,14 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
           )}
         </>
       )}
+
+      {/* Install Dialog */}
+      <McpServerInstallDialog
+        mcpServer={selectedServerForInstall}
+        open={installDialogOpen}
+        onOpenChange={setInstallDialogOpen}
+        onInstall={handleInstallWithConfig}
+      />
     </div>
   );
 }

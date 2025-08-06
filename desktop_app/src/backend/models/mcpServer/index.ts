@@ -34,7 +34,10 @@ export default class McpServer {
   /**
    * Save MCP server from catalog
    */
-  static async saveMcpServerFromCatalog(catalogSlug: string) {
+  static async saveMcpServerFromCatalog(
+    catalogSlug: string,
+    userConfigValues?: (typeof mcpServersTable.$inferInsert)['userConfigValues']
+  ) {
     // Fetch the catalog entry using the generated client
     const response = await getServerBySlug({ path: { slug: catalogSlug } });
 
@@ -65,6 +68,7 @@ export default class McpServer {
           args: catalogEntry.configForArchestra.args || [],
           env: catalogEntry.configForArchestra.env || {},
         },
+        userConfigValues: userConfigValues,
         createdAt: now.toISOString(),
       })
       .returning();
@@ -77,6 +81,9 @@ export default class McpServer {
 
   /**
    * Save custom MCP server
+   *
+   * There's no `userConfigValues` for custom servers as users can simply input those values
+   * directly in the `serverConfig` that they provider
    */
   static async saveCustomMcpServer(name: string, serverConfig: (typeof mcpServersTable.$inferInsert)['serverConfig']) {
     // Generate a UUID for custom servers

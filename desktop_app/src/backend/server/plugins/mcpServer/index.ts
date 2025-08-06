@@ -7,6 +7,9 @@ import McpServerModel, { selectMcpServerSchema } from '@backend/models/mcpServer
 // Request schemas
 const installFromCatalogRequestSchema = z.object({
   catalogSlug: z.string(),
+  userConfigValues: z
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]))
+    .optional(),
 });
 
 const installCustomRequestSchema = z.object({
@@ -90,13 +93,13 @@ const mcpServerRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       try {
-        const { catalogSlug } = request.body;
+        const { catalogSlug, userConfigValues } = request.body;
 
         if (!catalogSlug) {
           return reply.code(400).send({ error: 'catalogSlug is required' });
         }
 
-        const server = await McpServerModel.saveMcpServerFromCatalog(catalogSlug);
+        const server = await McpServerModel.saveMcpServerFromCatalog(catalogSlug, userConfigValues);
         return reply.code(200).send(server);
       } catch (error: any) {
         console.error('Failed to install MCP server from catalog:', error);

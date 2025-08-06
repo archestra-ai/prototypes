@@ -3,9 +3,14 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/types';
 import { create } from 'zustand';
 
-import type { McpServer } from '@archestra/types';
+import type {
+  McpServer,
+  McpServerCatalogEntryWithUserConfig,
+  McpServerUserConfig,
+  McpServerUserConfigValues,
+} from '@archestra/types';
 import { getMcpServers, installMcpServer, startMcpServerOauth, uninstallMcpServer } from '@clients/archestra/api/gen';
-import { type McpServer as McpServerCatalogEntry, getSearch as searchCatalog } from '@clients/archestra/catalog/gen';
+import { getSearch as searchCatalog } from '@clients/archestra/catalog/gen';
 import config from '@ui/config';
 import { getToolsGroupedByServer } from '@ui/lib/utils/mcp-server';
 import { formatToolName } from '@ui/lib/utils/tools';
@@ -21,7 +26,7 @@ interface McpServersState {
   loadingInstalledMcpServers: boolean;
   errorLoadingInstalledMcpServers: string | null;
 
-  connectorCatalog: McpServerCatalogEntry[];
+  connectorCatalog: McpServerCatalogEntryWithUserConfig[];
   loadingConnectorCatalog: boolean;
   errorFetchingConnectorCatalog: string | null;
 
@@ -55,7 +60,10 @@ interface McpServersActions {
   setCatalogSearchQuery: (query: string) => void;
   setCatalogSelectedCategory: (category: string) => void;
   resetCatalogSearch: () => void;
-  installMcpServerFromConnectorCatalog: (mcpServer: McpServerCatalogEntry) => Promise<void>;
+  installMcpServerFromConnectorCatalog: (
+    mcpServer: McpServerCatalogEntryWithUserConfig,
+    userConfigValues?: McpServerUserConfigValues
+  ) => Promise<void>;
   uninstallMcpServer: (slug: string) => Promise<void>;
 
   connectToArchestraMcpServer: () => Promise<void>;
@@ -276,8 +284,42 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
 
       if ('data' in response && response.data) {
         const data = response.data;
+
+        // TODO: This is temporary test data. Remove once catalog API returns user_config
+        const testUserConfig: McpServerUserConfig = {
+          allowed_directories: {
+            type: 'directory',
+            title: 'Allowed Directories',
+            description: 'Directories the server can access',
+            multiple: true,
+            required: true,
+            default: ['${HOME}/Desktop'],
+          },
+          api_key: {
+            type: 'string',
+            title: 'API Key',
+            description: 'Your API key for authentication',
+            sensitive: true,
+            required: false,
+          },
+          max_file_size: {
+            type: 'number',
+            title: 'Maximum File Size (MB)',
+            description: 'Maximum file size to process',
+            default: 10,
+            min: 1,
+            max: 100,
+          },
+        };
+
+        // Inject user_config into each server for testing
+        const serversWithUserConfig = (data.servers || []).map((server) => ({
+          ...server,
+          user_config: testUserConfig,
+        }));
+
         set({
-          connectorCatalog: append ? [...get().connectorCatalog, ...(data.servers || [])] : data.servers || [],
+          connectorCatalog: append ? [...get().connectorCatalog, ...serversWithUserConfig] : serversWithUserConfig,
           catalogHasMore: data.hasMore || false,
           catalogTotalCount: data.totalCount || 0,
           catalogOffset: append ? get().catalogOffset + CATALOG_PAGE_SIZE : CATALOG_PAGE_SIZE,
@@ -325,7 +367,10 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
     get().loadConnectorCatalog();
   },
 
-  installMcpServerFromConnectorCatalog: async ({ configForArchestra, name, slug }: McpServerCatalogEntry) => {
+  installMcpServerFromConnectorCatalog: async (
+    { configForArchestra, name, slug }: McpServerCatalogEntryWithUserConfig,
+    userConfigValues?: McpServerUserConfigValues
+  ) => {
     try {
       set({
         installingMcpServerSlug: slug,
@@ -351,7 +396,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         }
       } else {
         const response = await installMcpServer({
-          body: { slug },
+          body: { catalogSlug: slug, userConfigValues },
         });
 
         if ('error' in response) {
