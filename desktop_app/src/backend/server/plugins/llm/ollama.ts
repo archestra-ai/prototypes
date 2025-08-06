@@ -124,6 +124,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
         let isFirstChunk = true;
         let currentToolCalls: any[] = [];
         let accumulatedToolArgs: { [key: string]: string } = {};
+        let hasStartedText = false;
 
         // Log the request for debugging
         fastify.log.info('Ollama chat request:', {
@@ -185,11 +186,12 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
             fastify.log.info('📋 Final message:', JSON.stringify(chunk.message));
           }
           
-          // Handle text content
-          if (chunk.message?.content) {
+          // Handle text content - but skip if we have tool calls
+          if (chunk.message?.content && !chunk.message?.tool_calls) {
             // Send text-start on first text chunk
-            if (isFirstChunk) {
+            if (!hasStartedText) {
               reply.raw.write(`data: {"type":"text-start","id":"${messageId}"}\n\n`);
+              hasStartedText = true;
               isFirstChunk = false;
             }
             
@@ -254,6 +256,12 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
           
           // Check if this is the end of a tool call
           if (chunk.done && currentToolCalls.length > 0) {
+            // Start text if not already started (for tool-only responses)
+            if (!hasStartedText) {
+              reply.raw.write(`data: {"type":"text-start","id":"${messageId}"}\n\n`);
+              hasStartedText = true;
+            }
+            
             // Parse and execute tool calls
             for (const toolCall of currentToolCalls) {
               try {
@@ -261,40 +269,74 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
                 const args = JSON.parse(accumulatedToolArgs[toolCall.toolCallId] || '{}');
                 toolCall.args = args;
                 
-                // Mark tool input as available
-                reply.raw.write(`data: {"type":"tool-input-available","toolCallId":"${toolCall.toolCallId}","toolName":"${toolCall.toolName}"}\n\n`);
-                
                 // Execute the tool
                 if (globalMcpTools && globalMcpTools[toolCall.toolName]) {
                   try {
                     const result = await globalMcpTools[toolCall.toolName].execute(args);
                     
-                    // Send tool output
-                    const resultStr = JSON.stringify(result);
-                    const escapedResult = resultStr
+                    // Extract the actual content from the tool result
+                    let formattedOutput = '';
+                    if (result && result.content && Array.isArray(result.content)) {
+                      for (const item of result.content) {
+                        if (item.type === 'text') {
+                          formattedOutput = item.text;
+                        }
+                      }
+                    } else {
+                      formattedOutput = JSON.stringify(result, null, 2);
+                    }
+                    
+                    // Send tool result as formatted text message
+                    const toolResultMessage = `\n\n**Tool ${toolCall.toolName} executed successfully:**\n\`\`\`json\n${formattedOutput}\n\`\`\``;
+                    const escapedToolResult = toolResultMessage
                       .replace(/\\/g, '\\\\')
                       .replace(/"/g, '\\"')
-                      .replace(/\n/g, '\\n');
-                    reply.raw.write(`data: {"type":"tool-output-available","toolCallId":"${toolCall.toolCallId}","outputText":"${escapedResult}"}\n\n`);
+                      .replace(/\n/g, '\\n')
+                      .replace(/\r/g, '\\r')
+                      .replace(/\t/g, '\\t');
+                    
+                    // Send as text delta to be compatible with Vercel AI SDK
+                    reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedToolResult}"}\n\n`);
                   } catch (toolError) {
-                    // Send tool error
+                    // Send tool error as text message
                     const errorMsg = toolError instanceof Error ? toolError.message : 'Tool execution failed';
-                    reply.raw.write(`data: {"type":"tool-output-error","toolCallId":"${toolCall.toolCallId}","errorText":"${errorMsg}"}\n\n`);
+                    const errorMessage = `\n\nTool ${toolCall.toolName} failed: ${errorMsg}`;
+                    const escapedError = errorMessage
+                      .replace(/\\/g, '\\\\')
+                      .replace(/"/g, '\\"')
+                      .replace(/\n/g, '\\n')
+                      .replace(/\r/g, '\\r')
+                      .replace(/\t/g, '\\t');
+                    reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedError}"}\n\n`);
                   }
                 } else {
-                  // Tool not found
-                  reply.raw.write(`data: {"type":"tool-output-error","toolCallId":"${toolCall.toolCallId}","errorText":"Tool not found"}\n\n`);
+                  // Tool not found - send as text message
+                  const notFoundMessage = `\n\nTool ${toolCall.toolName} not found`;
+                  const escapedNotFound = notFoundMessage
+                    .replace(/\\/g, '\\\\')
+                    .replace(/"/g, '\\"')
+                    .replace(/\n/g, '\\n')
+                    .replace(/\r/g, '\\r')
+                    .replace(/\t/g, '\\t');
+                  reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedNotFound}"}\n\n`);
                 }
               } catch (parseError) {
-                // Failed to parse arguments
-                reply.raw.write(`data: {"type":"tool-output-error","toolCallId":"${toolCall.toolCallId}","errorText":"Invalid tool arguments"}\n\n`);
+                // Failed to parse arguments - send as text message
+                const parseErrorMessage = `\n\nTool ${toolCall.toolCallId} failed: Invalid tool arguments`;
+                const escapedParseError = parseErrorMessage
+                  .replace(/\\/g, '\\\\')
+                  .replace(/"/g, '\\"')
+                  .replace(/\n/g, '\\n')
+                  .replace(/\r/g, '\\r')
+                  .replace(/\t/g, '\\t');
+                reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedParseError}"}\n\n`);
               }
             }
           }
         }
 
-        // Send text-end if we had any content
-        if (!isFirstChunk) {
+        // Send text-end if we started text
+        if (hasStartedText) {
           reply.raw.write(`data: {"type":"text-end","id":"${messageId}"}\n\n`);
         }
 
