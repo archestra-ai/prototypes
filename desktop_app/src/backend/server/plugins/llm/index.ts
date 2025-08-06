@@ -1,10 +1,6 @@
 import { openai } from '@ai-sdk/openai';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import {
-  convertToModelMessages,
-  experimental_createMCPClient,
-  streamText,
-} from 'ai';
+import { convertToModelMessages, experimental_createMCPClient, stepCountIs, streamText } from 'ai';
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
 import { chatService } from '@backend/models/chat';
@@ -104,7 +100,8 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
           model: openai(model),
           messages: convertToModelMessages(messages),
           tools: Object.keys(tools).length > 0 ? tools : undefined,
-          // maxSteps: 5, // Allow multiple tool calls
+          maxSteps: 5, // Allow multiple tool calls
+          stopWhen: stepCountIs(5),
           // experimental_transform: smoothStream({
           //   delayInMs: 20, // optional: defaults to 10ms
           //   chunking: 'line', // optional: defaults to 'word'
@@ -117,8 +114,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
         fastify.log.info(`Starting LLM stream with ${Object.keys(tools).length} tools`);
 
         const result = streamText(streamConfig);
-
-        fastify.log.info('Using UI stream response for OpenAI');
 
         return reply.send(
           result.toUIMessageStreamResponse({
@@ -139,7 +134,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
             },
           })
         );
-
       } catch (error) {
         fastify.log.error('LLM streaming error:', error);
         return reply.code(500).send({

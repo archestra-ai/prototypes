@@ -67,20 +67,35 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
         if (globalMcpTools && Object.keys(globalMcpTools).length > 0) {
           for (const [name, tool] of Object.entries(globalMcpTools)) {
             const mcpTool = tool as any;
+            
+            // Extract the JSON schema from the MCP tool
+            // MCP tools from Vercel AI SDK have inputSchema.jsonSchema structure
+            const toolParameters = mcpTool.inputSchema?.jsonSchema || 
+                                   mcpTool.inputSchema || 
+                                   mcpTool.parameters || 
+                                   {
+                                     type: 'object',
+                                     properties: {},
+                                     required: []
+                                   };
+            
             ollamaTools.push({
               type: 'function',
               function: {
                 name,
                 description: mcpTool.description || '',
-                parameters: mcpTool.parameters || {
-                  type: 'object',
-                  properties: {},
-                },
+                parameters: toolParameters,
               },
             });
           }
           fastify.log.info(`Using ${ollamaTools.length} MCP tools with Ollama`);
           fastify.log.info(`Tool names: ${ollamaTools.map(t => t.function.name).join(', ')}`);
+          
+          // Log echo tool schema for debugging
+          const echoTool = ollamaTools.find(t => t.function.name === 'echo');
+          if (echoTool) {
+            fastify.log.info('Echo tool schema:', JSON.stringify(echoTool.function.parameters, null, 2));
+          }
         } else {
           fastify.log.warn('No MCP tools available for Ollama');
         }
