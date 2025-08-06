@@ -125,6 +125,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
         let currentToolCalls: any[] = [];
         let accumulatedToolArgs: { [key: string]: string } = {};
         let hasStartedText = false;
+        let isProcessingToolCall = false;
 
         // Log the request for debugging
         fastify.log.info('Ollama chat request:', {
@@ -186,31 +187,9 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
             fastify.log.info('📋 Final message:', JSON.stringify(chunk.message));
           }
           
-          // Handle text content - but skip if we have tool calls
-          if (chunk.message?.content && !chunk.message?.tool_calls) {
-            // Send text-start on first text chunk
-            if (!hasStartedText) {
-              reply.raw.write(`data: {"type":"text-start","id":"${messageId}"}\n\n`);
-              hasStartedText = true;
-              isFirstChunk = false;
-            }
-            
-            fullContent += chunk.message.content;
-            
-            // Escape the content properly for JSON
-            const escapedContent = chunk.message.content
-              .replace(/\\/g, '\\\\')
-              .replace(/"/g, '\\"')
-              .replace(/\n/g, '\\n')
-              .replace(/\r/g, '\\r')
-              .replace(/\t/g, '\\t');
-            
-            // Send text delta with id
-            reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedContent}"}\n\n`);
-          }
-          
-          // Handle tool calls
+          // Handle tool calls first to set the flag
           if (chunk.message?.tool_calls && chunk.message.tool_calls.length > 0) {
+            isProcessingToolCall = true;
             for (const toolCall of chunk.message.tool_calls) {
               const toolCallId = generateId();
               
@@ -254,6 +233,29 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
             }
           }
           
+          // Handle text content - but skip if we're processing tool calls
+          if (chunk.message?.content && !isProcessingToolCall) {
+            // Send text-start on first text chunk
+            if (!hasStartedText) {
+              reply.raw.write(`data: {"type":"text-start","id":"${messageId}"}\n\n`);
+              hasStartedText = true;
+              isFirstChunk = false;
+            }
+            
+            fullContent += chunk.message.content;
+            
+            // Escape the content properly for JSON
+            const escapedContent = chunk.message.content
+              .replace(/\\/g, '\\\\')
+              .replace(/"/g, '\\"')
+              .replace(/\n/g, '\\n')
+              .replace(/\r/g, '\\r')
+              .replace(/\t/g, '\\t');
+            
+            // Send text delta with id
+            reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedContent}"}\n\n`);
+          }
+          
           // Check if this is the end of a tool call
           if (chunk.done && currentToolCalls.length > 0) {
             // Start text if not already started (for tool-only responses)
@@ -268,6 +270,9 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
                 // Parse the accumulated arguments
                 const args = JSON.parse(accumulatedToolArgs[toolCall.toolCallId] || '{}');
                 toolCall.args = args;
+                
+                // Log the tool execution attempt
+                fastify.log.info(`Executing tool ${toolCall.toolName} with args:`, args);
                 
                 // Execute the tool
                 if (globalMcpTools && globalMcpTools[toolCall.toolName]) {
