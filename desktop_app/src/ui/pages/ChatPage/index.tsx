@@ -32,13 +32,10 @@ export default function ChatPage(_props: ChatPageProps) {
   // Use selectedModel from Ollama store
   const model = selectedModel || '';
 
-  console.log('Current chat session ID:', currentChat?.session_id);
-  console.log('Selected AI Model:', model);
 
   // Create transport that changes based on model selection
   const transport = useMemo(() => {
     const apiEndpoint = model === 'gpt-4o' ? '/api/llm/openai/stream' : '/api/llm/ollama/stream';
-    console.log('Creating transport for endpoint:', apiEndpoint, 'model:', model);
     
     return new DefaultChatTransport({
       api: apiEndpoint,
@@ -50,7 +47,6 @@ export default function ChatPage(_props: ChatPageProps) {
         // Override fetch to use the correct backend URL
         const url = typeof input === 'string' ? input : input.url;
         const fullUrl = url.startsWith('http') ? url : `http://localhost:3456${url}`;
-        console.log('Fetching:', fullUrl);
         return fetch(fullUrl, init);
       },
     });
@@ -59,34 +55,8 @@ export default function ChatPage(_props: ChatPageProps) {
   const { sendMessage, messages, setMessages, stop, isLoading, error } = useChat({
     id: currentChat?.session_id, // use the provided chat ID
     transport,
-    onError: (error) => {
-      console.error('useChat error:', error);
-    },
-    onFinish: (message) => {
-      console.log('Message finished:', message);
-      console.log('Full message object:', JSON.stringify(message, null, 2));
-      
-      // Check for dynamic tool invocations
-      if (message.toolInvocations && message.toolInvocations.length > 0) {
-        console.log('🔧 Tool invocations found:', message.toolInvocations);
-        message.toolInvocations.forEach((tool, index) => {
-          console.log(`  Tool ${index + 1}: ${tool.toolName}`);
-          console.log(`    Args:`, tool.args);
-          console.log(`    Result:`, tool.result);
-          console.log(`    State:`, tool.state);
-        });
-      } else {
-        console.log('No tool invocations in message');
-      }
-    },
   });
 
-  // Log any errors
-  useEffect(() => {
-    if (error) {
-      console.error('Chat error state:', error);
-    }
-  }, [error]);
 
   // Update messages when current chat changes
   useEffect(() => {
@@ -97,7 +67,6 @@ export default function ChatPage(_props: ChatPageProps) {
 
   // Log messages updates
   useEffect(() => {
-    console.log('Current messages in chat:', messages);
     const lastMessage = messages[messages.length - 1];
     if (lastMessage) {
       console.log('Last message:', {

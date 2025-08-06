@@ -35,11 +35,6 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
     async (request: FastifyRequest<{ Body: StreamRequestBody }>, reply: FastifyReply) => {
       const { messages, sessionId, model = 'llama3.1:8b' } = request.body;
       
-      fastify.log.info('Ollama stream request:', {
-        model,
-        sessionId,
-        messageCount: messages?.length || 0,
-      });
 
       try {
         // Hijack the response to handle it manually
@@ -88,14 +83,6 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
               },
             });
           }
-          fastify.log.info(`Using ${ollamaTools.length} MCP tools with Ollama`);
-          fastify.log.info(`Tool names: ${ollamaTools.map(t => t.function.name).join(', ')}`);
-          
-          // Log echo tool schema for debugging
-          const echoTool = ollamaTools.find(t => t.function.name === 'echo');
-          if (echoTool) {
-            fastify.log.info('Echo tool schema:', JSON.stringify(echoTool.function.parameters, null, 2));
-          }
         } else {
           fastify.log.warn('No MCP tools available for Ollama');
         }
@@ -142,21 +129,6 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
         let hasStartedText = false;
         let isProcessingToolCall = false;
 
-        // Log the request for debugging
-        fastify.log.info('Ollama chat request:', {
-          model,
-          messageCount: ollamaMessages.length,
-          toolCount: ollamaTools.length,
-          hasTools: ollamaTools.length > 0,
-          toolsProvided: ollamaTools.length > 0 ? 'yes' : 'no',
-          messages: ollamaMessages,
-          lastMessage: ollamaMessages[ollamaMessages.length - 1]?.content
-        });
-        
-        // Debug: Log first tool to see format
-        if (ollamaTools.length > 0) {
-          fastify.log.info('First tool example:', JSON.stringify(ollamaTools[0], null, 2));
-        }
         
         // Start streaming
         const chatRequest: any = {
@@ -180,12 +152,6 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
           }
         }
         
-        fastify.log.info('Sending to Ollama:', { 
-          hasTools: !!chatRequest.tools,
-          toolCount: chatRequest.tools?.length,
-          messageCount: ollamaMessages.length,
-          lastMessage: ollamaMessages[ollamaMessages.length - 1]
-        });
         
         const response = await ollama.chat(chatRequest);
 
@@ -194,13 +160,6 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
 
         // Process the stream
         for await (const chunk of response) {
-          // Debug log the chunk
-          if (chunk.message?.tool_calls) {
-            fastify.log.info('🔧 Tool calls in chunk:', JSON.stringify(chunk.message.tool_calls));
-          }
-          if (chunk.done && chunk.message) {
-            fastify.log.info('📋 Final message:', JSON.stringify(chunk.message));
-          }
           
           // Handle tool calls first to set the flag
           if (chunk.message?.tool_calls && chunk.message.tool_calls.length > 0) {
@@ -286,8 +245,6 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
                 const args = JSON.parse(accumulatedToolArgs[toolCall.toolCallId] || '{}');
                 toolCall.args = args;
                 
-                // Log the tool execution attempt
-                fastify.log.info(`Executing tool ${toolCall.toolName} with args:`, args);
                 
                 // Execute the tool
                 if (globalMcpTools && globalMcpTools[toolCall.toolName]) {

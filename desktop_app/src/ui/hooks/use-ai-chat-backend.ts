@@ -76,9 +76,6 @@ export function useAIChatBackend({
         apiKey,
         sessionId,
       },
-      onError: (error) => {
-        console.error('Chat error:', error);
-      },
     });
 
   return {

@@ -19,27 +19,18 @@ export let mcpTools: any = null;
 
 // Initialize MCP connection using Vercel AI SDK
 export async function initMCP() {
-  console.log(`Initializing MCP server connection to ${MCP_SERVER_URL}...`);
   try {
     const transport = new StreamableHTTPClientTransport(new URL(MCP_SERVER_URL + '/mcp'));
 
-    console.log('Creating MCP client...');
     mcpClient = await experimental_createMCPClient({
       transport,
     });
 
-    console.log('Connected to MCP server successfully');
-
     // Get available tools from MCP server
     mcpTools = await mcpClient.tools();
-    console.log(`Found ${Object.keys(mcpTools).length} tools:`, Object.keys(mcpTools).join(', '));
 
     return true;
   } catch (error: any) {
-    console.error('Failed to connect to MCP server:', error.message || error);
-    console.log('MCP features will be disabled. To enable:');
-    console.log('1. Ensure MCP server is running on', MCP_SERVER_URL);
-    console.log('2. Or set MCP_SERVER_URL environment variable');
     mcpClient = null;
     mcpTools = null;
     return false;
@@ -50,13 +41,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
   // Initialize MCP on startup
   const mcpConnected = await initMCP();
 
-  // Log available tools
-  if (mcpTools && Object.keys(mcpTools).length > 0) {
-    fastify.log.info('Available MCP tools:');
-    Object.entries(mcpTools).forEach(([name, tool]) => {
-      fastify.log.info(`  - ${name}: ${(tool as any).description || 'No description'}`);
-    });
-  }
 
   // Add test endpoint for MCP status
   fastify.get('/api/mcp/test', async (request, reply) => {
@@ -89,11 +73,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
         // Use MCP tools directly from Vercel AI SDK
         const tools = mcpTools || {};
 
-        if (!mcpTools || Object.keys(tools).length === 0) {
-          fastify.log.info('MCP tools not available - running without tools');
-        } else {
-          fastify.log.info(`Using ${Object.keys(tools).length} MCP tools from Vercel AI SDK`);
-        }
 
         // Create the stream
         const streamConfig = {
@@ -111,7 +90,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
           // },
         };
 
-        fastify.log.info(`Starting LLM stream with ${Object.keys(tools).length} tools`);
 
         const result = streamText(streamConfig);
 
@@ -119,15 +97,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
           result.toUIMessageStreamResponse({
             originalMessages: messages,
             onFinish: ({ messages: finalMessages }) => {
-              fastify.log.info(`\n📝 Chat finished with ${finalMessages.length} messages`);
-
-              // Log tool invocations in final messages
-              finalMessages.forEach((msg: any) => {
-                if (msg.toolInvocations && msg.toolInvocations.length > 0) {
-                  fastify.log.info(`Message ${msg.id} had ${msg.toolInvocations.length} tool invocations`);
-                }
-              });
-
               if (sessionId) {
                 chatService.saveMessages(sessionId, finalMessages);
               }
@@ -149,9 +118,8 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
     if (mcpClient) {
       try {
         await mcpClient.close();
-        console.log('MCP client closed');
       } catch (error) {
-        console.error('Error closing MCP client:', error);
+        // Silent cleanup
       }
     }
   });
