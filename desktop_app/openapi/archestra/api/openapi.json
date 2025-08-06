@@ -184,7 +184,16 @@
         }
       }
     },
-    "/api/llm/stream": {
+    "/api/mcp/test": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/llm/openai/stream": {
       "post": {
         "operationId": "streamLlmResponse",
         "tags": ["LLM"],

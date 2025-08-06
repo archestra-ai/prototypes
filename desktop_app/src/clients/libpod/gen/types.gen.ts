@@ -2108,9 +2108,6 @@ export type IdMappings = {
   uidmap?: Array<IdMap>;
 };
 
-/**
- * IDResponse Response to an API call that returns just an Id
- */
 export type IdResponse = {
   /**
    * The id of the newly created object.

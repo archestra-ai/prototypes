@@ -12,6 +12,8 @@ import type {
   DeleteChatResponses,
   DisconnectExternalMcpClientData,
   DisconnectExternalMcpClientResponses,
+  GetApiMcpTestData,
+  GetApiMcpTestResponses,
   GetChatByIdData,
   GetChatByIdResponses,
   GetChatsData,
@@ -171,6 +173,15 @@ export const disconnectExternalMcpClient = <ThrowOnError extends boolean = false
   });
 };
 
+export const getApiMcpTest = <ThrowOnError extends boolean = false>(
+  options?: Options<GetApiMcpTestData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).get<GetApiMcpTestResponses, unknown, ThrowOnError>({
+    url: '/api/mcp/test',
+    ...options,
+  });
+};
+
 /**
  * Stream LLM response
  */
@@ -178,7 +189,7 @@ export const streamLlmResponse = <ThrowOnError extends boolean = false>(
   options?: Options<StreamLlmResponseData, ThrowOnError>
 ) => {
   return (options?.client ?? _heyApiClient).post<StreamLlmResponseResponses, unknown, ThrowOnError>({
-    url: '/api/llm/stream',
+    url: '/api/llm/openai/stream',
     ...options,
   });
 };

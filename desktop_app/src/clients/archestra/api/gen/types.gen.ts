@@ -134,11 +134,25 @@ export type DisconnectExternalMcpClientResponses = {
   200: unknown;
 };
 
+export type GetApiMcpTestData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/mcp/test';
+};
+
+export type GetApiMcpTestResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
 export type StreamLlmResponseData = {
   body?: never;
   path?: never;
   query?: never;
-  url: '/api/llm/stream';
+  url: '/api/llm/openai/stream';
 };
 
 export type StreamLlmResponseResponses = {
