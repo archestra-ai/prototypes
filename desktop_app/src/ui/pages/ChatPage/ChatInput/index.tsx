@@ -18,11 +18,11 @@ import {
   AIInputTools,
 } from '@ui/components/kibo/ai-input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ui/components/ui/tooltip';
-import { AI_PROVIDERS } from '@ui/hooks/use-ai-chat-backend';
 import { cn } from '@ui/lib/utils/tailwind';
 import { useChatStore } from '@ui/stores/chat-store';
 import { useDeveloperModeStore } from '@ui/stores/developer-mode-store';
 import { useMCPServersStore } from '@ui/stores/mcp-servers-store';
+import { useOllamaStore } from '@ui/stores/ollama-store';
 
 interface ChatInputProps {
   input: string;
@@ -35,14 +35,11 @@ interface ChatInputProps {
 export default function ChatInput({ input, handleInputChange, handleSubmit, isLoading, stop }: ChatInputProps) {
   const { selectedTools } = useMCPServersStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
-  const { selectedAIModel, setSelectedAIModel } = useChatStore();
+  const { installedModels, selectedModel, setSelectedModel } = useOllamaStore();
 
-  // Always use Ollama as the provider
-  const aiProviderModels = Object.entries(AI_PROVIDERS.ollama.models);
-
-  // Always use the centralized config
-  const currentModel = selectedAIModel || '';
-  const handleModelChange = setSelectedAIModel;
+  // Use the selected model from Ollama store
+  const currentModel = selectedModel || '';
+  const handleModelChange = setSelectedModel;
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -78,9 +75,9 @@ export default function ChatInput({ input, handleInputChange, handleSubmit, isLo
                 <AIInputModelSelectValue placeholder="Select a model" />
               </AIInputModelSelectTrigger>
               <AIInputModelSelectContent>
-                {aiProviderModels.map(([modelKey, modelConfig]) => (
-                  <AIInputModelSelectItem key={modelKey} value={modelKey}>
-                    {modelConfig.displayName}
+                {installedModels.map((model) => (
+                  <AIInputModelSelectItem key={model.model} value={model.model}>
+                    {model.name || model.model}
                   </AIInputModelSelectItem>
                 ))}
               </AIInputModelSelectContent>

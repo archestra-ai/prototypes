@@ -18,7 +18,6 @@ interface ChatState {
   chats: ChatWithMessages[];
   currentChatSessionId: string | null;
   isLoadingChats: boolean;
-  selectedAIModel: string | null;
 }
 
 interface ChatActions {
@@ -31,7 +30,6 @@ interface ChatActions {
   deleteCurrentChat: () => Promise<void>;
   updateChatTitle: (chatId: number, title: string) => Promise<void>;
   initializeStore: () => Promise<void>;
-  setSelectedAIModel: (model: string) => void;
 }
 
 type ChatStore = ChatState & ChatActions;
@@ -53,7 +51,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   chats: [],
   currentChatSessionId: null,
   isLoadingChats: false,
-  selectedAIModel: 'llama3.1:8b',
 
   // Actions
   loadChats: async () => {
@@ -179,10 +176,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     } catch (error) {
       console.error('Failed to establish WebSocket connection:', error);
     }
-  },
-
-  setSelectedAIModel: (model: string) => {
-    set({ selectedAIModel: model });
   },
 }));
 

@@ -3,6 +3,7 @@ import { DefaultChatTransport } from 'ai';
 import { useEffect, useState, useMemo } from 'react';
 
 import { useChatStore } from '@ui/stores/chat-store';
+import { useOllamaStore } from '@ui/stores/ollama-store';
 
 import ChatHistory from './ChatHistory';
 import ChatInput from './ChatInput';
@@ -11,7 +12,8 @@ import SystemPrompt from './SystemPrompt';
 interface ChatPageProps {}
 
 export default function ChatPage(_props: ChatPageProps) {
-  const { getCurrentChat, createNewChat, selectedAIModel, isLoadingChats } = useChatStore();
+  const { getCurrentChat, createNewChat, isLoadingChats } = useChatStore();
+  const { selectedModel } = useOllamaStore();
   const currentChat = getCurrentChat();
   const [localInput, setLocalInput] = useState('');
   const [isCreatingChat, setIsCreatingChat] = useState(false);
@@ -27,8 +29,8 @@ export default function ChatPage(_props: ChatPageProps) {
     }
   }, [currentChat, createNewChat, isLoadingChats, isCreatingChat]);
 
-  // Always use selectedAIModel from centralized config
-  const model = selectedAIModel || '';
+  // Use selectedModel from Ollama store
+  const model = selectedModel || '';
 
   console.log('Current chat session ID:', currentChat?.session_id);
   console.log('Selected AI Model:', model);
