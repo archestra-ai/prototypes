@@ -1,15 +1,17 @@
 import cors from '@fastify/cors';
 import fastify from 'fastify';
+import { streamableHttp } from 'fastify-mcp';
 
 import config from '@backend/config';
 import chatRoutes from '@backend/server/plugins/chat';
 import externalMcpClientRoutes from '@backend/server/plugins/externalMcpClient';
 import llmRoutes from '@backend/server/plugins/llm';
 import ollamaLLMRoutes from '@backend/server/plugins/llm/ollama';
+import { createArchestraMcpServer } from '@backend/server/plugins/mcp';
 import mcpRequestLogRoutes from '@backend/server/plugins/mcpRequestLog';
 import mcpServerRoutes from '@backend/server/plugins/mcpServer';
 import ollamaRoutes from '@backend/server/plugins/ollama';
-import websocketPlugin from '@backend/server/plugins/websocket';
+import sandboxRoutes from '@backend/server/plugins/sandbox';
 
 const app = fastify({
   logger: {
@@ -34,7 +36,6 @@ app.register(cors, {
   // Cache preflight response for 1 hour
   maxAge: 3600,
 });
-app.register(websocketPlugin);
 app.register(chatRoutes);
 app.register(llmRoutes);
 app.register(ollamaLLMRoutes);
@@ -42,14 +43,23 @@ app.register(externalMcpClientRoutes);
 app.register(mcpRequestLogRoutes);
 app.register(mcpServerRoutes);
 app.register(ollamaRoutes);
+app.register(sandboxRoutes);
+
+app.register(streamableHttp, {
+  // Set to `true` if you want a stateful server
+  stateful: false,
+  mcpEndpoint: '/mcp',
+  // sessions: new Sessions<StreamableHTTPServerTransport>()
+  createServer: createArchestraMcpServer,
+});
 
 export const startServer = async () => {
-  const { port, host } = config.server;
+  const { http } = config.server;
 
   // Start the Fastify server
   try {
-    await app.listen({ port, host });
-    app.log.info(`Fastify server running on port ${port}`);
+    await app.listen({ port: http.port, host: http.host });
+    app.log.info(`Fastify server running on port ${http.port}`);
   } catch (err) {
     app.log.error(err);
     // Exit with error code to signal failure to parent process

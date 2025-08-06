@@ -7,13 +7,16 @@ import { Agent, fetch, setGlobalDispatcher } from 'undici';
 
 import type { CreateClientConfig } from './gen/client.gen';
 
-setGlobalDispatcher(
-  new Agent({
-    connect: {
-      socketPath: '/var/run/docker.sock',
-    },
-  })
-);
+/**
+ * Update the socket path used by the libpod client.
+ * This is needed to avoid conflicts with Docker/Orbstack.
+ *
+ * NOTE: this NEEDS to be called, before the libpod client is properly initialized/ready to use.
+ */
+export function setSocketPath(socketPath: string): void {
+  console.log(`Setting libpod socket path to: ${socketPath}`);
+  setGlobalDispatcher(new Agent({ connect: { socketPath } }));
+}
 
 export const createClientConfig: CreateClientConfig = (config) => ({
   ...config,

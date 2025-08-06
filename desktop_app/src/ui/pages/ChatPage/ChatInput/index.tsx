@@ -21,7 +21,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ui/co
 import { cn } from '@ui/lib/utils/tailwind';
 import { useChatStore } from '@ui/stores/chat-store';
 import { useDeveloperModeStore } from '@ui/stores/developer-mode-store';
-import { useMCPServersStore } from '@ui/stores/mcp-servers-store';
+import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
 import { useOllamaStore } from '@ui/stores/ollama-store';
 
 interface ChatInputProps {
@@ -33,7 +33,7 @@ interface ChatInputProps {
 }
 
 export default function ChatInput({ input, handleInputChange, handleSubmit, isLoading, stop }: ChatInputProps) {
-  const { selectedTools } = useMCPServersStore();
+  const { selectedTools } = useMcpServersStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const { installedModels, selectedModel, setSelectedModel } = useOllamaStore();
 

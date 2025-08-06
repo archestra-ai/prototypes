@@ -1,6 +1,9 @@
 import { spawn } from 'node:child_process';
 
+import { PodmanMachineStatus } from '@archestra/types';
+import PodmanImage from '@backend/sandbox/podman/image';
 import { getBinariesDirectory, getBinaryExecPath } from '@backend/utils/binaries';
+import websocketService from '@backend/websocket';
 
 import { PodmanMachineListOutput } from './types';
 
@@ -24,6 +27,7 @@ type RunCommandOptions<T extends object | object[]> = {
  */
 export default class PodmanRuntime {
   private ARCHESTRA_MACHINE_NAME = 'archestra-ai-machine';
+  private _machineStatus: PodmanMachineStatus = 'not_installed';
 
   private onMachineInstallationSuccess: () => void = () => {};
   private onMachineInstallationError: (error: Error) => void = () => {};
@@ -46,6 +50,32 @@ export default class PodmanRuntime {
   constructor(onMachineInstallationSuccess: () => void, onMachineInstallationError: (error: Error) => void) {
     this.onMachineInstallationSuccess = onMachineInstallationSuccess;
     this.onMachineInstallationError = onMachineInstallationError;
+  }
+
+  async pullBaseImageOnMachineInstallationSuccess() {
+    try {
+      websocketService.broadcast({
+        type: 'sandbox-base-image-fetch-started',
+        payload: {},
+      });
+
+      const image = new PodmanImage();
+      await image.pullBaseImage();
+
+      websocketService.broadcast({
+        type: 'sandbox-base-image-fetch-completed',
+        payload: {},
+      });
+    } catch (error) {
+      websocketService.broadcast({
+        type: 'sandbox-base-image-fetch-failed',
+        payload: {
+          error: `There was an error pulling the base image: ${error.message}`,
+        },
+      });
+
+      throw error; // Re-throw to be handled by caller
+    }
   }
 
   private runCommand<T extends object | object[]>({
@@ -129,23 +159,46 @@ export default class PodmanRuntime {
    * Docker API clients default to this address. You do not need to set DOCKER_HOST.
    *
    * Machine "archestra-ai-machine" started successfully
-   *
-   * ==============================
-   *
-   * NOTE: we can ignore stdio and stderr here and just use onExit and onError callbacks
    */
   private async startArchestraMachine() {
     let stderrOutput = '';
+    this._machineStatus = 'initializing';
     this.runCommand({
       command: ['machine', 'start', this.ARCHESTRA_MACHINE_NAME],
       pipes: {
+        onStdout: {
+          callback: (data) => {
+            const output = typeof data === 'string' ? data : JSON.stringify(data);
+            // Look for "Starting machine" to indicate progress
+            if (output.includes('Starting machine')) {
+              websocketService.broadcast({
+                type: 'sandbox-podman-runtime-progress',
+                payload: {
+                  percentage: 50,
+                  message: 'Starting podman machine...',
+                },
+              });
+            } else if (output.includes('started successfully')) {
+              websocketService.broadcast({
+                type: 'sandbox-podman-runtime-progress',
+                payload: {
+                  percentage: 100,
+                  message: 'Podman machine started successfully',
+                },
+              });
+            }
+          },
+        },
         onStderr: (data) => {
           stderrOutput += data;
         },
         onExit: (code, signal) => {
           if (code === 0) {
+            this._machineStatus = 'running';
+            // Call the success callback - socket setup will happen there first
             this.onMachineInstallationSuccess();
           } else {
+            this._machineStatus = 'stopped';
             this.onMachineInstallationError(
               new Error(`Podman machine start failed with code ${code} and signal ${signal}. Error: ${stderrOutput}`)
             );
@@ -184,17 +237,59 @@ export default class PodmanRuntime {
    *
    * ==============================
    * --now = Start machine now
-   *
-   * NOTE: we can ignore stdio and stderr here and just use onExit and onError callbacks
-   */
+
+  */
   private initArchestraMachine() {
+    this._machineStatus = 'initializing';
     this.runCommand({
       command: ['machine', 'init', '--now', this.ARCHESTRA_MACHINE_NAME],
       pipes: {
+        onStdout: {
+          callback: (data) => {
+            const output = typeof data === 'string' ? data : JSON.stringify(data);
+
+            // Parse extraction progress
+            const extractionMatch = output.match(
+              /Extracting compressed file:.*\[([=\s>]+)\]\s*(\d+\.?\d*)MiB\s*\/\s*(\d+\.?\d*)MiB/
+            );
+            if (extractionMatch) {
+              const current = parseFloat(extractionMatch[2]);
+              const total = parseFloat(extractionMatch[3]);
+              const percentage = Math.round((current / total) * 100);
+
+              websocketService.broadcast({
+                type: 'sandbox-podman-runtime-progress',
+                payload: {
+                  percentage,
+                  message: `Extracting podman machine image: ${current}MiB / ${total}MiB`,
+                },
+              });
+            } else if (output.includes('Machine init complete')) {
+              websocketService.broadcast({
+                type: 'sandbox-podman-runtime-progress',
+                payload: {
+                  percentage: 90,
+                  message: 'Machine initialization complete',
+                },
+              });
+            } else if (output.includes('started successfully')) {
+              websocketService.broadcast({
+                type: 'sandbox-podman-runtime-progress',
+                payload: {
+                  percentage: 100,
+                  message: 'Podman machine started successfully',
+                },
+              });
+            }
+          },
+        },
         onExit: (code, signal) => {
           if (code === 0) {
+            this._machineStatus = 'running';
+            // Call the success callback - socket setup will happen there first
             this.onMachineInstallationSuccess();
           } else {
+            this._machineStatus = 'not_installed';
             this.onMachineInstallationError(
               new Error(`Podman machine init failed with code ${code} and signal ${signal}`)
             );
@@ -239,9 +334,12 @@ export default class PodmanRuntime {
               this.initArchestraMachine();
             } else if (archestraMachine.Running) {
               // We're all good to go. The archesta podman machine is installed and running.
+              this._machineStatus = 'running';
+              // Call the success callback - socket setup will happen there first
               this.onMachineInstallationSuccess();
             } else {
               // The archesta podman machine is installed, but not running. Let's start it.
+              this._machineStatus = 'stopped';
               this.startArchestraMachine();
             }
           },
@@ -260,8 +358,66 @@ export default class PodmanRuntime {
     this.runCommand({
       command: ['machine', 'stop', this.ARCHESTRA_MACHINE_NAME],
       pipes: {
+        onExit: (code) => {
+          if (code === 0) {
+            this._machineStatus = 'stopped';
+          }
+        },
         onError: this.onMachineInstallationError,
       },
     });
+  }
+
+  /**
+   * Get the socket address from the running podman machine.
+   * This is needed to avoid conflicts with Docker/Orbstack.
+   *
+   * https://github.com/containers/podman/issues/16725#issuecomment-1338382533
+   *
+   * Output of this command looks like:
+   *
+   * $ podman machine inspect archestra-ai-machine --format '{{ .ConnectionInfo.PodmanSocket.Path }}'
+   * /Users/myuser/.local/share/containers/podman/machine/archestra-ai-machine/podman.sock
+   */
+  async getSocketAddress(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      let output = '';
+      this.runCommand({
+        command: [
+          'machine',
+          'inspect',
+          this.ARCHESTRA_MACHINE_NAME,
+          '--format',
+          '{{ .ConnectionInfo.PodmanSocket.Path }}',
+        ],
+        pipes: {
+          onStdout: {
+            callback: (data) => {
+              output += data.toString();
+            },
+          },
+          onExit: (code) => {
+            if (code === 0) {
+              const socketPath = output.trim();
+              if (socketPath) {
+                console.log(`Found podman socket path: ${socketPath}`);
+                resolve(socketPath);
+              } else {
+                reject(new Error('Could not find socket path in podman machine inspect output'));
+              }
+            } else {
+              reject(new Error(`Failed to inspect podman machine. Exit code: ${code}`));
+            }
+          },
+          onError: (error) => {
+            reject(error);
+          },
+        },
+      });
+    });
+  }
+
+  get machineStatus() {
+    return this._machineStatus;
   }
 }

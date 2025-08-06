@@ -4,7 +4,6 @@ export default defineConfig({
   out: './src/backend/database/migrations',
   schema: './src/backend/database/schema',
   dialect: 'sqlite',
-  dbCredentials: {
-    url: `${process.env.HOME}/Library/Application Support/archestra/archestra.db`,
-  },
+  // https://orm.drizzle.team/docs/sql-schema-declaration#camel-and-snake-casing
+  casing: 'snake_case',
 });

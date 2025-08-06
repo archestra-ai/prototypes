@@ -20,13 +20,13 @@ import { Label } from '@ui/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui/components/ui/select';
 import { Switch } from '@ui/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ui/components/ui/table';
-import { useMCPLogsStore } from '@ui/stores/mcp-logs-store';
+import { useMcpLogsStore } from '@ui/stores/mcp-logs-store';
 
 import FilterBar from './FilterBar';
 import LogDetailModal from './LogDetailModal';
 import { formatDuration, formatTimestamp, getStatusColor } from './utils';
 
-export default function MCPRequestLogs() {
+export default function McpRequestLogs() {
   const {
     logs,
     totalPages,
@@ -49,7 +49,7 @@ export default function MCPRequestLogs() {
     clearLogs,
     refresh,
     resetFilters,
-  } = useMCPLogsStore();
+  } = useMcpLogsStore();
 
   const [isOpen, setIsOpen] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
@@ -99,26 +99,26 @@ export default function MCPRequestLogs() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
                   <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">Total Requests</div>
-                  <div className="text-xl font-bold text-blue-900 dark:text-blue-100">{stats.total_requests}</div>
+                  <div className="text-xl font-bold text-blue-900 dark:text-blue-100">{stats.totalRequests}</div>
                 </div>
                 <div className="bg-green-50 dark:bg-green-950 p-3 rounded-lg">
                   <div className="text-sm text-green-600 dark:text-green-400 font-medium">Success Rate</div>
                   <div className="text-xl font-bold text-green-900 dark:text-green-100">
-                    {stats.total_requests > 0
-                      ? `${((stats.success_count / stats.total_requests) * 100).toFixed(1)}%`
+                    {stats.totalRequests > 0
+                      ? `${((stats.successCount / stats.totalRequests) * 100).toFixed(1)}%`
                       : '0%'}
                   </div>
                 </div>
                 <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg">
                   <div className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">Avg Duration</div>
                   <div className="text-xl font-bold text-yellow-900 dark:text-yellow-100">
-                    {formatDuration(Math.round(stats.avg_duration_ms))}
+                    {formatDuration(Math.round(stats.avgDurationMs))}
                   </div>
                 </div>
                 <div className="bg-purple-50 dark:bg-purple-950 p-3 rounded-lg">
                   <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">Active Servers</div>
                   <div className="text-xl font-bold text-purple-900 dark:text-purple-100">
-                    {Object.keys(stats.requests_per_server).length}
+                    {Object.keys(stats.requestsPerServer).length}
                   </div>
                 </div>
               </div>
@@ -230,29 +230,29 @@ export default function MCPRequestLogs() {
                       <TableRow key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            {getStatusIcon(log.status_code)}
-                            <span className={`text-sm ${getStatusColor(log.status_code)}`}>{log.status_code}</span>
+                            {getStatusIcon(log.statusCode)}
+                            <span className={`text-sm ${getStatusColor(log.statusCode)}`}>{log.statusCode}</span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{log.server_name || 'Unknown'}</Badge>
+                          <Badge variant="outline">{log.serverName || 'Unknown'}</Badge>
                         </TableCell>
                         <TableCell>
                           <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
                             {log.method || 'N/A'}
                           </code>
                         </TableCell>
-                        <TableCell>{formatDuration(log.duration_ms ?? undefined)}</TableCell>
+                        <TableCell>{formatDuration(log.durationMs ?? undefined)}</TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            {log.session_id && (
+                            {log.sessionId && (
                               <div className="text-xs font-mono text-gray-600 dark:text-gray-300">
-                                {log.session_id.substring(0, 8)}...
+                                {log.sessionId.substring(0, 8)}...
                               </div>
                             )}
-                            {log.mcp_session_id && (
+                            {log.mcpSessionId && (
                               <div className="text-xs font-mono text-blue-600 dark:text-blue-400">
-                                MCP: {log.mcp_session_id.substring(0, 8)}...
+                                MCP: {log.mcpSessionId.substring(0, 8)}...
                               </div>
                             )}
                           </div>

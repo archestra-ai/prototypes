@@ -21,7 +21,7 @@
     "paths": {
       "@backend/*": ["src/backend/*"],
       "@clients/*": ["src/clients/*"],
-      "@types": ["src/types"],
+      "@archestra/types": ["src/types"],
       "@ui/*": ["src/ui/*"]
     }
   }

@@ -1,11 +1,11 @@
-import type { ToolWithMCPServerName } from '@types';
+import type { ToolWithMcpServerInfo } from '@ui/types';
 
-import { convertMCPServerToolsToOllamaTools } from './ollama';
+import { convertMcpServerToolsToOllamaTools } from './ollama';
 
 describe('ollama utility functions', () => {
-  describe('convertMCPServerToolsToOllamaTools', () => {
+  describe('convertMcpServerToolsToOllamaTools', () => {
     it('should convert MCP server tools to Ollama tools format', () => {
-      const mockTools: ToolWithMCPServerName[] = [
+      const mockTools: ToolWithMcpServerInfo[] = [
         {
           name: 'channel_get_history',
           description: 'Get channel history',
@@ -16,7 +16,10 @@ describe('ollama utility functions', () => {
               limit: { type: 'number' },
             },
           },
-          serverName: 'Slack',
+          server: {
+            slug: 'slack',
+            name: 'Slack',
+          },
           enabled: true,
         },
         {
@@ -29,7 +32,10 @@ describe('ollama utility functions', () => {
               message: { type: 'string' },
             },
           },
-          serverName: 'Slack',
+          server: {
+            slug: 'slack',
+            name: 'Slack',
+          },
           enabled: true,
         },
         {
@@ -43,12 +49,15 @@ describe('ollama utility functions', () => {
               body: { type: 'string' },
             },
           },
-          serverName: 'Gmail',
+          server: {
+            slug: 'gmail',
+            name: 'Gmail',
+          },
           enabled: true,
         },
       ];
 
-      const result = convertMCPServerToolsToOllamaTools(mockTools);
+      const result = convertMcpServerToolsToOllamaTools(mockTools);
 
       expect(result).toHaveLength(3);
       expect(result).toEqual([
@@ -99,7 +108,7 @@ describe('ollama utility functions', () => {
     });
 
     it('should handle tools without description', () => {
-      const mockTools: ToolWithMCPServerName[] = [
+      const mockTools: ToolWithMcpServerInfo[] = [
         {
           name: 'test_tool',
           description: undefined,
@@ -107,12 +116,15 @@ describe('ollama utility functions', () => {
             type: 'object',
             properties: {},
           },
-          serverName: 'TestServer',
+          server: {
+            slug: 'test-server',
+            name: 'TestServer',
+          },
           enabled: true,
         },
       ];
 
-      const result = convertMCPServerToolsToOllamaTools(mockTools);
+      const result = convertMcpServerToolsToOllamaTools(mockTools);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
@@ -129,9 +141,9 @@ describe('ollama utility functions', () => {
     });
 
     it('should handle empty tools object', () => {
-      const mockTools: ToolWithMCPServerName[] = [];
+      const mockTools: ToolWithMcpServerInfo[] = [];
 
-      const result = convertMCPServerToolsToOllamaTools(mockTools);
+      const result = convertMcpServerToolsToOllamaTools(mockTools);
 
       expect(result).toHaveLength(0);
       expect(result).toEqual([]);

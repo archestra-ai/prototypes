@@ -34,11 +34,9 @@ if (!fs.existsSync(appDataPath)) {
   fs.mkdirSync(appDataPath, { recursive: true });
 }
 
-const db = drizzle({
+const db = drizzle({ 
   connection: DATABASE_PATH,
-  // https://orm.drizzle.team/docs/sql-schema-declaration#camel-and-snake-casing
-  casing: 'snake_case',
-  // logger: true,
+  casing: 'snake_case' 
 });
 
 export async function runDatabaseMigrations() {

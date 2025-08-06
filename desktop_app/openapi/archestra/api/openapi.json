@@ -15,7 +15,12 @@
         "description": "Get all chats",
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
           }
         }
       },
@@ -23,9 +28,21 @@
         "operationId": "createChat",
         "tags": ["Chat"],
         "description": "Create new chat",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
         "responses": {
-          "200": {
-            "description": "Default Response"
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
           }
         }
       }
@@ -47,7 +64,12 @@
         ],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
           }
         }
       },
@@ -55,6 +77,13 @@
         "operationId": "updateChat",
         "tags": ["Chat"],
         "description": "Update chat",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -67,7 +96,12 @@
         ],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
           }
         }
       },
@@ -167,169 +201,12 @@
         "operationId": "getMcpRequestLogs",
         "tags": ["MCP Request Log"],
         "description": "Get MCP request logs with filtering and pagination",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "server_name",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "method",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": ["success", "error"]
-            },
-            "in": "query",
-            "name": "status",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "search",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            },
-            "in": "query",
-            "name": "date_from",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            },
-            "in": "query",
-            "name": "date_to",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "number",
-              "minimum": 1,
-              "default": 1
-            },
-            "in": "query",
-            "name": "page",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "number",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50
-            },
-            "in": "query",
-            "name": "page_size",
-            "required": false
-          }
-        ],
         "responses": {
           "200": {
-            "description": "Paginated list of MCP request logs",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "description": "Paginated list of MCP request logs",
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "request_id": {
-                            "type": "string"
-                          },
-                          "session_id": {
-                            "type": "string"
-                          },
-                          "mcp_session_id": {
-                            "type": "string"
-                          },
-                          "server_name": {
-                            "type": "string"
-                          },
-                          "client_info": {
-                            "type": "string"
-                          },
-                          "method": {
-                            "type": "string"
-                          },
-                          "status": {
-                            "type": "string",
-                            "enum": ["pending", "success", "error"]
-                          },
-                          "duration_ms": {
-                            "type": "number"
-                          },
-                          "timestamp": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "request": {
-                            "type": "string"
-                          },
-                          "response": {
-                            "type": "string"
-                          },
-                          "error": {
-                            "type": "string"
-                          },
-                          "headers": {
-                            "type": "object"
-                          }
-                        },
-                        "required": ["id", "server_name", "method", "status", "timestamp"]
-                      }
-                    },
-                    "total": {
-                      "type": "number"
-                    },
-                    "page": {
-                      "type": "number"
-                    },
-                    "page_size": {
-                      "type": "number"
-                    }
-                  },
-                  "required": ["data", "total", "page", "page_size"]
-                }
-              }
-            }
-          },
-          "500": {
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           }
@@ -342,48 +219,16 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "clear_all": {
-                    "type": "boolean",
-                    "default": false
-                  }
-                }
-              }
+              "schema": {}
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Number of logs cleared",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "description": "Number of logs cleared",
-                  "type": "object",
-                  "properties": {
-                    "cleared": {
-                      "type": "number"
-                    }
-                  },
-                  "required": ["cleared"]
-                }
-              }
-            }
-          },
-          "500": {
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           }
@@ -407,90 +252,10 @@
         ],
         "responses": {
           "200": {
-            "description": "MCP request log",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "description": "MCP request log",
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "request_id": {
-                      "type": "string"
-                    },
-                    "session_id": {
-                      "type": "string"
-                    },
-                    "mcp_session_id": {
-                      "type": "string"
-                    },
-                    "server_name": {
-                      "type": "string"
-                    },
-                    "client_info": {
-                      "type": "string"
-                    },
-                    "method": {
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": ["pending", "success", "error"]
-                    },
-                    "duration_ms": {
-                      "type": "number"
-                    },
-                    "timestamp": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "request": {
-                      "type": "string"
-                    },
-                    "response": {
-                      "type": "string"
-                    },
-                    "error": {
-                      "type": "string"
-                    },
-                    "headers": {
-                      "type": "object"
-                    }
-                  },
-                  "required": ["id", "server_name", "method", "status", "timestamp"]
-                }
-              }
-            }
-          },
-          "404": {
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           }
@@ -502,96 +267,12 @@
         "operationId": "getMcpRequestLogStats",
         "tags": ["MCP Request Log"],
         "description": "Get MCP request log statistics",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "server_name",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "method",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": ["success", "error"]
-            },
-            "in": "query",
-            "name": "status",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            },
-            "in": "query",
-            "name": "date_from",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            },
-            "in": "query",
-            "name": "date_to",
-            "required": false
-          }
-        ],
         "responses": {
           "200": {
-            "description": "MCP request log statistics",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "description": "MCP request log statistics",
-                  "type": "object",
-                  "properties": {
-                    "totalRequests": {
-                      "type": "number"
-                    },
-                    "successCount": {
-                      "type": "number"
-                    },
-                    "errorCount": {
-                      "type": "number"
-                    },
-                    "avgDurationMs": {
-                      "type": "number"
-                    },
-                    "requestsPerServer": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "number"
-                      }
-                    }
-                  },
-                  "required": ["totalRequests", "successCount", "errorCount", "avgDurationMs", "requestsPerServer"]
-                }
-              }
-            }
-          },
-          "500": {
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           }
@@ -605,76 +286,10 @@
         "description": "Get all installed MCP servers",
         "responses": {
           "200": {
-            "description": "List of installed MCP servers",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "description": "List of installed MCP servers",
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "name": {
-                        "type": "string"
-                      },
-                      "config": {
-                        "type": "object",
-                        "properties": {
-                          "command": {
-                            "type": "string"
-                          },
-                          "args": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          },
-                          "env": {
-                            "type": "object"
-                          },
-                          "transport": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["command"]
-                      },
-                      "tools": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "name": {
-                              "type": "string"
-                            },
-                            "description": {
-                              "type": "string"
-                            },
-                            "inputSchema": {
-                              "type": "object"
-                            }
-                          },
-                          "required": ["name"]
-                        }
-                      }
-                    },
-                    "required": ["name", "config"]
-                  }
-                }
-              }
-            }
-          },
-          "500": {
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           }
@@ -689,32 +304,16 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "mcp_connector_id": {
-                    "type": "string"
-                  }
-                },
-                "required": ["mcp_connector_id"]
-              }
+              "schema": {}
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           },
@@ -722,14 +321,7 @@
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           },
@@ -737,14 +329,7 @@
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           },
@@ -752,48 +337,31 @@
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           }
         }
       }
     },
-    "/api/mcp_server/{mcp_server_name}": {
-      "delete": {
-        "operationId": "uninstallMcpServer",
+    "/api/mcp_server/install_custom": {
+      "post": {
+        "operationId": "installCustomMcpServer",
         "tags": ["MCP Server"],
-        "description": "Uninstall MCP server",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "mcp_server_name",
-            "required": true
+        "description": "Install custom MCP server",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
           }
-        ],
+        },
         "responses": {
           "200": {
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           },
@@ -801,14 +369,7 @@
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           },
@@ -816,14 +377,40 @@
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp_server/{slug}": {
+      "delete": {
+        "operationId": "uninstallMcpServer",
+        "tags": ["MCP Server"],
+        "description": "Uninstall MCP server",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -838,32 +425,16 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "mcp_connector_id": {
-                    "type": "string"
-                  }
-                },
-                "required": ["mcp_connector_id"]
-              }
+              "schema": {}
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "auth_url": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           },
@@ -871,14 +442,7 @@
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
               }
             }
           },
@@ -886,14 +450,24 @@
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sandbox/status": {
+      "get": {
+        "operationId": "getSandboxStatus",
+        "tags": ["Sandbox"],
+        "description": "Get the current status of the sandbox environment",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }

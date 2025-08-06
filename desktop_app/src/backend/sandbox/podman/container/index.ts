@@ -1,14 +1,18 @@
+import { ServerConfig } from '@archestra/types';
+import config from '@backend/config';
 import { containerCreateLibpod, containerStartLibpod, containerWaitLibpod } from '@clients/libpod/gen/sdk.gen';
 
 export default class PodmanContainer {
   private containerName: string;
-  private imageName: string;
+  private command: string;
+  private args: string[];
   private envVars: Record<string, string>;
 
-  constructor(imageName: string, envVars: Record<string, string>) {
-    this.containerName = `archestra-ai-${imageName.replaceAll('/', '-')}-mcp-server`;
-    this.imageName = imageName;
-    this.envVars = envVars;
+  constructor(mcpServerSlug: string, serverConfig: ServerConfig) {
+    this.containerName = `archestra-ai-${mcpServerSlug}-mcp-server`;
+    this.command = serverConfig.command;
+    this.args = serverConfig.args;
+    this.envVars = serverConfig.env;
   }
 
   /**
@@ -67,14 +71,15 @@ export default class PodmanContainer {
     }
 
     console.log(
-      `Container ${this.containerName} does not exist, creating it with image ${this.imageName}, and starting it`
+      `Container ${this.containerName} does not exist, creating it with base image and command: ${this.command} ${this.args.join(' ')}`
     );
 
     try {
       const response = await containerCreateLibpod({
         body: {
           name: this.containerName,
-          image: this.imageName,
+          image: config.sandbox.baseDockerImage,
+          command: [this.command, ...this.args],
           env: this.envVars,
           /**
            * Keep stdin open for interactive communication with MCP servers
@@ -104,5 +109,14 @@ export default class PodmanContainer {
       console.error(`Error creating container ${this.containerName}`, error);
       throw error;
     }
+  }
+
+  /**
+   * NOTE: this isn't fully implemented/tested yet, just a placeholder for now 😅
+   *
+   * Need to figure out how to properly proxy stdio to the container..
+   */
+  proxyRequestToContainer(request: any) {
+    console.log('Proxying request to MCP server', request);
   }
 }

@@ -1,12 +1,12 @@
 import { SidebarIcon } from 'lucide-react';
 
-import { NavigationSubViewKey, NavigationViewKey } from '@types';
 import { ThemeToggler } from '@ui/components/ThemeToggler';
 import { Button } from '@ui/components/ui/button';
 import { Separator } from '@ui/components/ui/separator';
 import { useSidebar } from '@ui/components/ui/sidebar';
 import config from '@ui/config';
 import { useChatStore } from '@ui/stores/chat-store';
+import { NavigationSubViewKey, NavigationViewKey } from '@ui/types';
 
 import { Breadcrumbs } from './Breadcrumbs';
 

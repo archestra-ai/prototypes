@@ -1,50 +1,33 @@
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
+import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 
+import { McpRequestLogFilters, McpRequestLogStats } from '@archestra/types';
 import db from '@backend/database';
 import { mcpRequestLogs } from '@backend/database/schema/mcpRequestLog';
-import { CreateMcpRequestLogData, McpRequestLog, McpRequestLogFilters, McpRequestLogStats } from '@types';
 
-export class MCPRequestLog {
+// Database schemas
+export const insertMcpRequestLogSchema = createInsertSchema(mcpRequestLogs);
+export const selectMcpRequestLogSchema = createSelectSchema(mcpRequestLogs);
+
+export default class McpRequestLog {
   /**
    * Create a new request log entry
    */
-  static async create(data: CreateMcpRequestLogData): Promise<McpRequestLog> {
-    const [log] = await db
-      .insert(mcpRequestLogs)
-      .values({
-        requestId: data.requestId,
-        sessionId: data.sessionId,
-        mcpSessionId: data.mcpSessionId,
-        serverName: data.serverName,
-        clientInfo: data.clientInfo ? JSON.stringify(data.clientInfo) : null,
-        method: data.method,
-        requestHeaders: data.requestHeaders ? JSON.stringify(data.requestHeaders) : null,
-        requestBody: data.requestBody,
-        responseBody: data.responseBody,
-        responseHeaders: data.responseHeaders ? JSON.stringify(data.responseHeaders) : null,
-        statusCode: data.statusCode,
-        errorMessage: data.errorMessage,
-        durationMs: data.durationMs,
-      })
-      .returning();
-
-    return this.toMcpRequestLog(log);
+  static async create(data: typeof mcpRequestLogs.$inferInsert) {
+    const [log] = await db.insert(mcpRequestLogs).values(data).returning();
+    return log;
   }
 
   /**
    * Get request logs with filtering and pagination
    */
-  static async getRequestLogs(
-    filters?: McpRequestLogFilters,
-    page: number = 1,
-    pageSize: number = 50
-  ): Promise<{ logs: McpRequestLog[]; totalPages: number }> {
+  static async getRequestLogs(filters?: McpRequestLogFilters, page: number = 1, pageSize: number = 50) {
     const offset = (page - 1) * pageSize;
     const conditions = [];
 
     if (filters) {
-      if (filters.server_name) {
-        conditions.push(eq(mcpRequestLogs.serverName, filters.server_name));
+      if (filters.serverName) {
+        conditions.push(eq(mcpRequestLogs.serverName, filters.serverName));
       }
       if (filters.method) {
         conditions.push(eq(mcpRequestLogs.method, filters.method));
@@ -57,11 +40,11 @@ export class MCPRequestLog {
           conditions.push(gte(mcpRequestLogs.statusCode, 400));
         }
       }
-      if (filters.date_from) {
-        conditions.push(gte(mcpRequestLogs.timestamp, filters.date_from));
+      if (filters.dateFrom) {
+        conditions.push(gte(mcpRequestLogs.timestamp, filters.dateFrom));
       }
-      if (filters.date_to) {
-        conditions.push(lte(mcpRequestLogs.timestamp, filters.date_to));
+      if (filters.dateTo) {
+        conditions.push(lte(mcpRequestLogs.timestamp, filters.dateTo));
       }
     }
 
@@ -85,17 +68,15 @@ export class MCPRequestLog {
       .limit(pageSize)
       .offset(offset);
 
-    const logs = results.map((log) => this.toMcpRequestLog(log));
-
-    return { logs, totalPages };
+    return { logs: results, totalPages };
   }
 
   /**
    * Get a single request log by ID
    */
-  static async getRequestLogById(id: number): Promise<McpRequestLog | null> {
+  static async getRequestLogById(id: number) {
     const [log] = await db.select().from(mcpRequestLogs).where(eq(mcpRequestLogs.id, id));
-    return log ? this.toMcpRequestLog(log) : null;
+    return log;
   }
 
   /**
@@ -105,8 +86,8 @@ export class MCPRequestLog {
     const conditions = [];
 
     if (filters) {
-      if (filters.server_name) {
-        conditions.push(eq(mcpRequestLogs.serverName, filters.server_name));
+      if (filters.serverName) {
+        conditions.push(eq(mcpRequestLogs.serverName, filters.serverName));
       }
       if (filters.method) {
         conditions.push(eq(mcpRequestLogs.method, filters.method));
@@ -119,11 +100,11 @@ export class MCPRequestLog {
           conditions.push(gte(mcpRequestLogs.statusCode, 400));
         }
       }
-      if (filters.date_from) {
-        conditions.push(gte(mcpRequestLogs.timestamp, filters.date_from));
+      if (filters.dateFrom) {
+        conditions.push(gte(mcpRequestLogs.timestamp, filters.dateFrom));
       }
-      if (filters.date_to) {
-        conditions.push(lte(mcpRequestLogs.timestamp, filters.date_to));
+      if (filters.dateTo) {
+        conditions.push(lte(mcpRequestLogs.timestamp, filters.dateTo));
       }
     }
 
@@ -170,27 +151,5 @@ export class MCPRequestLog {
   static async clearAllLogs(): Promise<number> {
     const result = await db.delete(mcpRequestLogs);
     return result.changes;
-  }
-
-  /**
-   * Convert database row to McpRequestLog type
-   */
-  private static toMcpRequestLog(row: typeof mcpRequestLogs.$inferSelect): McpRequestLog {
-    return {
-      id: row.id.toString(),
-      request_id: row.requestId,
-      session_id: row.sessionId,
-      mcp_session_id: row.mcpSessionId,
-      server_name: row.serverName,
-      client_info: row.clientInfo,
-      method: row.method,
-      status: row.statusCode >= 200 && row.statusCode < 300 ? 'success' : 'error',
-      duration_ms: row.durationMs,
-      timestamp: row.timestamp,
-      request: row.requestBody ? row.requestBody : undefined,
-      response: row.responseBody ? row.responseBody : undefined,
-      error: row.errorMessage,
-      headers: row.requestHeaders ? JSON.parse(row.requestHeaders) : undefined,
-    };
   }
 }

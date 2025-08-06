@@ -3,25 +3,25 @@ import { Loader2 } from 'lucide-react';
 import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@ui/components/ui/card';
-import { useExternalMCPClientsStore } from '@ui/stores/external-mcp-clients-store';
+import { useExternalMcpClientsStore } from '@ui/stores/external-mcp-clients-store';
 
 export default function ExternalClients() {
   const {
-    supportedExternalMCPClientNames,
-    connectedExternalMCPClients,
-    isConnectingExternalMCPClient,
-    isDisconnectingExternalMCPClient,
-    connectExternalMCPClient,
-    disconnectExternalMCPClient,
-  } = useExternalMCPClientsStore();
+    supportedExternalMcpClientNames,
+    connectedExternalMcpClients,
+    isConnectingExternalMcpClient,
+    isDisconnectingExternalMcpClient,
+    connectExternalMcpClient,
+    disconnectExternalMcpClient,
+  } = useExternalMcpClientsStore();
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {supportedExternalMCPClientNames.map((clientName) => {
-        const connectedExternalMCPClient = connectedExternalMCPClients.find(
+      {supportedExternalMcpClientNames.map((clientName) => {
+        const connectedExternalMcpClient = connectedExternalMcpClients.find(
           (client) => client.client_name === clientName
         );
-        const isConnected = connectedExternalMCPClient !== undefined;
+        const isConnected = connectedExternalMcpClient !== undefined;
 
         return (
           <Card key={clientName}>
@@ -47,11 +47,11 @@ export default function ExternalClients() {
                   variant={isConnected ? 'destructive' : 'outline'}
                   size="sm"
                   onClick={() =>
-                    isConnected ? disconnectExternalMCPClient(clientName) : connectExternalMCPClient(clientName)
+                    isConnected ? disconnectExternalMcpClient(clientName) : connectExternalMcpClient(clientName)
                   }
-                  disabled={isConnectingExternalMCPClient || isDisconnectingExternalMCPClient}
+                  disabled={isConnectingExternalMcpClient || isDisconnectingExternalMcpClient}
                 >
-                  {isConnectingExternalMCPClient ? (
+                  {isConnectingExternalMcpClient ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Connecting...

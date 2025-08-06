@@ -2,11 +2,12 @@ import { eq } from 'drizzle-orm';
 import fs from 'fs/promises';
 import path from 'path';
 
+import { ExternalMcpClientName } from '@archestra/types';
 import db from '@backend/database';
 import { externalMcpClientsTable } from '@backend/database/schema/externalMcpClient';
-import { ExternalMcpClientName } from '@types';
+import { McpServerModel } from '@backend/models';
 
-export class ExternalMcpClient {
+export default class ExternalMcpClient {
   static ARCHESTRA_MCP_SERVER_KEY = 'archestra.ai';
   static ARCHESTRA_SERVER_BASE_URL = 'http://localhost:54587';
   static INSTALLED_MCP_SERVER_KEY_SUFFIX = '(archestra.ai)';
@@ -131,8 +132,7 @@ export class ExternalMcpClient {
     }
 
     // Get installed MCP servers from mcpServer model
-    const { MCPServer } = await import('@backend/models/mcpServer');
-    const installedMcpServers = await MCPServer.getInstalledMcpServers();
+    const installedMcpServers = await McpServerModel.getInstalledMcpServers();
 
     // Add each installed MCP server with archestra.ai suffix
     for (const server of installedMcpServers) {

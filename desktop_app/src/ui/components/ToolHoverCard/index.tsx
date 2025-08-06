@@ -1,14 +1,14 @@
 import React from 'react';
 
-import type { ToolWithMCPServerName } from '@types';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@ui/components/ui/hover-card';
 import { formatToolName } from '@ui/lib/utils/tools';
+import type { ToolWithMcpServerInfo } from '@ui/types';
 
 import { ToolServerIcon } from '../ToolServerIcon';
 import ToolStatusIcon from '../ToolStatusIcon';
 
 interface ToolHoverCardProps extends React.PropsWithChildren {
-  tool: ToolWithMCPServerName;
+  tool: ToolWithMcpServerInfo;
   side?: 'top' | 'right' | 'bottom' | 'left';
   align?: 'start' | 'center' | 'end';
   showInstructions?: boolean;
@@ -16,7 +16,7 @@ interface ToolHoverCardProps extends React.PropsWithChildren {
 }
 
 export function ToolHoverCard({
-  tool: { serverName, name, enabled, description },
+  tool: { server, name, enabled, description },
   children,
   side = 'right',
   align = 'start',
@@ -29,10 +29,10 @@ export function ToolHoverCard({
       <HoverCardContent className="w-80" side={side} align={align}>
         <div className="space-y-3">
           <div className="flex items-center gap-3">
-            <ToolServerIcon toolServerName={serverName} />
+            <ToolServerIcon toolServerName={server.name} />
             <div>
               <h4 className="font-semibold">{formatToolName(name)}</h4>
-              <p className="text-xs text-muted-foreground">From {serverName}</p>
+              <p className="text-xs text-muted-foreground">From {server.name}</p>
             </div>
           </div>
 

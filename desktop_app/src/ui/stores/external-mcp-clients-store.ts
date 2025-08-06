@@ -1,103 +1,97 @@
 import { create } from 'zustand';
 
+import { type ExternalMcpClient } from '@archestra/types';
 import {
   connectExternalMcpClient,
   disconnectExternalMcpClient,
   getConnectedExternalMcpClients,
   getSupportedExternalMcpClients,
 } from '@clients/archestra/api/gen';
-import { type ExternalMcpClient } from '@types';
 
-// Define type for external MCP client since it's not exported
-interface ExternalMcpClient {
-  name: string;
-  [key: string]: any;
+interface ExternalMcpClientsState {
+  supportedExternalMcpClientNames: string[];
+  isLoadingSupportedExternalMcpClientNames: boolean;
+  errorLoadingSupportedExternalMcpClientNames: string | null;
+  connectedExternalMcpClients: ExternalMcpClient[];
+  isLoadingConnectedExternalMcpClients: boolean;
+  errorLoadingConnectedExternalMcpClients: string | null;
+  isConnectingExternalMcpClient: boolean;
+  errorConnectingExternalMcpClient: string | null;
+  isDisconnectingExternalMcpClient: boolean;
+  errorDisconnectingExternalMcpClient: string | null;
 }
 
-interface ExternalMCPClientsState {
-  supportedExternalMCPClientNames: string[];
-  isLoadingSupportedExternalMCPClientNames: boolean;
-  errorLoadingSupportedExternalMCPClientNames: string | null;
-  connectedExternalMCPClients: ExternalMcpClient[];
-  isLoadingConnectedExternalMCPClients: boolean;
-  errorLoadingConnectedExternalMCPClients: string | null;
-  isConnectingExternalMCPClient: boolean;
-  errorConnectingExternalMCPClient: string | null;
-  isDisconnectingExternalMCPClient: boolean;
-  errorDisconnectingExternalMCPClient: string | null;
-}
-
-interface ExternalMCPClientsActions {
-  connectExternalMCPClient: (clientName: string) => Promise<void>;
-  disconnectExternalMCPClient: (clientName: string) => Promise<void>;
+interface ExternalMcpClientsActions {
+  connectExternalMcpClient: (clientName: string) => Promise<void>;
+  disconnectExternalMcpClient: (clientName: string) => Promise<void>;
   loadSupportedClients: () => Promise<void>;
   loadConnectedClients: () => Promise<void>;
 }
 
-type ExternalMCPClientsStore = ExternalMCPClientsState & ExternalMCPClientsActions;
+type ExternalMcpClientsStore = ExternalMcpClientsState & ExternalMcpClientsActions;
 
-export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) => ({
+export const useExternalMcpClientsStore = create<ExternalMcpClientsStore>((set) => ({
   // State
-  supportedExternalMCPClientNames: [],
-  isLoadingSupportedExternalMCPClientNames: true,
-  errorLoadingSupportedExternalMCPClientNames: null,
-  connectedExternalMCPClients: [],
-  isLoadingConnectedExternalMCPClients: true,
-  errorLoadingConnectedExternalMCPClients: null,
-  isConnectingExternalMCPClient: false,
-  errorConnectingExternalMCPClient: null,
-  isDisconnectingExternalMCPClient: false,
-  errorDisconnectingExternalMCPClient: null,
+  supportedExternalMcpClientNames: [],
+  isLoadingSupportedExternalMcpClientNames: true,
+  errorLoadingSupportedExternalMcpClientNames: null,
+  connectedExternalMcpClients: [],
+  isLoadingConnectedExternalMcpClients: true,
+  errorLoadingConnectedExternalMcpClients: null,
+  isConnectingExternalMcpClient: false,
+  errorConnectingExternalMcpClient: null,
+  isDisconnectingExternalMcpClient: false,
+  errorDisconnectingExternalMcpClient: null,
 
   // Actions
   loadSupportedClients: async () => {
     try {
       set({
-        isLoadingSupportedExternalMCPClientNames: true,
-        errorLoadingSupportedExternalMCPClientNames: null,
+        isLoadingSupportedExternalMcpClientNames: true,
+        errorLoadingSupportedExternalMcpClientNames: null,
       });
 
-      const response = await getExternalMcpClientApiExternalMcpClientSupported();
+      const response = await getSupportedExternalMcpClients();
       if ('data' in response && response.data) {
-        set({ supportedExternalMCPClientNames: response.data as string[] });
+        set({ supportedExternalMcpClientNames: response.data as string[] });
       } else if ('error' in response) {
         throw new Error(response.error as string);
       }
     } catch (error) {
-      set({ errorLoadingSupportedExternalMCPClientNames: error as string });
+      set({ errorLoadingSupportedExternalMcpClientNames: error as string });
     } finally {
-      set({ isLoadingSupportedExternalMCPClientNames: false });
+      set({ isLoadingSupportedExternalMcpClientNames: false });
     }
   },
 
   loadConnectedClients: async () => {
     try {
       set({
-        isLoadingConnectedExternalMCPClients: true,
-        errorLoadingConnectedExternalMCPClients: null,
+        isLoadingConnectedExternalMcpClients: true,
+        errorLoadingConnectedExternalMcpClients: null,
       });
 
-      const response = await getExternalMcpClientApiExternalMcpClient();
+      const response = await getConnectedExternalMcpClients();
       if ('data' in response && response.data) {
-        set({ connectedExternalMCPClients: response.data as ExternalMcpClient[] });
+        set({ connectedExternalMcpClients: response.data as ExternalMcpClient[] });
       } else if ('error' in response) {
         throw new Error(response.error as string);
       }
     } catch (error) {
-      set({ errorLoadingConnectedExternalMCPClients: error as string });
+      set({ errorLoadingConnectedExternalMcpClients: error as string });
     } finally {
-      set({ isLoadingConnectedExternalMCPClients: false });
+      set({ isLoadingConnectedExternalMcpClients: false });
     }
   },
 
-  connectExternalMCPClient: async (clientName: string) => {
+  connectExternalMcpClient: async (clientName: string) => {
     try {
       set({
-        isConnectingExternalMCPClient: true,
-        errorConnectingExternalMCPClient: null,
+        isConnectingExternalMcpClient: true,
+        errorConnectingExternalMcpClient: null,
       });
 
-      const response = await postExternalMcpClientApiExternalMcpClientConnect({
+      const response = await connectExternalMcpClient({
         body: { client_name: clientName },
       });
       if ('error' in response) {
@@ -105,22 +99,22 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
       }
 
       // Refresh connected clients after successful connection
-      await useExternalMCPClientsStore.getState().loadConnectedClients();
+      await useExternalMcpClientsStore.getState().loadConnectedClients();
     } catch (error) {
-      set({ errorConnectingExternalMCPClient: error as string });
+      set({ errorConnectingExternalMcpClient: error as string });
     } finally {
-      set({ isConnectingExternalMCPClient: false });
+      set({ isConnectingExternalMcpClient: false });
     }
   },
 
-  disconnectExternalMCPClient: async (clientName: string) => {
+  disconnectExternalMcpClient: async (clientName: string) => {
     try {
       set({
-        isDisconnectingExternalMCPClient: true,
-        errorDisconnectingExternalMCPClient: null,
+        isDisconnectingExternalMcpClient: true,
+        errorDisconnectingExternalMcpClient: null,
       });
 
-      const response = await deleteExternalMcpClientApiExternalMcpClientByClientNameDisconnect({
+      const response = await disconnectExternalMcpClient({
         path: { client_name: clientName },
       });
       if ('error' in response) {
@@ -128,15 +122,15 @@ export const useExternalMCPClientsStore = create<ExternalMCPClientsStore>((set) 
       }
 
       // Refresh connected clients after successful disconnection
-      await useExternalMCPClientsStore.getState().loadConnectedClients();
+      await useExternalMcpClientsStore.getState().loadConnectedClients();
     } catch (error) {
-      set({ errorDisconnectingExternalMCPClient: error as string });
+      set({ errorDisconnectingExternalMcpClient: error as string });
     } finally {
-      set({ isDisconnectingExternalMCPClient: false });
+      set({ isDisconnectingExternalMcpClient: false });
     }
   },
 }));
 
 // Initialize data on store creation
-useExternalMCPClientsStore.getState().loadSupportedClients();
-useExternalMCPClientsStore.getState().loadConnectedClients();
+useExternalMcpClientsStore.getState().loadSupportedClients();
+useExternalMcpClientsStore.getState().loadConnectedClients();

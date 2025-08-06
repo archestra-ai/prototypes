@@ -8,11 +8,11 @@ import {
   getChats,
   updateChat,
 } from '@clients/archestra/api/gen';
-import { type ChatWithMessages } from '@types';
 import config from '@ui/config';
 import { getDefaultModel } from '@ui/hooks/use-ai-chat-backend';
 import { initializeChat } from '@ui/lib/utils/chat';
 import { websocketService } from '@ui/lib/websocket';
+import { type ChatWithMessages } from '@ui/types';
 
 interface ChatState {
   chats: ChatWithMessages[];
@@ -39,9 +39,9 @@ type ChatStore = ChatState & ChatActions;
  */
 const listenForChatTitleUpdates = () => {
   return websocketService.subscribe('chat-title-updated', (message) => {
-    const { chat_id, title } = message.payload;
+    const { chatId, title } = message.payload;
     useChatStore.setState((state) => ({
-      chats: state.chats.map((chat) => (chat.id === chat_id ? { ...chat, title } : chat)),
+      chats: state.chats.map((chat) => (chat.id === chatId ? { ...chat, title } : chat)),
     }));
   });
 };

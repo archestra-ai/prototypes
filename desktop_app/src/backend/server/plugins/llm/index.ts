@@ -1,9 +1,9 @@
 import { openai } from '@ai-sdk/openai';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { convertToModelMessages, experimental_createMCPClient, stepCountIs, streamText } from 'ai';
+import { convertToModelMessages, experimental_createMCPClient, stepCountIs, generateId, streamText } from 'ai';
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
-import { chatService } from '@backend/models/chat';
+import ChatModel from '@backend/models/chat';
 
 interface StreamRequestBody {
   model: string;

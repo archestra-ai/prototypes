@@ -1,7 +1,6 @@
 import { ChevronRight, Plus } from 'lucide-react';
 import * as React from 'react';
 
-import { NavigationViewKey } from '@types';
 import { ToolHoverCard } from '@ui/components/ToolHoverCard';
 import { ToolServerIcon } from '@ui/components/ToolServerIcon';
 import { Input } from '@ui/components/ui/input';
@@ -14,20 +13,21 @@ import {
   SidebarMenuItem,
 } from '@ui/components/ui/sidebar';
 import { formatToolName } from '@ui/lib/utils/tools';
-import { useMCPServersStore } from '@ui/stores/mcp-servers-store';
+import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
 import { useNavigationStore } from '@ui/stores/navigation-store';
+import { NavigationViewKey } from '@ui/types';
 
-interface MCPServerWithToolsSidebarSectionProps {}
+interface McpServerWithToolsSidebarSectionProps {}
 
-export default function MCPServerWithToolsSidebarSection(_props: MCPServerWithToolsSidebarSectionProps) {
+export default function McpServerWithToolsSidebarSection(_props: McpServerWithToolsSidebarSectionProps) {
   const {
-    loadingInstalledMCPServers,
+    loadingInstalledMcpServers,
     addSelectedTool,
     getAllAvailableToolsGroupedByServer,
     getFilteredToolsGroupedByServer,
     toolSearchQuery,
     setToolSearchQuery,
-  } = useMCPServersStore();
+  } = useMcpServersStore();
   const { setActiveView } = useNavigationStore();
 
   const allAvailableToolsGroupedByServer = getAllAvailableToolsGroupedByServer();
@@ -53,7 +53,7 @@ export default function MCPServerWithToolsSidebarSection(_props: MCPServerWithTo
           />
         </div>
         <SidebarMenu>
-          {loadingInstalledMCPServers ? (
+          {loadingInstalledMcpServers ? (
             <SidebarMenuItem>
               <div className="flex items-center gap-2 px-2 py-1.5">
                 <div className="h-3 w-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />

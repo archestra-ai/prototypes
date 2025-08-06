@@ -1,1 +1,1 @@
-export { default as MCPServerSandboxManager } from './manager';
+export { default as McpServerSandboxManager } from './manager';

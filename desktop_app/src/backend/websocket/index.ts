@@ -1,49 +1,75 @@
-import { FastifyInstance } from 'fastify';
-import { WebSocket } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 
-export interface WebSocketMessage {
-  type: 'chat-title-updated' | 'echo';
-  payload: any;
-}
+import { WebSocketMessage } from '@archestra/types';
+import config from '@backend/config';
 
 class WebSocketService {
-  private fastify: FastifyInstance | null = null;
-  private connections: Set<WebSocket> = new Set();
+  private wss: WebSocketServer | null = null;
 
-  initialize(fastifyInstance: FastifyInstance) {
-    this.fastify = fastifyInstance;
-  }
+  start() {
+    const { port } = config.server.websocket;
 
-  addConnection(socket: WebSocket) {
-    this.connections.add(socket);
+    this.wss = new WebSocketServer({ port });
 
-    socket.on('close', () => {
-      this.connections.delete(socket);
+    console.log(`WebSocket server started on port ${port}`);
+
+    this.wss.on('connection', (ws: WebSocket) => {
+      console.log('WebSocket client connected');
+      console.log('Total connections:', this.wss?.clients.size);
+
+      ws.on('message', (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          console.log('Received WebSocket message:', message);
+        } catch (error) {
+          console.error('Failed to parse WebSocket message:', error);
+        }
+      });
+
+      ws.on('close', () => {
+        console.log('WebSocket client disconnected');
+        console.log('Remaining connections:', this.wss?.clients.size);
+      });
+
+      ws.on('error', (error) => {
+        console.error('WebSocket error:', error);
+      });
     });
-  }
 
-  removeConnection(socket: WebSocket) {
-    this.connections.delete(socket);
+    this.wss.on('error', (error) => {
+      console.error('WebSocket server error:', error);
+    });
   }
 
   broadcast(message: WebSocketMessage) {
-    const messageStr = JSON.stringify(message);
+    if (!this.wss) {
+      console.warn('WebSocket server not initialized');
+      return;
+    }
 
-    this.connections.forEach((socket) => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(messageStr);
+    const messageStr = JSON.stringify(message);
+    const clientCount = this.wss.clients.size;
+    console.log(`Broadcasting WebSocket message: ${message.type} to ${clientCount} connections`);
+
+    let sentCount = 0;
+    this.wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(messageStr);
+        sentCount++;
       }
     });
+
+    if (sentCount < clientCount) {
+      console.log(`Only sent to ${sentCount}/${clientCount} clients (some were not ready)`);
+    }
   }
 
-  broadcastChatTitleUpdate(chatId: number, title: string) {
-    this.broadcast({
-      type: 'chat-title-updated',
-      payload: {
-        chat_id: chatId,
-        title,
-      },
-    });
+  stop() {
+    if (this.wss) {
+      this.wss.close();
+      this.wss = null;
+      console.log('WebSocket server stopped');
+    }
   }
 }
 

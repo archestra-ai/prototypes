@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify';
 
-import { ExternalMcpClient } from '@backend/models/externalMcpClient';
-import { ExternalMcpClientName } from '@types';
+import { ExternalMcpClientName } from '@archestra/types';
+import ExternalMcpClientModel from '@backend/models/externalMcpClient';
 
 interface ConnectRequestBody {
   client_name: ExternalMcpClientName;
@@ -26,7 +26,7 @@ const externalMcpClientRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       try {
-        const clients = await ExternalMcpClient.getConnectedExternalMcpClients();
+        const clients = await ExternalMcpClientModel.getConnectedExternalMcpClients();
         return reply.send(clients);
       } catch (error) {
         console.error('Failed to get connected external MCP clients:', error);
@@ -49,7 +49,7 @@ const externalMcpClientRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       try {
-        const supportedClients = ExternalMcpClient.getSupportedExternalMcpClients();
+        const supportedClients = ExternalMcpClientModel.getSupportedExternalMcpClients();
         return reply.send(supportedClients);
       } catch (error) {
         console.error('Failed to get supported external MCP clients:', error);
@@ -78,7 +78,7 @@ const externalMcpClientRoutes: FastifyPluginAsync = async (fastify) => {
           return reply.code(400).send({ error: 'Invalid client name' });
         }
 
-        await ExternalMcpClient.connectExternalMcpClient(client_name);
+        await ExternalMcpClientModel.connectExternalMcpClient(client_name);
         return reply.code(200).send({ success: true });
       } catch (error) {
         console.error('Failed to connect external MCP client:', error);
@@ -107,7 +107,7 @@ const externalMcpClientRoutes: FastifyPluginAsync = async (fastify) => {
           return reply.code(400).send({ error: 'Invalid client name' });
         }
 
-        await ExternalMcpClient.disconnectExternalMcpClient(client_name);
+        await ExternalMcpClientModel.disconnectExternalMcpClient(client_name);
         return reply.code(200).send({ success: true });
       } catch (error) {
         console.error('Failed to disconnect external MCP client:', error);

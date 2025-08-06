@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Note**: The main Electron desktop application code is located in the `desktop_app/` directory.
+
 ## Important Rules
 
 - **NEVER modify shadcn/ui components**: Do not edit, update, or modify any files in `src/components/ui/`. These are third-party components that should remain untouched. Components in this folder should only be installed using `pnpm dlx shadcn@latest add <component-name>`. If UI changes are needed, create custom components or extend them in other directories.
@@ -60,17 +62,34 @@ pnpm typecheck
 pnpm lint
 ```
 
-### Database Inspection
+### Database Management
 
 ```bash
-# Launch sqlite-web to inspect the database in browser
-pnpm dbstudio
+# Launch Drizzle Studio to inspect the database in browser
+pnpm db:studio
 
-# The script will:
-# - Automatically find the database location (~/Library/Application Support/com.archestra.ai/archestra.db on macOS)
-# - Install sqlite-web via uv if not available (falls back to pip)
-# - Open the database at http://localhost:8080
-# - Allow browsing tables, running queries, and viewing schema
+# Generate migrations after schema changes
+pnpm db:generate
+
+# Apply migrations to the database
+pnpm db:migrate
+
+# Push schema changes directly (development only, skips migrations)
+pnpm db:push
+
+# Note: Database location: ~/Library/Application Support/com.archestra.ai/archestra.db on macOS
+```
+
+### Code Generation
+
+```bash
+# Generate all API clients (Archestra API, catalog, and libpod)
+pnpm codegen:all
+
+# Generate individual API clients
+pnpm codegen:archestra:api      # Generate Archestra API client from OpenAPI spec
+pnpm codegen:archestra:catalog  # Generate catalog API client
+pnpm codegen:libpod            # Generate Podman/libpod client for container management
 ```
 
 ### OAuth Proxy Service
@@ -168,6 +187,7 @@ This is an **Electron desktop application** that integrates AI/LLM capabilities 
    - **Enhanced Code Blocks**: Syntax highlighting with Shiki, file tabs, copy functionality, and theme support
 7. **API Documentation**: Well-structured REST API with TypeScript client generation
 8. **Real-time Events**: WebSocket-based event broadcasting for UI updates
+9. **Sandbox Security**: Container-based isolation for MCP servers using Podman
 
 ### Database Schema
 
@@ -230,6 +250,41 @@ The application uses WebSockets for real-time event broadcasting between the bac
   - Payload: `{chat_id: number, title: string}`
   - Triggered after 4 chat interactions
   - Frontend automatically updates UI without refresh
+- **Sandbox Events**: Real-time progress updates for container initialization
+  - `sandbox-startup-started/completed/failed`
+  - `sandbox-podman-runtime-progress`
+  - `sandbox-base-image-fetch-started/completed/failed`
+  - `sandbox-mcp-server-starting/started/failed`
+
+### Sandbox Architecture
+
+The application implements container-based sandboxing for MCP servers using Podman for enhanced security:
+
+#### Backend Sandbox Implementation (`src/backend/sandbox/`)
+
+- **PodmanRuntime**: Manages Podman machine lifecycle
+  - Automatic machine creation and startup
+  - Dynamic socket path resolution (avoids Docker/Orbstack conflicts)
+  - Multi-platform binary distribution (Linux, macOS, Windows)
+- **McpServerSandboxManager**: Orchestrates sandbox initialization
+  - Base image management (`europe-west1-docker.pkg.dev/friendly-path-465518-r6/archestra-public/mcp-server-base:0.0.1`)
+  - Container lifecycle management per MCP server
+  - WebSocket progress broadcasting
+- **Security Features**:
+  - Non-root container execution (uid: 1000, gid: 1000)
+  - Process isolation per MCP server
+  - stdin/stdout communication only (no exposed ports)
+  - Minimal base image with only essential dependencies
+
+#### Sandbox API and UI
+
+- **API Endpoint**: `GET /api/sandbox/status` - Returns initialization status
+- **UI Components**: 
+  - `SandboxStartupProgress`: Real-time initialization progress display
+  - `sandbox-store.ts`: Zustand store for sandbox state management
+- **Bundled Binaries**: Located in `resources/bin/` directory
+  - `podman-remote-static-v5.5.2` (multi-platform)
+  - `gvproxy-v0.8.6` (networking proxy)
 
 ### Key Patterns
 
@@ -320,11 +375,15 @@ Response: 204 No Content
 
 ### Important Configuration
 
-- **Package Manager**: pnpm v10.13.1 (NEVER use npm or yarn)
+- **Package Manager**: pnpm v10.14.0 (NEVER use npm or yarn)
 - **Node Version**: 24.4.1
 - **Backend Port**: 3456 (configured in `src/consts.ts`)
 - **WebSocket Endpoint**: `ws://localhost:3456/ws` (configured in `src/consts.ts`)
-- **TypeScript Path Alias**: `@/` maps to `./src/`
+- **TypeScript Path Aliases**:
+  - `@backend/*` maps to `./src/backend/*`
+  - `@clients/*` maps to `./src/clients/*`
+  - `@archestra/types` maps to `./src/types`
+  - `@ui/*` maps to `./src/ui/*`
 - **Prettier Config**: 120 character line width, single quotes, sorted imports
 - **Pre-commit Hooks**: Prettier formatting via Husky
 - **Electron Configuration**: Managed via Electron Forge in `forge.config.ts`

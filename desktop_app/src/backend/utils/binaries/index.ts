@@ -8,15 +8,7 @@ import fs from 'fs';
 import { arch, platform } from 'os';
 import path from 'path';
 
-type SupportedPlatform = 'linux' | 'mac' | 'win';
-type SupportedArchitecture = 'arm64' | 'x86_64';
-
-/**
- * NOTE: `gvproxy` MUST be named explicitly `gvproxy`. It cannot have the version appended to it, this is because
- * `podman` internally is looking specifically for that binary naming convention. As of this writing, the version
- * of `gvproxy` that we are using is [`v0.8.6`](https://github.com/containers/gvisor-tap-vsock/releases/tag/v0.8.6)
- */
-type SupportedBinary = 'ollama-v0.9.6' | 'podman-remote-static-v5.5.2' | 'gvproxy';
+import { SupportedArchitecture, SupportedBinary, SupportedPlatform } from '@archestra/types';
 
 const getPlatform = (): SupportedPlatform => {
   switch (platform()) {
@@ -56,10 +48,21 @@ const getArchitecture = (): SupportedArchitecture => {
 const PLATFORM = getPlatform();
 const ARCHITECTURE = getArchitecture();
 
-export const getBinariesDirectory = () =>
-  app.isPackaged
+/**
+ * Get the path to the "binaries" directory
+ *
+ * The first conditional bit is to handle the case where this function is referenced/invoked
+ * in a context where an electron app is not available (e.g. during codegen).
+ */
+export const getBinariesDirectory = () => {
+  if (typeof app === 'undefined' || !app || !app.isPackaged) {
+    return path.join(process.cwd(), 'resources', 'bin', PLATFORM, ARCHITECTURE);
+  }
+
+  return app.isPackaged
     ? path.join(process.resourcesPath, 'bin')
     : path.join(app.getAppPath(), 'resources', 'bin', PLATFORM, ARCHITECTURE);
+};
 
 export const getBinaryExecPath = (binaryName: SupportedBinary) => {
   const binaryPath = path.resolve(

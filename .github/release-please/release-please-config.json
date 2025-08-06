@@ -2,6 +2,8 @@
   "bootstrap-sha": "526d27aa0bd5e618de4b2f7e8c49d0b35c50b2dd",
   "changelog-path": "CHANGELOG.md",
   "changelog-type": "default",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
   "changelog-sections": [
     {
       "section": "Features",
@@ -57,9 +59,11 @@
   "packages": {
     "desktop_app": {
       "component": "desktop_app",
-      "release-type": "node",
-      "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": true
+      "release-type": "node"
+    },
+    "mcp_server_docker_image": {
+      "component": "mcp_server_docker_image",
+      "release-type": "simple"
     }
   },
   "plugins": [],

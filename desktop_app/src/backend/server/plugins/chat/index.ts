@@ -1,10 +1,34 @@
 import { FastifyPluginAsync } from 'fastify';
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod/v4';
 
-import { CreateChatRequest, UpdateChatRequest, chatService } from '@backend/models/chat';
+import ChatModel, { selectChatSchema } from '@backend/models/chat';
 
-interface ChatParams {
-  id: string;
-}
+// Request schemas
+const createChatRequestSchema = z.object({
+  // Currently empty - chat creation doesn't require any fields
+});
+
+const updateChatRequestSchema = z.object({
+  title: z.string().nullable().optional(),
+});
+
+// Request params schemas
+const chatParamsSchema = z.object({
+  id: z.string(),
+});
+
+// Response schemas
+const chatResponseSchema = selectChatSchema.extend({
+  messages: z.array(z.any()), // Messages are added by the service
+});
+
+const chatsListResponseSchema = z.array(chatResponseSchema);
+
+// Type exports
+type CreateChatRequest = z.infer<typeof createChatRequestSchema>;
+type UpdateChatRequest = z.infer<typeof updateChatRequestSchema>;
+type ChatParams = z.infer<typeof chatParamsSchema>;
 
 const chatRoutes: FastifyPluginAsync = async (fastify) => {
   // Get all chats
@@ -15,11 +39,14 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'getChats',
         description: 'Get all chats',
         tags: ['Chat'],
+        response: {
+          200: zodToJsonSchema(chatsListResponseSchema as any),
+        },
       },
     },
     async (request, reply) => {
       try {
-        const chats = await chatService.getAllChats();
+        const chats = await ChatModel.getAllChats();
         return reply.code(200).send(chats);
       } catch (error) {
         fastify.log.error(error);
@@ -36,6 +63,9 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'getChatById',
         description: 'Get single chat with messages',
         tags: ['Chat'],
+        response: {
+          200: zodToJsonSchema(chatResponseSchema as any),
+        },
       },
     },
     async (request, reply) => {
@@ -45,7 +75,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
           return reply.code(400).send({ error: 'Invalid chat ID' });
         }
 
-        const chat = await chatService.getChatById(chatId);
+        const chat = await ChatModel.getChatById(chatId);
         if (!chat) {
           return reply.code(404).send({ error: 'Chat not found' });
         }
@@ -66,11 +96,15 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'createChat',
         description: 'Create new chat',
         tags: ['Chat'],
+        body: zodToJsonSchema(createChatRequestSchema as any),
+        response: {
+          201: zodToJsonSchema(chatResponseSchema as any),
+        },
       },
     },
     async (request, reply) => {
       try {
-        const chat = await chatService.createChat(request.body);
+        const chat = await ChatModel.createChat();
         return reply.code(201).send(chat);
       } catch (error) {
         fastify.log.error(error);
@@ -87,6 +121,10 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'updateChat',
         description: 'Update chat',
         tags: ['Chat'],
+        body: zodToJsonSchema(updateChatRequestSchema as any),
+        response: {
+          200: zodToJsonSchema(chatResponseSchema as any),
+        },
       },
     },
     async (request, reply) => {
@@ -96,7 +134,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
           return reply.code(400).send({ error: 'Invalid chat ID' });
         }
 
-        const chat = await chatService.updateChat(chatId, request.body);
+        const chat = await ChatModel.updateChat(chatId, request.body);
         if (!chat) {
           return reply.code(404).send({ error: 'Chat not found' });
         }
@@ -126,7 +164,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
           return reply.code(400).send({ error: 'Invalid chat ID' });
         }
 
-        await chatService.deleteChat(chatId);
+        await ChatModel.deleteChat(chatId);
         return reply.code(204).send();
       } catch (error) {
         fastify.log.error(error);

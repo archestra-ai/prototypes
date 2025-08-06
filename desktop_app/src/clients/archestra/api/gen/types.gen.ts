@@ -15,7 +15,7 @@ export type GetChatsResponses = {
 };
 
 export type CreateChatData = {
-  body?: never;
+  body?: unknown;
   path?: never;
   query?: never;
   url: '/api/chat';
@@ -25,7 +25,7 @@ export type CreateChatResponses = {
   /**
    * Default Response
    */
-  200: unknown;
+  201: unknown;
 };
 
 export type DeleteChatData = {
@@ -61,7 +61,7 @@ export type GetChatByIdResponses = {
 };
 
 export type UpdateChatData = {
-  body?: never;
+  body?: unknown;
   path: {
     id: string;
   };
@@ -149,93 +149,32 @@ export type StreamLlmResponseResponses = {
 };
 
 export type ClearMcpRequestLogsData = {
-  body?: {
-    clear_all?: boolean;
-  };
+  body?: unknown;
   path?: never;
   query?: never;
   url: '/api/mcp_request_log';
 };
 
-export type ClearMcpRequestLogsErrors = {
+export type ClearMcpRequestLogsResponses = {
   /**
    * Default Response
    */
-  500: {
-    error?: string;
-  };
+  200: unknown;
 };
-
-export type ClearMcpRequestLogsError = ClearMcpRequestLogsErrors[keyof ClearMcpRequestLogsErrors];
-
-export type ClearMcpRequestLogsResponses = {
-  /**
-   * Number of logs cleared
-   */
-  200: {
-    cleared: number;
-  };
-};
-
-export type ClearMcpRequestLogsResponse = ClearMcpRequestLogsResponses[keyof ClearMcpRequestLogsResponses];
 
 export type GetMcpRequestLogsData = {
   body?: never;
   path?: never;
-  query?: {
-    server_name?: string;
-    method?: string;
-    status?: 'success' | 'error';
-    search?: string;
-    date_from?: string;
-    date_to?: string;
-    page?: number;
-    page_size?: number;
-  };
+  query?: never;
   url: '/api/mcp_request_log';
 };
 
-export type GetMcpRequestLogsErrors = {
+export type GetMcpRequestLogsResponses = {
   /**
    * Default Response
    */
-  500: {
-    error?: string;
-  };
+  200: unknown;
 };
-
-export type GetMcpRequestLogsError = GetMcpRequestLogsErrors[keyof GetMcpRequestLogsErrors];
-
-export type GetMcpRequestLogsResponses = {
-  /**
-   * Paginated list of MCP request logs
-   */
-  200: {
-    data: Array<{
-      id: string;
-      request_id?: string;
-      session_id?: string;
-      mcp_session_id?: string;
-      server_name: string;
-      client_info?: string;
-      method: string;
-      status: 'pending' | 'success' | 'error';
-      duration_ms?: number;
-      timestamp: string;
-      request?: string;
-      response?: string;
-      error?: string;
-      headers?: {
-        [key: string]: unknown;
-      };
-    }>;
-    total: number;
-    page: number;
-    page_size: number;
-  };
-};
-
-export type GetMcpRequestLogsResponse = GetMcpRequestLogsResponses[keyof GetMcpRequestLogsResponses];
 
 export type GetMcpRequestLogByIdData = {
   body?: never;
@@ -246,89 +185,26 @@ export type GetMcpRequestLogByIdData = {
   url: '/api/mcp_request_log/{id}';
 };
 
-export type GetMcpRequestLogByIdErrors = {
-  /**
-   * Default Response
-   */
-  404: {
-    error?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error?: string;
-  };
-};
-
-export type GetMcpRequestLogByIdError = GetMcpRequestLogByIdErrors[keyof GetMcpRequestLogByIdErrors];
-
 export type GetMcpRequestLogByIdResponses = {
   /**
-   * MCP request log
+   * Default Response
    */
-  200: {
-    id: string;
-    request_id?: string;
-    session_id?: string;
-    mcp_session_id?: string;
-    server_name: string;
-    client_info?: string;
-    method: string;
-    status: 'pending' | 'success' | 'error';
-    duration_ms?: number;
-    timestamp: string;
-    request?: string;
-    response?: string;
-    error?: string;
-    headers?: {
-      [key: string]: unknown;
-    };
-  };
+  200: unknown;
 };
-
-export type GetMcpRequestLogByIdResponse = GetMcpRequestLogByIdResponses[keyof GetMcpRequestLogByIdResponses];
 
 export type GetMcpRequestLogStatsData = {
   body?: never;
   path?: never;
-  query?: {
-    server_name?: string;
-    method?: string;
-    status?: 'success' | 'error';
-    date_from?: string;
-    date_to?: string;
-  };
+  query?: never;
   url: '/api/mcp_request_log/stats';
 };
 
-export type GetMcpRequestLogStatsErrors = {
+export type GetMcpRequestLogStatsResponses = {
   /**
    * Default Response
    */
-  500: {
-    error?: string;
-  };
+  200: unknown;
 };
-
-export type GetMcpRequestLogStatsError = GetMcpRequestLogStatsErrors[keyof GetMcpRequestLogStatsErrors];
-
-export type GetMcpRequestLogStatsResponses = {
-  /**
-   * MCP request log statistics
-   */
-  200: {
-    totalRequests: number;
-    successCount: number;
-    errorCount: number;
-    avgDurationMs: number;
-    requestsPerServer: {
-      [key: string]: number;
-    };
-  };
-};
-
-export type GetMcpRequestLogStatsResponse = GetMcpRequestLogStatsResponses[keyof GetMcpRequestLogStatsResponses];
 
 export type GetMcpServersData = {
   body?: never;
@@ -337,47 +213,15 @@ export type GetMcpServersData = {
   url: '/api/mcp_server';
 };
 
-export type GetMcpServersErrors = {
+export type GetMcpServersResponses = {
   /**
    * Default Response
    */
-  500: {
-    error?: string;
-  };
+  200: unknown;
 };
-
-export type GetMcpServersError = GetMcpServersErrors[keyof GetMcpServersErrors];
-
-export type GetMcpServersResponses = {
-  /**
-   * List of installed MCP servers
-   */
-  200: Array<{
-    name: string;
-    config: {
-      command: string;
-      args?: Array<string>;
-      env?: {
-        [key: string]: unknown;
-      };
-      transport?: string;
-    };
-    tools?: Array<{
-      name: string;
-      description?: string;
-      inputSchema?: {
-        [key: string]: unknown;
-      };
-    }>;
-  }>;
-};
-
-export type GetMcpServersResponse = GetMcpServersResponses[keyof GetMcpServersResponses];
 
 export type InstallMcpServerData = {
-  body: {
-    mcp_connector_id: string;
-  };
+  body?: unknown;
   path?: never;
   query?: never;
   url: '/api/mcp_server/install';
@@ -387,77 +231,76 @@ export type InstallMcpServerErrors = {
   /**
    * Default Response
    */
-  400: {
-    error?: string;
-  };
+  400: unknown;
   /**
    * Default Response
    */
-  404: {
-    error?: string;
-  };
+  404: unknown;
   /**
    * Default Response
    */
-  500: {
-    error?: string;
-  };
+  500: unknown;
 };
-
-export type InstallMcpServerError = InstallMcpServerErrors[keyof InstallMcpServerErrors];
 
 export type InstallMcpServerResponses = {
   /**
    * Default Response
    */
-  200: {
-    success?: boolean;
-  };
+  200: unknown;
 };
 
-export type InstallMcpServerResponse = InstallMcpServerResponses[keyof InstallMcpServerResponses];
+export type InstallCustomMcpServerData = {
+  body?: unknown;
+  path?: never;
+  query?: never;
+  url: '/api/mcp_server/install_custom';
+};
+
+export type InstallCustomMcpServerErrors = {
+  /**
+   * Default Response
+   */
+  400: unknown;
+  /**
+   * Default Response
+   */
+  500: unknown;
+};
+
+export type InstallCustomMcpServerResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
 
 export type UninstallMcpServerData = {
   body?: never;
-  path: {
-    mcp_server_name: string;
-  };
+  path?: never;
   query?: never;
-  url: '/api/mcp_server/{mcp_server_name}';
+  url: '/api/mcp_server/{slug}';
 };
 
 export type UninstallMcpServerErrors = {
   /**
    * Default Response
    */
-  400: {
-    error?: string;
-  };
+  400: unknown;
   /**
    * Default Response
    */
-  500: {
-    error?: string;
-  };
+  500: unknown;
 };
-
-export type UninstallMcpServerError = UninstallMcpServerErrors[keyof UninstallMcpServerErrors];
 
 export type UninstallMcpServerResponses = {
   /**
    * Default Response
    */
-  200: {
-    success?: boolean;
-  };
+  200: unknown;
 };
 
-export type UninstallMcpServerResponse = UninstallMcpServerResponses[keyof UninstallMcpServerResponses];
-
 export type StartMcpServerOauthData = {
-  body: {
-    mcp_connector_id: string;
-  };
+  body?: unknown;
   path?: never;
   query?: never;
   url: '/api/mcp_server/start_oauth';
@@ -467,29 +310,33 @@ export type StartMcpServerOauthErrors = {
   /**
    * Default Response
    */
-  400: {
-    error?: string;
-  };
+  400: unknown;
   /**
    * Default Response
    */
-  500: {
-    error?: string;
-  };
+  500: unknown;
 };
-
-export type StartMcpServerOauthError = StartMcpServerOauthErrors[keyof StartMcpServerOauthErrors];
 
 export type StartMcpServerOauthResponses = {
   /**
    * Default Response
    */
-  200: {
-    auth_url?: string;
-  };
+  200: unknown;
 };
 
-export type StartMcpServerOauthResponse = StartMcpServerOauthResponses[keyof StartMcpServerOauthResponses];
+export type GetSandboxStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/sandbox/status';
+};
+
+export type GetSandboxStatusResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
 
 export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});

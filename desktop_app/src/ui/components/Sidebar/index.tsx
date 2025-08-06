@@ -1,6 +1,5 @@
 import * as React from 'react';
 
-import { NavigationSubViewKey, NavigationViewKey } from '@types';
 import { SiteHeader } from '@ui/components/SiteHeader';
 import {
   Sidebar as SidebarBase,
@@ -15,10 +14,11 @@ import {
 } from '@ui/components/ui/sidebar';
 import config from '@ui/config';
 import { useNavigationStore } from '@ui/stores/navigation-store';
+import { NavigationSubViewKey, NavigationViewKey } from '@ui/types';
 
 import ChatSidebarSection from './ChatSidebarSection';
 import LLMProvidersSidebarSection from './LLMProvidersSidebarSection';
-import MCPServerWithToolsSidebarSection from './MCPServerWithToolsSidebarSection';
+import McpServerWithToolsSidebarSection from './McpServerWithToolsSidebarSection';
 
 interface SidebarProps extends React.PropsWithChildren {}
 
@@ -67,7 +67,7 @@ export default function Sidebar({ children }: SidebarProps) {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
-            {activeView === NavigationViewKey.Chat && <MCPServerWithToolsSidebarSection />}
+            {activeView === NavigationViewKey.Chat && <McpServerWithToolsSidebarSection />}
           </SidebarContent>
         </SidebarBase>
         <SidebarInset className="overflow-hidden">

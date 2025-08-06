@@ -1,21 +1,21 @@
 import { XIcon } from 'lucide-react';
 
-import type { ToolWithMCPServerName } from '@types';
 import { ToolHoverCard } from '@ui/components/ToolHoverCard';
 import { Badge } from '@ui/components/ui/badge';
 import { formatToolName } from '@ui/lib/utils/tools';
-import { useMCPServersStore } from '@ui/stores/mcp-servers-store';
+import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
+import type { ToolWithMcpServerInfo } from '@ui/types';
 
 import { ToolServerIcon } from '../ToolServerIcon';
 import ToolStatusIcon from '../ToolStatusIcon';
 
 interface ToolPillProps {
-  tool: ToolWithMCPServerName;
+  tool: ToolWithMcpServerInfo;
 }
 
 export default function ToolPill({ tool }: ToolPillProps) {
-  const { serverName, name, enabled } = tool;
-  const { removeSelectedTool } = useMCPServersStore();
+  const { server, name, enabled } = tool;
+  const { removeSelectedTool } = useMcpServersStore();
 
   return (
     <ToolHoverCard
@@ -27,7 +27,7 @@ export default function ToolPill({ tool }: ToolPillProps) {
     >
       <div>
         <Badge variant="secondary" className="flex items-center gap-1.5 px-2 py-1 text-xs cursor-pointer">
-          <ToolServerIcon toolServerName={serverName} />
+          <ToolServerIcon toolServerName={server.name} />
           <ToolStatusIcon enabled={enabled} />
           <span>{formatToolName(name)}</span>
           <button

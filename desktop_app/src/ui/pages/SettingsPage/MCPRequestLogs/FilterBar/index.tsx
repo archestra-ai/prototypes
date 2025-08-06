@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp, Filter } from 'lucide-react';
 import { useState } from 'react';
 
-import { type McpRequestLogFilters } from '@clients/archestra/api/gen';
+import { type McpRequestLogFilters } from '@archestra/types';
 import { Button } from '@ui/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/components/ui/collapsible';
 import { Input } from '@ui/components/ui/input';
@@ -35,8 +35,8 @@ export default function FilterBar({ filters, onFiltersChange, onReset }: FilterB
             <Input
               id="server-filter"
               placeholder="Filter by server..."
-              value={filters.server_name || ''}
-              onChange={(e) => onFiltersChange({ ...filters, server_name: e.target.value || undefined })}
+              value={filters.serverName || ''}
+              onChange={(e) => onFiltersChange({ ...filters, serverName: e.target.value || undefined })}
             />
           </div>
           <div className="space-y-2">
@@ -48,23 +48,23 @@ export default function FilterBar({ filters, onFiltersChange, onReset }: FilterB
               onChange={(e) => onFiltersChange({ ...filters, method: e.target.value || undefined })}
             />
           </div>
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <Label htmlFor="session-filter">Session ID</Label>
             <Input
               id="session-filter"
               placeholder="Filter by session..."
-              value={filters.session_id || ''}
-              onChange={(e) => onFiltersChange({ ...filters, session_id: e.target.value || undefined })}
+              value={filters.sessionId || ''}
+              onChange={(e) => onFiltersChange({ ...filters, sessionId: e.target.value || undefined })}
             />
-          </div>
+          </div> */}
           <div className="space-y-2">
             <Label htmlFor="status-filter">Status Code</Label>
             <Select
-              value={filters.status_code?.toString() || 'all'}
+              value={filters.status || 'all'}
               onValueChange={(value) =>
                 onFiltersChange({
                   ...filters,
-                  status_code: value === 'all' ? undefined : parseInt(value),
+                  status: value === 'all' ? undefined : value,
                 })
               }
             >

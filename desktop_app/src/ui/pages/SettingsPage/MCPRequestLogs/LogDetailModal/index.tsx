@@ -1,10 +1,9 @@
 import { Activity, Calendar, Clock, Server } from 'lucide-react';
 
-import { type McpRequestLog } from '@clients/archestra/api/gen';
+import { type McpRequestLog } from '@archestra/types';
 import { Badge } from '@ui/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@ui/components/ui/dialog';
 import { Label } from '@ui/components/ui/label';
-import { useMCPLogsStore } from '@ui/stores/mcp-logs-store';
 
 import { formatDuration, formatTimestamp, getStatusColor, getStatusLabel } from '../utils';
 
@@ -15,11 +14,7 @@ interface LogDetailModalProps {
 }
 
 export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalProps) {
-  const { parseClientInfo, parseHeaders } = useMCPLogsStore();
-
-  const clientInfo = parseClientInfo(log.client_info ?? undefined);
-  const requestHeaders = parseHeaders(log.request_headers ?? undefined);
-  const responseHeaders = parseHeaders(log.response_headers ?? undefined);
+  const { clientInfo, requestHeaders, responseHeaders } = log;
 
   const formatJson = (jsonString?: string) => {
     if (!jsonString) return 'N/A';
@@ -36,7 +31,7 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
-            Request Details - {log.request_id}
+            Request Details - {log.requestId}
           </DialogTitle>
         </DialogHeader>
 
@@ -49,7 +44,7 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
                 <Label>Server Name</Label>
                 <div className="flex items-center gap-2">
                   <Server className="h-4 w-4" />
-                  {log.server_name}
+                  {log.serverName}
                 </div>
               </div>
               <div className="space-y-2">
@@ -58,15 +53,15 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Badge className={getStatusColor(log.status_code)}>
-                  {log.status_code} - {getStatusLabel(log.status_code)}
+                <Badge className={getStatusColor(log.statusCode)}>
+                  {log.statusCode} - {getStatusLabel(log.statusCode)}
                 </Badge>
               </div>
               <div className="space-y-2">
                 <Label>Duration</Label>
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  {formatDuration(log.duration_ms ?? undefined)}
+                  {formatDuration(log.durationMs ?? undefined)}
                 </div>
               </div>
               <div className="space-y-2">
@@ -78,14 +73,14 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
               </div>
               <div className="space-y-2">
                 <Label>Session ID</Label>
-                <code className="text-sm">{log.session_id || 'N/A'}</code>
+                <code className="text-sm">{log.sessionId || 'N/A'}</code>
               </div>
             </div>
 
-            {log.mcp_session_id && (
+            {log.mcpSessionId && (
               <div className="space-y-2">
                 <Label>MCP Session ID</Label>
-                <code className="text-sm">{log.mcp_session_id}</code>
+                <code className="text-sm">{log.mcpSessionId}</code>
               </div>
             )}
 
@@ -93,35 +88,35 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
               <div className="space-y-2">
                 <Label>Client Info</Label>
                 <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md text-sm">
-                  {clientInfo.client_name && (
+                  {clientInfo.clientName && (
                     <div>
-                      <strong>Client:</strong> {clientInfo.client_name}
+                      <strong>Client:</strong> {clientInfo.clientName}
                     </div>
                   )}
-                  {clientInfo.client_version && (
+                  {clientInfo.clientVersion && (
                     <div>
-                      <strong>Version:</strong> {clientInfo.client_version}
+                      <strong>Version:</strong> {clientInfo.clientVersion}
                     </div>
                   )}
-                  {clientInfo.client_platform && (
+                  {clientInfo.clientPlatform && (
                     <div>
-                      <strong>Platform:</strong> {clientInfo.client_platform}
+                      <strong>Platform:</strong> {clientInfo.clientPlatform}
                     </div>
                   )}
-                  {clientInfo.user_agent && (
+                  {clientInfo.userAgent && (
                     <div>
-                      <strong>User Agent:</strong> {clientInfo.user_agent}
+                      <strong>User Agent:</strong> {clientInfo.userAgent}
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {log.error_message && (
+            {log.errorMessage && (
               <div className="space-y-2">
                 <Label className="text-red-600 dark:text-red-400">Error Message</Label>
                 <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-3 rounded-md text-sm text-red-700 dark:text-red-300">
-                  {log.error_message}
+                  {log.errorMessage}
                 </div>
               </div>
             )}
@@ -139,7 +134,7 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
             <div>
               <Label>Request Body</Label>
               <pre className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md text-sm overflow-auto max-h-64 mt-2">
-                {formatJson(log.request_body ?? undefined)}
+                {formatJson(log.requestBody ?? undefined)}
               </pre>
             </div>
           </div>
@@ -156,7 +151,7 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
             <div>
               <Label>Response Body</Label>
               <pre className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md text-sm overflow-auto max-h-64 mt-2">
-                {formatJson(log.response_body ?? undefined)}
+                {formatJson(log.responseBody ?? undefined)}
               </pre>
             </div>
           </div>

@@ -1,17 +1,16 @@
 import { render } from '@testing-library/react';
 
-import { MCPServerStatus } from '@types';
+import { McpServerStatus } from '@ui/types';
 
-import ArchestraMCPServer from '.';
+import ArchestraMcpServer from '.';
 
-describe('ArchestraMCPServer', () => {
-  it('renders the ArchestraMCPServer component', () => {
-    const mockArchestraMCPServer = {
+describe('ArchestraMcpServer', () => {
+  it('renders the ArchestraMcpServer component', () => {
+    const mockArchestraMcpServer = {
       id: 1,
       name: 'archestra',
-      created_at: new Date().toISOString(),
-      server_config: {
-        transport: 'http',
+      createdAt: new Date().toISOString(),
+      serverConfig: {
         command: '',
         args: [],
         env: {},
@@ -19,9 +18,9 @@ describe('ArchestraMCPServer', () => {
       url: 'http://localhost:54587/mcp',
       client: null,
       tools: [],
-      status: MCPServerStatus.Connected,
+      status: McpServerStatus.Connected,
       error: null,
     };
-    render(<ArchestraMCPServer archestraMCPServer={mockArchestraMCPServer} />);
+    render(<ArchestraMcpServer archestraMcpServer={mockArchestraMcpServer} />);
   });
 });

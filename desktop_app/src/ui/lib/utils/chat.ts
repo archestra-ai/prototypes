@@ -1,10 +1,12 @@
-import type {
-  ChatWithMessages as ServerChatWithMessages,
-  ToolCall as ServerToolCall,
-} from '@clients/archestra/api/gen';
-import { type ChatMessage, type ChatWithMessages, type ToolCall, ToolCallStatus } from '@types';
+import { type ChatWithMessages, type ToolCall, ToolCallStatus } from '@ui/types';
 
 import { convertArchestraToolNameToServerAndToolName } from './tools';
+
+/**
+ * TODO: update/remove these.. what should these actual types be?
+ */
+type ServerChatWithMessages = any;
+type ServerToolCall = any;
 
 interface ParsedContent {
   thinking: string;
@@ -96,7 +98,10 @@ export const generateNewMessageCreatedAt = () => crypto.randomUUID();
 export const initializeChat = (chat: ServerChatWithMessages): ChatWithMessages => {
   return {
     ...chat,
-    messages: (chat.messages || []).map((message) => {
+    /**
+     * TODO: update/remove these.. what should these actual types be?
+     */
+    messages: (chat.messages || []).map((message: any) => {
       const { thinking, response } = parseThinkingContent(message.content);
 
       return {

@@ -1,13 +1,13 @@
 import getPort from 'get-port';
 
-import MCPServer from '@backend/models/mcpServer';
+import { McpServerModel } from '@backend/models';
+import PodmanContainer from '@backend/sandbox/podman/container';
 import PodmanRuntime from '@backend/sandbox/podman/runtime';
-import SandboxedMCP from '@backend/sandbox/sandboxedMCP';
 
-import MCPServerSandboxManager from './';
+import McpServerSandboxManager from './';
 
 vi.mock('../podman/runtime');
-vi.mock('../sandboxedMCP');
+vi.mock('../podman/container');
 vi.mock('get-port');
 
 // Test helper functions
@@ -21,10 +21,10 @@ function createMockServerConfig(overrides: any = {}) {
   };
 }
 
-describe('MCPServerSandboxManager', () => {
+describe('McpServerSandboxManager', () => {
   beforeEach(async () => {
     // Reset singleton instance
-    (MCPServerSandboxManager as any).instance = null;
+    (McpServerSandboxManager as any).instance = null;
 
     // Setup default mocks
     vi.mocked(getPort).mockResolvedValue(3000);
@@ -38,8 +38,8 @@ describe('MCPServerSandboxManager', () => {
 
   describe('getInstance', () => {
     it('should return the same instance when called multiple times', () => {
-      const instance1 = MCPServerSandboxManager.getInstance();
-      const instance2 = MCPServerSandboxManager.getInstance();
+      const instance1 = McpServerSandboxManager.getInstance();
+      const instance2 = McpServerSandboxManager.getInstance();
 
       expect(instance1).toBe(instance2);
     });
@@ -48,7 +48,7 @@ describe('MCPServerSandboxManager', () => {
   describe('startAllInstalledMcpServers', () => {
     it('should successfully start all installed MCP servers', async () => {
       // Create test MCP servers
-      await MCPServer.create({
+      await McpServerModel.create({
         name: 'test-server-1',
         serverConfig: createMockServerConfig({
           image: 'test/image:1',
@@ -56,7 +56,7 @@ describe('MCPServerSandboxManager', () => {
         }),
       });
 
-      await MCPServer.create({
+      await McpServerModel.create({
         name: 'test-server-2',
         serverConfig: createMockServerConfig({
           image: 'test/image:2',
@@ -67,14 +67,14 @@ describe('MCPServerSandboxManager', () => {
       });
 
       const mockStart = vi.fn().mockResolvedValue({ port: 3000, url: 'http://localhost:3000' });
-      vi.mocked(SandboxedMCP).mockImplementation(
+      vi.mocked(PodmanContainer).mockImplementation(
         () =>
           ({
             start: mockStart,
           }) as any
       );
 
-      const manager = MCPServerSandboxManager.getInstance();
+      const manager = McpServerSandboxManager.getInstance();
       const result = await manager.startAllInstalledMcpServers();
 
       expect(result).toEqual({
@@ -88,7 +88,7 @@ describe('MCPServerSandboxManager', () => {
     });
 
     it('should handle empty MCP servers list', async () => {
-      const manager = MCPServerSandboxManager.getInstance();
+      const manager = McpServerSandboxManager.getInstance();
       const result = await manager.startAllInstalledMcpServers();
 
       expect(result).toEqual({});
@@ -97,7 +97,7 @@ describe('MCPServerSandboxManager', () => {
 
     it('should handle server start failures gracefully', async () => {
       // Create test MCP server
-      await MCPServer.create({
+      await McpServerModel.create({
         name: 'failing-server',
         serverConfig: createMockServerConfig({
           image: 'test/failing:1',
@@ -105,14 +105,14 @@ describe('MCPServerSandboxManager', () => {
       });
 
       const mockStart = vi.fn().mockRejectedValue(new Error('Container start failed'));
-      vi.mocked(SandboxedMCP).mockImplementation(
+      vi.mocked(PodmanContainer).mockImplementation(
         () =>
           ({
             start: mockStart,
           }) as any
       );
 
-      const manager = MCPServerSandboxManager.getInstance();
+      const manager = McpServerSandboxManager.getInstance();
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const result = await manager.startAllInstalledMcpServers();
@@ -126,7 +126,7 @@ describe('MCPServerSandboxManager', () => {
     it('should handle Podman installation failure', async () => {
       vi.mocked(PodmanRuntime).ensurePodmanIsInstalled.mockResolvedValue(false);
 
-      const manager = MCPServerSandboxManager.getInstance();
+      const manager = McpServerSandboxManager.getInstance();
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const result = await manager.startAllInstalledMcpServers();
@@ -139,12 +139,12 @@ describe('MCPServerSandboxManager', () => {
 
     it('should allocate unique ports for each server', async () => {
       // Create multiple test MCP servers
-      await MCPServer.create({
+      await McpServerModel.create({
         name: 'server-1',
         serverConfig: createMockServerConfig({ image: 'test:1' }),
       });
 
-      await MCPServer.create({
+      await McpServerModel.create({
         name: 'server-2',
         serverConfig: createMockServerConfig({ image: 'test:2' }),
       });
@@ -157,14 +157,14 @@ describe('MCPServerSandboxManager', () => {
         url: `http://localhost:${port}`,
       }));
 
-      vi.mocked(SandboxedMCP).mockImplementation(
+      vi.mocked(PodmanContainer).mockImplementation(
         () =>
           ({
             start: mockStart,
           }) as any
       );
 
-      const manager = MCPServerSandboxManager.getInstance();
+      const manager = McpServerSandboxManager.getInstance();
       const result = await manager.startAllInstalledMcpServers();
 
       expect(result).toEqual({
@@ -179,7 +179,7 @@ describe('MCPServerSandboxManager', () => {
     it('should handle concurrent server starts', async () => {
       // Create multiple servers
       const serverPromises = Array.from({ length: 3 }, (_, i) =>
-        MCPServer.create({
+        McpServerModel.create({
           name: `concurrent-server-${i}`,
           serverConfig: createMockServerConfig({ image: `test:${i}` }),
         })
@@ -195,14 +195,14 @@ describe('MCPServerSandboxManager', () => {
         return { port, url: `http://localhost:${port}` };
       });
 
-      vi.mocked(SandboxedMCP).mockImplementation(
+      vi.mocked(PodmanContainer).mockImplementation(
         () =>
           ({
             start: mockStart,
           }) as any
       );
 
-      const manager = MCPServerSandboxManager.getInstance();
+      const manager = McpServerSandboxManager.getInstance();
       const result = await manager.startAllInstalledMcpServers();
 
       expect(Object.keys(result)).toHaveLength(3);
@@ -212,7 +212,7 @@ describe('MCPServerSandboxManager', () => {
 
   describe('stopAllInstalledMcpServers', () => {
     it('should successfully stop the Podman machine', async () => {
-      const manager = MCPServerSandboxManager.getInstance();
+      const manager = McpServerSandboxManager.getInstance();
       await manager.stopAllInstalledMcpServers();
 
       expect(vi.mocked(PodmanRuntime).stopPodmanMachine).toHaveBeenCalledTimes(1);
@@ -221,14 +221,14 @@ describe('MCPServerSandboxManager', () => {
     it('should handle stop failure gracefully', async () => {
       vi.mocked(PodmanRuntime).stopPodmanMachine.mockRejectedValue(new Error('Stop failed'));
 
-      const manager = MCPServerSandboxManager.getInstance();
+      const manager = McpServerSandboxManager.getInstance();
 
       await expect(manager.stopAllInstalledMcpServers()).rejects.toThrow('Stop failed');
     });
   });
 
   describe('error handling', () => {
-    it('should properly pass server configuration to SandboxedMCP', async () => {
+    it('should properly pass server configuration to PodmanContainer', async () => {
       const serverConfig = {
         image: 'custom/image:latest',
         command: 'deno',
@@ -236,35 +236,35 @@ describe('MCPServerSandboxManager', () => {
         env: { CUSTOM_VAR: 'value' },
       };
 
-      await MCPServer.create({
+      await McpServerModel.create({
         name: 'custom-server',
         serverConfig,
       });
 
       let capturedConfig: any;
-      vi.mocked(SandboxedMCP).mockImplementation((name, config) => {
+      vi.mocked(PodmanContainer).mockImplementation((name, config) => {
         capturedConfig = config;
         return {
           start: vi.fn().mockResolvedValue({ port: 3000, url: 'http://localhost:3000' }),
         } as any;
       });
 
-      const manager = MCPServerSandboxManager.getInstance();
+      const manager = McpServerSandboxManager.getInstance();
       await manager.startAllInstalledMcpServers();
 
       expect(capturedConfig).toEqual(serverConfig);
-      expect(vi.mocked(SandboxedMCP)).toHaveBeenCalledWith('custom-server', serverConfig);
+      expect(vi.mocked(PodmanContainer)).toHaveBeenCalledWith('custom-server', serverConfig);
     });
 
     it('should handle get-port failures', async () => {
-      await MCPServer.create({
+      await McpServerModel.create({
         name: 'port-fail-server',
         serverConfig: createMockServerConfig(),
       });
 
       vi.mocked(getPort).mockRejectedValue(new Error('No available ports'));
 
-      const manager = MCPServerSandboxManager.getInstance();
+      const manager = McpServerSandboxManager.getInstance();
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const result = await manager.startAllInstalledMcpServers();

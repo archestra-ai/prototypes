@@ -1,14 +1,14 @@
 import { create } from 'zustand';
 
+import { McpRequestLog, McpRequestLogFilters, McpRequestLogStats } from '@archestra/types';
 import {
   clearMcpRequestLogs,
   getMcpRequestLogById,
   getMcpRequestLogStats,
   getMcpRequestLogs,
 } from '@clients/archestra/api/gen';
-import type { McpClientInfo, McpRequestLog, McpRequestLogFilters, McpRequestLogStats } from '@types';
 
-interface MCPLogsStore {
+interface McpLogsStore {
   // State
   logs: McpRequestLog[];
   totalPages: number;
@@ -35,14 +35,12 @@ interface MCPLogsStore {
   fetchStats: () => Promise<void>;
   clearLogs: (clearAll?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
-  parseClientInfo: (clientInfoJson?: string) => McpClientInfo | null;
-  parseHeaders: (headersJson?: string) => Record<string, string> | null;
   resetFilters: () => void;
 }
 
 const initialFilters: McpRequestLogFilters = {};
 
-export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
+export const useMcpLogsStore = create<McpLogsStore>((set, get) => ({
   // Initial state
   logs: [],
   totalPages: 0,
@@ -99,7 +97,7 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
         query: {
           ...filters,
           page: currentPage,
-          page_size: pageSize,
+          pageSize,
         },
       });
 
@@ -179,24 +177,6 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
     await Promise.all([get().fetchLogs(), get().fetchStats()]);
   },
 
-  parseClientInfo: (clientInfoJson) => {
-    if (!clientInfoJson) return null;
-    try {
-      return JSON.parse(clientInfoJson) as McpClientInfo;
-    } catch {
-      return null;
-    }
-  },
-
-  parseHeaders: (headersJson) => {
-    if (!headersJson) return null;
-    try {
-      return JSON.parse(headersJson) as Record<string, string>;
-    } catch {
-      return null;
-    }
-  },
-
   resetFilters: () => {
     set({ filters: initialFilters, currentPage: 0 });
     get().fetchLogs();
@@ -207,11 +187,11 @@ export const useMCPLogsStore = create<MCPLogsStore>((set, get) => ({
 let refreshIntervalId: NodeJS.Timeout | null = null;
 
 // Subscribe to auto-refresh changes
-useMCPLogsStore.subscribe((state) => {
+useMcpLogsStore.subscribe((state) => {
   if (state.autoRefresh && !refreshIntervalId) {
     refreshIntervalId = setInterval(() => {
-      if (useMCPLogsStore.getState().autoRefresh) {
-        useMCPLogsStore.getState().refresh();
+      if (useMcpLogsStore.getState().autoRefresh) {
+        useMcpLogsStore.getState().refresh();
       }
     }, state.refreshInterval * 1000);
   } else if (!state.autoRefresh && refreshIntervalId) {
