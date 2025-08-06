@@ -8,6 +8,64 @@
     "schemas": {}
   },
   "paths": {
+    "/api/cloud-providers/available": {
+      "get": {
+        "operationId": "getAvailableCloudProviders",
+        "tags": ["Cloud Providers"],
+        "description": "Get all available cloud providers with configuration status",
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/cloud-providers": {
+      "post": {
+        "operationId": "configureCloudProvider",
+        "tags": ["Cloud Providers"],
+        "description": "Configure a cloud provider with API key",
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/cloud-providers/{type}": {
+      "delete": {
+        "operationId": "deleteCloudProvider",
+        "tags": ["Cloud Providers"],
+        "description": "Remove cloud provider configuration",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "type",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/cloud-providers/models": {
+      "get": {
+        "operationId": "getCloudProviderModels",
+        "tags": ["Cloud Providers"],
+        "description": "Get all available models from configured providers",
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/chat": {
       "get": {
         "operationId": "getChats",

@@ -2,7 +2,7 @@ import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { Ollama, Message, Tool } from 'ollama';
 import { generateId } from 'ai';
 
-import { chatService } from '@backend/models/chat';
+import Chat from '@backend/models/chat';
 import { mcpTools as globalMcpTools, initMCP } from './index';
 
 interface StreamRequestBody {
@@ -331,7 +331,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
           }
           
           const finalMessages = [...messages, assistantMessage];
-          await chatService.saveMessages(sessionId, finalMessages);
+          await Chat.saveMessages(sessionId, finalMessages);
         }
 
         // Send finish message

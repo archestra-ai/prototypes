@@ -4,6 +4,7 @@ import { streamableHttp } from 'fastify-mcp';
 
 import config from '@backend/config';
 import chatRoutes from '@backend/server/plugins/chat';
+import cloudProviderRoutes from '@backend/server/plugins/cloudProviders';
 import externalMcpClientRoutes from '@backend/server/plugins/externalMcpClient';
 import llmRoutes from '@backend/server/plugins/llm';
 import ollamaLLMRoutes from '@backend/server/plugins/llm/ollama';
@@ -37,6 +38,7 @@ app.register(cors, {
   maxAge: 3600,
 });
 app.register(chatRoutes);
+app.register(cloudProviderRoutes);
 app.register(llmRoutes);
 app.register(ollamaLLMRoutes);
 app.register(externalMcpClientRoutes);

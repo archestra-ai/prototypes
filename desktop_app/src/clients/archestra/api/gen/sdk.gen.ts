@@ -4,20 +4,28 @@ import { client as _heyApiClient } from './client.gen';
 import type {
   ClearMcpRequestLogsData,
   ClearMcpRequestLogsResponses,
+  ConfigureCloudProviderData,
+  ConfigureCloudProviderResponses,
   ConnectExternalMcpClientData,
   ConnectExternalMcpClientResponses,
   CreateChatData,
   CreateChatResponses,
   DeleteChatData,
   DeleteChatResponses,
+  DeleteCloudProviderData,
+  DeleteCloudProviderResponses,
   DisconnectExternalMcpClientData,
   DisconnectExternalMcpClientResponses,
   GetApiMcpTestData,
   GetApiMcpTestResponses,
+  GetAvailableCloudProvidersData,
+  GetAvailableCloudProvidersResponses,
   GetChatByIdData,
   GetChatByIdResponses,
   GetChatsData,
   GetChatsResponses,
+  GetCloudProviderModelsData,
+  GetCloudProviderModelsResponses,
   GetConnectedExternalMcpClientsData,
   GetConnectedExternalMcpClientsResponses,
   GetMcpRequestLogByIdData,
@@ -65,6 +73,54 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
    * used to access values that aren't defined as part of the SDK function.
    */
   meta?: Record<string, unknown>;
+};
+
+/**
+ * Get all available cloud providers with configuration status
+ */
+export const getAvailableCloudProviders = <ThrowOnError extends boolean = false>(
+  options?: Options<GetAvailableCloudProvidersData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).get<GetAvailableCloudProvidersResponses, unknown, ThrowOnError>({
+    url: '/api/cloud-providers/available',
+    ...options,
+  });
+};
+
+/**
+ * Configure a cloud provider with API key
+ */
+export const configureCloudProvider = <ThrowOnError extends boolean = false>(
+  options?: Options<ConfigureCloudProviderData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).post<ConfigureCloudProviderResponses, unknown, ThrowOnError>({
+    url: '/api/cloud-providers',
+    ...options,
+  });
+};
+
+/**
+ * Remove cloud provider configuration
+ */
+export const deleteCloudProvider = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteCloudProviderData, ThrowOnError>
+) => {
+  return (options.client ?? _heyApiClient).delete<DeleteCloudProviderResponses, unknown, ThrowOnError>({
+    url: '/api/cloud-providers/{type}',
+    ...options,
+  });
+};
+
+/**
+ * Get all available models from configured providers
+ */
+export const getCloudProviderModels = <ThrowOnError extends boolean = false>(
+  options?: Options<GetCloudProviderModelsData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).get<GetCloudProviderModelsResponses, unknown, ThrowOnError>({
+    url: '/api/cloud-providers/models',
+    ...options,
+  });
 };
 
 /**
