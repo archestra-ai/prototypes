@@ -1,9 +1,9 @@
-import { openai, createOpenAI } from '@ai-sdk/openai';
+import { createOpenAI, openai } from '@ai-sdk/openai';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { convertToModelMessages, experimental_createMCPClient, stepCountIs, generateId, streamText } from 'ai';
+import { convertToModelMessages, experimental_createMCPClient, generateId, stepCountIs, streamText } from 'ai';
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
-import ChatModel from '@backend/models/chat';
+import Chat from '@backend/models/chat';
 import { cloudProviderService } from '@backend/services/cloud-provider-service';
 
 interface StreamRequestBody {
@@ -42,7 +42,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
   // Initialize MCP on startup
   const mcpConnected = await initMCP();
 
-
   // Add test endpoint for MCP status
   fastify.get('/api/mcp/test', async (request, reply) => {
     return reply.send({
@@ -73,7 +72,7 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
       try {
         // Check if it's a cloud provider model
         const providerConfig = await cloudProviderService.getProviderConfigForModel(model);
-        
+
         let client;
         if (providerConfig) {
           // Use cloud provider configuration
@@ -89,7 +88,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
 
         // Use MCP tools directly from Vercel AI SDK
         const tools = mcpTools || {};
-
 
         // Create the stream with the appropriate client
         const streamConfig = {
@@ -107,7 +105,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
           // },
         };
 
-
         const result = streamText(streamConfig);
 
         return reply.send(
@@ -115,7 +112,7 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
             originalMessages: messages,
             onFinish: ({ messages: finalMessages }) => {
               if (sessionId) {
-                ChatModel.saveMessages(sessionId, finalMessages);
+                Chat.saveMessages(sessionId, finalMessages);
               }
             },
           })

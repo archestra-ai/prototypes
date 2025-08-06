@@ -63,9 +63,16 @@ export default function ChatPage(_props: ChatPageProps) {
     });
   }, [model, currentChat?.session_id, cloudModels]);
 
-  const { sendMessage, messages, setMessages, stop, isLoading, error } = useChat({
+  const { sendMessage, messages, setMessages, stop, isLoading, error, append } = useChat({
     id: currentChat?.session_id, // use the provided chat ID
     transport,
+    initialMessages: currentChat?.messages || [],
+    onFinish: (message) => {
+      console.log('Message finished:', message);
+    },
+    onError: (error) => {
+      console.error('Chat error:', error);
+    },
   });
 
 
@@ -78,6 +85,10 @@ export default function ChatPage(_props: ChatPageProps) {
 
   // Log messages updates
   useEffect(() => {
+    console.log('All messages in ChatPage:', messages);
+    console.log('Messages length:', messages.length);
+    console.log('isLoading:', isLoading);
+    console.log('error:', error);
     const lastMessage = messages[messages.length - 1];
     if (lastMessage) {
       console.log('Last message:', {
@@ -86,7 +97,7 @@ export default function ChatPage(_props: ChatPageProps) {
         toolInvocations: lastMessage.toolInvocations,
       });
     }
-  }, [messages]);
+  }, [messages, isLoading, error]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setLocalInput(e.target.value);

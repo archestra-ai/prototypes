@@ -6,4 +6,7 @@ export default defineConfig({
   dialect: 'sqlite',
   // https://orm.drizzle.team/docs/sql-schema-declaration#camel-and-snake-casing
   casing: 'snake_case',
+  dbCredentials: {
+    url: `${process.env.HOME}/Library/Application Support/archestra/archestra.db`,
+  },
 });
