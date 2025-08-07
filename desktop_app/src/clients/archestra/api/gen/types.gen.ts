@@ -269,6 +269,23 @@ export type GetConnectedExternalMcpClientsResponses = {
 export type GetConnectedExternalMcpClientsResponse =
   GetConnectedExternalMcpClientsResponses[keyof GetConnectedExternalMcpClientsResponses];
 
+export type GetSupportedExternalMcpClientsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/external_mcp_client/supported';
+};
+
+export type GetSupportedExternalMcpClientsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<'claude' | 'cursor' | 'vscode'>;
+};
+
+export type GetSupportedExternalMcpClientsResponse =
+  GetSupportedExternalMcpClientsResponses[keyof GetSupportedExternalMcpClientsResponses];
+
 export type ConnectExternalMcpClientData = {
   body: {
     client_name: 'claude' | 'cursor' | 'vscode';

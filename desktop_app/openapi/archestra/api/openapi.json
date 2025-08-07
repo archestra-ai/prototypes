@@ -11,7 +11,9 @@
     "/api/chat": {
       "get": {
         "operationId": "getChats",
-        "tags": ["Chat"],
+        "tags": [
+          "Chat"
+        ],
         "description": "Get all chats",
         "responses": {
           "200": {
@@ -38,7 +40,9 @@
                           },
                           {
                             "nullable": true,
-                            "enum": [null]
+                            "enum": [
+                              null
+                            ]
                           }
                         ]
                       },
@@ -53,7 +57,14 @@
                         "items": {}
                       }
                     },
-                    "required": ["id", "sessionId", "title", "createdAt", "updatedAt", "messages"],
+                    "required": [
+                      "id",
+                      "sessionId",
+                      "title",
+                      "createdAt",
+                      "updatedAt",
+                      "messages"
+                    ],
                     "additionalProperties": false
                   }
                 }
@@ -64,7 +75,9 @@
       },
       "post": {
         "operationId": "createChat",
-        "tags": ["Chat"],
+        "tags": [
+          "Chat"
+        ],
         "description": "Create new chat",
         "requestBody": {
           "content": {
@@ -99,7 +112,9 @@
                         },
                         {
                           "nullable": true,
-                          "enum": [null]
+                          "enum": [
+                            null
+                          ]
                         }
                       ]
                     },
@@ -114,7 +129,14 @@
                       "items": {}
                     }
                   },
-                  "required": ["id", "sessionId", "title", "createdAt", "updatedAt", "messages"],
+                  "required": [
+                    "id",
+                    "sessionId",
+                    "title",
+                    "createdAt",
+                    "updatedAt",
+                    "messages"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -126,7 +148,9 @@
     "/api/chat/{id}": {
       "get": {
         "operationId": "getChatById",
-        "tags": ["Chat"],
+        "tags": [
+          "Chat"
+        ],
         "description": "Get single chat with messages",
         "parameters": [
           {
@@ -161,7 +185,9 @@
                         },
                         {
                           "nullable": true,
-                          "enum": [null]
+                          "enum": [
+                            null
+                          ]
                         }
                       ]
                     },
@@ -176,7 +202,14 @@
                       "items": {}
                     }
                   },
-                  "required": ["id", "sessionId", "title", "createdAt", "updatedAt", "messages"],
+                  "required": [
+                    "id",
+                    "sessionId",
+                    "title",
+                    "createdAt",
+                    "updatedAt",
+                    "messages"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -193,7 +226,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"],
+                  "required": [
+                    "error"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -203,7 +238,9 @@
       },
       "patch": {
         "operationId": "updateChat",
-        "tags": ["Chat"],
+        "tags": [
+          "Chat"
+        ],
         "description": "Update chat",
         "requestBody": {
           "content": {
@@ -218,7 +255,9 @@
                       },
                       {
                         "nullable": true,
-                        "enum": [null]
+                        "enum": [
+                          null
+                        ]
                       }
                     ]
                   }
@@ -260,7 +299,9 @@
                         },
                         {
                           "nullable": true,
-                          "enum": [null]
+                          "enum": [
+                            null
+                          ]
                         }
                       ]
                     },
@@ -275,7 +316,14 @@
                       "items": {}
                     }
                   },
-                  "required": ["id", "sessionId", "title", "createdAt", "updatedAt", "messages"],
+                  "required": [
+                    "id",
+                    "sessionId",
+                    "title",
+                    "createdAt",
+                    "updatedAt",
+                    "messages"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -292,7 +340,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"],
+                  "required": [
+                    "error"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -302,7 +352,9 @@
       },
       "delete": {
         "operationId": "deleteChat",
-        "tags": ["Chat"],
+        "tags": [
+          "Chat"
+        ],
         "description": "Delete chat",
         "parameters": [
           {
@@ -329,7 +381,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"],
+                  "required": [
+                    "error"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -341,7 +395,9 @@
     "/api/cloud-providers/available": {
       "get": {
         "operationId": "getAvailableCloudProviders",
-        "tags": ["Cloud Providers"],
+        "tags": [
+          "Cloud Providers"
+        ],
         "description": "Get all available cloud providers with configuration status",
         "responses": {
           "200": {
@@ -355,7 +411,12 @@
                     "properties": {
                       "type": {
                         "type": "string",
-                        "enum": ["anthropic", "openai", "deepseek", "gemini"]
+                        "enum": [
+                          "anthropic",
+                          "openai",
+                          "deepseek",
+                          "gemini"
+                        ]
                       },
                       "name": {
                         "type": "string"
@@ -396,7 +457,9 @@
                           },
                           {
                             "nullable": true,
-                            "enum": [null]
+                            "enum": [
+                              null
+                            ]
                           }
                         ]
                       }
@@ -424,7 +487,9 @@
     "/api/cloud-providers": {
       "post": {
         "operationId": "configureCloudProvider",
-        "tags": ["Cloud Providers"],
+        "tags": [
+          "Cloud Providers"
+        ],
         "description": "Configure a cloud provider with API key",
         "requestBody": {
           "content": {
@@ -434,13 +499,21 @@
                 "properties": {
                   "type": {
                     "type": "string",
-                    "enum": ["anthropic", "openai", "deepseek", "gemini"]
+                    "enum": [
+                      "anthropic",
+                      "openai",
+                      "deepseek",
+                      "gemini"
+                    ]
                   },
                   "apiKey": {
                     "type": "string"
                   }
                 },
-                "required": ["type", "apiKey"]
+                "required": [
+                  "type",
+                  "apiKey"
+                ]
               }
             }
           },
@@ -456,7 +529,12 @@
                   "properties": {
                     "type": {
                       "type": "string",
-                      "enum": ["anthropic", "openai", "deepseek", "gemini"]
+                      "enum": [
+                        "anthropic",
+                        "openai",
+                        "deepseek",
+                        "gemini"
+                      ]
                     },
                     "name": {
                       "type": "string"
@@ -485,7 +563,14 @@
                       }
                     }
                   },
-                  "required": ["type", "name", "apiKeyUrl", "apiKeyPlaceholder", "baseUrl", "models"],
+                  "required": [
+                    "type",
+                    "name",
+                    "apiKeyUrl",
+                    "apiKeyPlaceholder",
+                    "baseUrl",
+                    "models"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -497,13 +582,20 @@
     "/api/cloud-providers/{type}": {
       "delete": {
         "operationId": "deleteCloudProvider",
-        "tags": ["Cloud Providers"],
+        "tags": [
+          "Cloud Providers"
+        ],
         "description": "Remove cloud provider configuration",
         "parameters": [
           {
             "schema": {
               "type": "string",
-              "enum": ["anthropic", "openai", "deepseek", "gemini"]
+              "enum": [
+                "anthropic",
+                "openai",
+                "deepseek",
+                "gemini"
+              ]
             },
             "in": "path",
             "name": "type",
@@ -522,7 +614,9 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success"],
+                  "required": [
+                    "success"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -534,7 +628,9 @@
     "/api/cloud-providers/models": {
       "get": {
         "operationId": "getCloudProviderModels",
-        "tags": ["Cloud Providers"],
+        "tags": [
+          "Cloud Providers"
+        ],
         "description": "Get all available models from configured providers",
         "responses": {
           "200": {
@@ -551,10 +647,18 @@
                       },
                       "provider": {
                         "type": "string",
-                        "enum": ["anthropic", "openai", "deepseek", "gemini"]
+                        "enum": [
+                          "anthropic",
+                          "openai",
+                          "deepseek",
+                          "gemini"
+                        ]
                       }
                     },
-                    "required": ["id", "provider"],
+                    "required": [
+                      "id",
+                      "provider"
+                    ],
                     "additionalProperties": false
                   }
                 }
@@ -567,7 +671,9 @@
     "/api/external_mcp_client": {
       "get": {
         "operationId": "getConnectedExternalMcpClients",
-        "tags": ["External MCP Client"],
+        "tags": [
+          "External MCP Client"
+        ],
         "description": "Get all connected external MCP clients",
         "responses": {
           "200": {
@@ -586,8 +692,40 @@
                         "type": "string"
                       }
                     },
-                    "required": ["clientName", "createdAt"],
+                    "required": [
+                      "clientName",
+                      "createdAt"
+                    ],
                     "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/external_mcp_client/supported": {
+      "get": {
+        "operationId": "getSupportedExternalMcpClients",
+        "tags": [
+          "External MCP Client"
+        ],
+        "description": "Get supported external MCP client names",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "claude",
+                      "cursor",
+                      "vscode"
+                    ]
                   }
                 }
               }
@@ -599,7 +737,9 @@
     "/api/external_mcp_client/connect": {
       "post": {
         "operationId": "connectExternalMcpClient",
-        "tags": ["External MCP Client"],
+        "tags": [
+          "External MCP Client"
+        ],
         "description": "Connect an external MCP client",
         "requestBody": {
           "content": {
@@ -609,10 +749,16 @@
                 "properties": {
                   "client_name": {
                     "type": "string",
-                    "enum": ["claude", "cursor", "vscode"]
+                    "enum": [
+                      "claude",
+                      "cursor",
+                      "vscode"
+                    ]
                   }
                 },
-                "required": ["client_name"]
+                "required": [
+                  "client_name"
+                ]
               }
             }
           },
@@ -630,7 +776,9 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success"],
+                  "required": [
+                    "success"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -642,13 +790,19 @@
     "/api/external_mcp_client/{client_name}/disconnect": {
       "delete": {
         "operationId": "disconnectExternalMcpClient",
-        "tags": ["External MCP Client"],
+        "tags": [
+          "External MCP Client"
+        ],
         "description": "Disconnect an external MCP client",
         "parameters": [
           {
             "schema": {
               "type": "string",
-              "enum": ["claude", "cursor", "vscode"]
+              "enum": [
+                "claude",
+                "cursor",
+                "vscode"
+              ]
             },
             "in": "path",
             "name": "client_name",
@@ -667,7 +821,9 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success"],
+                  "required": [
+                    "success"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -688,7 +844,9 @@
     "/api/llm/openai/stream": {
       "post": {
         "operationId": "streamLlmResponse",
-        "tags": ["LLM"],
+        "tags": [
+          "LLM"
+        ],
         "description": "Stream LLM response",
         "responses": {
           "200": {
@@ -700,7 +858,9 @@
     "/api/mcp_request_log": {
       "get": {
         "operationId": "getMcpRequestLogs",
-        "tags": ["MCP Request Log"],
+        "tags": [
+          "MCP Request Log"
+        ],
         "description": "Get MCP request logs with filtering and pagination",
         "parameters": [
           {
@@ -722,7 +882,10 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["success", "error"]
+              "enum": [
+                "success",
+                "error"
+              ]
             },
             "in": "query",
             "name": "status",
@@ -796,7 +959,12 @@
                       "type": "number"
                     }
                   },
-                  "required": ["data", "total", "page", "pageSize"],
+                  "required": [
+                    "data",
+                    "total",
+                    "page",
+                    "pageSize"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -806,7 +974,9 @@
       },
       "delete": {
         "operationId": "clearMcpRequestLogs",
-        "tags": ["MCP Request Log"],
+        "tags": [
+          "MCP Request Log"
+        ],
         "description": "Clear MCP request logs",
         "requestBody": {
           "content": {
@@ -818,7 +988,9 @@
                     "type": "boolean"
                   }
                 },
-                "required": ["clearAll"]
+                "required": [
+                  "clearAll"
+                ]
               }
             }
           },
@@ -836,7 +1008,9 @@
                       "type": "number"
                     }
                   },
-                  "required": ["cleared"],
+                  "required": [
+                    "cleared"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -848,7 +1022,9 @@
     "/api/mcp_request_log/{id}": {
       "get": {
         "operationId": "getMcpRequestLogById",
-        "tags": ["MCP Request Log"],
+        "tags": [
+          "MCP Request Log"
+        ],
         "description": "Get a single MCP request log by ID",
         "parameters": [
           {
@@ -880,7 +1056,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"],
+                  "required": [
+                    "error"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -892,7 +1070,9 @@
     "/api/mcp_request_log/stats": {
       "get": {
         "operationId": "getMcpRequestLogStats",
-        "tags": ["MCP Request Log"],
+        "tags": [
+          "MCP Request Log"
+        ],
         "description": "Get MCP request log statistics",
         "parameters": [
           {
@@ -914,7 +1094,10 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["success", "error"]
+              "enum": [
+                "success",
+                "error"
+              ]
             },
             "in": "query",
             "name": "status",
@@ -972,7 +1155,13 @@
                       }
                     }
                   },
-                  "required": ["totalRequests", "successCount", "errorCount", "avgDurationMs", "requestsPerServer"],
+                  "required": [
+                    "totalRequests",
+                    "successCount",
+                    "errorCount",
+                    "avgDurationMs",
+                    "requestsPerServer"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -984,7 +1173,9 @@
     "/api/mcp_server": {
       "get": {
         "operationId": "getMcpServers",
-        "tags": ["MCP Server"],
+        "tags": [
+          "MCP Server"
+        ],
         "description": "Get all installed MCP servers",
         "responses": {
           "200": {
@@ -1006,7 +1197,9 @@
                           },
                           {
                             "nullable": true,
-                            "enum": [null]
+                            "enum": [
+                              null
+                            ]
                           }
                         ]
                       },
@@ -1025,7 +1218,9 @@
                               },
                               {
                                 "nullable": true,
-                                "enum": [null]
+                                "enum": [
+                                  null
+                                ]
                               }
                             ]
                           },
@@ -1056,7 +1251,9 @@
                                   },
                                   {
                                     "nullable": true,
-                                    "enum": [null]
+                                    "enum": [
+                                      null
+                                    ]
                                   }
                                 ]
                               },
@@ -1072,7 +1269,9 @@
                           },
                           {
                             "nullable": true,
-                            "enum": [null]
+                            "enum": [
+                              null
+                            ]
                           }
                         ]
                       },
@@ -1080,7 +1279,13 @@
                         "type": "string"
                       }
                     },
-                    "required": ["id", "name", "serverConfig", "userConfigValues", "createdAt"],
+                    "required": [
+                      "id",
+                      "name",
+                      "serverConfig",
+                      "userConfigValues",
+                      "createdAt"
+                    ],
                     "additionalProperties": false
                   }
                 }
@@ -1093,7 +1298,9 @@
     "/api/mcp_server/install": {
       "post": {
         "operationId": "installMcpServer",
-        "tags": ["MCP Server"],
+        "tags": [
+          "MCP Server"
+        ],
         "description": "Install MCP server from catalog",
         "requestBody": {
           "content": {
@@ -1127,7 +1334,10 @@
                     }
                   }
                 },
-                "required": ["catalogName", "userConfigValues"]
+                "required": [
+                  "catalogName",
+                  "userConfigValues"
+                ]
               }
             }
           },
@@ -1151,7 +1361,9 @@
                         },
                         {
                           "nullable": true,
-                          "enum": [null]
+                          "enum": [
+                            null
+                          ]
                         }
                       ]
                     },
@@ -1170,7 +1382,9 @@
                             },
                             {
                               "nullable": true,
-                              "enum": [null]
+                              "enum": [
+                                null
+                              ]
                             }
                           ]
                         },
@@ -1201,7 +1415,9 @@
                                 },
                                 {
                                   "nullable": true,
-                                  "enum": [null]
+                                  "enum": [
+                                    null
+                                  ]
                                 }
                               ]
                             },
@@ -1217,7 +1433,9 @@
                         },
                         {
                           "nullable": true,
-                          "enum": [null]
+                          "enum": [
+                            null
+                          ]
                         }
                       ]
                     },
@@ -1225,7 +1443,13 @@
                       "type": "string"
                     }
                   },
-                  "required": ["id", "name", "serverConfig", "userConfigValues", "createdAt"],
+                  "required": [
+                    "id",
+                    "name",
+                    "serverConfig",
+                    "userConfigValues",
+                    "createdAt"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1242,7 +1466,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"],
+                  "required": [
+                    "error"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1259,7 +1485,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"],
+                  "required": [
+                    "error"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1276,7 +1504,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["error"],
+                  "required": [
+                    "error"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1288,7 +1518,9 @@
     "/api/mcp_server/install_custom": {
       "post": {
         "operationId": "installCustomMcpServer",
-        "tags": ["MCP Server"],
+        "tags": [
+          "MCP Server"
+        ],
         "description": "Install custom MCP server",
         "requestBody": {
           "content": {
@@ -1318,11 +1550,16 @@
                         }
                       }
                     },
-                    "required": ["command"],
+                    "required": [
+                      "command"
+                    ],
                     "additionalProperties": false
                   }
                 },
-                "required": ["name", "serverConfig"]
+                "required": [
+                  "name",
+                  "serverConfig"
+                ]
               }
             }
           },
@@ -1346,7 +1583,9 @@
                         },
                         {
                           "nullable": true,
-                          "enum": [null]
+                          "enum": [
+                            null
+                          ]
                         }
                       ]
                     },
@@ -1365,7 +1604,9 @@
                             },
                             {
                               "nullable": true,
-                              "enum": [null]
+                              "enum": [
+                                null
+                              ]
                             }
                           ]
                         },
@@ -1396,7 +1637,9 @@
                                 },
                                 {
                                   "nullable": true,
-                                  "enum": [null]
+                                  "enum": [
+                                    null
+                                  ]
                                 }
                               ]
                             },
@@ -1412,7 +1655,9 @@
                         },
                         {
                           "nullable": true,
-                          "enum": [null]
+                          "enum": [
+                            null
+                          ]
                         }
                       ]
                     },
@@ -1420,7 +1665,13 @@
                       "type": "string"
                     }
                   },
-                  "required": ["id", "name", "serverConfig", "userConfigValues", "createdAt"],
+                  "required": [
+                    "id",
+                    "name",
+                    "serverConfig",
+                    "userConfigValues",
+                    "createdAt"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1432,7 +1683,9 @@
     "/api/mcp_server/{id}": {
       "delete": {
         "operationId": "uninstallMcpServer",
-        "tags": ["MCP Server"],
+        "tags": [
+          "MCP Server"
+        ],
         "description": "Uninstall MCP server",
         "parameters": [
           {
@@ -1456,7 +1709,9 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success"],
+                  "required": [
+                    "success"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1468,7 +1723,9 @@
     "/api/mcp_server/start_oauth": {
       "post": {
         "operationId": "startMcpServerOauth",
-        "tags": ["MCP Server"],
+        "tags": [
+          "MCP Server"
+        ],
         "description": "Start MCP server OAuth flow",
         "requestBody": {
           "content": {
@@ -1480,7 +1737,9 @@
                     "type": "string"
                   }
                 },
-                "required": ["catalogName"]
+                "required": [
+                  "catalogName"
+                ]
               }
             }
           },
@@ -1498,7 +1757,9 @@
                       "type": "string"
                     }
                   },
-                  "required": ["authUrl"],
+                  "required": [
+                    "authUrl"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1510,7 +1771,9 @@
     "/api/sandbox/status": {
       "get": {
         "operationId": "getSandboxStatus",
-        "tags": ["Sandbox"],
+        "tags": [
+          "Sandbox"
+        ],
         "description": "Get the current status of the sandbox environment",
         "responses": {
           "200": {
@@ -1525,10 +1788,18 @@
                     },
                     "podmanMachineStatus": {
                       "type": "string",
-                      "enum": ["not_installed", "stopped", "running", "initializing"]
+                      "enum": [
+                        "not_installed",
+                        "stopped",
+                        "running",
+                        "initializing"
+                      ]
                     }
                   },
-                  "required": ["isInitialized", "podmanMachineStatus"],
+                  "required": [
+                    "isInitialized",
+                    "podmanMachineStatus"
+                  ],
                   "additionalProperties": false
                 }
               }

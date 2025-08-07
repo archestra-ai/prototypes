@@ -1,9 +1,10 @@
-import { ToolCall } from '@archestra/types';
-
 import type {
   ChatMessage as BaseChatMessage,
   ChatWithMessages as BaseChatWithMessages,
 } from '@clients/archestra/api/gen';
+
+// TODO: what is the proper type on this?
+type ToolCall = any;
 
 /**
  * ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️

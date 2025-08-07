@@ -25,6 +25,23 @@ const externalMcpClientRoutes: FastifyPluginAsyncZod = async (fastify) => {
     }
   );
 
+  fastify.get(
+    '/api/external_mcp_client/supported',
+    {
+      schema: {
+        operationId: 'getSupportedExternalMcpClients',
+        description: 'Get supported external MCP client names',
+        tags: ['External MCP Client'],
+        response: {
+          200: z.array(ExternalMcpClientNameSchema),
+        },
+      },
+    },
+    async (_request, reply) => {
+      return reply.send(ExternalMcpClientNameSchema.options);
+    }
+  );
+
   fastify.post(
     '/api/external_mcp_client/connect',
     {

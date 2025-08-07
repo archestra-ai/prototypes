@@ -41,6 +41,8 @@ import type {
   GetMcpServersResponses,
   GetSandboxStatusData,
   GetSandboxStatusResponses,
+  GetSupportedExternalMcpClientsData,
+  GetSupportedExternalMcpClientsResponses,
   InstallCustomMcpServerData,
   InstallCustomMcpServerResponses,
   InstallMcpServerData,
@@ -192,6 +194,18 @@ export const getConnectedExternalMcpClients = <ThrowOnError extends boolean = fa
 ) => {
   return (options?.client ?? _heyApiClient).get<GetConnectedExternalMcpClientsResponses, unknown, ThrowOnError>({
     url: '/api/external_mcp_client',
+    ...options,
+  });
+};
+
+/**
+ * Get supported external MCP client names
+ */
+export const getSupportedExternalMcpClients = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSupportedExternalMcpClientsData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).get<GetSupportedExternalMcpClientsResponses, unknown, ThrowOnError>({
+    url: '/api/external_mcp_client/supported',
     ...options,
   });
 };

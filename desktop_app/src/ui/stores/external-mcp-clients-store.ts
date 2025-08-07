@@ -1,15 +1,17 @@
-import { ExternalMcpClientNameSchema } from '@archestra/schemas';
-import { type ExternalMcpClient } from '@archestra/types';
 import { create } from 'zustand';
 
+import { type ExternalMcpClient } from '@archestra/types';
 import {
   connectExternalMcpClient,
   disconnectExternalMcpClient,
   getConnectedExternalMcpClients,
+  getSupportedExternalMcpClients,
 } from '@clients/archestra/api/gen';
 
 interface ExternalMcpClientsState {
   supportedExternalMcpClientNames: string[];
+  isLoadingSupportedExternalMcpClientNames: boolean;
+  errorLoadingSupportedExternalMcpClientNames: string | null;
   connectedExternalMcpClients: ExternalMcpClient[];
   isLoadingConnectedExternalMcpClients: boolean;
   errorLoadingConnectedExternalMcpClients: string | null;
@@ -22,6 +24,7 @@ interface ExternalMcpClientsState {
 interface ExternalMcpClientsActions {
   connectExternalMcpClient: (clientName: string) => Promise<void>;
   disconnectExternalMcpClient: (clientName: string) => Promise<void>;
+  loadSupportedClients: () => Promise<void>;
   loadConnectedClients: () => Promise<void>;
 }
 
@@ -29,7 +32,9 @@ type ExternalMcpClientsStore = ExternalMcpClientsState & ExternalMcpClientsActio
 
 export const useExternalMcpClientsStore = create<ExternalMcpClientsStore>((set) => ({
   // State
-  supportedExternalMcpClientNames: ExternalMcpClientNameSchema.options,
+  supportedExternalMcpClientNames: [],
+  isLoadingSupportedExternalMcpClientNames: true,
+  errorLoadingSupportedExternalMcpClientNames: null,
   connectedExternalMcpClients: [],
   isLoadingConnectedExternalMcpClients: true,
   errorLoadingConnectedExternalMcpClients: null,
@@ -39,6 +44,26 @@ export const useExternalMcpClientsStore = create<ExternalMcpClientsStore>((set) 
   errorDisconnectingExternalMcpClient: null,
 
   // Actions
+  loadSupportedClients: async () => {
+    try {
+      set({
+        isLoadingSupportedExternalMcpClientNames: true,
+        errorLoadingSupportedExternalMcpClientNames: null,
+      });
+
+      const response = await getSupportedExternalMcpClients();
+      if ('data' in response && response.data) {
+        set({ supportedExternalMcpClientNames: response.data as string[] });
+      } else if ('error' in response) {
+        throw new Error(response.error as string);
+      }
+    } catch (error) {
+      set({ errorLoadingSupportedExternalMcpClientNames: error as string });
+    } finally {
+      set({ isLoadingSupportedExternalMcpClientNames: false });
+    }
+  },
+
   loadConnectedClients: async () => {
     try {
       set({
@@ -107,4 +132,5 @@ export const useExternalMcpClientsStore = create<ExternalMcpClientsStore>((set) 
 }));
 
 // Initialize data on store creation
+useExternalMcpClientsStore.getState().loadSupportedClients();
 useExternalMcpClientsStore.getState().loadConnectedClients();
