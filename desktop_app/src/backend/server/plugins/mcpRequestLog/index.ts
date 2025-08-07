@@ -1,8 +1,7 @@
 import { FastifyPluginAsync } from 'fastify';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 
-import { generatePaginatedResponseSchema } from '@archestra/types';
+import { generatePaginatedResponseSchema } from '@schemas';
 import McpRequestLogModel, { selectMcpRequestLogSchema } from '@backend/models/mcpRequestLog';
 
 // Request schemas
@@ -57,9 +56,9 @@ const mcpRequestLogRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'getMcpRequestLogs',
         description: 'Get MCP request logs with filtering and pagination',
         tags: ['MCP Request Log'],
-        querystring: zodToJsonSchema(logQueryParamsWithPaginationSchema as any),
+        querystring: logQueryParamsWithPaginationSchema,
         response: {
-          200: zodToJsonSchema(generatePaginatedResponseSchema(mcpRequestLogResponseSchema) as any),
+          200: generatePaginatedResponseSchema(mcpRequestLogResponseSchema),
         },
       },
     },
@@ -95,7 +94,7 @@ const mcpRequestLogRoutes: FastifyPluginAsync = async (fastify) => {
         description: 'Get a single MCP request log by ID',
         tags: ['MCP Request Log'],
         response: {
-          200: zodToJsonSchema(mcpRequestLogResponseSchema as any),
+          200: mcpRequestLogResponseSchema,
         },
       },
     },
@@ -132,9 +131,9 @@ const mcpRequestLogRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'getMcpRequestLogStats',
         description: 'Get MCP request log statistics',
         tags: ['MCP Request Log'],
-        querystring: zodToJsonSchema(logQueryParamsSchema as any),
+        querystring: logQueryParamsSchema,
         response: {
-          200: zodToJsonSchema(mcpRequestLogStatsSchema as any),
+          200: mcpRequestLogStatsSchema,
         },
       },
     },
@@ -161,9 +160,9 @@ const mcpRequestLogRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'clearMcpRequestLogs',
         description: 'Clear MCP request logs',
         tags: ['MCP Request Log'],
-        body: zodToJsonSchema(clearLogsBodySchema as any),
+        body: clearLogsBodySchema,
         response: {
-          200: zodToJsonSchema(z.object({ cleared: z.number() }) as any),
+          200: z.object({ cleared: z.number() }),
         },
       },
     },

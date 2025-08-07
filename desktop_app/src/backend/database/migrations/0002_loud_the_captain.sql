@@ -1,1 +1,0 @@
-ALTER TABLE `mcp_servers` ADD `user_config_values` text;

@@ -9,7 +9,7 @@
   "tabWidth": 2,
   "importOrder": [
     "<THIRD_PARTY_MODULES>",
-    "^@(backend|clients|config|archestra/types|ui)(.*)$",
+    "^@(backend|clients|config|archestra/types|ui|schemas)(.*)$",
     "^[./](?!.*\\.(css|scss|sass|less|styl)$)",
     "^[./].*\\.(css|scss|sass|less|styl)$"
   ],

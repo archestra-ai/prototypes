@@ -1,6 +1,5 @@
 import { FastifyPluginAsync } from 'fastify';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 
 import McpServerModel, { selectMcpServerSchema } from '@backend/models/mcpServer';
 
@@ -55,7 +54,7 @@ const mcpServerRoutes: FastifyPluginAsync = async (fastify) => {
         description: 'Get all installed MCP servers',
         tags: ['MCP Server'],
         response: {
-          200: zodToJsonSchema(mcpServersListResponseSchema as any),
+          200: mcpServersListResponseSchema,
         },
       },
     },
@@ -82,12 +81,12 @@ const mcpServerRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'installMcpServer',
         description: 'Install MCP server from catalog',
         tags: ['MCP Server'],
-        body: zodToJsonSchema(installFromCatalogRequestSchema as any),
+        body: installFromCatalogRequestSchema,
         response: {
-          200: zodToJsonSchema(mcpServerResponseSchema as any),
-          400: zodToJsonSchema(errorResponseSchema as any),
-          404: zodToJsonSchema(errorResponseSchema as any),
-          500: zodToJsonSchema(errorResponseSchema as any),
+          200: mcpServerResponseSchema,
+          400: errorResponseSchema,
+          404: errorResponseSchema,
+          500: errorResponseSchema,
         },
       },
     },
@@ -129,11 +128,11 @@ const mcpServerRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'installCustomMcpServer',
         description: 'Install custom MCP server',
         tags: ['MCP Server'],
-        body: zodToJsonSchema(installCustomRequestSchema as any),
+        body: installCustomRequestSchema,
         response: {
-          200: zodToJsonSchema(mcpServerResponseSchema as any),
-          400: zodToJsonSchema(errorResponseSchema as any),
-          500: zodToJsonSchema(errorResponseSchema as any),
+          200: mcpServerResponseSchema,
+          400: errorResponseSchema,
+          500: errorResponseSchema,
         },
       },
     },
@@ -167,11 +166,11 @@ const mcpServerRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'uninstallMcpServer',
         description: 'Uninstall MCP server',
         tags: ['MCP Server'],
-        params: zodToJsonSchema(uninstallParamsSchema as any),
+        params: uninstallParamsSchema,
         response: {
-          200: zodToJsonSchema(successResponseSchema as any),
-          400: zodToJsonSchema(errorResponseSchema as any),
-          500: zodToJsonSchema(errorResponseSchema as any),
+          200: successResponseSchema,
+          400: errorResponseSchema,
+          500: errorResponseSchema,
         },
       },
     },
@@ -204,11 +203,11 @@ const mcpServerRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'startMcpServerOauth',
         description: 'Start MCP server OAuth flow',
         tags: ['MCP Server'],
-        body: zodToJsonSchema(startOAuthRequestSchema as any),
+        body: startOAuthRequestSchema,
         response: {
-          200: zodToJsonSchema(authUrlResponseSchema as any),
-          400: zodToJsonSchema(errorResponseSchema as any),
-          500: zodToJsonSchema(errorResponseSchema as any),
+          200: authUrlResponseSchema,
+          400: errorResponseSchema,
+          500: errorResponseSchema,
         },
       },
     },

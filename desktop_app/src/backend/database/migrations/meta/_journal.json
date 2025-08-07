@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1754432644084,
-      "tag": "0000_charming_mongoose",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1754488580406,
-      "tag": "0001_absurd_paibok",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1754510360888,
-      "tag": "0002_loud_the_captain",
+      "when": 1754561598309,
+      "tag": "0000_regular_dakota_north",
       "breakpoints": true
     }
   ]

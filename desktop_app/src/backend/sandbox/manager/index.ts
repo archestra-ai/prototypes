@@ -7,7 +7,7 @@ import { setSocketPath } from '@clients/libpod/client';
 
 class McpServerSandboxManager {
   private podmanRuntime: InstanceType<typeof PodmanRuntime>;
-  private mcpServerSlugToPodmanContainerMap: Map<string, PodmanContainer> = new Map();
+  private mcpServerIdToPodmanContainerMap: Map<string, PodmanContainer> = new Map();
   private _isInitialized = false;
 
   onSandboxStartupSuccess: () => void = () => {};
@@ -54,24 +54,24 @@ class McpServerSandboxManager {
 
     // Start all servers in parallel
     const startPromises = installedMcpServers.map(async (mcpServer) => {
-      const { slug: serverSlug } = mcpServer;
+      const { id: serverId } = mcpServer;
 
       websocketService.broadcast({
         type: 'sandbox-mcp-server-starting',
-        payload: { serverSlug },
+        payload: { serverId },
       });
 
       try {
         await this.startServer(mcpServer);
         websocketService.broadcast({
           type: 'sandbox-mcp-server-started',
-          payload: { serverSlug },
+          payload: { serverId },
         });
       } catch (error) {
         websocketService.broadcast({
           type: 'sandbox-mcp-server-failed',
           payload: {
-            serverSlug,
+            serverId,
             error: error instanceof Error ? error.message : String(error),
           },
         });
@@ -111,13 +111,15 @@ class McpServerSandboxManager {
     this.onSandboxStartupError(new Error(errorMessage));
   }
 
-  async startServer({ slug, name, serverConfig }: McpServer) {
-    console.log(`Starting MCP server ${name} (slug: ${slug}) with server config: ${JSON.stringify(serverConfig)}`);
+  async startServer(mcpServer: McpServer) {
+    const { id, name, serverConfig } = mcpServer;
 
-    const container = new PodmanContainer(slug, serverConfig);
+    console.log(`Starting MCP server ${name} (id: ${id}) with server config: ${JSON.stringify(serverConfig)}`);
+
+    const container = new PodmanContainer(mcpServer);
     await container.startOrCreateContainer();
 
-    this.mcpServerSlugToPodmanContainerMap.set(slug, container);
+    this.mcpServerIdToPodmanContainerMap.set(id, container);
   }
 
   /**
@@ -139,10 +141,10 @@ class McpServerSandboxManager {
     this._isInitialized = false;
   }
 
-  proxyRequestToMcpServerContainer(mcpServerSlug: string, request: any) {
-    const podmanContainer = this.mcpServerSlugToPodmanContainerMap.get(mcpServerSlug);
+  proxyRequestToMcpServerContainer(mcpServerId: string, request: any) {
+    const podmanContainer = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
     if (!podmanContainer) {
-      throw new Error(`MCP server with slug ${mcpServerSlug} not found`);
+      throw new Error(`MCP server with id ${mcpServerId} not found`);
     }
     return podmanContainer.proxyRequestToContainer(request);
   }

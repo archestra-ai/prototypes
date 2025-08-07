@@ -1,6 +1,5 @@
 import { FastifyPluginAsync } from 'fastify';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 
 import { PODMAN_MACHINE_STATUSES } from '@archestra/types';
 
@@ -26,7 +25,7 @@ const sandboxRoutes: FastifyPluginAsync = async (fastify) => {
         description: 'Get the current status of the sandbox environment',
         tags: ['Sandbox'],
         response: {
-          200: zodToJsonSchema(sandboxStatusResponseSchema as any),
+          200: sandboxStatusResponseSchema,
         },
       },
     },

@@ -1,6 +1,5 @@
 import { FastifyPluginAsync } from 'fastify';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 
 import ChatModel, { selectChatSchema } from '@backend/models/chat';
 
@@ -40,7 +39,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
         description: 'Get all chats',
         tags: ['Chat'],
         response: {
-          200: zodToJsonSchema(chatsListResponseSchema as any),
+          200: chatsListResponseSchema,
         },
       },
     },
@@ -64,7 +63,7 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
         description: 'Get single chat with messages',
         tags: ['Chat'],
         response: {
-          200: zodToJsonSchema(chatResponseSchema as any),
+          200: chatResponseSchema,
         },
       },
     },
@@ -96,9 +95,9 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'createChat',
         description: 'Create new chat',
         tags: ['Chat'],
-        body: zodToJsonSchema(createChatRequestSchema as any),
+        body: createChatRequestSchema,
         response: {
-          201: zodToJsonSchema(chatResponseSchema as any),
+          201: chatResponseSchema,
         },
       },
     },
@@ -121,9 +120,9 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'updateChat',
         description: 'Update chat',
         tags: ['Chat'],
-        body: zodToJsonSchema(updateChatRequestSchema as any),
+        body: updateChatRequestSchema,
         response: {
-          200: zodToJsonSchema(chatResponseSchema as any),
+          200: chatResponseSchema,
         },
       },
     },

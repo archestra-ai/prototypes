@@ -1,21 +1,31 @@
-import type { DxtManifestMcpConfig, DxtUserConfigValues } from '@anthropic-ai/dxt';
 import { sql } from 'drizzle-orm';
-import { int, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+
+import type { McpCatalogServerConfig, McpServerUserConfigValues } from '@archestra/types';
 
 export const mcpServersTable = sqliteTable('mcp_servers', {
-  id: int().primaryKey({ autoIncrement: true }),
-  slug: text().notNull().unique(), // Catalog slug or UUID for custom servers
-  name: text(), // Display name (from catalog or user-defined for custom)
-  // https://orm.drizzle.team/docs/column-types/sqlite#blob
-  serverConfig: text({ mode: 'json' }).$type<DxtManifestMcpConfig>().notNull(),
   /**
-   * `userConfigValues` are user-provided/custom values for `serverConfig`
+   * Catalog "name" (unique identifier) or UUID for custom servers
+   */
+  id: text().primaryKey(),
+  /**
+   * Display name (from catalog or user-defined for custom)
+   */
+  name: text(),
+  /**
+   * https://orm.drizzle.team/docs/column-types/sqlite#blob
+   */
+  serverConfig: text({ mode: 'json' }).$type<McpCatalogServerConfig>().notNull(),
+  /**
+   * `userConfigValues` are user-provided/custom values for `DxtManifestMcpConfig`
    * (think API keys, etc)
    *
    * This is only used for mcp servers installed via the catalog, as it allows users to provide
    * dynamic configuration
+   *
+   * See https://github.com/anthropics/dxt/blob/main/MANIFEST.md#variable-substitution-in-user-configuration
    */
-  userConfigValues: text({ mode: 'json' }).$type<DxtUserConfigValues>(),
+  userConfigValues: text({ mode: 'json' }).$type<McpServerUserConfigValues>(),
   createdAt: text()
     .notNull()
     .default(sql`(current_timestamp)`),

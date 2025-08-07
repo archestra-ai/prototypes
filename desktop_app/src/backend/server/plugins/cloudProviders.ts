@@ -2,8 +2,8 @@ import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
 import cloudProviderModel from '@backend/models/cloudProvider';
+import { cloudProviderService } from '@backend/services/cloud-provider-service';
 import { PROVIDER_REGISTRY } from '@backend/services/provider-registry';
-import { cloudProviderService, providerWithConfigSchema } from '@backend/services/cloud-provider-service';
 
 // Request schemas
 const configureProviderSchema = z.object({

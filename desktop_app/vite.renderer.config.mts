@@ -15,6 +15,7 @@ export default defineConfig({
        * https://stackoverflow.com/a/77502938
        */
       '@archestra/types': path.resolve(__dirname, './src/types'),
+      '@schemas': path.resolve(__dirname, './src/schemas'),
       '@ui': path.resolve(__dirname, './src/ui'),
     },
   },

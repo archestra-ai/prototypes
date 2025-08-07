@@ -7,6 +7,17 @@ CREATE TABLE `chats` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chats_sessionId_unique` ON `chats` (`session_id`);--> statement-breakpoint
+CREATE TABLE `cloud_providers` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`provider_type` text NOT NULL,
+	`api_key` text NOT NULL,
+	`enabled` integer DEFAULT true NOT NULL,
+	`validated_at` text,
+	`created_at` text DEFAULT (current_timestamp) NOT NULL,
+	`updated_at` text DEFAULT (current_timestamp) NOT NULL
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `cloud_providers_provider_type_unique` ON `cloud_providers` (`provider_type`);--> statement-breakpoint
 CREATE TABLE `external_mcp_clients` (
 	`client_name` text PRIMARY KEY NOT NULL,
 	`created_at` text DEFAULT (current_timestamp) NOT NULL
@@ -32,14 +43,13 @@ CREATE TABLE `mcp_request_logs` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `mcp_request_logs_requestId_unique` ON `mcp_request_logs` (`request_id`);--> statement-breakpoint
 CREATE TABLE `mcp_servers` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`slug` text NOT NULL,
+	`id` text PRIMARY KEY NOT NULL,
 	`name` text,
 	`server_config` text NOT NULL,
+	`user_config_values` text,
 	`created_at` text DEFAULT (current_timestamp) NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `mcp_servers_slug_unique` ON `mcp_servers` (`slug`);--> statement-breakpoint
 CREATE TABLE `messages` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`chat_id` integer NOT NULL,

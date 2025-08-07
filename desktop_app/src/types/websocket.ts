@@ -3,7 +3,7 @@ export interface GenericErrorPayload {
 }
 
 export interface GenericSandboxMcpServerPayload {
-  serverSlug: string;
+  serverId: string;
 }
 
 export interface ChatTitleUpdatedPayload {

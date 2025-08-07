@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import { Loader2, Plus } from 'lucide-react';
-import { z } from 'zod/v4';
+import { useState } from 'react';
+import { z } from 'zod';
 
 import { installCustomMcpServer } from '@clients/archestra/api/gen';
 import { Button } from '@ui/components/ui/button';
@@ -23,19 +23,28 @@ interface SettingsDialogProps {
 }
 
 // Validation schema
-const serverConfigSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  command: z.string().min(1, 'Command is required'),
-  args: z.string(),
-  env: z.string(),
-});
+/**
+ * TODO: see if there is a way that we can EXTEND the fields in McpServerServerConfigSchema, such that
+ * we can add "validation messages" like the below
+ */
+// const serverConfigSchema = McpServerServerConfigSchema.extend({
+//   mcp_config: z.object({
+//     command: z.string().min(1, 'Command is required'),
+//     args: z.string(),
+//     env: z.string(),
+//   }),
+//   name: z.string().min(1, 'Name is required'),
+//   command: z.string().min(1, 'Command is required'),
+//   args: z.string(),
+//   env: z.string(),
+// });
 
 export default function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const { loadInstalledMcpServers } = useMcpServersStore();
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -52,13 +61,13 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
     try {
       // Validate form data
       const validated = serverConfigSchema.parse(formData);
-      
+
       // Parse args and env
       const args = validated.args
         .split('\n')
         .map((arg) => arg.trim())
         .filter((arg) => arg.length > 0);
-      
+
       const envPairs = validated.env
         .split('\n')
         .map((pair) => pair.trim())
@@ -67,16 +76,16 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
           const [key, value] = pair.split('=');
           return { key: key?.trim(), value: value?.trim() };
         });
-      
+
       // Validate env pairs
       for (const { key, value } of envPairs) {
         if (!key || !value) {
           throw new Error('Invalid environment variable format. Use KEY=value format.');
         }
       }
-      
+
       const env = Object.fromEntries(envPairs.map(({ key, value }) => [key, value]));
-      
+
       // Submit to API
       const response = await installCustomMcpServer({
         body: {
@@ -96,7 +105,7 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
       // Refresh the list and close dialog
       await loadInstalledMcpServers();
       onOpenChange(false);
-      
+
       // Reset form
       setFormData({
         name: '',
@@ -117,14 +126,13 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
     }
   };
 
-  const handleInputChange = (field: keyof typeof formData) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: e.target.value,
-    }));
-  };
+  const handleInputChange =
+    (field: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: e.target.value,
+      }));
+    };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -149,9 +157,7 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
               onChange={handleInputChange('name')}
               disabled={isSubmitting}
             />
-            <p className="text-xs text-muted-foreground">
-              A unique name to identify this server
-            </p>
+            <p className="text-xs text-muted-foreground">A unique name to identify this server</p>
           </div>
 
           <div className="space-y-2">
@@ -163,9 +169,7 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
               onChange={handleInputChange('command')}
               disabled={isSubmitting}
             />
-            <p className="text-xs text-muted-foreground">
-              The executable command to run
-            </p>
+            <p className="text-xs text-muted-foreground">The executable command to run</p>
           </div>
 
           <div className="space-y-2">
@@ -178,9 +182,7 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
               disabled={isSubmitting}
               rows={3}
             />
-            <p className="text-xs text-muted-foreground">
-              Command line arguments, one per line
-            </p>
+            <p className="text-xs text-muted-foreground">Command line arguments, one per line</p>
           </div>
 
           <div className="space-y-2">
@@ -193,24 +195,13 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
               disabled={isSubmitting}
               rows={3}
             />
-            <p className="text-xs text-muted-foreground">
-              Environment variables in KEY=value format, one per line
-            </p>
+            <p className="text-xs text-muted-foreground">Environment variables in KEY=value format, one per line</p>
           </div>
 
-          {error && (
-            <div className="text-sm text-destructive">
-              {error}
-            </div>
-          )}
+          {error && <div className="text-sm text-destructive">{error}</div>}
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>

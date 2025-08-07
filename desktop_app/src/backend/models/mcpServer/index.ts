@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import db from '@backend/database';
 import { mcpServersTable } from '@backend/database/schema/mcpServer';
 import { ExternalMcpClientModel } from '@backend/models';
-import { getServerBySlug } from '@clients/archestra/catalog/gen';
+import { getServerByName } from '@clients/archestra/catalog/gen';
 
 // Database schemas
 export const insertMcpServerSchema = createInsertSchema(mcpServersTable);
@@ -20,8 +20,8 @@ export default class McpServer {
     return db.select().from(mcpServersTable);
   }
 
-  static async getBySlug(slug: (typeof mcpServersTable.$inferSelect)['slug']) {
-    return db.select().from(mcpServersTable).where(eq(mcpServersTable.slug, slug));
+  static async getById(id: (typeof mcpServersTable.$inferSelect)['id']) {
+    return db.select().from(mcpServersTable).where(eq(mcpServersTable.id, id));
   }
 
   /**
@@ -35,39 +35,37 @@ export default class McpServer {
    * Save MCP server from catalog
    */
   static async saveMcpServerFromCatalog(
-    catalogSlug: string,
+    catalogName: string,
     userConfigValues?: (typeof mcpServersTable.$inferInsert)['userConfigValues']
   ) {
     // Fetch the catalog entry using the generated client
-    const response = await getServerBySlug({ path: { slug: catalogSlug } });
+    const { data, error } = await getServerByName({ path: { name: catalogName } });
 
-    if ('error' in response) {
-      throw new Error(`Failed to fetch catalog entry: ${response.error}`);
+    if (error) {
+      throw new Error(`Failed to fetch catalog entry: ${error}`);
     }
 
-    const catalogEntry = response.data;
-    if (!catalogEntry || !catalogEntry.configForArchestra) {
-      throw new Error(`MCP server ${catalogSlug} not found in catalog or missing Archestra config`);
+    if (!data.config_for_archestra) {
+      throw new Error(`MCP server ${catalogName} not found in catalog or missing Archestra config`);
     }
 
     // Check if already installed
-    const existing = await db.select().from(mcpServersTable).where(eq(mcpServersTable.slug, catalogSlug));
+    const existing = await db.select().from(mcpServersTable).where(eq(mcpServersTable.id, data.id));
 
     if (existing.length > 0) {
-      throw new Error(`MCP server ${catalogEntry.name} is already installed`);
+      throw new Error(`MCP server ${data.name} is already installed`);
     }
 
     const now = new Date();
     const [server] = await db
       .insert(mcpServersTable)
       .values({
-        slug: catalogSlug,
-        name: catalogEntry.name,
-        serverConfig: {
-          command: catalogEntry.configForArchestra.command,
-          args: catalogEntry.configForArchestra.args || [],
-          env: catalogEntry.configForArchestra.env || {},
-        },
+        /**
+         * The "name" field is the unique identifier for an MCP server in the catalog
+         */
+        id: data.name,
+        name: data.display_name,
+        serverConfig: data.server,
         userConfigValues: userConfigValues,
         createdAt: now.toISOString(),
       })
