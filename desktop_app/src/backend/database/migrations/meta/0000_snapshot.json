@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "7fda33ac-c10b-4f55-a087-1db7d00296d3",
+  "id": "0f695bda-cdb3-4a41-ab9e-d18140b0cf49",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "chats": {
@@ -117,8 +117,8 @@
         }
       },
       "indexes": {
-        "cloud_providers_provider_type_unique": {
-          "name": "cloud_providers_provider_type_unique",
+        "cloud_providers_providerType_unique": {
+          "name": "cloud_providers_providerType_unique",
           "columns": [
             "provider_type"
           ],

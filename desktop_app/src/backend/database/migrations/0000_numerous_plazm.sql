@@ -17,7 +17,7 @@ CREATE TABLE `cloud_providers` (
 	`updated_at` text DEFAULT (current_timestamp) NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `cloud_providers_provider_type_unique` ON `cloud_providers` (`provider_type`);--> statement-breakpoint
+CREATE UNIQUE INDEX `cloud_providers_providerType_unique` ON `cloud_providers` (`provider_type`);--> statement-breakpoint
 CREATE TABLE `external_mcp_clients` (
 	`client_name` text PRIMARY KEY NOT NULL,
 	`created_at` text DEFAULT (current_timestamp) NOT NULL
