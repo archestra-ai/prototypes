@@ -1,11 +1,11 @@
-import { ErrorResponseSchema, StringNumberIdSchema } from '@archestra/schemas';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import ChatModel, { selectChatSchema } from '@backend/models/chat';
+import ChatModel, { SelectChatSchema } from '@backend/models/chat';
+import { ErrorResponseSchema, StringNumberIdSchema } from '@backend/schemas';
 
-// TODO: is there any where to get selectChatSchema to "naturally" include "messages"
-const chatResponseSchema = selectChatSchema.extend({
+// TODO: is there any where to get SelectChatSchema to "naturally" include "messages"
+const ChatResponseSchema = SelectChatSchema.extend({
   messages: z.array(z.any()), // Messages are added by the service
 });
 
@@ -18,7 +18,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
         description: 'Get all chats',
         tags: ['Chat'],
         response: {
-          200: z.array(chatResponseSchema),
+          200: z.array(ChatResponseSchema),
         },
       },
     },
@@ -39,7 +39,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
           id: StringNumberIdSchema,
         }),
         response: {
-          200: chatResponseSchema,
+          200: ChatResponseSchema,
           404: ErrorResponseSchema,
         },
       },
@@ -65,7 +65,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
           // Currently empty - chat creation doesn't require any fields
         }),
         response: {
-          201: chatResponseSchema,
+          201: ChatResponseSchema,
         },
       },
     },
@@ -89,7 +89,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
           title: z.string().nullable().optional(),
         }),
         response: {
-          200: chatResponseSchema,
+          200: ChatResponseSchema,
           404: ErrorResponseSchema,
         },
       },

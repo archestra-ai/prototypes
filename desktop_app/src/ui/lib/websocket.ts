@@ -1,6 +1,6 @@
+import { type WebSocketMessage } from '@archestra/types';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 
-import { type WebSocketMessage } from '@archestra/types';
 import config from '@ui/config';
 
 type MessageHandler<T extends WebSocketMessage = WebSocketMessage> = (message: T) => void;

@@ -1,16 +1,17 @@
 import { sql } from 'drizzle-orm';
 import { int, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-
-import { ChatMessageRole } from '@archestra/types';
+import { z } from 'zod';
 
 import { chatsTable } from './chat';
+
+export const ChatMessageRoleSchema = z.enum(['user', 'assistant', 'system']);
 
 export const messagesTable = sqliteTable('messages', {
   id: int().primaryKey({ autoIncrement: true }),
   chatId: int()
     .notNull()
     .references(() => chatsTable.id, { onDelete: 'cascade' }),
-  role: text().$type<ChatMessageRole>().notNull(),
+  role: text().$type<z.infer<typeof ChatMessageRoleSchema>>().notNull(),
   /**
    * TODO: we could strongly type content as such
    *

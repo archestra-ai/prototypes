@@ -1,6 +1,7 @@
-import { PodmanMachineStatusSchema } from '@archestra/schemas';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+
+import { PodmanMachineStatusSchema } from '@backend/sandbox/podman/runtime';
 
 const sandboxRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(

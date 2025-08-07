@@ -1,10 +1,11 @@
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { z } from 'zod';
 
-import type { ExternalMcpClientName } from '@archestra/types';
+export const ExternalMcpClientNameSchema = z.enum(['claude', 'cursor', 'vscode']);
 
 export const externalMcpClientsTable = sqliteTable('external_mcp_clients', {
-  clientName: text('client_name').$type<ExternalMcpClientName>().primaryKey(),
+  clientName: text('client_name').$type<z.infer<typeof ExternalMcpClientNameSchema>>().primaryKey(),
   createdAt: text('created_at')
     .notNull()
     .default(sql`(current_timestamp)`),

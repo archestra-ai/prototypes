@@ -1,5 +1,5 @@
-import { McpCatalogServerConfig, McpServer, McpServerUserConfigValues } from '@archestra/types';
 import config from '@backend/config';
+import type { McpServer, McpServerConfig, McpServerUserConfigValues } from '@backend/models/mcpServer';
 import { containerCreateLibpod, containerStartLibpod, containerWaitLibpod } from '@clients/libpod/gen/sdk.gen';
 
 export default class PodmanContainer {
@@ -25,14 +25,14 @@ export default class PodmanContainer {
 
   // TODO: implement this
   private static injectUserConfigValuesIntoServerConfig = (
-    serverConfig: McpCatalogServerConfig,
+    serverConfig: McpServerConfig,
     userConfigValues: McpServerUserConfigValues
   ) => {
     return {
-      command: serverConfig.mcp_config.command,
-      args: serverConfig.mcp_config.args,
+      command: serverConfig.command,
+      args: serverConfig.args,
       env: {
-        ...serverConfig.mcp_config.env,
+        ...serverConfig.env,
       },
     };
   };

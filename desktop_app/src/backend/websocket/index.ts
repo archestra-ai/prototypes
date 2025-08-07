@@ -1,7 +1,7 @@
 import { WebSocket, WebSocketServer } from 'ws';
 
-import { WebSocketMessage } from '@archestra/types';
 import config from '@backend/config';
+import { WebSocketMessage } from '@backend/types';
 
 class WebSocketService {
   private wss: WebSocketServer | null = null;

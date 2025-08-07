@@ -1,6 +1,12 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { z } from 'zod';
 
-import { McpClientInfo } from '@archestra/types';
+export const McpClientInfoSchema = z.object({
+  userAgent: z.string().optional(),
+  clientName: z.string().optional(),
+  clientVersion: z.string().optional(),
+  clientPlatform: z.string().optional(),
+});
 
 export const mcpRequestLogs = sqliteTable('mcp_request_logs', {
   id: integer().primaryKey({ autoIncrement: true }),
@@ -8,7 +14,7 @@ export const mcpRequestLogs = sqliteTable('mcp_request_logs', {
   sessionId: text(),
   mcpSessionId: text(),
   serverName: text().notNull(),
-  clientInfo: text({ mode: 'json' }).$type<McpClientInfo>().notNull(),
+  clientInfo: text({ mode: 'json' }).$type<z.infer<typeof McpClientInfoSchema>>().notNull(),
   method: text(),
   requestHeaders: text({ mode: 'json' }).$type<Record<string, string>>().notNull(),
   requestBody: text(),

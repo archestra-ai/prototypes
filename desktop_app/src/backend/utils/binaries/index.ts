@@ -8,7 +8,7 @@ import fs from 'fs';
 import { arch, platform } from 'os';
 import path from 'path';
 
-import { SupportedArchitecture, SupportedBinary, SupportedPlatform } from '@archestra/types';
+import type { SupportedArchitecture, SupportedBinary, SupportedPlatform } from '@backend/types';
 
 const getPlatform = (): SupportedPlatform => {
   switch (platform()) {

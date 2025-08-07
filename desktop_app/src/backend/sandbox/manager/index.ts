@@ -1,5 +1,4 @@
-import { McpServer } from '@archestra/types';
-import { McpServerModel } from '@backend/models';
+import McpServerModel, { type McpServer } from '@backend/models/mcpServer';
 import PodmanContainer from '@backend/sandbox/podman/container';
 import PodmanRuntime from '@backend/sandbox/podman/runtime';
 import websocketService from '@backend/websocket';

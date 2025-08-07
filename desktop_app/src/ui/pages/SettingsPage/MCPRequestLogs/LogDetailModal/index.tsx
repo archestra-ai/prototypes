@@ -1,6 +1,6 @@
+import { type McpRequestLog } from '@archestra/types';
 import { Activity, Calendar, Clock, Server } from 'lucide-react';
 
-import { type McpRequestLog } from '@archestra/types';
 import { Badge } from '@ui/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@ui/components/ui/dialog';
 import { Label } from '@ui/components/ui/label';

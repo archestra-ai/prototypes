@@ -1,4 +1,4 @@
-import { CloudProvider, SupportedCloudProviderTypes } from '@archestra/types';
+import type { CloudProvider, SupportedCloudProviderTypes } from '@backend/models/cloudProvider';
 
 // Provider definitions - easy to update in code
 export const PROVIDER_REGISTRY: Record<SupportedCloudProviderTypes, CloudProvider> = {

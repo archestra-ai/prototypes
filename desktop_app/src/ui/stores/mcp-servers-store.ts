@@ -1,14 +1,14 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp';
-import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/types';
-import { create } from 'zustand';
-
 import type {
   McpServer,
   McpServerCatalogEntryWithUserConfig,
   McpServerUserConfig,
   McpServerUserConfigValues,
 } from '@archestra/types';
+import { Client } from '@modelcontextprotocol/sdk/client/index';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp';
+import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/types';
+import { create } from 'zustand';
+
 import { getMcpServers, installMcpServer, startMcpServerOauth, uninstallMcpServer } from '@clients/archestra/api/gen';
 import { getSearch as searchCatalog } from '@clients/archestra/catalog/gen';
 import config from '@ui/config';

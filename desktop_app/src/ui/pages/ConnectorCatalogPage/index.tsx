@@ -1,3 +1,4 @@
+import { McpServerCatalogEntryWithUserConfig, McpServerUserConfigValues } from '@archestra/types';
 import {
   CheckCircle,
   Code,
@@ -15,7 +16,6 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
-import { McpServerCatalogEntryWithUserConfig, McpServerUserConfigValues } from '@archestra/types';
 import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardHeader } from '@ui/components/ui/card';

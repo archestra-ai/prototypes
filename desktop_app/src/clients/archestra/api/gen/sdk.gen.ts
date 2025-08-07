@@ -11,6 +11,7 @@ import type {
   CreateChatData,
   CreateChatResponses,
   DeleteChatData,
+  DeleteChatErrors,
   DeleteChatResponses,
   DeleteCloudProviderData,
   DeleteCloudProviderResponses,
@@ -21,6 +22,7 @@ import type {
   GetAvailableCloudProvidersData,
   GetAvailableCloudProvidersResponses,
   GetChatByIdData,
+  GetChatByIdErrors,
   GetChatByIdResponses,
   GetChatsData,
   GetChatsResponses,
@@ -29,6 +31,7 @@ import type {
   GetConnectedExternalMcpClientsData,
   GetConnectedExternalMcpClientsResponses,
   GetMcpRequestLogByIdData,
+  GetMcpRequestLogByIdErrors,
   GetMcpRequestLogByIdResponses,
   GetMcpRequestLogStatsData,
   GetMcpRequestLogStatsResponses,
@@ -38,23 +41,19 @@ import type {
   GetMcpServersResponses,
   GetSandboxStatusData,
   GetSandboxStatusResponses,
-  GetSupportedExternalMcpClientsData,
-  GetSupportedExternalMcpClientsResponses,
   InstallCustomMcpServerData,
-  InstallCustomMcpServerErrors,
   InstallCustomMcpServerResponses,
   InstallMcpServerData,
   InstallMcpServerErrors,
   InstallMcpServerResponses,
   StartMcpServerOauthData,
-  StartMcpServerOauthErrors,
   StartMcpServerOauthResponses,
   StreamLlmResponseData,
   StreamLlmResponseResponses,
   UninstallMcpServerData,
-  UninstallMcpServerErrors,
   UninstallMcpServerResponses,
   UpdateChatData,
+  UpdateChatErrors,
   UpdateChatResponses,
 } from './types.gen';
 
@@ -73,54 +72,6 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
    * used to access values that aren't defined as part of the SDK function.
    */
   meta?: Record<string, unknown>;
-};
-
-/**
- * Get all available cloud providers with configuration status
- */
-export const getAvailableCloudProviders = <ThrowOnError extends boolean = false>(
-  options?: Options<GetAvailableCloudProvidersData, ThrowOnError>
-) => {
-  return (options?.client ?? _heyApiClient).get<GetAvailableCloudProvidersResponses, unknown, ThrowOnError>({
-    url: '/api/cloud-providers/available',
-    ...options,
-  });
-};
-
-/**
- * Configure a cloud provider with API key
- */
-export const configureCloudProvider = <ThrowOnError extends boolean = false>(
-  options?: Options<ConfigureCloudProviderData, ThrowOnError>
-) => {
-  return (options?.client ?? _heyApiClient).post<ConfigureCloudProviderResponses, unknown, ThrowOnError>({
-    url: '/api/cloud-providers',
-    ...options,
-  });
-};
-
-/**
- * Remove cloud provider configuration
- */
-export const deleteCloudProvider = <ThrowOnError extends boolean = false>(
-  options: Options<DeleteCloudProviderData, ThrowOnError>
-) => {
-  return (options.client ?? _heyApiClient).delete<DeleteCloudProviderResponses, unknown, ThrowOnError>({
-    url: '/api/cloud-providers/{type}',
-    ...options,
-  });
-};
-
-/**
- * Get all available models from configured providers
- */
-export const getCloudProviderModels = <ThrowOnError extends boolean = false>(
-  options?: Options<GetCloudProviderModelsData, ThrowOnError>
-) => {
-  return (options?.client ?? _heyApiClient).get<GetCloudProviderModelsResponses, unknown, ThrowOnError>({
-    url: '/api/cloud-providers/models',
-    ...options,
-  });
 };
 
 /**
@@ -151,7 +102,7 @@ export const createChat = <ThrowOnError extends boolean = false>(options?: Optio
  * Delete chat
  */
 export const deleteChat = <ThrowOnError extends boolean = false>(options: Options<DeleteChatData, ThrowOnError>) => {
-  return (options.client ?? _heyApiClient).delete<DeleteChatResponses, unknown, ThrowOnError>({
+  return (options.client ?? _heyApiClient).delete<DeleteChatResponses, DeleteChatErrors, ThrowOnError>({
     url: '/api/chat/{id}',
     ...options,
   });
@@ -161,7 +112,7 @@ export const deleteChat = <ThrowOnError extends boolean = false>(options: Option
  * Get single chat with messages
  */
 export const getChatById = <ThrowOnError extends boolean = false>(options: Options<GetChatByIdData, ThrowOnError>) => {
-  return (options.client ?? _heyApiClient).get<GetChatByIdResponses, unknown, ThrowOnError>({
+  return (options.client ?? _heyApiClient).get<GetChatByIdResponses, GetChatByIdErrors, ThrowOnError>({
     url: '/api/chat/{id}',
     ...options,
   });
@@ -171,13 +122,65 @@ export const getChatById = <ThrowOnError extends boolean = false>(options: Optio
  * Update chat
  */
 export const updateChat = <ThrowOnError extends boolean = false>(options: Options<UpdateChatData, ThrowOnError>) => {
-  return (options.client ?? _heyApiClient).patch<UpdateChatResponses, unknown, ThrowOnError>({
+  return (options.client ?? _heyApiClient).patch<UpdateChatResponses, UpdateChatErrors, ThrowOnError>({
     url: '/api/chat/{id}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  });
+};
+
+/**
+ * Get all available cloud providers with configuration status
+ */
+export const getAvailableCloudProviders = <ThrowOnError extends boolean = false>(
+  options?: Options<GetAvailableCloudProvidersData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).get<GetAvailableCloudProvidersResponses, unknown, ThrowOnError>({
+    url: '/api/cloud-providers/available',
+    ...options,
+  });
+};
+
+/**
+ * Configure a cloud provider with API key
+ */
+export const configureCloudProvider = <ThrowOnError extends boolean = false>(
+  options: Options<ConfigureCloudProviderData, ThrowOnError>
+) => {
+  return (options.client ?? _heyApiClient).post<ConfigureCloudProviderResponses, unknown, ThrowOnError>({
+    url: '/api/cloud-providers',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+};
+
+/**
+ * Remove cloud provider configuration
+ */
+export const deleteCloudProvider = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteCloudProviderData, ThrowOnError>
+) => {
+  return (options.client ?? _heyApiClient).delete<DeleteCloudProviderResponses, unknown, ThrowOnError>({
+    url: '/api/cloud-providers/{type}',
+    ...options,
+  });
+};
+
+/**
+ * Get all available models from configured providers
+ */
+export const getCloudProviderModels = <ThrowOnError extends boolean = false>(
+  options?: Options<GetCloudProviderModelsData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).get<GetCloudProviderModelsResponses, unknown, ThrowOnError>({
+    url: '/api/cloud-providers/models',
+    ...options,
   });
 };
 
@@ -194,26 +197,18 @@ export const getConnectedExternalMcpClients = <ThrowOnError extends boolean = fa
 };
 
 /**
- * Get supported external MCP client names
- */
-export const getSupportedExternalMcpClients = <ThrowOnError extends boolean = false>(
-  options?: Options<GetSupportedExternalMcpClientsData, ThrowOnError>
-) => {
-  return (options?.client ?? _heyApiClient).get<GetSupportedExternalMcpClientsResponses, unknown, ThrowOnError>({
-    url: '/api/external_mcp_client/supported',
-    ...options,
-  });
-};
-
-/**
  * Connect an external MCP client
  */
 export const connectExternalMcpClient = <ThrowOnError extends boolean = false>(
-  options?: Options<ConnectExternalMcpClientData, ThrowOnError>
+  options: Options<ConnectExternalMcpClientData, ThrowOnError>
 ) => {
-  return (options?.client ?? _heyApiClient).post<ConnectExternalMcpClientResponses, unknown, ThrowOnError>({
+  return (options.client ?? _heyApiClient).post<ConnectExternalMcpClientResponses, unknown, ThrowOnError>({
     url: '/api/external_mcp_client/connect',
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   });
 };
 
@@ -254,14 +249,14 @@ export const streamLlmResponse = <ThrowOnError extends boolean = false>(
  * Clear MCP request logs
  */
 export const clearMcpRequestLogs = <ThrowOnError extends boolean = false>(
-  options?: Options<ClearMcpRequestLogsData, ThrowOnError>
+  options: Options<ClearMcpRequestLogsData, ThrowOnError>
 ) => {
-  return (options?.client ?? _heyApiClient).delete<ClearMcpRequestLogsResponses, unknown, ThrowOnError>({
+  return (options.client ?? _heyApiClient).delete<ClearMcpRequestLogsResponses, unknown, ThrowOnError>({
     url: '/api/mcp_request_log',
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...options?.headers,
+      ...options.headers,
     },
   });
 };
@@ -284,10 +279,12 @@ export const getMcpRequestLogs = <ThrowOnError extends boolean = false>(
 export const getMcpRequestLogById = <ThrowOnError extends boolean = false>(
   options: Options<GetMcpRequestLogByIdData, ThrowOnError>
 ) => {
-  return (options.client ?? _heyApiClient).get<GetMcpRequestLogByIdResponses, unknown, ThrowOnError>({
-    url: '/api/mcp_request_log/{id}',
-    ...options,
-  });
+  return (options.client ?? _heyApiClient).get<GetMcpRequestLogByIdResponses, GetMcpRequestLogByIdErrors, ThrowOnError>(
+    {
+      url: '/api/mcp_request_log/{id}',
+      ...options,
+    }
+  );
 };
 
 /**
@@ -318,14 +315,14 @@ export const getMcpServers = <ThrowOnError extends boolean = false>(
  * Install MCP server from catalog
  */
 export const installMcpServer = <ThrowOnError extends boolean = false>(
-  options?: Options<InstallMcpServerData, ThrowOnError>
+  options: Options<InstallMcpServerData, ThrowOnError>
 ) => {
-  return (options?.client ?? _heyApiClient).post<InstallMcpServerResponses, InstallMcpServerErrors, ThrowOnError>({
+  return (options.client ?? _heyApiClient).post<InstallMcpServerResponses, InstallMcpServerErrors, ThrowOnError>({
     url: '/api/mcp_server/install',
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...options?.headers,
+      ...options.headers,
     },
   });
 };
@@ -334,18 +331,14 @@ export const installMcpServer = <ThrowOnError extends boolean = false>(
  * Install custom MCP server
  */
 export const installCustomMcpServer = <ThrowOnError extends boolean = false>(
-  options?: Options<InstallCustomMcpServerData, ThrowOnError>
+  options: Options<InstallCustomMcpServerData, ThrowOnError>
 ) => {
-  return (options?.client ?? _heyApiClient).post<
-    InstallCustomMcpServerResponses,
-    InstallCustomMcpServerErrors,
-    ThrowOnError
-  >({
+  return (options.client ?? _heyApiClient).post<InstallCustomMcpServerResponses, unknown, ThrowOnError>({
     url: '/api/mcp_server/install_custom',
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...options?.headers,
+      ...options.headers,
     },
   });
 };
@@ -354,32 +347,28 @@ export const installCustomMcpServer = <ThrowOnError extends boolean = false>(
  * Uninstall MCP server
  */
 export const uninstallMcpServer = <ThrowOnError extends boolean = false>(
-  options?: Options<UninstallMcpServerData, ThrowOnError>
+  options: Options<UninstallMcpServerData, ThrowOnError>
 ) => {
-  return (options?.client ?? _heyApiClient).delete<UninstallMcpServerResponses, UninstallMcpServerErrors, ThrowOnError>(
-    {
-      url: '/api/mcp_server/{slug}',
-      ...options,
-    }
-  );
+  return (options.client ?? _heyApiClient).delete<UninstallMcpServerResponses, unknown, ThrowOnError>({
+    url: '/api/mcp_server/{id}',
+    ...options,
+  });
 };
 
 /**
  * Start MCP server OAuth flow
  */
 export const startMcpServerOauth = <ThrowOnError extends boolean = false>(
-  options?: Options<StartMcpServerOauthData, ThrowOnError>
+  options: Options<StartMcpServerOauthData, ThrowOnError>
 ) => {
-  return (options?.client ?? _heyApiClient).post<StartMcpServerOauthResponses, StartMcpServerOauthErrors, ThrowOnError>(
-    {
-      url: '/api/mcp_server/start_oauth',
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-    }
-  );
+  return (options.client ?? _heyApiClient).post<StartMcpServerOauthResponses, unknown, ThrowOnError>({
+    url: '/api/mcp_server/start_oauth',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
 };
 
 /**

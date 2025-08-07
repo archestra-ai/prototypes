@@ -1,17 +1,19 @@
-import {
-  ErrorResponseSchema,
-  McpRequestLogFiltersSchema,
-  McpRequestLogFiltersWithPaginationSchema,
-  McpRequestLogStatsSchema,
-  StringNumberIdSchema,
-  generatePaginatedResponseSchema,
-} from '@archestra/schemas';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import McpRequestLogModel, { selectMcpRequestLogSchema } from '@backend/models/mcpRequestLog';
+import McpRequestLogModel, {
+  McpRequestLogFiltersSchema,
+  McpRequestLogStatsSchema,
+  SelectMcpRequestLogSchema,
+} from '@backend/models/mcpRequestLog';
+import { ErrorResponseSchema, StringNumberIdSchema } from '@backend/schemas';
 
-const mcpRequestLogResponseSchema = selectMcpRequestLogSchema.transform((log) => ({
+export const McpRequestLogFiltersWithPaginationSchema = McpRequestLogFiltersSchema.extend({
+  page: z.number().min(1).default(1).optional(),
+  pageSize: z.number().min(1).max(100).default(50).optional(),
+});
+
+const McpRequestLogResponseSchema = SelectMcpRequestLogSchema.transform((log) => ({
   ...log,
   id: log.id.toString(),
   status: log.statusCode >= 200 && log.statusCode < 300 ? 'success' : 'error',
@@ -27,7 +29,12 @@ const mcpRequestLogRoutes: FastifyPluginAsyncZod = async (fastify) => {
         tags: ['MCP Request Log'],
         querystring: McpRequestLogFiltersWithPaginationSchema,
         response: {
-          200: generatePaginatedResponseSchema(mcpRequestLogResponseSchema),
+          200: z.object({
+            data: z.array(McpRequestLogResponseSchema),
+            total: z.number(),
+            page: z.number(),
+            pageSize: z.number(),
+          }),
         },
       },
     },
@@ -53,7 +60,7 @@ const mcpRequestLogRoutes: FastifyPluginAsyncZod = async (fastify) => {
           id: StringNumberIdSchema,
         }),
         response: {
-          200: mcpRequestLogResponseSchema,
+          200: McpRequestLogResponseSchema,
           404: ErrorResponseSchema,
         },
       },

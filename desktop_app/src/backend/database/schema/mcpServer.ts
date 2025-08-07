@@ -1,7 +1,22 @@
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { z } from 'zod';
 
-import type { McpServerConfig, McpServerUserConfigValues } from '@archestra/types';
+/**
+ * Borrowed from @anthropic-ai/dxt
+ *
+ * https://github.com/anthropics/dxt/blob/v0.2.6/src/schemas.ts#L3-L7
+ */
+export const McpServerConfigSchema = z.strictObject({
+  command: z.string(),
+  args: z.array(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
+});
+
+export const McpServerUserConfigValuesSchema = z.record(
+  z.string(),
+  z.union([z.string(), z.number(), z.boolean(), z.array(z.string())])
+);
 
 export const mcpServersTable = sqliteTable('mcp_servers', {
   /**
@@ -15,7 +30,7 @@ export const mcpServersTable = sqliteTable('mcp_servers', {
   /**
    * https://orm.drizzle.team/docs/column-types/sqlite#blob
    */
-  serverConfig: text({ mode: 'json' }).$type<McpServerConfig>().notNull(),
+  serverConfig: text({ mode: 'json' }).$type<z.infer<typeof McpServerConfigSchema>>().notNull(),
   /**
    * `userConfigValues` are user-provided/custom values for `DxtManifestMcpConfig`
    * (think API keys, etc)
@@ -25,7 +40,7 @@ export const mcpServersTable = sqliteTable('mcp_servers', {
    *
    * See https://github.com/anthropics/dxt/blob/main/MANIFEST.md#variable-substitution-in-user-configuration
    */
-  userConfigValues: text({ mode: 'json' }).$type<McpServerUserConfigValues>(),
+  userConfigValues: text({ mode: 'json' }).$type<z.infer<typeof McpServerUserConfigValuesSchema>>(),
   createdAt: text()
     .notNull()
     .default(sql`(current_timestamp)`),

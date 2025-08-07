@@ -1,12 +1,11 @@
-import {
-  CloudProviderSchema,
-  CloudProviderWithConfigSchema,
-  SupportedCloudProviderTypesSchema,
-} from '@archestra/schemas';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import cloudProviderModel from '@backend/models/cloudProvider';
+import CloudProviderModel, {
+  CloudProviderSchema,
+  CloudProviderWithConfigSchema,
+  SupportedCloudProviderTypesSchema,
+} from '@backend/models/cloudProvider';
 import { cloudProviderService } from '@backend/services/cloud-provider-service';
 
 const cloudProviderRoutes: FastifyPluginAsyncZod = async (fastify) => {
@@ -42,7 +41,7 @@ const cloudProviderRoutes: FastifyPluginAsyncZod = async (fastify) => {
       },
     },
     async ({ body: { type, apiKey } }, reply) => {
-      const provider = await cloudProviderModel.upsert(type, apiKey);
+      const provider = await CloudProviderModel.upsert(type, apiKey);
       return reply.send(provider);
     }
   );
@@ -65,7 +64,7 @@ const cloudProviderRoutes: FastifyPluginAsyncZod = async (fastify) => {
       },
     },
     async ({ params: { type } }, reply) => {
-      await cloudProviderModel.delete(type);
+      await CloudProviderModel.delete(type);
       return reply.send({ success: true });
     }
   );

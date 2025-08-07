@@ -1,15 +1,11 @@
 import { asc, desc, eq } from 'drizzle-orm';
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import { createSelectSchema } from 'drizzle-zod';
 
 import db from '@backend/database';
 import { chatsTable } from '@backend/database/schema/chat';
 import { messagesTable } from '@backend/database/schema/messages';
 
-// Database schemas
-export const insertChatSchema = createInsertSchema(chatsTable);
-export const selectChatSchema = createSelectSchema(chatsTable);
-export const insertMessageSchema = createInsertSchema(messagesTable);
-export const selectMessageSchema = createSelectSchema(messagesTable);
+export const SelectChatSchema = createSelectSchema(chatsTable);
 
 export default class Chat {
   static async getAllChats() {

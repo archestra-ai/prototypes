@@ -12,12 +12,6 @@ export default defineConfig({
     alias: {
       '@backend': path.resolve(__dirname, './src/backend'),
       '@clients': path.resolve(__dirname, './src/clients'),
-      /**
-       * NOTE: don't name this @types, see here for why
-       * https://stackoverflow.com/a/77502938
-       */
-      '@archestra/types': path.resolve(__dirname, './src/types'),
-      '@archestra/schemas': path.resolve(__dirname, './src/schemas'),
       '@ui': path.resolve(__dirname, './src/ui'),
     },
   },

@@ -1,7 +1,7 @@
+import { McpServerCatalogEntryWithUserConfig, McpServerUserConfigValues } from '@archestra/types';
 import { Eye, EyeOff, File, Folder, Info } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { McpServerCatalogEntryWithUserConfig, McpServerUserConfigValues } from '@archestra/types';
 import { Alert, AlertDescription } from '@ui/components/ui/alert';
 import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';

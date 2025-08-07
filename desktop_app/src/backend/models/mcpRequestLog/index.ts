@@ -1,13 +1,30 @@
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import { createSelectSchema } from 'drizzle-zod';
+import { z } from 'zod';
 
-import { McpRequestLogFilters, McpRequestLogStats } from '@archestra/types';
 import db from '@backend/database';
-import { mcpRequestLogs } from '@backend/database/schema/mcpRequestLog';
+import { McpClientInfoSchema, mcpRequestLogs } from '@backend/database/schema/mcpRequestLog';
 
-// Database schemas
-export const insertMcpRequestLogSchema = createInsertSchema(mcpRequestLogs);
-export const selectMcpRequestLogSchema = createSelectSchema(mcpRequestLogs);
+export const SelectMcpRequestLogSchema = createSelectSchema(mcpRequestLogs);
+export const McpRequestLogFiltersSchema = z.object({
+  serverName: z.string().optional(),
+  method: z.string().optional(),
+  status: z.enum(['success', 'error']).optional(),
+  search: z.string().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+});
+export const McpRequestLogStatsSchema = z.object({
+  totalRequests: z.number(),
+  successCount: z.number(),
+  errorCount: z.number(),
+  avgDurationMs: z.number(),
+  requestsPerServer: z.record(z.string(), z.number()),
+});
+
+export type McpRequestLogFilters = z.infer<typeof McpRequestLogFiltersSchema>;
+export type McpRequestLogStats = z.infer<typeof McpRequestLogStatsSchema>;
+export type McpClientInfo = z.infer<typeof McpClientInfoSchema>;
 
 export default class McpRequestLog {
   /**

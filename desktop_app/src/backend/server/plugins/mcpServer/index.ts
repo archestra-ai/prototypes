@@ -1,8 +1,9 @@
-import { ErrorResponseSchema, McpServerConfigSchema, McpServerUserConfigValuesSchema } from '@archestra/schemas';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import McpServerModel, { selectMcpServerSchema } from '@backend/models/mcpServer';
+import { McpServerConfigSchema } from '@backend/database/schema/mcpServer';
+import McpServerModel, { McpServerSelectSchema, UserConfigValuesSchema } from '@backend/models/mcpServer';
+import { ErrorResponseSchema } from '@backend/schemas';
 
 const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
@@ -13,7 +14,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         description: 'Get all installed MCP servers',
         tags: ['MCP Server'],
         response: {
-          200: z.array(selectMcpServerSchema),
+          200: z.array(McpServerSelectSchema),
         },
       },
     },
@@ -32,10 +33,10 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         tags: ['MCP Server'],
         body: z.object({
           catalogName: z.string(),
-          userConfigValues: McpServerUserConfigValuesSchema,
+          userConfigValues: UserConfigValuesSchema,
         }),
         response: {
-          200: selectMcpServerSchema,
+          200: McpServerSelectSchema,
           400: ErrorResponseSchema,
           404: ErrorResponseSchema,
           500: ErrorResponseSchema,
@@ -74,7 +75,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
           serverConfig: McpServerConfigSchema,
         }),
         response: {
-          200: selectMcpServerSchema,
+          200: McpServerSelectSchema,
         },
       },
     },

@@ -2,14 +2,15 @@ import { eq } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import fs from 'fs/promises';
 import path from 'path';
+import { z } from 'zod';
 
-import { ExternalMcpClientName } from '@archestra/types';
 import db from '@backend/database';
-import { externalMcpClientsTable } from '@backend/database/schema/externalMcpClient';
-import { McpServerModel } from '@backend/models';
+import { ExternalMcpClientNameSchema, externalMcpClientsTable } from '@backend/database/schema/externalMcpClient';
+import McpServerModel from '@backend/models/mcpServer';
 
-// Database schemas
-export const selectExternalMcpClientSchema = createSelectSchema(externalMcpClientsTable);
+type ExternalMcpClientName = z.infer<typeof ExternalMcpClientNameSchema>;
+
+export const ExternalMcpClientSelectSchema = createSelectSchema(externalMcpClientsTable);
 
 export default class ExternalMcpClient {
   static ARCHESTRA_MCP_SERVER_KEY = 'archestra.ai';
@@ -211,3 +212,5 @@ export default class ExternalMcpClient {
     }
   }
 }
+
+export { ExternalMcpClientNameSchema };

@@ -1,8 +1,10 @@
-import { ExternalMcpClientNameSchema } from '@archestra/schemas';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import ExternalMcpClientModel, { selectExternalMcpClientSchema } from '@backend/models/externalMcpClient';
+import ExternalMcpClientModel, {
+  ExternalMcpClientNameSchema,
+  ExternalMcpClientSelectSchema,
+} from '@backend/models/externalMcpClient';
 
 const externalMcpClientRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
@@ -13,7 +15,7 @@ const externalMcpClientRoutes: FastifyPluginAsyncZod = async (fastify) => {
         description: 'Get all connected external MCP clients',
         tags: ['External MCP Client'],
         response: {
-          200: z.array(selectExternalMcpClientSchema),
+          200: z.array(ExternalMcpClientSelectSchema),
         },
       },
     },

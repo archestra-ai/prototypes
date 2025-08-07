@@ -1,11 +1,14 @@
-import { CloudProvider, CloudProviderWithConfig, SupportedCloudProviderTypes } from '@archestra/types';
-import cloudProviderModel from '@backend/models/cloudProvider';
+import CloudProviderModel, {
+  type CloudProvider,
+  type CloudProviderWithConfig,
+  type SupportedCloudProviderTypes,
+} from '@backend/models/cloudProvider';
 
 import { PROVIDER_REGISTRY, getProviderForModel } from './provider-registry';
 
 export class CloudProviderService {
   async getAllProvidersWithConfig(): Promise<CloudProviderWithConfig[]> {
-    const configs = await cloudProviderModel.getAll();
+    const configs = await CloudProviderModel.getAll();
 
     return Object.values(PROVIDER_REGISTRY).map((definition) => {
       const config = configs.find((c) => c.providerType === definition.type);
@@ -23,14 +26,14 @@ export class CloudProviderService {
     const provider = getProviderForModel(modelId);
     if (!provider) return null;
 
-    const config = await cloudProviderModel.getByType(provider.type);
+    const config = await CloudProviderModel.getByType(provider.type);
     if (!config || !config.enabled) return null;
 
     return { provider, apiKey: config.apiKey };
   }
 
   async getAvailableModels(): Promise<Array<{ id: string; provider: SupportedCloudProviderTypes }>> {
-    const configs = await cloudProviderModel.getAll();
+    const configs = await CloudProviderModel.getAll();
     const models: Array<{ id: string; provider: SupportedCloudProviderTypes }> = [];
 
     for (const config of configs) {

@@ -1,10 +1,19 @@
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 
-import { SupportedCloudProviderTypes } from '@archestra/types';
 import db from '@backend/database';
-import { cloudProvidersTable } from '@backend/database/schema/cloudProvider';
+import {
+  CloudProviderSchema,
+  CloudProviderWithConfigSchema,
+  SupportedCloudProviderTypesSchema,
+  cloudProvidersTable,
+} from '@backend/database/schema/cloudProvider';
 
-export default class CloudProvider {
+export type SupportedCloudProviderTypes = z.infer<typeof SupportedCloudProviderTypesSchema>;
+export type CloudProvider = z.infer<typeof CloudProviderSchema>;
+export type CloudProviderWithConfig = z.infer<typeof CloudProviderWithConfigSchema>;
+
+export default class CloudProviderModel {
   static async getAll() {
     return await db.select().from(cloudProvidersTable);
   }
@@ -43,3 +52,5 @@ export default class CloudProvider {
     await db.delete(cloudProvidersTable).where(eq(cloudProvidersTable.providerType, type));
   }
 }
+
+export { CloudProviderSchema, CloudProviderWithConfigSchema, SupportedCloudProviderTypesSchema };

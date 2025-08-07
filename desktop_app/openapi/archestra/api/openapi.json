@@ -8,64 +8,6 @@
     "schemas": {}
   },
   "paths": {
-    "/api/cloud-providers/available": {
-      "get": {
-        "operationId": "getAvailableCloudProviders",
-        "tags": ["Cloud Providers"],
-        "description": "Get all available cloud providers with configuration status",
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/api/cloud-providers": {
-      "post": {
-        "operationId": "configureCloudProvider",
-        "tags": ["Cloud Providers"],
-        "description": "Configure a cloud provider with API key",
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/api/cloud-providers/{type}": {
-      "delete": {
-        "operationId": "deleteCloudProvider",
-        "tags": ["Cloud Providers"],
-        "description": "Remove cloud provider configuration",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "type",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/api/cloud-providers/models": {
-      "get": {
-        "operationId": "getCloudProviderModels",
-        "tags": ["Cloud Providers"],
-        "description": "Get all available models from configured providers",
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
     "/api/chat": {
       "get": {
         "operationId": "getChats",
@@ -396,6 +338,232 @@
         }
       }
     },
+    "/api/cloud-providers/available": {
+      "get": {
+        "operationId": "getAvailableCloudProviders",
+        "tags": ["Cloud Providers"],
+        "description": "Get all available cloud providers with configuration status",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": ["anthropic", "openai", "deepseek", "gemini"]
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "apiKeyUrl": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "apiKeyPlaceholder": {
+                        "type": "string"
+                      },
+                      "baseUrl": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "models": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "headers": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "configured": {
+                        "type": "boolean"
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "validatedAt": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "nullable": true,
+                            "enum": [null]
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "name",
+                      "apiKeyUrl",
+                      "apiKeyPlaceholder",
+                      "baseUrl",
+                      "models",
+                      "configured",
+                      "enabled",
+                      "validatedAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cloud-providers": {
+      "post": {
+        "operationId": "configureCloudProvider",
+        "tags": ["Cloud Providers"],
+        "description": "Configure a cloud provider with API key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["anthropic", "openai", "deepseek", "gemini"]
+                  },
+                  "apiKey": {
+                    "type": "string"
+                  }
+                },
+                "required": ["type", "apiKey"]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["anthropic", "openai", "deepseek", "gemini"]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "apiKeyUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "apiKeyPlaceholder": {
+                      "type": "string"
+                    },
+                    "baseUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "headers": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": ["type", "name", "apiKeyUrl", "apiKeyPlaceholder", "baseUrl", "models"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cloud-providers/{type}": {
+      "delete": {
+        "operationId": "deleteCloudProvider",
+        "tags": ["Cloud Providers"],
+        "description": "Remove cloud provider configuration",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["anthropic", "openai", "deepseek", "gemini"]
+            },
+            "in": "path",
+            "name": "type",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cloud-providers/models": {
+      "get": {
+        "operationId": "getCloudProviderModels",
+        "tags": ["Cloud Providers"],
+        "description": "Get all available models from configured providers",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "provider": {
+                        "type": "string",
+                        "enum": ["anthropic", "openai", "deepseek", "gemini"]
+                      }
+                    },
+                    "required": ["id", "provider"],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/external_mcp_client": {
       "get": {
         "operationId": "getConnectedExternalMcpClients",
@@ -403,19 +571,27 @@
         "description": "Get all connected external MCP clients",
         "responses": {
           "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/api/external_mcp_client/supported": {
-      "get": {
-        "operationId": "getSupportedExternalMcpClients",
-        "tags": ["External MCP Client"],
-        "description": "Get supported external MCP client names",
-        "responses": {
-          "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "clientName": {
+                        "type": "string"
+                      },
+                      "createdAt": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["clientName", "createdAt"],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -425,9 +601,40 @@
         "operationId": "connectExternalMcpClient",
         "tags": ["External MCP Client"],
         "description": "Connect an external MCP client",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "client_name": {
+                    "type": "string",
+                    "enum": ["claude", "cursor", "vscode"]
+                  }
+                },
+                "required": ["client_name"]
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success"],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -440,7 +647,8 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": ["claude", "cursor", "vscode"]
             },
             "in": "path",
             "name": "client_name",
@@ -449,7 +657,21 @@
         ],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success"],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -644,6 +866,23 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
               }
             }
           }
@@ -862,7 +1101,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "catalogSlug": {
+                  "catalogName": {
                     "type": "string"
                   },
                   "userConfigValues": {
@@ -888,7 +1127,7 @@
                     }
                   }
                 },
-                "required": ["catalogSlug"]
+                "required": ["catalogName", "userConfigValues"]
               }
             }
           },
@@ -1079,7 +1318,8 @@
                         }
                       }
                     },
-                    "required": ["command", "args", "env"]
+                    "required": ["command"],
+                    "additionalProperties": false
                   }
                 },
                 "required": ["name", "serverConfig"]
@@ -1185,45 +1425,11 @@
                 }
               }
             }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"],
-                  "additionalProperties": false
-                }
-              }
-            }
           }
         }
       }
     },
-    "/api/mcp_server/{slug}": {
+    "/api/mcp_server/{id}": {
       "delete": {
         "operationId": "uninstallMcpServer",
         "tags": ["MCP Server"],
@@ -1234,7 +1440,7 @@
               "type": "string"
             },
             "in": "path",
-            "name": "slug",
+            "name": "id",
             "required": true
           }
         ],
@@ -1255,40 +1461,6 @@
                 }
               }
             }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"],
-                  "additionalProperties": false
-                }
-              }
-            }
           }
         }
       }
@@ -1304,11 +1476,11 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "catalogSlug": {
+                  "catalogName": {
                     "type": "string"
                   }
                 },
-                "required": ["catalogSlug"]
+                "required": ["catalogName"]
               }
             }
           },
@@ -1327,40 +1499,6 @@
                     }
                   },
                   "required": ["authUrl"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -1386,7 +1524,6 @@
                       "type": "boolean"
                     },
                     "podmanMachineStatus": {
-                      "description": "Status of the Podman machine",
                       "type": "string",
                       "enum": ["not_installed", "stopped", "running", "initializing"]
                     }

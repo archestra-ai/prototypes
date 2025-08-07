@@ -1,11 +1,11 @@
 import { spawn } from 'node:child_process';
+import { z } from 'zod';
 
-import { PodmanMachineStatus } from '@archestra/types';
 import PodmanImage from '@backend/sandbox/podman/image';
 import { getBinariesDirectory, getBinaryExecPath } from '@backend/utils/binaries';
 import websocketService from '@backend/websocket';
 
-import { PodmanMachineListOutput } from './types';
+export const PodmanMachineStatusSchema = z.enum(['not_installed', 'stopped', 'running', 'initializing']);
 
 type RunCommandPipes<T extends object | object[]> = {
   onStdout?: {
@@ -22,12 +22,56 @@ type RunCommandOptions<T extends object | object[]> = {
   pipes: RunCommandPipes<T>;
 };
 
+export type PodmanMachineListOutput = {
+  Name: string;
+  Default: boolean;
+  Created: string;
+  Running: boolean;
+  Starting: boolean;
+  LastUp: string;
+  Stream: string;
+  VMType: string;
+  CPUs: number;
+  Memory: string;
+  DiskSize: string;
+  Port: number;
+  RemoteUsername: string;
+  IdentityPath: string;
+  UserModeNetworking: boolean;
+}[];
+
+export type PodmanMachineInspectOutput = {
+  ConfigDir: {
+    Path: string;
+  };
+  ConnectionInfo: {
+    PodmanSocket: {
+      Path: string;
+    };
+    PodmanPipe: null;
+  };
+  Resources: {
+    CPUs: number;
+    DiskSize: number;
+    Memory: number;
+    USBs: string[];
+  };
+  SSHConfig: {
+    IdentityPath: string;
+    Port: number;
+    RemoteUsername: string;
+  };
+  UserModeNetworking: boolean;
+  Rootful: boolean;
+  Rosetta: boolean;
+}[];
+
 /**
  * https://docs.podman.io/en/latest/markdown/podman-machine.1.html
  */
 export default class PodmanRuntime {
   private ARCHESTRA_MACHINE_NAME = 'archestra-ai-machine';
-  private _machineStatus: PodmanMachineStatus = 'not_installed';
+  private _machineStatus: z.infer<typeof PodmanMachineStatusSchema> = 'not_installed';
 
   private onMachineInstallationSuccess: () => void = () => {};
   private onMachineInstallationError: (error: Error) => void = () => {};

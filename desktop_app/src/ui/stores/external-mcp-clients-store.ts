@@ -1,7 +1,7 @@
 import { ExternalMcpClientNameSchema } from '@archestra/schemas';
+import { type ExternalMcpClient } from '@archestra/types';
 import { create } from 'zustand';
 
-import { type ExternalMcpClient } from '@archestra/types';
 import {
   connectExternalMcpClient,
   disconnectExternalMcpClient,
