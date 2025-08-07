@@ -1,4 +1,3 @@
-import { McpServerCatalogEntryWithUserConfig, McpServerUserConfigValues } from '@archestra/types';
 import {
   CheckCircle,
   Code,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
+import { ArchestraMcpServerManifest } from '@clients/archestra/catalog/gen';
 import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardHeader } from '@ui/components/ui/card';
@@ -29,9 +29,7 @@ import McpServerInstallDialog from './McpServerInstallDialog';
 interface ConnectorCatalogPageProps {}
 
 export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) {
-  const [selectedServerForInstall, setSelectedServerForInstall] = useState<McpServerCatalogEntryWithUserConfig | null>(
-    null
-  );
+  const [selectedServerForInstall, setSelectedServerForInstall] = useState<ArchestraMcpServerManifest | null>(null);
   const [installDialogOpen, setInstallDialogOpen] = useState(false);
 
   const {
@@ -92,7 +90,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
     }
   };
 
-  const handleInstallClick = (mcpServer: McpServerCatalogEntryWithUserConfig) => {
+  const handleInstallClick = (mcpServer: ArchestraMcpServerManifest) => {
     // If server has user_config, show the dialog
     if (mcpServer.user_config && Object.keys(mcpServer.user_config).length > 0) {
       setSelectedServerForInstall(mcpServer);
@@ -103,7 +101,7 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
     }
   };
 
-  const handleInstallWithConfig = async (config: McpServerUserConfigValues) => {
+  const handleInstallWithConfig = async (config: ArchestraMcpServerManifest) => {
     if (selectedServerForInstall) {
       await installMcpServerFromConnectorCatalog(selectedServerForInstall, config);
       setInstallDialogOpen(false);

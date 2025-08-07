@@ -3,6 +3,12 @@ import { z } from 'zod';
 
 import { PodmanMachineStatusSchema } from '@backend/sandbox/podman/runtime';
 
+/**
+ * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
+ * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
+ */
+z.globalRegistry.add(PodmanMachineStatusSchema, { id: 'PodmanMachineStatus' });
+
 const sandboxRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
     '/api/sandbox/status',

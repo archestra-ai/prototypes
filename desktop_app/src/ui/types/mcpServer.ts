@@ -1,7 +1,7 @@
-import { McpServer } from '@archestra/types';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { Tool as BaseTool } from '@modelcontextprotocol/sdk/types.js';
 
+import { McpServer } from '@clients/archestra/api/gen';
 import type { ToolCall as BaseToolCall } from '@clients/archestra/api/gen';
 
 /**

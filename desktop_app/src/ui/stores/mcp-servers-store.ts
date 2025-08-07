@@ -1,16 +1,16 @@
-import type {
-  McpServer,
-  McpServerCatalogEntryWithUserConfig,
-  McpServerUserConfig,
-  McpServerUserConfigValues,
-} from '@archestra/types';
 import { Client } from '@modelcontextprotocol/sdk/client/index';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp';
 import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/types';
 import { create } from 'zustand';
 
-import { getMcpServers, installMcpServer, startMcpServerOauth, uninstallMcpServer } from '@clients/archestra/api/gen';
-import { getSearch as searchCatalog } from '@clients/archestra/catalog/gen';
+import {
+  McpServer,
+  getMcpServers,
+  installMcpServer,
+  startMcpServerOauth,
+  uninstallMcpServer,
+} from '@clients/archestra/api/gen';
+import { type ArchestraMcpServerManifest, getSearch as searchCatalog } from '@clients/archestra/catalog/gen';
 import config from '@ui/config';
 import { getToolsGroupedByServer } from '@ui/lib/utils/mcp-server';
 import { formatToolName } from '@ui/lib/utils/tools';
@@ -19,6 +19,8 @@ import { ConnectedMcpServer, McpServerStatus, McpServerToolsMap, ToolWithMcpServ
 
 const ARCHESTRA_MCP_SERVER_NAME = 'archestra';
 
+type McpServerUserConfigValues = McpServer['userConfigValues'];
+
 interface McpServersState {
   archestraMcpServer: ConnectedMcpServer | null;
 
@@ -26,7 +28,7 @@ interface McpServersState {
   loadingInstalledMcpServers: boolean;
   errorLoadingInstalledMcpServers: string | null;
 
-  connectorCatalog: McpServerCatalogEntryWithUserConfig[];
+  connectorCatalog: ArchestraMcpServerManifest[];
   loadingConnectorCatalog: boolean;
   errorFetchingConnectorCatalog: string | null;
 
@@ -61,7 +63,7 @@ interface McpServersActions {
   setCatalogSelectedCategory: (category: string) => void;
   resetCatalogSearch: () => void;
   installMcpServerFromConnectorCatalog: (
-    mcpServer: McpServerCatalogEntryWithUserConfig,
+    mcpServer: ArchestraMcpServerManifest,
     userConfigValues?: McpServerUserConfigValues
   ) => Promise<void>;
   uninstallMcpServer: (slug: string) => Promise<void>;
@@ -368,7 +370,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
   },
 
   installMcpServerFromConnectorCatalog: async (
-    { configForArchestra, name, slug }: McpServerCatalogEntryWithUserConfig,
+    { configForArchestra, name, slug }: ArchestraMcpServerManifest,
     userConfigValues?: McpServerUserConfigValues
   ) => {
     try {

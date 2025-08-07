@@ -1,7 +1,7 @@
-import { McpServerCatalogEntryWithUserConfig, McpServerUserConfigValues } from '@archestra/types';
 import { Eye, EyeOff, File, Folder, Info } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { ArchestraMcpServerManifest } from '@clients/archestra/catalog/gen';
 import { Alert, AlertDescription } from '@ui/components/ui/alert';
 import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
@@ -18,10 +18,10 @@ import { Label } from '@ui/components/ui/label';
 import { Switch } from '@ui/components/ui/switch';
 
 interface McpServerInstallDialogProps {
-  mcpServer: McpServerCatalogEntryWithUserConfig | null;
+  mcpServer: ArchestraMcpServerManifest | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onInstall: (config: McpServerUserConfigValues) => void;
+  onInstall: (config: ArchestraMcpServerManifest) => void;
 }
 
 export default function McpServerInstallDialog({
@@ -30,7 +30,7 @@ export default function McpServerInstallDialog({
   onOpenChange,
   onInstall,
 }: McpServerInstallDialogProps) {
-  const [configValues, setConfigValues] = useState<McpServerUserConfigValues>({});
+  const [configValues, setConfigValues] = useState<ArchestraMcpServerManifest>({});
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 

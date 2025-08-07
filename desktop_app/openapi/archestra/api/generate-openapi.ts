@@ -1,7 +1,12 @@
 import autoLoad from '@fastify/autoload';
 import fastifySwagger from '@fastify/swagger';
 import fastify from 'fastify';
-import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import {
+  jsonSchemaTransform,
+  jsonSchemaTransformObject,
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,6 +38,10 @@ async function generateOpenAPISpec() {
      * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-use-together-with-fastifyswagger
      */
     transform: jsonSchemaTransform,
+    /**
+     * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
+     */
+    transformObject: jsonSchemaTransformObject,
   });
 
   /**

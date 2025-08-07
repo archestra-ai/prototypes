@@ -117,7 +117,7 @@ importers:
         specifier: ^0.44.4
         version: 0.44.4(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)
       drizzle-zod:
-        specifier: ^0.8.2
+        specifier: ^0.8.3
         version: 0.8.3(drizzle-orm@0.44.4(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0))(zod@4.0.15)
       electron-squirrel-startup:
         specifier: ^1.0.1

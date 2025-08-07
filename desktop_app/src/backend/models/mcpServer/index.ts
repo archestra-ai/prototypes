@@ -1,29 +1,13 @@
 import { eq } from 'drizzle-orm';
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { v4 as uuidv4 } from 'uuid';
-import { z } from 'zod';
 
 import db from '@backend/database';
-import {
-  McpServerConfigSchema,
-  McpServerUserConfigValuesSchema,
-  mcpServersTable,
-} from '@backend/database/schema/mcpServer';
+import { mcpServersTable } from '@backend/database/schema/mcpServer';
 import ExternalMcpClientModel from '@backend/models/externalMcpClient';
 import { getServerByName } from '@clients/archestra/catalog/gen';
 
-export const UserConfigValuesSchema = McpServerUserConfigValuesSchema;
-export const McpServerInsertSchema = createInsertSchema(mcpServersTable);
-export const McpServerSelectSchema = createSelectSchema(mcpServersTable);
-
-export type McpServer = z.infer<typeof McpServerSelectSchema>;
-export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
-export type McpServerUserConfigValues = z.infer<typeof McpServerUserConfigValuesSchema>;
-type McpServerInsert = typeof mcpServersTable.$inferInsert;
-type McpServerSelect = typeof mcpServersTable.$inferSelect;
-
 export default class McpServerModel {
-  static async create(data: McpServerInsert) {
+  static async create(data: typeof mcpServersTable.$inferInsert) {
     return db.insert(mcpServersTable).values(data).returning();
   }
 
@@ -31,7 +15,7 @@ export default class McpServerModel {
     return db.select().from(mcpServersTable);
   }
 
-  static async getById(id: McpServerSelect['id']) {
+  static async getById(id: (typeof mcpServersTable.$inferSelect)['id']) {
     return db.select().from(mcpServersTable).where(eq(mcpServersTable.id, id));
   }
 
@@ -45,7 +29,10 @@ export default class McpServerModel {
   /**
    * Save MCP server from catalog
    */
-  static async saveMcpServerFromCatalog(catalogName: string, userConfigValues?: McpServerInsert['userConfigValues']) {
+  static async saveMcpServerFromCatalog(
+    catalogName: string,
+    userConfigValues?: (typeof mcpServersTable.$inferSelect)['userConfigValues']
+  ) {
     // Fetch the catalog entry using the generated client
     const { data, error } = await getServerByName({ path: { name: catalogName } });
 
@@ -77,7 +64,7 @@ export default class McpServerModel {
          */
         id: data.name,
         name: data.display_name,
-        serverConfig: data.server,
+        serverConfig: data.server.mcp_config,
         userConfigValues: userConfigValues,
         createdAt: now.toISOString(),
       })
@@ -95,7 +82,7 @@ export default class McpServerModel {
    * There's no `userConfigValues` for custom servers as users can simply input those values
    * directly in the `serverConfig` that they provider
    */
-  static async saveCustomMcpServer(name: string, serverConfig: McpServerInsert['serverConfig']) {
+  static async saveCustomMcpServer(name: string, serverConfig: (typeof mcpServersTable.$inferSelect)['serverConfig']) {
     const now = new Date();
     const [server] = await db
       .insert(mcpServersTable)
@@ -119,10 +106,17 @@ export default class McpServerModel {
   /**
    * Uninstall MCP server by id
    */
-  static async uninstallMcpServer(id: McpServerSelect['id']) {
+  static async uninstallMcpServer(id: (typeof mcpServersTable.$inferSelect)['id']) {
     await db.delete(mcpServersTable).where(eq(mcpServersTable.id, id));
 
     // Sync all connected external MCP clients after uninstalling
     await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();
   }
 }
+
+export {
+  McpServerConfigSchema,
+  McpServerSchema,
+  McpServerUserConfigValuesSchema,
+  type McpServer,
+} from '@backend/database/schema/mcpServer';
