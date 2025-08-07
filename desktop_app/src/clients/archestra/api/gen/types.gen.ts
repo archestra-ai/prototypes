@@ -76,6 +76,16 @@ export type McpRequestLogInput = {
   timestamp: string;
 };
 
+export type McpRequestLogStatsInput = {
+  totalRequests: number;
+  successCount: number;
+  errorCount: number;
+  avgDurationMs: number;
+  requestsPerServer: {
+    [key: string]: number;
+  };
+};
+
 export type McpServerInput = {
   id: string;
   name: string | null;
@@ -168,6 +178,16 @@ export type McpRequestLog = {
   errorMessage: string | null;
   durationMs: number | null;
   timestamp: string;
+};
+
+export type McpRequestLogStats = {
+  totalRequests: number;
+  successCount: number;
+  errorCount: number;
+  avgDurationMs: number;
+  requestsPerServer: {
+    [key: string]: number;
+  };
 };
 
 export type McpServer = {
@@ -587,15 +607,7 @@ export type GetMcpRequestLogStatsResponses = {
   /**
    * Default Response
    */
-  200: {
-    totalRequests: number;
-    successCount: number;
-    errorCount: number;
-    avgDurationMs: number;
-    requestsPerServer: {
-      [key: string]: number;
-    };
-  };
+  200: McpRequestLogStats;
 };
 
 export type GetMcpRequestLogStatsResponse = GetMcpRequestLogStatsResponses[keyof GetMcpRequestLogStatsResponses];

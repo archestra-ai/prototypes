@@ -18,6 +18,23 @@ export const McpRequestLogFiltersWithPaginationSchema = McpRequestLogFiltersSche
  * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
  */
 z.globalRegistry.add(McpRequestLogSchema, { id: 'McpRequestLog' });
+z.globalRegistry.add(McpRequestLogStatsSchema, { id: 'McpRequestLogStats' });
+/**
+ * NOTE: for some reason, it fails to output these 👇 two components in the openapi spec because of this:
+ *
+ * ❯ pnpm tsx openapi/archestra/api/generate-openapi.ts
+ *   [dotenv@17.2.1] injecting env (0) from .env -- tip: 📡 observe env with Radar: https://dotenvx.com/radar
+ *   TypeError: Cannot read properties of undefined (reading 'type')
+ *       at resolveLocalRef (./node_modules/@fastify/swagger/lib/util/resolve-local-ref.js:7:18)
+ *       at plainJsonObjectToOpenapi3 (./node_modules/@fastify/swagger/lib/spec/openapi/utils.js:134:43)
+ *       at resolveCommonParams (./node_modules/@fastify/swagger/lib/spec/openapi/utils.js:303:15)
+ *       at prepareOpenapiMethod (./node_modules/@fastify/swagger/lib/spec/openapi/utils.js:473:29)
+ *       at Object.swagger (./node_modules/@fastify/swagger/lib/spec/openapi/index.js:52:29)
+ *       at generateOpenAPISpec (./openapi/archestra/api/generate-openapi.ts:68:20)
+ *       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+ */
+// z.globalRegistry.add(McpRequestLogFiltersSchema, { id: 'McpRequestLogFilters' });
+// z.globalRegistry.add(McpRequestLogFiltersWithPaginationSchema, { id: 'McpRequestLogFiltersWithPagination' });
 
 const mcpRequestLogRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(

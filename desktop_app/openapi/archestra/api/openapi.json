@@ -367,6 +367,30 @@
           "timestamp"
         ]
       },
+      "McpRequestLogStatsInput": {
+        "type": "object",
+        "properties": {
+          "totalRequests": {
+            "type": "number"
+          },
+          "successCount": {
+            "type": "number"
+          },
+          "errorCount": {
+            "type": "number"
+          },
+          "avgDurationMs": {
+            "type": "number"
+          },
+          "requestsPerServer": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        },
+        "required": ["totalRequests", "successCount", "errorCount", "avgDurationMs", "requestsPerServer"]
+      },
       "McpServerInput": {
         "type": "object",
         "properties": {
@@ -802,6 +826,31 @@
           "durationMs",
           "timestamp"
         ],
+        "additionalProperties": false
+      },
+      "McpRequestLogStats": {
+        "type": "object",
+        "properties": {
+          "totalRequests": {
+            "type": "number"
+          },
+          "successCount": {
+            "type": "number"
+          },
+          "errorCount": {
+            "type": "number"
+          },
+          "avgDurationMs": {
+            "type": "number"
+          },
+          "requestsPerServer": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        },
+        "required": ["totalRequests", "successCount", "errorCount", "avgDurationMs", "requestsPerServer"],
         "additionalProperties": false
       },
       "McpServer": {
@@ -1606,29 +1655,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "totalRequests": {
-                      "type": "number"
-                    },
-                    "successCount": {
-                      "type": "number"
-                    },
-                    "errorCount": {
-                      "type": "number"
-                    },
-                    "avgDurationMs": {
-                      "type": "number"
-                    },
-                    "requestsPerServer": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "number"
-                      }
-                    }
-                  },
-                  "required": ["totalRequests", "successCount", "errorCount", "avgDurationMs", "requestsPerServer"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/McpRequestLogStats"
                 }
               }
             }

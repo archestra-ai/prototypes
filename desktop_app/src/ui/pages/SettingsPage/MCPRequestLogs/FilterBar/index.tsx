@@ -1,12 +1,12 @@
 import { ChevronDown, ChevronUp, Filter } from 'lucide-react';
 import { useState } from 'react';
 
-import { type McpRequestLogFilters } from '@archestra/types';
 import { Button } from '@ui/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/components/ui/collapsible';
 import { Input } from '@ui/components/ui/input';
 import { Label } from '@ui/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui/components/ui/select';
+import { type McpRequestLogFilters } from '@ui/types';
 
 interface FilterBarProps {
   filters: McpRequestLogFilters;
