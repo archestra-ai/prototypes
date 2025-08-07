@@ -1,24 +1,20 @@
 import { eq } from 'drizzle-orm';
 
+import { SupportedCloudProviderTypes } from '@archestra/types';
 import db from '@backend/database';
-import { CloudProvider, NewCloudProvider, cloudProvidersTable } from '@backend/database/schema/cloudProvider';
+import { cloudProvidersTable } from '@backend/database/schema/cloudProvider';
 
-class CloudProviderModel {
-  async getAll(): Promise<CloudProvider[]> {
-    const providers = await db.select().from(cloudProvidersTable);
-    return providers as CloudProvider[];
+export default class CloudProvider {
+  static async getAll() {
+    return await db.select().from(cloudProvidersTable);
   }
 
-  async getByType(type: string): Promise<CloudProvider | null> {
-    const [provider] = await db
-      .select()
-      .from(cloudProvidersTable)
-      .where(eq(cloudProvidersTable.providerType, type));
-
-    return provider as CloudProvider | null;
+  static async getByType(type: SupportedCloudProviderTypes) {
+    const [provider] = await db.select().from(cloudProvidersTable).where(eq(cloudProvidersTable.providerType, type));
+    return provider;
   }
 
-  async upsert(type: string, apiKey: string): Promise<CloudProvider> {
+  static async upsert(type: SupportedCloudProviderTypes, apiKey: string) {
     const existing = await this.getByType(type);
 
     if (existing) {
@@ -43,9 +39,7 @@ class CloudProviderModel {
     return result;
   }
 
-  async delete(type: string): Promise<void> {
+  static async delete(type: SupportedCloudProviderTypes) {
     await db.delete(cloudProvidersTable).where(eq(cloudProvidersTable.providerType, type));
   }
 }
-
-export default new CloudProviderModel();

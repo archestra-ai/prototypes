@@ -48,7 +48,7 @@ export default function ChatHistory({ messages }: ChatHistoryProps) {
   const scrollAreaRef = useRef<HTMLElement | null>(null);
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Debug messages
   useEffect(() => {
     console.log('ChatHistory received messages:', messages);

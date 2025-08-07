@@ -1,12 +1,20 @@
 import autoLoad from '@fastify/autoload';
 import fastifySwagger from '@fastify/swagger';
 import fastify from 'fastify';
+import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 async function generateOpenAPISpec() {
   const app = fastify({ logger: false });
+  /**
+   * Add schema validator and serializer
+   * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-use
+   * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-use-together-with-fastifyswagger
+   */
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
   /**
    * @fastify/swagger MUST be loaded before routes are loaded with @fastify/autoload
@@ -21,6 +29,10 @@ async function generateOpenAPISpec() {
         version: '0.0.1', // x-release-please-version
       },
     },
+    /**
+     * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-use-together-with-fastifyswagger
+     */
+    transform: jsonSchemaTransform,
   });
 
   /**

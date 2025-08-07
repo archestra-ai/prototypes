@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-import type { McpCatalogServerConfig, McpServerUserConfigValues } from '@archestra/types';
+import type { McpServerConfig, McpServerUserConfigValues } from '@archestra/types';
 
 export const mcpServersTable = sqliteTable('mcp_servers', {
   /**
@@ -15,7 +15,7 @@ export const mcpServersTable = sqliteTable('mcp_servers', {
   /**
    * https://orm.drizzle.team/docs/column-types/sqlite#blob
    */
-  serverConfig: text({ mode: 'json' }).$type<McpCatalogServerConfig>().notNull(),
+  serverConfig: text({ mode: 'json' }).$type<McpServerConfig>().notNull(),
   /**
    * `userConfigValues` are user-provided/custom values for `DxtManifestMcpConfig`
    * (think API keys, etc)

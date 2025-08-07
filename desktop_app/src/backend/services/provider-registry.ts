@@ -1,20 +1,7 @@
-import { z } from 'zod';
-
-// Schema for provider definitions
-export const providerDefinitionSchema = z.object({
-  type: z.string(),
-  name: z.string(),
-  apiKeyUrl: z.string().url(),
-  apiKeyPlaceholder: z.string(),
-  baseUrl: z.string().url(),
-  models: z.array(z.string()), // Just model IDs
-  headers: z.record(z.string()).optional(),
-});
-
-export type ProviderDefinition = z.infer<typeof providerDefinitionSchema>;
+import { CloudProvider, SupportedCloudProviderTypes } from '@archestra/types';
 
 // Provider definitions - easy to update in code
-export const PROVIDER_REGISTRY: Record<string, ProviderDefinition> = {
+export const PROVIDER_REGISTRY: Record<SupportedCloudProviderTypes, CloudProvider> = {
   anthropic: {
     type: 'anthropic',
     name: 'Claude (Anthropic)',
@@ -54,7 +41,7 @@ export const PROVIDER_REGISTRY: Record<string, ProviderDefinition> = {
 };
 
 // Helper function to get provider for a model
-export function getProviderForModel(modelId: string): ProviderDefinition | null {
+export function getProviderForModel(modelId: string): CloudProvider | null {
   for (const provider of Object.values(PROVIDER_REGISTRY)) {
     if (provider.models.includes(modelId)) {
       return provider;

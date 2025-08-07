@@ -93,7 +93,7 @@ export default function ChatInput({ input, handleInputChange, handleSubmit, isLo
                     ))}
                   </>
                 )}
-                
+
                 {/* Cloud Provider Models */}
                 {cloudModels.length > 0 && (
                   <>

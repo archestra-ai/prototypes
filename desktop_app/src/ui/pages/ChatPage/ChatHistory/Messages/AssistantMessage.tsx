@@ -1,7 +1,7 @@
 import { UIMessage } from 'ai';
 
-import { AIResponse } from '@ui/components/kibo/ai-response';
 import ToolInvocation from '@ui/components/ToolInvocation';
+import { AIResponse } from '@ui/components/kibo/ai-response';
 
 interface AssistantMessageProps {
   message: UIMessage;
@@ -39,16 +39,22 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
               toolName={tool.toolName}
               args={tool.input || tool.args || {}}
               result={tool.output || tool.result}
-              state={tool.state === 'output-available' ? 'completed' : 
-                     tool.state === 'output-error' ? 'error' : 
-                     tool.state === 'input-streaming' ? 'pending' : 'pending'}
+              state={
+                tool.state === 'output-available'
+                  ? 'completed'
+                  : tool.state === 'output-error'
+                    ? 'error'
+                    : tool.state === 'input-streaming'
+                      ? 'pending'
+                      : 'pending'
+              }
               startTime={tool.startTime}
               endTime={tool.endTime}
             />
           ))}
         </div>
       )}
-      
+
       {/* Display tool invocations (fallback) */}
       {!hasDynamicTools && hasToolInvocations && (
         <div className="space-y-2 mb-3">
@@ -63,7 +69,7 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
           ))}
         </div>
       )}
-      
+
       {textContent && <AIResponse>{textContent}</AIResponse>}
     </div>
   );

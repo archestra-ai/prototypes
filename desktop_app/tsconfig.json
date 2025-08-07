@@ -22,7 +22,7 @@
       "@backend/*": ["src/backend/*"],
       "@clients/*": ["src/clients/*"],
       "@archestra/types": ["src/types"],
-      "@schemas": ["src/schemas"],
+      "@archestra/schemas": ["src/schemas"],
       "@ui/*": ["src/ui/*"]
     }
   }

@@ -1,6 +1,6 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useChatStore } from '@ui/stores/chat-store';
 import { useCloudProvidersStore } from '@ui/stores/cloud-providers-store';
@@ -44,10 +44,10 @@ export default function ChatPage(_props: ChatPageProps) {
   const transport = useMemo(() => {
     // Check if it's a cloud model
     const isCloudModel = cloudModels.some((m) => m.id === model);
-    
+
     // Use OpenAI endpoint for cloud models, Ollama for local
     const apiEndpoint = isCloudModel ? '/api/llm/openai/stream' : '/api/llm/ollama/stream';
-    
+
     return new DefaultChatTransport({
       api: apiEndpoint,
       body: {
@@ -74,7 +74,6 @@ export default function ChatPage(_props: ChatPageProps) {
       console.error('Chat error:', error);
     },
   });
-
 
   // Update messages when current chat changes
   useEffect(() => {

@@ -1,2 +1,4 @@
-export const PODMAN_MACHINE_STATUSES = ['not_installed', 'stopped', 'running', 'initializing'] as const;
-export type PodmanMachineStatus = typeof PODMAN_MACHINE_STATUSES[number];
+import { PodmanMachineStatusSchema } from '@archestra/schemas';
+import { z } from 'zod';
+
+export type PodmanMachineStatus = z.infer<typeof PodmanMachineStatusSchema>;

@@ -90,9 +90,7 @@ export function SandboxStartupProgress() {
 
         {initializationError && (
           <div className="rounded-md bg-destructive/10 p-3">
-            <p className="text-sm text-destructive">
-              Please check the logs for more information about the failure.
-            </p>
+            <p className="text-sm text-destructive">Please check the logs for more information about the failure.</p>
           </div>
         )}
       </CardContent>

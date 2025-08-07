@@ -1,30 +1,17 @@
+import {
+  McpClientInfoSchema,
+  McpRequestLogFiltersSchema,
+  McpRequestLogFiltersWithPaginationSchema,
+  McpRequestLogStatsSchema,
+} from '@archestra/schemas';
 import { z } from 'zod';
 
 import { selectMcpRequestLogSchema } from '@backend/models/mcpRequestLog';
 
 export type McpRequestLog = z.infer<typeof selectMcpRequestLogSchema>;
 
-export type McpClientInfo = {
-  userAgent?: string;
-  clientName?: string;
-  clientVersion?: string;
-  clientPlatform?: string;
-  [key: string]: unknown;
-};
+export type McpRequestLogFilters = z.infer<typeof McpRequestLogFiltersSchema>;
+export type McpRequestLogFiltersWithPagination = z.infer<typeof McpRequestLogFiltersWithPaginationSchema>;
 
-export type McpRequestLogFilters = {
-  serverName?: string;
-  method?: string;
-  status?: string;
-  search?: string;
-  dateFrom?: string;
-  dateTo?: string;
-};
-
-export type McpRequestLogStats = {
-  totalRequests: number;
-  successCount: number;
-  errorCount: number;
-  avgDurationMs: number;
-  requestsPerServer: Record<string, number>;
-};
+export type McpClientInfo = z.infer<typeof McpClientInfoSchema>;
+export type McpRequestLogStats = z.infer<typeof McpRequestLogStatsSchema>;

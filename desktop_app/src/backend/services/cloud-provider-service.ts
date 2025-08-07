@@ -1,19 +1,10 @@
-import { z } from 'zod';
-
+import { CloudProvider, CloudProviderWithConfig, SupportedCloudProviderTypes } from '@archestra/types';
 import cloudProviderModel from '@backend/models/cloudProvider';
-import { PROVIDER_REGISTRY, ProviderDefinition, getProviderForModel, providerDefinitionSchema } from './provider-registry';
 
-// Combined schema for API responses (merges definition + config)
-export const providerWithConfigSchema = providerDefinitionSchema.extend({
-  configured: z.boolean(),
-  enabled: z.boolean(),
-  validatedAt: z.string().nullable(),
-});
-
-export type ProviderWithConfig = z.infer<typeof providerWithConfigSchema>;
+import { PROVIDER_REGISTRY, getProviderForModel } from './provider-registry';
 
 export class CloudProviderService {
-  async getAllProvidersWithConfig(): Promise<ProviderWithConfig[]> {
+  async getAllProvidersWithConfig(): Promise<CloudProviderWithConfig[]> {
     const configs = await cloudProviderModel.getAll();
 
     return Object.values(PROVIDER_REGISTRY).map((definition) => {
@@ -28,7 +19,7 @@ export class CloudProviderService {
     });
   }
 
-  async getProviderConfigForModel(modelId: string): Promise<{ provider: ProviderDefinition; apiKey: string } | null> {
+  async getProviderConfigForModel(modelId: string): Promise<{ provider: CloudProvider; apiKey: string } | null> {
     const provider = getProviderForModel(modelId);
     if (!provider) return null;
 
@@ -38,9 +29,9 @@ export class CloudProviderService {
     return { provider, apiKey: config.apiKey };
   }
 
-  async getAvailableModels(): Promise<Array<{ id: string; provider: string }>> {
+  async getAvailableModels(): Promise<Array<{ id: string; provider: SupportedCloudProviderTypes }>> {
     const configs = await cloudProviderModel.getAll();
-    const models: Array<{ id: string; provider: string }> = [];
+    const models: Array<{ id: string; provider: SupportedCloudProviderTypes }> = [];
 
     for (const config of configs) {
       if (!config.enabled) continue;

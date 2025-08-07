@@ -1,6 +1,7 @@
 import cors from '@fastify/cors';
 import fastify from 'fastify';
 import { streamableHttp } from 'fastify-mcp';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 
 import config from '@backend/config';
 import chatRoutes from '@backend/server/plugins/chat';
@@ -23,6 +24,13 @@ const app = fastify({
     },
   },
 });
+
+/**
+ * Add schema validator and serializer
+ * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-use
+ */
+app.setValidatorCompiler(validatorCompiler);
+app.setSerializerCompiler(serializerCompiler);
 
 app.register(cors, {
   // Allow all origins in development

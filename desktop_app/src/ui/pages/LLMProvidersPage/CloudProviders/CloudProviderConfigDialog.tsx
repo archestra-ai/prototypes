@@ -55,8 +55,8 @@ export default function CloudProviderConfigDialog({ provider, onClose }: Props) 
           </a>
 
           <div className="text-sm text-muted-foreground">
-            Note: API keys are currently stored in the local database. Secure storage with OS-level encryption is
-            coming soon.
+            Note: API keys are currently stored in the local database. Secure storage with OS-level encryption is coming
+            soon.
           </div>
 
           <div className="flex justify-end gap-2">

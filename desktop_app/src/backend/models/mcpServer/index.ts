@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { v4 as uuidv4 } from 'uuid';
 
+import { McpServerConfig } from '@archestra/types';
 import db from '@backend/database';
 import { mcpServersTable } from '@backend/database/schema/mcpServer';
 import { ExternalMcpClientModel } from '@backend/models';
@@ -49,8 +50,12 @@ export default class McpServer {
       throw new Error(`MCP server ${catalogName} not found in catalog or missing Archestra config`);
     }
 
-    // Check if already installed
-    const existing = await db.select().from(mcpServersTable).where(eq(mcpServersTable.id, data.id));
+    /**
+     * Check if already installed
+     *
+     * In this case 'name' represents the unique identifier of an mcp catalog entry
+     */
+    const existing = await db.select().from(mcpServersTable).where(eq(mcpServersTable.id, data.name));
 
     if (existing.length > 0) {
       throw new Error(`MCP server ${data.name} is already installed`);
@@ -83,15 +88,15 @@ export default class McpServer {
    * There's no `userConfigValues` for custom servers as users can simply input those values
    * directly in the `serverConfig` that they provider
    */
-  static async saveCustomMcpServer(name: string, serverConfig: (typeof mcpServersTable.$inferInsert)['serverConfig']) {
-    // Generate a UUID for custom servers
-    const customSlug = uuidv4();
-
+  static async saveCustomMcpServer(name: string, serverConfig: McpServerConfig) {
     const now = new Date();
     const [server] = await db
       .insert(mcpServersTable)
       .values({
-        slug: customSlug,
+        /**
+         * Generate a UUID for custom servers to repesent the unique identifier
+         */
+        id: uuidv4(),
         name,
         serverConfig,
         createdAt: now.toISOString(),
@@ -105,10 +110,10 @@ export default class McpServer {
   }
 
   /**
-   * Uninstall MCP server by slug
+   * Uninstall MCP server by id
    */
-  static async uninstallMcpServer(slug: string) {
-    await db.delete(mcpServersTable).where(eq(mcpServersTable.slug, slug));
+  static async uninstallMcpServer(id: string) {
+    await db.delete(mcpServersTable).where(eq(mcpServersTable.id, id));
 
     // Sync all connected external MCP clients after uninstalling
     await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();

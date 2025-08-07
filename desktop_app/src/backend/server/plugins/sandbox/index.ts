@@ -1,22 +1,8 @@
-import { FastifyPluginAsync } from 'fastify';
+import { PodmanMachineStatusSchema } from '@archestra/schemas';
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import { PODMAN_MACHINE_STATUSES } from '@archestra/types';
-
-// Response schemas
-const sandboxStatusResponseSchema = z.object({
-  isInitialized: z.boolean(),
-  podmanMachineStatus: z.enum(PODMAN_MACHINE_STATUSES).describe('Status of the Podman machine'),
-  // mcpServersStatus: z.record(z.string(), z.object({})), // TODO: implement later
-});
-
-// Type exports
-export type SandboxStatusResponse = z.infer<typeof sandboxStatusResponseSchema>;
-
-const sandboxRoutes: FastifyPluginAsync = async (fastify) => {
-  /**
-   * Get sandbox status
-   */
+const sandboxRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
     '/api/sandbox/status',
     {
@@ -25,11 +11,15 @@ const sandboxRoutes: FastifyPluginAsync = async (fastify) => {
         description: 'Get the current status of the sandbox environment',
         tags: ['Sandbox'],
         response: {
-          200: sandboxStatusResponseSchema,
+          200: z.object({
+            isInitialized: z.boolean(),
+            podmanMachineStatus: PodmanMachineStatusSchema,
+            // mcpServersStatus: z.record(z.string(), z.object({})), // TODO: implement later
+          }),
         },
       },
     },
-    async (request, reply) => {
+    async (_request, reply) => {
       // Lazy import to avoid initialization during OpenAPI generation
       const sandboxManager = (await import('@backend/sandbox/manager')).default;
       const status = sandboxManager.getSandboxStatus();

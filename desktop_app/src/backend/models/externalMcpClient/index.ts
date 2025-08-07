@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { createSelectSchema } from 'drizzle-zod';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -6,6 +7,9 @@ import { ExternalMcpClientName } from '@archestra/types';
 import db from '@backend/database';
 import { externalMcpClientsTable } from '@backend/database/schema/externalMcpClient';
 import { McpServerModel } from '@backend/models';
+
+// Database schemas
+export const selectExternalMcpClientSchema = createSelectSchema(externalMcpClientsTable);
 
 export default class ExternalMcpClient {
   static ARCHESTRA_MCP_SERVER_KEY = 'archestra.ai';
@@ -17,13 +21,6 @@ export default class ExternalMcpClient {
    */
   static async getConnectedExternalMcpClients() {
     return await db.select().from(externalMcpClientsTable).orderBy(externalMcpClientsTable.clientName);
-  }
-
-  /**
-   * Get supported external MCP client names
-   */
-  static getSupportedExternalMcpClients(): ExternalMcpClientName[] {
-    return Object.values(ExternalMcpClientName);
   }
 
   /**
@@ -65,10 +62,10 @@ export default class ExternalMcpClient {
     }
 
     switch (clientName) {
-      case ExternalMcpClientName.Cursor:
+      case 'cursor':
         return path.join(homeDir, '.cursor', 'mcp.json');
 
-      case ExternalMcpClientName.ClaudeDesktop:
+      case 'claude':
         if (process.platform === 'darwin') {
           return path.join(homeDir, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
         } else if (process.platform === 'win32') {
@@ -77,7 +74,7 @@ export default class ExternalMcpClient {
           return path.join(homeDir, '.config', 'Claude', 'claude_desktop_config.json');
         }
 
-      case ExternalMcpClientName.VSCode:
+      case 'vscode':
         return path.join(homeDir, '.vscode', 'mcp.json');
 
       default:

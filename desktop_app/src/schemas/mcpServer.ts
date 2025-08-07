@@ -1,6 +1,3 @@
-import { DxtManifestSchema } from '@anthropic-ai/dxt';
-import { z } from 'zod';
-
 /**
  * NOTE: the ONLY reason why we are installing/importing @anthropic-ai/dxt is that
  * it nicely exports zod schemas for all of its types
@@ -9,8 +6,9 @@ import { z } from 'zod';
  *
  * https://github.com/anthropics/dxt/blob/main/src/schemas.ts
  */
-export const McpServerServerConfigSchema = DxtManifestSchema.shape.server;
-export const McpServerUserConfigOptionSchema = DxtManifestSchema.shape.user_config;
+import { z } from 'zod';
+
+export { McpServerConfigSchema } from '@anthropic-ai/dxt';
 
 export const McpServerUserConfigValuesSchema = z.record(
   z.string(),

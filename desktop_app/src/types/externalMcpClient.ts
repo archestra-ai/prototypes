@@ -1,11 +1,5 @@
-export enum ExternalMcpClientName {
-  ClaudeDesktop = 'claude',
-  Cursor = 'cursor',
-  VSCode = 'vscode',
-}
+import { ExternalMcpClientNameSchema, ExternalMcpClientSchema } from '@archestra/schemas';
+import { z } from 'zod';
 
-export interface ExternalMcpClient {
-  client_name: string;
-  created_at: string;
-  updated_at: string;
-}
+export type ExternalMcpClientName = z.infer<typeof ExternalMcpClientNameSchema>;
+export type ExternalMcpClient = z.infer<typeof ExternalMcpClientSchema>;
