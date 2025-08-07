@@ -1,16 +1,14 @@
 import { eq } from 'drizzle-orm';
-import { createSelectSchema } from 'drizzle-zod';
 import fs from 'fs/promises';
 import path from 'path';
-import { z } from 'zod';
 
 import db from '@backend/database';
-import { ExternalMcpClientNameSchema, externalMcpClientsTable } from '@backend/database/schema/externalMcpClient';
+import {
+  ExternalMcpClientNameSchema,
+  SelectExternalMcpClientSchema,
+  externalMcpClientsTable,
+} from '@backend/database/schema/externalMcpClient';
 import McpServerModel from '@backend/models/mcpServer';
-
-type ExternalMcpClientName = z.infer<typeof ExternalMcpClientNameSchema>;
-
-export const ExternalMcpClientSelectSchema = createSelectSchema(externalMcpClientsTable);
 
 export default class ExternalMcpClient {
   static ARCHESTRA_MCP_SERVER_KEY = 'archestra.ai';
@@ -27,7 +25,7 @@ export default class ExternalMcpClient {
   /**
    * Save external MCP client to database
    */
-  static async saveExternalMcpClient(clientName: ExternalMcpClientName) {
+  static async saveExternalMcpClient(clientName: (typeof externalMcpClientsTable.$inferSelect)['clientName']) {
     const now = new Date();
 
     await db.insert(externalMcpClientsTable).values({
@@ -45,14 +43,16 @@ export default class ExternalMcpClient {
   /**
    * Delete external MCP client from database
    */
-  static async deleteExternalMcpClient(clientName: ExternalMcpClientName) {
+  static async deleteExternalMcpClient(clientName: (typeof externalMcpClientsTable.$inferSelect)['clientName']) {
     await db.delete(externalMcpClientsTable).where(eq(externalMcpClientsTable.clientName, clientName));
   }
 
   /**
    * Get config path for external MCP client
    */
-  static getConfigPathForExternalMcpClient(clientName: ExternalMcpClientName): string {
+  static getConfigPathForExternalMcpClient(
+    clientName: (typeof externalMcpClientsTable.$inferSelect)['clientName']
+  ): string {
     const homeDir =
       process.platform === 'win32'
         ? process.env.USERPROFILE || process.env.HOMEDRIVE + process.env.HOMEPATH
@@ -113,7 +113,7 @@ export default class ExternalMcpClient {
   /**
    * Update external MCP client config
    */
-  static async updateExternalMcpClientConfig(clientName: ExternalMcpClientName) {
+  static async updateExternalMcpClientConfig(clientName: (typeof externalMcpClientsTable.$inferSelect)['clientName']) {
     const configPath = this.getConfigPathForExternalMcpClient(clientName);
     const config = await this.readConfigFile(configPath);
 
@@ -167,7 +167,7 @@ export default class ExternalMcpClient {
   /**
    * Connect external MCP client
    */
-  static async connectExternalMcpClient(clientName: ExternalMcpClientName) {
+  static async connectExternalMcpClient(clientName: (typeof externalMcpClientsTable.$inferSelect)['clientName']) {
     // Update the client's config
     await this.updateExternalMcpClientConfig(clientName);
 
@@ -178,7 +178,7 @@ export default class ExternalMcpClient {
   /**
    * Disconnect external MCP client
    */
-  static async disconnectExternalMcpClient(clientName: ExternalMcpClientName) {
+  static async disconnectExternalMcpClient(clientName: (typeof externalMcpClientsTable.$inferSelect)['clientName']) {
     const configPath = this.getConfigPathForExternalMcpClient(clientName);
     const config = await this.readConfigFile(configPath);
 
@@ -213,4 +213,4 @@ export default class ExternalMcpClient {
   }
 }
 
-export { ExternalMcpClientNameSchema };
+export { ExternalMcpClientNameSchema, SelectExternalMcpClientSchema as ExternalMcpClientSchema };

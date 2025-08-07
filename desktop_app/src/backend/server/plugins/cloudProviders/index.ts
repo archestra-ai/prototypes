@@ -2,11 +2,18 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import CloudProviderModel, {
+  CloudProviderRegistryWithConfigSchema,
   CloudProviderSchema,
-  CloudProviderWithConfigSchema,
   SupportedCloudProviderTypesSchema,
 } from '@backend/models/cloudProvider';
-import { cloudProviderService } from '@backend/services/cloud-provider-service';
+
+/**
+ * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
+ * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
+ */
+z.globalRegistry.add(CloudProviderSchema, { id: 'CloudProvider' });
+z.globalRegistry.add(CloudProviderRegistryWithConfigSchema, { id: 'CloudProviderRegistryWithConfig' });
+z.globalRegistry.add(SupportedCloudProviderTypesSchema, { id: 'SupportedCloudProviders' });
 
 const cloudProviderRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get('/api/cloud-providers/available', {
@@ -15,11 +22,11 @@ const cloudProviderRoutes: FastifyPluginAsyncZod = async (fastify) => {
       description: 'Get all available cloud providers with configuration status',
       tags: ['Cloud Providers'],
       response: {
-        200: z.array(CloudProviderWithConfigSchema),
+        200: z.array(CloudProviderRegistryWithConfigSchema),
       },
     },
     handler: async (_request, reply) => {
-      const providers = await cloudProviderService.getAllProvidersWithConfig();
+      const providers = await CloudProviderModel.getAllProvidersWithConfig();
       return reply.send(providers);
     },
   });
@@ -87,7 +94,7 @@ const cloudProviderRoutes: FastifyPluginAsyncZod = async (fastify) => {
       },
     },
     async (_request, reply) => {
-      const models = await cloudProviderService.getAvailableModels();
+      const models = await CloudProviderModel.getAvailableModels();
       return reply.send(models);
     }
   );

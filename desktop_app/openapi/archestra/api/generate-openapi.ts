@@ -11,6 +11,9 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/**
+ * TODO: update/configure this (somehow) so that it doesn't output the <SchemaName>Input variant component types...
+ */
 async function generateOpenAPISpec() {
   const app = fastify({ logger: false });
   /**

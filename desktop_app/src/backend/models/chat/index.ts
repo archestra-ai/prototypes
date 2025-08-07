@@ -1,11 +1,8 @@
 import { asc, desc, eq } from 'drizzle-orm';
-import { createSelectSchema } from 'drizzle-zod';
 
 import db from '@backend/database';
 import { chatsTable } from '@backend/database/schema/chat';
 import { messagesTable } from '@backend/database/schema/messages';
-
-export const SelectChatSchema = createSelectSchema(chatsTable);
 
 export default class Chat {
   static async getAllChats() {
@@ -105,3 +102,5 @@ export default class Chat {
     return messages.map((msg) => JSON.parse(msg.content));
   }
 }
+
+export { SelectChatSchema as ChatSchema } from '@backend/database/schema/chat';

@@ -1,4 +1,5 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
 export const McpClientInfoSchema = z.object({
@@ -27,3 +28,5 @@ export const mcpRequestLogs = sqliteTable('mcp_request_logs', {
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 });
+
+export const SelectMcpRequestLogSchema = createSelectSchema(mcpRequestLogs);

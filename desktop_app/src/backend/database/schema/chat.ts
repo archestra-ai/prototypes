@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { int, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { createSelectSchema } from 'drizzle-zod';
 
 export const chatsTable = sqliteTable('chats', {
   id: int().primaryKey({ autoIncrement: true }),
@@ -17,3 +18,5 @@ export const chatsTable = sqliteTable('chats', {
     .notNull()
     .default(sql`(current_timestamp)`),
 });
+
+export const SelectChatSchema = createSelectSchema(chatsTable);

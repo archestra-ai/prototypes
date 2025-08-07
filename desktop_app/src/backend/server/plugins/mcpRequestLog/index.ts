@@ -3,8 +3,8 @@ import { z } from 'zod';
 
 import McpRequestLogModel, {
   McpRequestLogFiltersSchema,
+  McpRequestLogSchema,
   McpRequestLogStatsSchema,
-  SelectMcpRequestLogSchema,
 } from '@backend/models/mcpRequestLog';
 import { ErrorResponseSchema, StringNumberIdSchema } from '@backend/schemas';
 
@@ -13,11 +13,11 @@ export const McpRequestLogFiltersWithPaginationSchema = McpRequestLogFiltersSche
   pageSize: z.number().min(1).max(100).default(50).optional(),
 });
 
-const McpRequestLogResponseSchema = SelectMcpRequestLogSchema.transform((log) => ({
-  ...log,
-  id: log.id.toString(),
-  status: log.statusCode >= 200 && log.statusCode < 300 ? 'success' : 'error',
-}));
+/**
+ * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
+ * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
+ */
+z.globalRegistry.add(McpRequestLogSchema, { id: 'McpRequestLog' });
 
 const mcpRequestLogRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
@@ -30,7 +30,7 @@ const mcpRequestLogRoutes: FastifyPluginAsyncZod = async (fastify) => {
         querystring: McpRequestLogFiltersWithPaginationSchema,
         response: {
           200: z.object({
-            data: z.array(McpRequestLogResponseSchema),
+            data: z.array(McpRequestLogSchema),
             total: z.number(),
             page: z.number(),
             pageSize: z.number(),
@@ -60,7 +60,7 @@ const mcpRequestLogRoutes: FastifyPluginAsyncZod = async (fastify) => {
           id: StringNumberIdSchema,
         }),
         response: {
-          200: McpRequestLogResponseSchema,
+          200: McpRequestLogSchema,
           404: ErrorResponseSchema,
         },
       },

@@ -1,13 +1,21 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import ChatModel, { SelectChatSchema } from '@backend/models/chat';
+import ChatModel, { ChatSchema as BaseChatSchema } from '@backend/models/chat';
 import { ErrorResponseSchema, StringNumberIdSchema } from '@backend/schemas';
 
-// TODO: is there any where to get SelectChatSchema to "naturally" include "messages"
-const ChatResponseSchema = SelectChatSchema.extend({
+/**
+ * TODO: is there any where to get BaseChatSchema to "naturally" include "messages"
+ */
+const ChatSchema = BaseChatSchema.extend({
   messages: z.array(z.any()), // Messages are added by the service
 });
+
+/**
+ * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
+ * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
+ */
+z.globalRegistry.add(ChatSchema, { id: 'Chat' });
 
 const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
@@ -18,7 +26,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
         description: 'Get all chats',
         tags: ['Chat'],
         response: {
-          200: z.array(ChatResponseSchema),
+          200: z.array(ChatSchema),
         },
       },
     },
@@ -39,7 +47,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
           id: StringNumberIdSchema,
         }),
         response: {
-          200: ChatResponseSchema,
+          200: ChatSchema,
           404: ErrorResponseSchema,
         },
       },
@@ -65,7 +73,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
           // Currently empty - chat creation doesn't require any fields
         }),
         response: {
-          201: ChatResponseSchema,
+          201: ChatSchema,
         },
       },
     },
@@ -89,7 +97,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
           title: z.string().nullable().optional(),
         }),
         response: {
-          200: ChatResponseSchema,
+          200: ChatSchema,
           404: ErrorResponseSchema,
         },
       },

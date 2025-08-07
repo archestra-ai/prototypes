@@ -3,8 +3,15 @@ import { z } from 'zod';
 
 import ExternalMcpClientModel, {
   ExternalMcpClientNameSchema,
-  ExternalMcpClientSelectSchema,
+  ExternalMcpClientSchema,
 } from '@backend/models/externalMcpClient';
+
+/**
+ * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
+ * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
+ */
+z.globalRegistry.add(ExternalMcpClientSchema, { id: 'ExternalMcpClient' });
+z.globalRegistry.add(ExternalMcpClientNameSchema, { id: 'ExternalMcpClientName' });
 
 const externalMcpClientRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
@@ -15,7 +22,7 @@ const externalMcpClientRoutes: FastifyPluginAsyncZod = async (fastify) => {
         description: 'Get all connected external MCP clients',
         tags: ['External MCP Client'],
         response: {
-          200: z.array(ExternalMcpClientSelectSchema),
+          200: z.array(ExternalMcpClientSchema),
         },
       },
     },

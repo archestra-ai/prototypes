@@ -1,7 +1,6 @@
-import { PodmanMachineStatus } from '@archestra/types';
 import { create } from 'zustand';
 
-import { getSandboxStatus } from '@clients/archestra/api/gen/sdk.gen';
+import { type PodmanMachineStatus, getSandboxStatus } from '@clients/archestra/api/gen';
 import { websocketService } from '@ui/lib/websocket';
 
 interface SandboxState {

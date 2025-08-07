@@ -1,11 +1,9 @@
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
-import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
 import db from '@backend/database';
-import { McpClientInfoSchema, mcpRequestLogs } from '@backend/database/schema/mcpRequestLog';
+import { McpClientInfoSchema, SelectMcpRequestLogSchema, mcpRequestLogs } from '@backend/database/schema/mcpRequestLog';
 
-export const SelectMcpRequestLogSchema = createSelectSchema(mcpRequestLogs);
 export const McpRequestLogFiltersSchema = z.object({
   serverName: z.string().optional(),
   method: z.string().optional(),
@@ -170,3 +168,5 @@ export default class McpRequestLog {
     return result.changes;
   }
 }
+
+export { SelectMcpRequestLogSchema as McpRequestLogSchema };

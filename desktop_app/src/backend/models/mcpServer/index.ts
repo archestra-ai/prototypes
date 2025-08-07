@@ -119,4 +119,6 @@ export {
   McpServerSchema,
   McpServerUserConfigValuesSchema,
   type McpServer,
+  type McpServerConfig,
+  type McpServerUserConfigValues,
 } from '@backend/database/schema/mcpServer';

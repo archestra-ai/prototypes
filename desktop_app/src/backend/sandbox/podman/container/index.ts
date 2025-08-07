@@ -1,6 +1,6 @@
 import config from '@backend/config';
 import type { McpServer, McpServerConfig, McpServerUserConfigValues } from '@backend/models/mcpServer';
-import { containerCreateLibpod, containerStartLibpod, containerWaitLibpod } from '@clients/libpod/gen/sdk.gen';
+import { containerCreateLibpod, containerStartLibpod, containerWaitLibpod } from '@clients/libpod/gen';
 
 export default class PodmanContainer {
   private containerName: string;
