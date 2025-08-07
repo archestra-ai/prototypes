@@ -7,6 +7,4 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit"
   }
-  // "typescript.tsserver.maxTsServerMemory": 8000,
-  // "typescript.tsserver.nodePath": "node"
 }
