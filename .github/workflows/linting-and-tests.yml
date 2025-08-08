@@ -38,6 +38,9 @@ jobs:
       - name: Check prettier formatting
         run: pnpm prettier --check .
 
+      - name: Check ts types
+        run: pnpm typecheck
+
       - name: Run tests
         run: pnpm test
 
