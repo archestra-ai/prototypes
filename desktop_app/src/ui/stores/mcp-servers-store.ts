@@ -502,6 +502,8 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
     const { isInitialized } = useSandboxStore.getState();
 
     /**
+     * TODO:
+     *
      * If the podman sandbox runtime is ready, we can try connecting to the server
      * otherwise, the MCP server container likely hasn't been spun up yet
      * and we'll need to recursively retry until the sandbox is ready
