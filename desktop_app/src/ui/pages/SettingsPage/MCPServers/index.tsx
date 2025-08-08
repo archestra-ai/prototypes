@@ -7,7 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/compone
 import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
 import { McpServerStatus } from '@ui/types';
 
-import McpServer from './McpServer';
+import McpServer from './MCPServer';
 import SettingsDialog from './SettingsDialog';
 
 interface McpServersProps {}
