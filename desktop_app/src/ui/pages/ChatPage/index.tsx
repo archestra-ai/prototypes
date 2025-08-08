@@ -3,6 +3,7 @@ import { DefaultChatTransport } from 'ai';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Skeleton } from '@ui/components/ui/skeleton';
+import config from '@ui/config';
 import { useChatStore } from '@ui/stores/chat-store';
 import { useCloudProvidersStore } from '@ui/stores/cloud-providers-store';
 import { useOllamaStore } from '@ui/stores/ollama-store';
@@ -29,19 +30,15 @@ export default function ChatPage(_props: ChatPageProps) {
     const isCloudModel = availableCloudProviderModels.some((m) => m.id === selectedModel);
 
     // Use OpenAI endpoint for cloud models, Ollama for local
-    const apiEndpoint = isCloudModel ? '/api/llm/openai/stream' : '/api/llm/ollama/stream';
+    const apiEndpoint = isCloudModel 
+      ? `${config.archestra.apiUrl}/llm/openai/stream` 
+      : `${config.archestra.apiUrl}/llm/ollama/stream`;
 
     return new DefaultChatTransport({
       api: apiEndpoint,
       body: {
         model: selectedModel || 'llama3.1:8b',
         sessionId: currentChatSessionId,
-      },
-      fetch: async (input, init) => {
-        // Override fetch to use the correct backend URL
-        const url = typeof input === 'string' ? input : input.url;
-        const fullUrl = url.startsWith('http') ? url : `http://localhost:3456${url}`;
-        return fetch(fullUrl, init);
       },
     });
   }, [selectedModel, currentChatSessionId, availableCloudProviderModels]);
