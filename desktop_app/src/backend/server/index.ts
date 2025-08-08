@@ -1,6 +1,5 @@
 import cors from '@fastify/cors';
 import fastify from 'fastify';
-import FastifyMcpServer from 'fastify-mcp-server';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 
 import config from '@backend/config';
@@ -9,7 +8,7 @@ import cloudProviderRoutes from '@backend/server/plugins/cloudProviders';
 import externalMcpClientRoutes from '@backend/server/plugins/externalMcpClient';
 import llmRoutes from '@backend/server/plugins/llm';
 import ollamaLLMRoutes from '@backend/server/plugins/llm/ollama';
-import { createArchestraMcpServer } from '@backend/server/plugins/mcp';
+import archestraMcpServerPlugin from '@backend/server/plugins/mcp';
 import mcpRequestLogRoutes from '@backend/server/plugins/mcpRequestLog';
 import mcpServerRoutes from '@backend/server/plugins/mcpServer';
 import ollamaRoutes from '@backend/server/plugins/ollama';
@@ -32,8 +31,6 @@ export const startServer = async () => {
    */
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
-
-  const archestraMcpServer = createArchestraMcpServer();
 
   await app.register(cors, {
     // Allow all origins in development
@@ -58,10 +55,7 @@ export const startServer = async () => {
   await app.register(ollamaRoutes);
   await app.register(sandboxRoutes);
 
-  await app.register(FastifyMcpServer, {
-    server: archestraMcpServer.server,
-    endpoint: '/mcp',
-  });
+  await app.register(archestraMcpServerPlugin);
 
   const { http } = config.server;
 
