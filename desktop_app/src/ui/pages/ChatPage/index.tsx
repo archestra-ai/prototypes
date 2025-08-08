@@ -46,19 +46,11 @@ export default function ChatPage(_props: ChatPageProps) {
   const { sendMessage, messages, setMessages, stop, status, error } = useChat({
     id: currentChatSessionId || 'temp-id', // use the provided chat ID or a temp ID
     transport,
-    /**
-     * TODO: we probably need to map our messages to what the ai-sdk expects here
-     */
-    initialMessages: currentChatMessages,
     onFinish: (message) => {
       console.log('Message finished:', message);
     },
     onError: (error) => {
       console.error('Chat error:', error);
-    },
-    setMessages: (messages) => {
-      console.log('Setting messages:', messages);
-      setMessages(messages);
     },
   });
 

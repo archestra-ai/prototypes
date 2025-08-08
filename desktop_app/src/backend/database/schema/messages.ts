@@ -1,3 +1,4 @@
+import { type UIMessage } from 'ai';
 import { sql } from 'drizzle-orm';
 import { int, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { createSelectSchema } from 'drizzle-zod';
@@ -14,15 +15,9 @@ export const messagesTable = sqliteTable('messages', {
     .references(() => chatsTable.id, { onDelete: 'cascade' }),
   role: text().$type<z.infer<typeof ChatMessageRoleSchema>>().notNull(),
   /**
-   * TODO: we could strongly type content as such
-   *
-   * content: text({ mode: 'json' }).$type<ChatMessageContent>().notNull(),
-   *
-   * https://orm.drizzle.team/docs/column-types/sqlite#blob
-   *
-   *
+   * Content stores the entire UIMessage object from the 'ai' SDK
    */
-  content: text({ mode: 'json' }).notNull(),
+  content: text({ mode: 'json' }).$type<UIMessage>().notNull(),
   createdAt: text()
     .notNull()
     .default(sql`(current_timestamp)`),
