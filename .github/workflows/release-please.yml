@@ -59,7 +59,7 @@ jobs:
           echo "$OUTPUTS"
 
   build-desktop-application-and-create-github-release:
-    name: Build ${{ matrix.platform }} desktop application and create GitHub release
+    name: Build ${{ matrix.platform }}-${{ matrix.arch }} desktop application and create GitHub release
     runs-on: ${{ matrix.platform }}
     if: needs.release-please.outputs.desktop_release_created
     needs:
@@ -68,10 +68,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: ubuntu-latest
-            args: ""
-          - platform: windows-latest
-            args: ""
+          - platform: macos-latest
+            arch: arm64
+            args: "--arch=arm64"
+          - platform: macos-latest
+            arch: x64
+            args: "--arch=x64"
     steps:
       - name: Checkout project
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -88,7 +90,15 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-env
 
-      # TODO: add Electron Forge steps here
+      - name: Install dependencies
+        working-directory: desktop_app
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish to GitHub
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        working-directory: desktop_app
+        run: pnpm run publish ${{ matrix.args }}
 
   build-and-push-mcp-server-docker-image:
     name: Build and push MCP Server Docker image

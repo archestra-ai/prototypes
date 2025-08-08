@@ -4,6 +4,7 @@ import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { VitePlugin } from '@electron-forge/plugin-vite';
+import { PublisherGitHubConfig } from '@electron-forge/publisher-github';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
@@ -24,13 +25,37 @@ const config: ForgeConfig = {
      * https://electron.github.io/packager/main/interfaces/Options.html#extraResource
      */
     extraResource: ['./resources/bin'],
+    icon: './icons/icon',
+    name: 'Archestra',
+    appBundleId: 'com.archestra.ai',
   },
   // https://github.com/WiseLibs/better-sqlite3/issues/1171#issuecomment-2186895668
   rebuildConfig: {
     extraModules: ['better-sqlite3'],
     force: true,
   },
-  makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],
+  makers: [
+    new MakerSquirrel({
+      name: 'Archestra',
+      authors: 'Archestra AI',
+      description: 'Archestra AI Desktop Application',
+    }),
+    new MakerZIP({}, ['darwin']),
+    new MakerRpm({
+      options: {
+        name: 'archestra',
+        productName: 'Archestra',
+        description: 'Archestra AI Desktop Application',
+      },
+    }),
+    new MakerDeb({
+      options: {
+        name: 'archestra',
+        productName: 'Archestra',
+        description: 'Archestra AI Desktop Application',
+      },
+    }),
+  ],
   plugins: [
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
@@ -74,6 +99,19 @@ const config: ForgeConfig = {
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
       [FuseV1Options.OnlyLoadAppFromAsar]: true,
     }),
+  ],
+  publishers: [
+    {
+      name: '@electron-forge/publisher-github',
+      config: {
+        repository: {
+          owner: 'archestra-ai',
+          name: 'archestra',
+        },
+        prerelease: false,
+        draft: true,
+      } as PublisherGitHubConfig,
+    },
   ],
 };
 

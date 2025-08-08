@@ -3,6 +3,7 @@ import { BrowserWindow, app } from 'electron';
 import started from 'electron-squirrel-startup';
 import { ChildProcess, fork } from 'node:child_process';
 import path from 'node:path';
+import { updateElectronApp } from 'update-electron-app';
 
 import { runDatabaseMigrations } from '@backend/database';
 import { OllamaServer } from '@backend/llms/ollama';
@@ -13,6 +14,12 @@ import WebSocketServer from '@backend/websocket';
 if (started) {
   app.quit();
 }
+
+// Enable automatic updates
+updateElectronApp({
+  repo: 'archestra-ai/archestra',
+  updateInterval: '1 hour',
+});
 
 const SERVER_PORT = 3456;
 let serverProcess: ChildProcess | null = null;
