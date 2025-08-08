@@ -17,7 +17,7 @@ import sandboxRoutes from '@backend/server/plugins/sandbox';
 export const startServer = async () => {
   const app = fastify({
     logger: {
-      level: 'warn',
+      level: 'info', // Temporarily set to info for debugging
       serializers: {
         req: (req) => ({ method: req.method, url: req.url }),
         res: (res) => ({ statusCode: res.statusCode }),

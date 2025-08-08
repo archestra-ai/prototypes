@@ -140,10 +140,6 @@ interface McpServersActions {
 
 type McpServersStore = McpServersState & McpServersActions;
 
-export function constructProxiedMcpServerUrl(mcpServerId: string) {
-  return `${config.archestra.apiUrl}/mcp_server/${mcpServerId}/proxy`;
-}
-
 const configureMcpClient = async (
   clientName: string,
   clientUrl: string,
@@ -255,7 +251,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         {
           ...mcpServer,
           tools: [],
-          url: constructProxiedMcpServerUrl(mcpServer.id),
+          url: `${config.archestra.mcpProxyUrl}/${mcpServer.id}`,
           status: McpServerStatus.Connecting,
           error: null,
           client: null,

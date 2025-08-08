@@ -1,11 +1,20 @@
 import { eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 
 import db from '@backend/database';
 import { McpServer, mcpServersTable } from '@backend/database/schema/mcpServer';
 import ExternalMcpClientModel from '@backend/models/externalMcpClient';
 import { McpServerSandboxManager } from '@backend/sandbox';
 import { getMcpServer } from '@clients/archestra/catalog/gen';
+
+export const McpServerContainerLogsSchema = z.object({
+  logs: z.string(),
+  containerName: z.string(),
+  logFilePath: z.string(),
+});
+
+export type McpServerContainerLogs = z.infer<typeof McpServerContainerLogsSchema>;
 
 export default class McpServerModel {
   static async create(data: typeof mcpServersTable.$inferInsert) {

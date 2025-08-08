@@ -16,6 +16,7 @@ export default {
   archestra: {
     apiUrl: `${ARCHESTRA_SERVER_BASE_HTTP_URL}/api`,
     mcpUrl: `${ARCHESTRA_SERVER_BASE_HTTP_URL}/mcp`,
+    mcpProxyUrl: `${ARCHESTRA_SERVER_BASE_HTTP_URL}/mcp_proxy`,
     ollamaProxyUrl: `${ARCHESTRA_SERVER_LLM_PROXY_BASE_URL}/ollama`,
     openaiProxyUrl: `${ARCHESTRA_SERVER_LLM_PROXY_BASE_URL}/openai`,
     websocketUrl: `ws://${ARCHESTRA_API_SERVER_HOST}:${ARCHESTRA_WEBSOCKET_SERVER_PORT}`,
