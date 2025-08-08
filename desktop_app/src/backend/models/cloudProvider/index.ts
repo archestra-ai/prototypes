@@ -71,7 +71,7 @@ const PROVIDER_REGISTRY: Record<SupportedCloudProvider, CloudProvider> = {
     name: 'Google Gemini',
     apiKeyUrl: 'https://aistudio.google.com/apikey',
     apiKeyPlaceholder: 'AIza...',
-    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/',
     models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-1.5-pro'],
   },
 };
