@@ -1,4 +1,4 @@
-import { UIMessage, type TextUIPart } from 'ai';
+import { type TextUIPart, UIMessage } from 'ai';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ScrollArea } from '@ui/components/ui/scroll-area';
@@ -59,7 +59,7 @@ export default function ChatHistory({ messages }: ChatHistoryProps) {
         .map((part) => (part as TextUIPart).text)
         .join('');
       const toolParts = msg.parts?.filter((part) => part.type === 'dynamic-tool');
-      
+
       console.log(`Message ${idx}:`, {
         role: msg.role,
         textContent,

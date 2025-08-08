@@ -1,4 +1,4 @@
-import { generateId, type UIMessage, type TextUIPart, type DynamicToolUIPart } from 'ai';
+import { type DynamicToolUIPart, type TextUIPart, type UIMessage, generateId } from 'ai';
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { Message, Ollama, Tool } from 'ollama';
 
@@ -91,7 +91,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
           // Extract text content from parts array
           let content = '';
           const toolCalls: any[] = [];
-          
+
           if (msg.parts && Array.isArray(msg.parts)) {
             for (const part of msg.parts) {
               if (part.type === 'text') {
@@ -105,9 +105,8 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
                     type: 'function',
                     function: {
                       name: toolPart.toolName,
-                      arguments: typeof toolPart.input === 'string' 
-                        ? toolPart.input 
-                        : JSON.stringify(toolPart.input || {}),
+                      arguments:
+                        typeof toolPart.input === 'string' ? toolPart.input : JSON.stringify(toolPart.input || {}),
                     },
                   });
                 }
@@ -261,7 +260,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
                 if (globalMcpTools && globalMcpTools[toolCall.toolName]) {
                   try {
                     const result = await globalMcpTools[toolCall.toolName].execute(args);
-                    
+
                     // Store the result in the tool call
                     toolCall.result = result;
 
@@ -293,7 +292,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
                   } catch (toolError) {
                     // Store error in tool call
                     toolCall.error = toolError instanceof Error ? toolError.message : 'Tool execution failed';
-                    
+
                     // Send tool error as text message
                     const errorMsg = toolError instanceof Error ? toolError.message : 'Tool execution failed';
                     const errorMessage = `\n\nTool ${toolCall.toolName} failed: ${errorMsg}`;
@@ -340,7 +339,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
         if (sessionId) {
           // Build UIMessage with parts array
           const parts: Array<TextUIPart | DynamicToolUIPart> = [];
-          
+
           // Add text content as TextUIPart
           if (fullContent) {
             parts.push({
@@ -348,7 +347,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
               text: fullContent,
             } as TextUIPart);
           }
-          
+
           // Add tool calls as DynamicToolUIPart
           for (const toolCall of currentToolCalls) {
             const toolPart: DynamicToolUIPart = {
@@ -357,7 +356,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
               toolName: toolCall.toolName,
               input: toolCall.args,
             } as DynamicToolUIPart;
-            
+
             // Set state and output based on whether there was an error
             if (toolCall.error) {
               (toolPart as any).state = 'output-error';
@@ -366,7 +365,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
               (toolPart as any).state = 'output-available';
               (toolPart as any).output = toolCall.result || {};
             }
-            
+
             parts.push(toolPart);
           }
 

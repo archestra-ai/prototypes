@@ -1,4 +1,4 @@
-import { UIMessage, type TextUIPart } from 'ai';
+import { type TextUIPart, UIMessage } from 'ai';
 
 interface UserMessageProps {
   message: UIMessage;
@@ -10,7 +10,7 @@ interface UserMessageProps {
 export default function UserMessage({ message }: UserMessageProps) {
   // Extract text content from parts array (UIMessage in ai SDK v5 uses parts)
   let textContent = '';
-  
+
   if (message.parts) {
     textContent = message.parts
       .filter((part) => part.type === 'text')

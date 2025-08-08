@@ -1,4 +1,4 @@
-import { UIMessage, type TextUIPart } from 'ai';
+import { type TextUIPart, UIMessage } from 'ai';
 
 interface OtherMessageProps {
   message: UIMessage;

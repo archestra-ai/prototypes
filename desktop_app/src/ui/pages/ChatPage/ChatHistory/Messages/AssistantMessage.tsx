@@ -14,17 +14,15 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
   }
 
   let accumulatedText = '';
-  
+
   return (
     <div className="relative space-y-2">
       {message.parts.map((part, index) => {
         if (part.type === 'text') {
           accumulatedText += (part as TextUIPart).text;
           // Check if this is the last part or if the next part is not text
-          const isLastOrBeforeTool = 
-            index === message.parts!.length - 1 || 
-            message.parts![index + 1]?.type !== 'text';
-          
+          const isLastOrBeforeTool = index === message.parts!.length - 1 || message.parts![index + 1]?.type !== 'text';
+
           if (isLastOrBeforeTool && accumulatedText) {
             const textToRender = accumulatedText;
             accumulatedText = '';

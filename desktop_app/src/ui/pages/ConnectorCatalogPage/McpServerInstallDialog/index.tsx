@@ -308,8 +308,8 @@ export default function McpServerInstallDialog({
                           id={key}
                           placeholder={
                             field.default
-                              // Keep arrays as arrays, convert everything else to string
-                              ? expandEnvVariables(Array.isArray(field.default) ? field.default : String(field.default))
+                              ? // Keep arrays as arrays, convert everything else to string
+                                expandEnvVariables(Array.isArray(field.default) ? field.default : String(field.default))
                               : `Enter ${isDirectory ? 'directory' : 'file'} path${
                                   field.multiple ? 's (comma-separated)' : ''
                                 }`
@@ -343,7 +343,8 @@ export default function McpServerInstallDialog({
                       {field.default && (
                         <p className="text-xs text-muted-foreground">
                           {/* Keep arrays as arrays, convert everything else to string */}
-                          Default: {expandEnvVariables(Array.isArray(field.default) ? field.default : String(field.default))}
+                          Default:{' '}
+                          {expandEnvVariables(Array.isArray(field.default) ? field.default : String(field.default))}
                         </p>
                       )}
                       {error && <p className="text-xs text-destructive">{error}</p>}
