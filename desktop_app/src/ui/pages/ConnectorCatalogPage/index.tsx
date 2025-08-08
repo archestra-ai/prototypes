@@ -1,30 +1,13 @@
-import {
-  CheckCircle,
-  Code,
-  Database,
-  FileText,
-  Filter,
-  GitFork,
-  Globe,
-  MessageSquare,
-  Package,
-  Search,
-  Settings,
-  Star,
-  Users,
-} from 'lucide-react';
+import { Filter, Package, Search } from 'lucide-react';
 import { useState } from 'react';
 
 import { ArchestraMcpServerManifest } from '@clients/archestra/catalog/gen';
-import { Badge } from '@ui/components/ui/badge';
-import { Button } from '@ui/components/ui/button';
-import { Card, CardContent, CardHeader } from '@ui/components/ui/card';
 import { Input } from '@ui/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui/components/ui/select';
-import { Separator } from '@ui/components/ui/separator';
 import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
 import { type McpServerUserConfigValues } from '@ui/types';
 
+import McpServer from './McpServer';
 import McpServerInstallDialog from './McpServerInstallDialog';
 
 interface ConnectorCatalogPageProps {}
@@ -42,54 +25,12 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
     catalogTotalCount,
     installedMcpServers,
     loadingConnectorCatalog,
-    installingMcpServerId,
-    uninstallingMcpServerId,
     installMcpServerFromConnectorCatalog,
     uninstallMcpServer,
     setCatalogSearchQuery,
     setCatalogSelectedCategory,
     loadMoreCatalogServers,
   } = useMcpServersStore();
-
-  const getCategoryIcon = (category?: string | null) => {
-    if (!category) return <Package className="h-4 w-4" />;
-
-    switch (category) {
-      case 'Development':
-      case 'CLI Tools':
-      case 'Developer Tools':
-        return <Code className="h-4 w-4" />;
-      case 'Data':
-      case 'Data Science':
-      case 'Database':
-        return <Database className="h-4 w-4" />;
-      case 'File Management':
-      case 'Knowledge':
-        return <FileText className="h-4 w-4" />;
-      case 'Browser Automation':
-      case 'Web':
-        return <Globe className="h-4 w-4" />;
-      case 'Search':
-        return <Search className="h-4 w-4" />;
-      case 'Communication':
-      case 'Social Media':
-        return <MessageSquare className="h-4 w-4" />;
-      default:
-        return <Package className="h-4 w-4" />;
-    }
-  };
-
-  const getQualityBadge = (score?: number | null) => {
-    if (!score) return null;
-
-    if (score >= 80) {
-      return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Excellent</Badge>;
-    } else if (score >= 60) {
-      return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Good</Badge>;
-    } else {
-      return <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/20">Fair</Badge>;
-    }
-  };
 
   const handleInstallClick = (mcpServer: ArchestraMcpServerManifest) => {
     // If server has user_config, show the dialog
@@ -180,144 +121,14 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {connectorCatalog.map((connectorCatalogMcpServer) => {
-          const {
-            name,
-            server: serverConfig,
-            description,
-            github_info: gitHubInfo,
-            category,
-            config_for_archestra: {
-              oauth: { required: requiresOAuthSetup },
-            },
-            programming_language: programmingLanguage,
-            quality_score: qualityScore,
-          } = connectorCatalogMcpServer;
-
-          /**
-           * NOTE: the "name" field is the unique identifier for an MCP server in the catalog
-           * When an mcp server from the catalog is installed (ie. persisted in the database),
-           * the "name" field is what is set as the "id" field
-           */
-          const isInstalled = installedMcpServers.some((server) => server.id === name);
-          const isInstalling = installingMcpServerId === name;
-          const isUninstalling = uninstallingMcpServerId === name;
-
-          return (
-            <Card
-              key={name}
-              className={`transition-all duration-200 hover:shadow-lg ${isInstalled ? 'ring-2 ring-green-500/20' : ''}`}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      {getCategoryIcon(category)}
-                      <h3 className="font-semibold text-lg">{name}</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{description}</p>
-                  </div>
-                  {isInstalled && <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 ml-2" />}
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                {/* Metadata */}
-                <div className="flex flex-wrap gap-2 text-xs">
-                  {gitHubInfo.stars > 0 && (
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Star className="h-3 w-3" />
-                      <span>{gitHubInfo.stars.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {gitHubInfo.contributors > 0 && (
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Users className="h-3 w-3" />
-                      <span>{gitHubInfo.contributors}</span>
-                    </div>
-                  )}
-                  {gitHubInfo.owner && gitHubInfo.repo && (
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <GitFork className="h-3 w-3" />
-                      <span>
-                        {gitHubInfo.owner}/{gitHubInfo.repo}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Tags */}
-                <div className="flex flex-wrap gap-1.5">
-                  {category && (
-                    <Badge variant="secondary" className="text-xs">
-                      {category}
-                    </Badge>
-                  )}
-                  {programmingLanguage && (
-                    <Badge variant="outline" className="text-xs">
-                      {programmingLanguage}
-                    </Badge>
-                  )}
-                  {serverConfig.mcp_config.command && (
-                    <Badge variant="outline" className="text-xs">
-                      {serverConfig.mcp_config.command}
-                    </Badge>
-                  )}
-                  {requiresOAuthSetup && (
-                    <Badge variant="outline" className="text-xs">
-                      OAuth
-                    </Badge>
-                  )}
-                  {getQualityBadge(qualityScore)}
-                </div>
-
-                <Separator />
-
-                {/* Actions */}
-                <div className="flex justify-end">
-                  {isInstalled ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => uninstallMcpServer(name)}
-                      disabled={isUninstalling}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      {isUninstalling ? (
-                        <>
-                          <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
-                          Uninstalling...
-                        </>
-                      ) : (
-                        'Uninstall'
-                      )}
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() => handleInstallClick(connectorCatalogMcpServer)}
-                      disabled={isInstalling}
-                    >
-                      {isInstalling ? (
-                        <>
-                          <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
-                          Installing...
-                        </>
-                      ) : requiresOAuthSetup ? (
-                        <>
-                          <Settings className="h-4 w-4 mr-2" />
-                          Setup & Install
-                        </>
-                      ) : (
-                        'Install'
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+        {connectorCatalog.map((connectorCatalogMcpServer) => (
+          <McpServer
+            key={connectorCatalogMcpServer.name}
+            server={connectorCatalogMcpServer}
+            onInstallClick={handleInstallClick}
+            onUninstallClick={uninstallMcpServer}
+          />
+        ))}
       </div>
 
       {/* Infinite scroll loader */}
