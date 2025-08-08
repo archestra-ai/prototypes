@@ -169,7 +169,7 @@ export type ArchestraMcpServerManifestWithScoreBreakdown = ArchestraMcpServerMan
   };
 };
 
-export type GetSearchData = {
+export type SearchMcpServerCatalogData = {
   body?: never;
   path?: never;
   query?: {
@@ -232,27 +232,27 @@ export type GetSearchData = {
     /**
      * Number of results to skip
      */
-    offset?: number;
+    offset?: number | null;
   };
   url: '/search';
 };
 
-export type GetSearchResponses = {
+export type SearchMcpServerCatalogResponses = {
   /**
    * Successful response
    */
   200: {
-    servers?: Array<ArchestraMcpServerManifest>;
-    totalCount?: number;
-    limit?: number;
-    offset?: number;
-    hasMore?: boolean;
+    servers: Array<ArchestraMcpServerManifest>;
+    totalCount: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
   };
 };
 
-export type GetSearchResponse = GetSearchResponses[keyof GetSearchResponses];
+export type SearchMcpServerCatalogResponse = SearchMcpServerCatalogResponses[keyof SearchMcpServerCatalogResponses];
 
-export type GetServerByNameData = {
+export type GetMcpServerData = {
   body?: never;
   path: {
     /**
@@ -264,27 +264,27 @@ export type GetServerByNameData = {
   url: '/server/{name}';
 };
 
-export type GetServerByNameErrors = {
+export type GetMcpServerErrors = {
   /**
    * Server not found
    */
   404: {
-    error?: string;
+    error: string;
   };
 };
 
-export type GetServerByNameError = GetServerByNameErrors[keyof GetServerByNameErrors];
+export type GetMcpServerError = GetMcpServerErrors[keyof GetMcpServerErrors];
 
-export type GetServerByNameResponses = {
+export type GetMcpServerResponses = {
   /**
    * Successful response
    */
   200: ArchestraMcpServerManifestWithScoreBreakdown;
 };
 
-export type GetServerByNameResponse = GetServerByNameResponses[keyof GetServerByNameResponses];
+export type GetMcpServerResponse = GetMcpServerResponses[keyof GetMcpServerResponses];
 
-export type GetBadgeQualityByOrgByRepoData = {
+export type GetMcpServerQualityBadgeData = {
   body?: never;
   path: {
     /**
@@ -300,26 +300,81 @@ export type GetBadgeQualityByOrgByRepoData = {
   url: '/badge/quality/{org}/{repo}';
 };
 
-export type GetBadgeQualityByOrgByRepoErrors = {
+export type GetMcpServerQualityBadgeErrors = {
   /**
    * Server not found
    */
   404: {
-    error?: string;
+    error: string;
   };
 };
 
-export type GetBadgeQualityByOrgByRepoError = GetBadgeQualityByOrgByRepoErrors[keyof GetBadgeQualityByOrgByRepoErrors];
+export type GetMcpServerQualityBadgeError = GetMcpServerQualityBadgeErrors[keyof GetMcpServerQualityBadgeErrors];
 
-export type GetBadgeQualityByOrgByRepoResponses = {
+export type GetMcpServerQualityBadgeResponses = {
   /**
    * SVG image content
    */
   200: Blob | File;
 };
 
-export type GetBadgeQualityByOrgByRepoResponse =
-  GetBadgeQualityByOrgByRepoResponses[keyof GetBadgeQualityByOrgByRepoResponses];
+export type GetMcpServerQualityBadgeResponse =
+  GetMcpServerQualityBadgeResponses[keyof GetMcpServerQualityBadgeResponses];
+
+export type GetMcpServerCategoriesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/category';
+};
+
+export type GetMcpServerCategoriesResponses = {
+  /**
+   * Successful response
+   */
+  200: {
+    categories: Array<
+      | 'Aggregators'
+      | 'Art & Culture'
+      | 'Healthcare'
+      | 'Browser Automation'
+      | 'Cloud'
+      | 'Development'
+      | 'CLI Tools'
+      | 'Communication'
+      | 'Data'
+      | 'Logistics'
+      | 'Data Science'
+      | 'IoT'
+      | 'File Management'
+      | 'Finance'
+      | 'Gaming'
+      | 'Knowledge'
+      | 'Location'
+      | 'Marketing'
+      | 'Monitoring'
+      | 'Media'
+      | 'AI Tools'
+      | 'Search'
+      | 'Security'
+      | 'Social Media'
+      | 'Sports'
+      | 'Support'
+      | 'Translation'
+      | 'Audio'
+      | 'Travel'
+      | 'Messengers'
+      | 'Email'
+      | 'CRM'
+      | 'Enterprise'
+      | 'Job Search'
+      | 'Local files'
+      | 'General'
+    >;
+  };
+};
+
+export type GetMcpServerCategoriesResponse = GetMcpServerCategoriesResponses[keyof GetMcpServerCategoriesResponses];
 
 export type ClientOptions = {
   baseUrl: `${string}://${string}/mcp-catalog/api` | (string & {});

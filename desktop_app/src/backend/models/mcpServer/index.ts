@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import db from '@backend/database';
 import { mcpServersTable } from '@backend/database/schema/mcpServer';
 import ExternalMcpClientModel from '@backend/models/externalMcpClient';
-import { getServerByName } from '@clients/archestra/catalog/gen';
+import { getMcpServer } from '@clients/archestra/catalog/gen';
 
 export default class McpServerModel {
   static async create(data: typeof mcpServersTable.$inferInsert) {
@@ -34,7 +34,7 @@ export default class McpServerModel {
     userConfigValues?: (typeof mcpServersTable.$inferSelect)['userConfigValues']
   ) {
     // Fetch the catalog entry using the generated client
-    const { data, error } = await getServerByName({ path: { name: catalogName } });
+    const { data, error } = await getMcpServer({ path: { name: catalogName } });
 
     if (error) {
       throw new Error(`Failed to fetch catalog entry: ${error}`);

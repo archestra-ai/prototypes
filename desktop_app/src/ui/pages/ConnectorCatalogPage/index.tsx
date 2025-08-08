@@ -135,12 +135,13 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
           <Select value={catalogSelectedCategory} onValueChange={setCatalogSelectedCategory}>
             <SelectTrigger className="w-full sm:w-[200px]">
               <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by category" />
+              <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All categories</SelectItem>
               {connectorCatalogCategories.map((category) => (
-                <SelectItem key={category.value} value={category.value}>
-                  {category.label}
+                <SelectItem key={category} value={category}>
+                  {category}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -178,182 +179,176 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
         </div>
       )}
 
-      {connectorCatalog.length > 0 && (
-        <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {connectorCatalog.map((connectorCatalogMcpServer) => {
-              const {
-                name,
-                server: serverConfig,
-                description,
-                github_info: gitHubInfo,
-                category,
-                config_for_archestra: {
-                  oauth: { required: requiresOAuthSetup },
-                },
-                programming_language: programmingLanguage,
-                quality_score: qualityScore,
-              } = connectorCatalogMcpServer;
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {connectorCatalog.map((connectorCatalogMcpServer) => {
+          const {
+            name,
+            server: serverConfig,
+            description,
+            github_info: gitHubInfo,
+            category,
+            config_for_archestra: {
+              oauth: { required: requiresOAuthSetup },
+            },
+            programming_language: programmingLanguage,
+            quality_score: qualityScore,
+          } = connectorCatalogMcpServer;
 
-              /**
-               * NOTE: the "name" field is the unique identifier for an MCP server in the catalog
-               * When an mcp server from the catalog is installed (ie. persisted in the database),
-               * the "name" field is what is set as the "id" field
-               */
-              const isInstalled = installedMcpServers.some((server) => server.id === name);
-              const isInstalling = installingMcpServerId === name;
-              const isUninstalling = uninstallingMcpServerId === name;
+          /**
+           * NOTE: the "name" field is the unique identifier for an MCP server in the catalog
+           * When an mcp server from the catalog is installed (ie. persisted in the database),
+           * the "name" field is what is set as the "id" field
+           */
+          const isInstalled = installedMcpServers.some((server) => server.id === name);
+          const isInstalling = installingMcpServerId === name;
+          const isUninstalling = uninstallingMcpServerId === name;
 
-              return (
-                <Card
-                  key={name}
-                  className={`transition-all duration-200 hover:shadow-lg ${
-                    isInstalled ? 'ring-2 ring-green-500/20' : ''
-                  }`}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          {getCategoryIcon(category)}
-                          <h3 className="font-semibold text-lg">{name}</h3>
-                        </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2">{description}</p>
-                      </div>
-                      {isInstalled && <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 ml-2" />}
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="space-y-4">
-                    {/* Metadata */}
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      {gitHubInfo.stars > 0 && (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Star className="h-3 w-3" />
-                          <span>{gitHubInfo.stars.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {gitHubInfo.contributors > 0 && (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Users className="h-3 w-3" />
-                          <span>{gitHubInfo.contributors}</span>
-                        </div>
-                      )}
-                      {gitHubInfo.owner && gitHubInfo.repo && (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <GitFork className="h-3 w-3" />
-                          <span>
-                            {gitHubInfo.owner}/{gitHubInfo.repo}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-1.5">
-                      {category && (
-                        <Badge variant="secondary" className="text-xs">
-                          {category}
-                        </Badge>
-                      )}
-                      {programmingLanguage && (
-                        <Badge variant="outline" className="text-xs">
-                          {programmingLanguage}
-                        </Badge>
-                      )}
-                      {serverConfig.mcp_config.command && (
-                        <Badge variant="outline" className="text-xs">
-                          {serverConfig.mcp_config.command}
-                        </Badge>
-                      )}
-                      {requiresOAuthSetup && (
-                        <Badge variant="outline" className="text-xs">
-                          OAuth
-                        </Badge>
-                      )}
-                      {getQualityBadge(qualityScore)}
-                    </div>
-
-                    <Separator />
-
-                    {/* Actions */}
-                    <div className="flex justify-end">
-                      {isInstalled ? (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => uninstallMcpServer(name)}
-                          disabled={isUninstalling}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          {isUninstalling ? (
-                            <>
-                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
-                              Uninstalling...
-                            </>
-                          ) : (
-                            'Uninstall'
-                          )}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => handleInstallClick(connectorCatalogMcpServer)}
-                          disabled={isInstalling}
-                        >
-                          {isInstalling ? (
-                            <>
-                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
-                              Installing...
-                            </>
-                          ) : requiresOAuthSetup ? (
-                            <>
-                              <Settings className="h-4 w-4 mr-2" />
-                              Setup & Install
-                            </>
-                          ) : (
-                            'Install'
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          {/* Infinite scroll loader */}
-          {catalogHasMore && (
-            <div
-              ref={(node) => {
-                if (!node) return;
-
-                const observer = new IntersectionObserver(
-                  (entries) => {
-                    if (entries[0].isIntersecting && !loadingConnectorCatalog) {
-                      loadMoreCatalogServers();
-                    }
-                  },
-                  { threshold: 0.1 }
-                );
-
-                observer.observe(node);
-                return () => observer.disconnect();
-              }}
-              className="flex justify-center py-8"
+          return (
+            <Card
+              key={name}
+              className={`transition-all duration-200 hover:shadow-lg ${isInstalled ? 'ring-2 ring-green-500/20' : ''}`}
             >
-              {loadingConnectorCatalog ? (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  <span>Loading more servers...</span>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      {getCategoryIcon(category)}
+                      <h3 className="font-semibold text-lg">{name}</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground line-clamp-2">{description}</p>
+                  </div>
+                  {isInstalled && <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 ml-2" />}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Scroll to load more</p>
-              )}
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                {/* Metadata */}
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {gitHubInfo.stars > 0 && (
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Star className="h-3 w-3" />
+                      <span>{gitHubInfo.stars.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {gitHubInfo.contributors > 0 && (
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Users className="h-3 w-3" />
+                      <span>{gitHubInfo.contributors}</span>
+                    </div>
+                  )}
+                  {gitHubInfo.owner && gitHubInfo.repo && (
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <GitFork className="h-3 w-3" />
+                      <span>
+                        {gitHubInfo.owner}/{gitHubInfo.repo}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tags */}
+                <div className="flex flex-wrap gap-1.5">
+                  {category && (
+                    <Badge variant="secondary" className="text-xs">
+                      {category}
+                    </Badge>
+                  )}
+                  {programmingLanguage && (
+                    <Badge variant="outline" className="text-xs">
+                      {programmingLanguage}
+                    </Badge>
+                  )}
+                  {serverConfig.mcp_config.command && (
+                    <Badge variant="outline" className="text-xs">
+                      {serverConfig.mcp_config.command}
+                    </Badge>
+                  )}
+                  {requiresOAuthSetup && (
+                    <Badge variant="outline" className="text-xs">
+                      OAuth
+                    </Badge>
+                  )}
+                  {getQualityBadge(qualityScore)}
+                </div>
+
+                <Separator />
+
+                {/* Actions */}
+                <div className="flex justify-end">
+                  {isInstalled ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => uninstallMcpServer(name)}
+                      disabled={isUninstalling}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      {isUninstalling ? (
+                        <>
+                          <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                          Uninstalling...
+                        </>
+                      ) : (
+                        'Uninstall'
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => handleInstallClick(connectorCatalogMcpServer)}
+                      disabled={isInstalling}
+                    >
+                      {isInstalling ? (
+                        <>
+                          <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+                          Installing...
+                        </>
+                      ) : requiresOAuthSetup ? (
+                        <>
+                          <Settings className="h-4 w-4 mr-2" />
+                          Setup & Install
+                        </>
+                      ) : (
+                        'Install'
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Infinite scroll loader */}
+      {catalogHasMore && (
+        <div
+          ref={(node) => {
+            if (!node) return;
+
+            const observer = new IntersectionObserver(
+              (entries) => {
+                if (entries[0].isIntersecting && !loadingConnectorCatalog) {
+                  loadMoreCatalogServers();
+                }
+              },
+              { threshold: 0.1 }
+            );
+
+            observer.observe(node);
+            return () => observer.disconnect();
+          }}
+          className="flex justify-center py-8"
+        >
+          {loadingConnectorCatalog ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <span>Loading more servers...</span>
             </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Scroll to load more</p>
           )}
-        </>
+        </div>
       )}
 
       {/* Install Dialog */}
