@@ -27,6 +27,8 @@ import {
   ToolWithMcpServerInfo,
 } from '@ui/types';
 
+import { useSandboxStore } from './sandbox-store';
+
 /**
  * NOTE: ideally should be divisible by 3 to make it look nice in the UI (as we tend to have 3 "columns" of servers)
  */
@@ -132,13 +134,11 @@ interface McpServersActions {
   removeSelectedTool: (tool: ToolWithMcpServerInfo) => void;
 
   setToolSearchQuery: (query: string) => void;
+
+  _init: () => void;
 }
 
 type McpServersStore = McpServersState & McpServersActions;
-
-export function constructProxiedMcpServerUrl(mcpServerName: string) {
-  return `${config.archestra.mcpProxyUrl}/${mcpServerName}`;
-}
 
 const configureMcpClient = async (
   clientName: string,
@@ -251,7 +251,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         {
           ...mcpServer,
           tools: [],
-          url: constructProxiedMcpServerUrl(mcpServer.name),
+          url: `${config.archestra.mcpProxyUrl}/${mcpServer.id}`,
           status: McpServerStatus.Connecting,
           error: null,
           client: null,
@@ -497,6 +497,46 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
   connectToMcpServer: async (mcpServer: ConnectedMcpServer, url: string) => {
     const { id } = mcpServer;
 
+    // 🎯 For containerized MCP servers, wait for sandbox to be ready! 🎯
+    const MAX_SANDBOX_WAIT_RETRIES = 60; // 60 seconds total
+    const SANDBOX_RETRY_DELAY_MS = 1000;
+    let sandboxRetries = 0;
+
+    const waitForSandbox = async (): Promise<boolean> => {
+      while (sandboxRetries < MAX_SANDBOX_WAIT_RETRIES) {
+        const { isInitialized } = useSandboxStore.getState();
+
+        if (isInitialized) {
+          return true; // 🔥 Sandbox is ready!
+        }
+
+        sandboxRetries++;
+        if (sandboxRetries < MAX_SANDBOX_WAIT_RETRIES) {
+          await new Promise((resolve) => setTimeout(resolve, SANDBOX_RETRY_DELAY_MS));
+        }
+      }
+      return false; // 😢 Timeout
+    };
+
+    const sandboxReady = await waitForSandbox();
+
+    if (!sandboxReady) {
+      set((state) => ({
+        installedMcpServers: state.installedMcpServers.map((server) =>
+          server.id === id
+            ? {
+                ...server,
+                client: null,
+                status: McpServerStatus.Error,
+                error: 'Sandbox initialization timeout - Podman runtime not ready',
+              }
+            : server
+        ),
+      }));
+      return null;
+    }
+
+    // 🔥 Sandbox is ready, proceed with connection! 🔥
     if (!url) {
       set((state) => ({
         installedMcpServers: state.installedMcpServers.map((server) =>
@@ -637,6 +677,26 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
   setToolSearchQuery: (query: string) => {
     set({ toolSearchQuery: query });
   },
+
+  _init: () => {
+    const {
+      connectToArchestraMcpServer,
+      loadInstalledMcpServers,
+      loadConnectorCatalog,
+      loadConnectorCatalogCategories,
+    } = get();
+
+    // TODO: uncomment this out once we get /mcp working on the backend
+    // Connect to the Archestra MCP server
+    // connectToArchestraMcpServer();
+
+    // Load connector catalog + categories
+    loadConnectorCatalog();
+    loadConnectorCatalogCategories();
+
+    // Load installed MCP servers
+    loadInstalledMcpServers();
+  },
 }));
 
 // WebSocket event subscriptions for MCP server events
@@ -702,11 +762,8 @@ const subscribeToMcpWebSocketEvents = () => {
 // Initialize WebSocket subscriptions when the store is created
 subscribeToMcpWebSocketEvents();
 
-// Initialize connections on store creation
-useMcpServersStore.getState().connectToArchestraMcpServer();
-useMcpServersStore.getState().loadInstalledMcpServers();
-useMcpServersStore.getState().loadConnectorCatalog();
-useMcpServersStore.getState().loadConnectorCatalogCategories();
+// Initialize data + connections on store creation
+useMcpServersStore.getState()._init();
 
 // Cleanup on window unload
 if (typeof window !== 'undefined') {

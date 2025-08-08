@@ -1,10 +1,20 @@
 import { eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 
 import db from '@backend/database';
-import { mcpServersTable } from '@backend/database/schema/mcpServer';
+import { McpServer, mcpServersTable } from '@backend/database/schema/mcpServer';
 import ExternalMcpClientModel from '@backend/models/externalMcpClient';
+import { McpServerSandboxManager } from '@backend/sandbox';
 import { getMcpServer } from '@clients/archestra/catalog/gen';
+
+export const McpServerContainerLogsSchema = z.object({
+  logs: z.string(),
+  containerName: z.string(),
+  logFilePath: z.string(),
+});
+
+export type McpServerContainerLogs = z.infer<typeof McpServerContainerLogsSchema>;
 
 export default class McpServerModel {
   static async create(data: typeof mcpServersTable.$inferInsert) {
@@ -17,6 +27,11 @@ export default class McpServerModel {
 
   static async getById(id: (typeof mcpServersTable.$inferSelect)['id']) {
     return db.select().from(mcpServersTable).where(eq(mcpServersTable.id, id));
+  }
+
+  static async startServerAndSyncAllConnectedExternalMcpClients(mcpServer: McpServer) {
+    await McpServerSandboxManager.startServer(mcpServer);
+    await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();
   }
 
   /**
@@ -70,8 +85,7 @@ export default class McpServerModel {
       })
       .returning();
 
-    // Sync all connected external MCP clients after installing
-    await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();
+    await this.startServerAndSyncAllConnectedExternalMcpClients(server);
 
     return server;
   }
@@ -97,8 +111,7 @@ export default class McpServerModel {
       })
       .returning();
 
-    // Sync all connected external MCP clients after installing
-    await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();
+    await this.startServerAndSyncAllConnectedExternalMcpClients(server);
 
     return server;
   }
@@ -108,6 +121,9 @@ export default class McpServerModel {
    */
   static async uninstallMcpServer(id: (typeof mcpServersTable.$inferSelect)['id']) {
     await db.delete(mcpServersTable).where(eq(mcpServersTable.id, id));
+
+    // Stop the server in the sandbox
+    await McpServerSandboxManager.stopServer(id);
 
     // Sync all connected external MCP clients after uninstalling
     await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();

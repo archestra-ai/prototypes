@@ -57,7 +57,7 @@ async function generateOpenAPISpec() {
 
   app.register(autoLoad, {
     dir: path.join(__dirname, '../../../src/backend/server/plugins'),
-    ignorePattern: /ollama/, // Skip Ollama proxy routes for OpenAPI generation
+    ignorePattern: /(^llm$|^mcp$|ollama)/, // Skip llm, mcp (exact match), and ollama plugin directories
     dirNameRoutePrefix: false, // Disable automatic directory-based prefixing for clean API names
   });
 

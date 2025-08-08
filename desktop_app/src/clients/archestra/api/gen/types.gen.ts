@@ -110,6 +110,12 @@ export type McpServerInput = {
   createdAt: string;
 };
 
+export type McpServerContainerLogsInput = {
+  logs: string;
+  containerName: string;
+  logFilePath: string;
+};
+
 export type PodmanMachineStatusInput = 'not_installed' | 'stopped' | 'running' | 'initializing';
 
 export type ChatWithMessages = {
@@ -220,6 +226,12 @@ export type McpServer = {
     [key: string]: string | number | boolean | Array<string>;
   };
   createdAt: string;
+};
+
+export type McpServerContainerLogs = {
+  logs: string;
+  containerName: string;
+  logFilePath: string;
 };
 
 export type PodmanMachineStatus = 'not_installed' | 'stopped' | 'running' | 'initializing';
@@ -497,34 +509,6 @@ export type DisconnectExternalMcpClientResponses = {
 export type DisconnectExternalMcpClientResponse =
   DisconnectExternalMcpClientResponses[keyof DisconnectExternalMcpClientResponses];
 
-export type GetApiMcpTestData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/api/mcp/test';
-};
-
-export type GetApiMcpTestResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
-export type StreamLlmResponseData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/api/llm/openai/stream';
-};
-
-export type StreamLlmResponseResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
 export type ClearMcpRequestLogsData = {
   body: {
     clearAll: boolean;
@@ -753,6 +737,37 @@ export type StartMcpServerOauthResponses = {
 };
 
 export type StartMcpServerOauthResponse = StartMcpServerOauthResponses[keyof StartMcpServerOauthResponses];
+
+export type GetMcpServerLogsData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: {
+    lines?: number;
+  };
+  url: '/mcp_proxy/{id}/logs';
+};
+
+export type GetMcpServerLogsErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+  };
+};
+
+export type GetMcpServerLogsError = GetMcpServerLogsErrors[keyof GetMcpServerLogsErrors];
+
+export type GetMcpServerLogsResponses = {
+  /**
+   * Default Response
+   */
+  200: McpServerContainerLogs;
+};
+
+export type GetMcpServerLogsResponse = GetMcpServerLogsResponses[keyof GetMcpServerLogsResponses];
 
 export type GetSandboxStatusData = {
   body?: never;

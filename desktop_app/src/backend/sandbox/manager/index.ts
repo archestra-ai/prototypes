@@ -1,4 +1,6 @@
-import McpServerModel, { type McpServer } from '@backend/models/mcpServer';
+import type { RawReplyDefaultExpression } from 'fastify';
+
+import McpServerModel, { type McpServer, type McpServerContainerLogs } from '@backend/models/mcpServer';
 import PodmanContainer from '@backend/sandbox/podman/container';
 import PodmanRuntime from '@backend/sandbox/podman/runtime';
 import websocketService from '@backend/websocket';
@@ -112,13 +114,22 @@ class McpServerSandboxManager {
 
   async startServer(mcpServer: McpServer) {
     const { id, name, serverConfig } = mcpServer;
-
-    console.log(`Starting MCP server ${name} (id: ${id}) with server config: ${JSON.stringify(serverConfig)}`);
+    console.log(`🚀 Starting MCP server: id="${id}", name="${name}"`);
 
     const container = new PodmanContainer(mcpServer);
     await container.startOrCreateContainer();
 
     this.mcpServerIdToPodmanContainerMap.set(id, container);
+    console.log(`✅ Registered container for MCP server ${id} in map`);
+  }
+
+  async stopServer(mcpServerId: string) {
+    const container = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
+
+    if (container) {
+      await container.stopContainer();
+      this.mcpServerIdToPodmanContainerMap.delete(mcpServerId);
+    }
   }
 
   /**
@@ -140,12 +151,25 @@ class McpServerSandboxManager {
     this._isInitialized = false;
   }
 
-  proxyRequestToMcpServerContainer(mcpServerId: string, request: any) {
+  async streamToMcpServerContainer(
+    mcpServerId: string,
+    request: any,
+    responseStream: RawReplyDefaultExpression
+  ): Promise<{ containerExists: boolean }> {
+    console.log(`🔍 Looking for MCP server ${mcpServerId} in map...`);
+    console.log(`📋 Available MCP servers:`, Array.from(this.mcpServerIdToPodmanContainerMap.keys()));
+
     const podmanContainer = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
     if (!podmanContainer) {
-      throw new Error(`MCP server with id ${mcpServerId} not found`);
+      console.log(
+        `⏳ MCP server ${mcpServerId} container not ready yet. Available: ${Array.from(this.mcpServerIdToPodmanContainerMap.keys()).join(', ')}`
+      );
+      return { containerExists: false };
     }
-    return podmanContainer.proxyRequestToContainer(request);
+
+    console.log(`✅ Found container for ${mcpServerId}, streaming request...`);
+    await podmanContainer.streamToContainer(request, responseStream);
+    return { containerExists: true };
   }
 
   getSandboxStatus() {
@@ -153,6 +177,21 @@ class McpServerSandboxManager {
       isInitialized: this._isInitialized,
       podmanMachineStatus: this.podmanRuntime.machineStatus,
       // mcpServersStatus: Record<number, object> - TODO: implement later
+    };
+  }
+
+  /**
+   * 📖 Get logs for a specific MCP server container
+   */
+  async getMcpServerLogs(mcpServerId: string, lines: number = 100): Promise<McpServerContainerLogs> {
+    const podmanContainer = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
+    if (!podmanContainer) {
+      throw new Error(`MCP server ${mcpServerId} container not found`);
+    }
+    return {
+      logs: await podmanContainer.getRecentLogs(lines),
+      containerName: podmanContainer.containerName,
+      logFilePath: podmanContainer.logFilePath,
     };
   }
 }

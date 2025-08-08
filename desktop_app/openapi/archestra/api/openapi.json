@@ -474,6 +474,21 @@
         },
         "required": ["id", "name", "serverConfig", "userConfigValues", "createdAt"]
       },
+      "McpServerContainerLogsInput": {
+        "type": "object",
+        "properties": {
+          "logs": {
+            "type": "string"
+          },
+          "containerName": {
+            "type": "string"
+          },
+          "logFilePath": {
+            "type": "string"
+          }
+        },
+        "required": ["logs", "containerName", "logFilePath"]
+      },
       "PodmanMachineStatusInput": {
         "type": "string",
         "enum": ["not_installed", "stopped", "running", "initializing"]
@@ -955,6 +970,22 @@
         "required": ["id", "name", "serverConfig", "userConfigValues", "createdAt"],
         "additionalProperties": false
       },
+      "McpServerContainerLogs": {
+        "type": "object",
+        "properties": {
+          "logs": {
+            "type": "string"
+          },
+          "containerName": {
+            "type": "string"
+          },
+          "logFilePath": {
+            "type": "string"
+          }
+        },
+        "required": ["logs", "containerName", "logFilePath"],
+        "additionalProperties": false
+      },
       "PodmanMachineStatus": {
         "type": "string",
         "enum": ["not_installed", "stopped", "running", "initializing"]
@@ -1403,27 +1434,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/mcp/test": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/api/llm/openai/stream": {
-      "post": {
-        "operationId": "streamLlmResponse",
-        "tags": ["LLM"],
-        "description": "Stream LLM response",
-        "responses": {
-          "200": {
-            "description": "Default Response"
           }
         }
       }
@@ -1965,6 +1975,61 @@
                     }
                   },
                   "required": ["authUrl"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp_proxy/{id}/logs": {
+      "get": {
+        "operationId": "getMcpServerLogs",
+        "tags": ["MCP Server"],
+        "description": "Get logs for a specific MCP server container",
+        "parameters": [
+          {
+            "schema": {
+              "default": 100,
+              "type": "number"
+            },
+            "in": "query",
+            "name": "lines",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServerContainerLogs"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }

@@ -17,8 +17,6 @@ import type {
   DeleteCloudProviderResponses,
   DisconnectExternalMcpClientData,
   DisconnectExternalMcpClientResponses,
-  GetApiMcpTestData,
-  GetApiMcpTestResponses,
   GetAvailableCloudProvidersData,
   GetAvailableCloudProvidersResponses,
   GetChatByIdData,
@@ -37,6 +35,9 @@ import type {
   GetMcpRequestLogStatsResponses,
   GetMcpRequestLogsData,
   GetMcpRequestLogsResponses,
+  GetMcpServerLogsData,
+  GetMcpServerLogsErrors,
+  GetMcpServerLogsResponses,
   GetMcpServersData,
   GetMcpServersResponses,
   GetSandboxStatusData,
@@ -50,8 +51,6 @@ import type {
   InstallMcpServerResponses,
   StartMcpServerOauthData,
   StartMcpServerOauthResponses,
-  StreamLlmResponseData,
-  StreamLlmResponseResponses,
   UninstallMcpServerData,
   UninstallMcpServerResponses,
   UpdateChatData,
@@ -238,27 +237,6 @@ export const disconnectExternalMcpClient = <ThrowOnError extends boolean = false
   });
 };
 
-export const getApiMcpTest = <ThrowOnError extends boolean = false>(
-  options?: Options<GetApiMcpTestData, ThrowOnError>
-) => {
-  return (options?.client ?? _heyApiClient).get<GetApiMcpTestResponses, unknown, ThrowOnError>({
-    url: '/api/mcp/test',
-    ...options,
-  });
-};
-
-/**
- * Stream LLM response
- */
-export const streamLlmResponse = <ThrowOnError extends boolean = false>(
-  options?: Options<StreamLlmResponseData, ThrowOnError>
-) => {
-  return (options?.client ?? _heyApiClient).post<StreamLlmResponseResponses, unknown, ThrowOnError>({
-    url: '/api/llm/openai/stream',
-    ...options,
-  });
-};
-
 /**
  * Clear MCP request logs
  */
@@ -382,6 +360,18 @@ export const startMcpServerOauth = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  });
+};
+
+/**
+ * Get logs for a specific MCP server container
+ */
+export const getMcpServerLogs = <ThrowOnError extends boolean = false>(
+  options: Options<GetMcpServerLogsData, ThrowOnError>
+) => {
+  return (options.client ?? _heyApiClient).get<GetMcpServerLogsResponses, GetMcpServerLogsErrors, ThrowOnError>({
+    url: '/mcp_proxy/{id}/logs',
+    ...options,
   });
 };
 
