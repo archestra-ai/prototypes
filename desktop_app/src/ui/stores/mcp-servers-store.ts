@@ -1,6 +1,6 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp';
-import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/types';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { CallToolRequest, ClientCapabilities, Tool } from '@modelcontextprotocol/sdk/types.js';
 import { create } from 'zustand';
 
 import {
@@ -203,7 +203,7 @@ const initializeConnectedMcpServerTools = async (
   server: ConnectedMcpServer
 ): Promise<ToolWithMcpServerInfo[]> => {
   const { tools } = await client.listTools();
-  return tools.map((tool) => ({
+  return tools.map((tool: Tool) => ({
     ...tool,
     server: {
       id: server.id,
