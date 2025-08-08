@@ -1407,27 +1407,6 @@
         }
       }
     },
-    "/api/mcp/test": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/api/llm/openai/stream": {
-      "post": {
-        "operationId": "streamLlmResponse",
-        "tags": ["LLM"],
-        "description": "Stream LLM response",
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
     "/api/mcp_request_log": {
       "get": {
         "operationId": "getMcpRequestLogs",
