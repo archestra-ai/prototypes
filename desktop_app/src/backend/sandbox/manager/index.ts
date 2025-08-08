@@ -153,6 +153,14 @@ class McpServerSandboxManager {
     return podmanContainer.proxyRequestToContainer(request);
   }
 
+  async streamToMcpServerContainer(mcpServerId: string, request: any, responseStream: any) {
+    const podmanContainer = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
+    if (!podmanContainer) {
+      throw new Error(`MCP server with id ${mcpServerId} not found`);
+    }
+    return podmanContainer.streamToContainer(request, responseStream);
+  }
+
   getSandboxStatus() {
     return {
       isInitialized: this._isInitialized,

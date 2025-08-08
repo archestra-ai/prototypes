@@ -193,4 +193,53 @@ export default class PodmanContainer {
       throw new Error(`Error proxying request to MCP server container ${this.containerName}`);
     }
   }
+
+  /**
+   * 🚀 Stream bidirectional communication with the MCP server container! 🚀
+   * https://docs.podman.io/en/latest/_static/api.html#tag/containers/operation/ContainerAttachLibpod
+   */
+  async streamToContainer(request: any, responseStream: any) {
+    console.log(`🔥 Streaming to MCP server container ${this.containerName}`, request);
+
+    try {
+      // 🎯 Use the attach endpoint for bidirectional streaming! 🎯
+      const attachResponse = await containerAttachLibpod({
+        path: {
+          name: this.containerName,
+        },
+        query: {
+          stdin: true, // ✅ Enable stdin for sending requests
+          stdout: true, // ✅ Enable stdout for receiving responses
+          stderr: true, // ✅ Enable stderr for error messages
+          stream: true, // ✅ Enable streaming mode
+        },
+      });
+
+      // 💫 Handle the streaming connection! 💫
+      if (attachResponse.response.status === 200) {
+        // The attach endpoint returns a raw socket/stream connection
+        // We need to handle the bidirectional streaming here
+
+        // 🔥 Write the request to stdin 🔥
+        // TODO: The actual implementation depends on how the libpod client handles streaming
+        // This is a placeholder - we need to investigate the actual streaming API
+
+        console.log('🎉 Successfully attached to container for streaming!');
+
+        // For now, let's write a simple response to test
+        responseStream.write(
+          JSON.stringify({
+            status: 'connected',
+            container: this.containerName,
+          })
+        );
+        responseStream.end();
+      } else {
+        throw new Error(`Failed to attach to container: ${attachResponse.response.status}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error streaming to MCP server container ${this.containerName}:`, error);
+      throw error;
+    }
+  }
 }

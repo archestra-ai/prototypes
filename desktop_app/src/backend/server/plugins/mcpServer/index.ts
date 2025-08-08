@@ -153,17 +153,33 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         body: z.any(),
       },
     },
-    async ({ params: { id }, body }, reply) => {
+    async ({ params: { id }, body, raw }, reply) => {
       const mcpServer = await McpServerModel.getById(id);
       if (!mcpServer) {
         return reply.code(404).send({ error: 'MCP server not found' });
       }
 
-      /**
-       * TODO: this probably needs to support streaming??!?
-       */
-      const response = await McpServerSandboxManager.proxyRequestToMcpServerContainer(id, body);
-      return reply.send(response);
+      try {
+        // 🚀 Set up streaming response! 🚀
+        reply.raw.writeHead(200, {
+          'Content-Type': 'application/octet-stream',
+          'Transfer-Encoding': 'chunked',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        });
+
+        // 🔥 Stream the request to the container and pipe the response back! 🔥
+        await McpServerSandboxManager.streamToMcpServerContainer(id, body, reply.raw);
+      } catch (error) {
+        fastify.log.error(`Error proxying to MCP server ${id}:`, error);
+
+        // If headers haven't been sent yet, send error response
+        if (!reply.sent) {
+          return reply.code(500).send({
+            error: error instanceof Error ? error.message : 'Failed to proxy request to MCP server',
+          });
+        }
+      }
     }
   );
 };

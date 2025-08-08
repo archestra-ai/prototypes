@@ -499,21 +499,48 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
   },
 
   connectToMcpServer: async (mcpServer: ConnectedMcpServer, url: string) => {
-    const { isInitialized } = useSandboxStore.getState();
-
-    /**
-     * TODO:
-     *
-     * If the podman sandbox runtime is ready, we can try connecting to the server
-     * otherwise, the MCP server container likely hasn't been spun up yet
-     * and we'll need to recursively retry until the sandbox is ready
-     *
-     * If the mcpServer is the Archestra MCP server, we can try connecting to it immediately,
-     * because this is the only server that doesn't require a container to be running
-     * (it's served over /mcp on our exposed local server)
-     */
     const { id } = mcpServer;
 
+    // 🎯 For containerized MCP servers, wait for sandbox to be ready! 🎯
+    const MAX_SANDBOX_WAIT_RETRIES = 60; // 60 seconds total
+    const SANDBOX_RETRY_DELAY_MS = 1000;
+    let sandboxRetries = 0;
+
+    const waitForSandbox = async (): Promise<boolean> => {
+      while (sandboxRetries < MAX_SANDBOX_WAIT_RETRIES) {
+        const { isInitialized } = useSandboxStore.getState();
+
+        if (isInitialized) {
+          return true; // 🔥 Sandbox is ready!
+        }
+
+        sandboxRetries++;
+        if (sandboxRetries < MAX_SANDBOX_WAIT_RETRIES) {
+          await new Promise((resolve) => setTimeout(resolve, SANDBOX_RETRY_DELAY_MS));
+        }
+      }
+      return false; // 😢 Timeout
+    };
+
+    const sandboxReady = await waitForSandbox();
+
+    if (!sandboxReady) {
+      set((state) => ({
+        installedMcpServers: state.installedMcpServers.map((server) =>
+          server.id === id
+            ? {
+                ...server,
+                client: null,
+                status: McpServerStatus.Error,
+                error: 'Sandbox initialization timeout - Podman runtime not ready',
+              }
+            : server
+        ),
+      }));
+      return null;
+    }
+
+    // 🔥 Sandbox is ready, proceed with connection! 🔥
     if (!url) {
       set((state) => ({
         installedMcpServers: state.installedMcpServers.map((server) =>
