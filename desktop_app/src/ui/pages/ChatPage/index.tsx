@@ -59,14 +59,8 @@ export default function ChatPage(_props: ChatPageProps) {
   // Load messages from database when chat changes
   useEffect(() => {
     if (currentChatMessages && currentChatMessages.length > 0) {
-      // Extract UIMessage from ChatMessage wrapper
-      const uiMessages = currentChatMessages
-        .filter(msg => msg.content && typeof msg.content === 'object' && 'id' in msg.content)
-        .map(msg => msg.content as UIMessage);
-      
-      if (uiMessages.length > 0) {
-        setMessages(uiMessages);
-      }
+      // Messages are already UIMessage type
+      setMessages(currentChatMessages);
     } else {
       // Clear messages when no chat or empty chat
       setMessages([]);

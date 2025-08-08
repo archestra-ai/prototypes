@@ -19,9 +19,14 @@ export enum ChatMessageStatus {
   Error = 'error',
 }
 
-export interface ChatWithMessages extends ServerChatWithMessagesRepresentation {
+export interface ChatWithMessages {
+  id: number;
+  sessionId: string;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
   /**
-   * messages is a superset of the messages field in the backend API
+   * messages is UIMessage array from the 'ai' SDK
    */
   messages: UIMessage[];
 }

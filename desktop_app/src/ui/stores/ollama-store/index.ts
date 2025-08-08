@@ -1,5 +1,4 @@
-import { AbortableAsyncIterator } from 'ollama';
-import { ChatResponse, ModelResponse, Message as OllamaMessage, Tool as OllamaTool } from 'ollama/browser';
+import { ModelResponse } from 'ollama/browser';
 import { create } from 'zustand';
 
 import { ArchestraOllamaClient } from '@clients/ollama';
@@ -23,11 +22,6 @@ interface OllamaActions {
   downloadModel: (fullModelName: string) => Promise<void>;
   fetchInstalledModels: () => Promise<void>;
   setSelectedModel: (model: string) => void;
-  chat: (
-    sessionId: string,
-    messages: OllamaMessage[],
-    tools?: OllamaTool[]
-  ) => Promise<AbortableAsyncIterator<ChatResponse>>;
 }
 
 type OllamaStore = OllamaState & OllamaActions;
@@ -133,22 +127,6 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
   setSelectedModel: (model: string) => {
     OllamaLocalStorage.setSelectedModel(model);
     set({ selectedModel: model });
-  },
-
-  chat: (sessionId: string, messages: OllamaMessage[], tools?: OllamaTool[]) => {
-    return ollamaClient.chat({
-      session_id: sessionId,
-      model: get().selectedModel,
-      messages,
-      tools,
-      stream: true,
-      options: {
-        temperature: 0.7,
-        top_p: 0.95,
-        top_k: 40,
-        num_predict: 32768,
-      },
-    });
   },
 }));
 

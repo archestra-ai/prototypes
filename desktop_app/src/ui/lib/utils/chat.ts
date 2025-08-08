@@ -71,35 +71,6 @@ export const initializeToolCalls = (toolCalls: ServerToolCallRepresentation[]): 
 export const initializeChat = (chat: ServerChatWithMessagesRepresentation): ChatWithMessages => {
   return {
     ...chat,
-    messages: chat.messages.map((message) => {
-      // Content is already a UIMessage from the backend
-      // Extract thinking content if it exists in the parts
-      let thinkingContent = '';
-      let responseContent = '';
-      
-      // If content is a UIMessage, extract text from parts
-      if (message.content && typeof message.content === 'object' && 'parts' in message.content) {
-        const uiMessage = message.content as any; // UIMessage
-        if (uiMessage.parts) {
-          for (const part of uiMessage.parts) {
-            if (part.type === 'text') {
-              responseContent += part.text;
-            } else if (part.type === 'reasoning') {
-              thinkingContent += part.text;
-            }
-          }
-        }
-      }
-
-      return {
-        ...message,
-        content: message.content as any, // Already UIMessage
-        toolCalls: [] as ToolCall[],
-        thinkingContent,
-        isStreaming: false,
-        isToolExecuting: false,
-        isThinkingStreaming: false,
-      };
-    }),
+    messages: chat.messages.map((message) => message.content as any), // Content is already a UIMessage from the backend
   };
 };
