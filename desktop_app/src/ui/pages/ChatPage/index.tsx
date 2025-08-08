@@ -71,7 +71,7 @@ export default function ChatPage(_props: ChatPageProps) {
       // Clear messages when no chat or empty chat
       setMessages([]);
     }
-  }, [currentChatSessionId, currentChatMessages, setMessages]);
+  }, [currentChatSessionId]); // Only depend on session ID to avoid infinite loop
 
   // Log messages updates
   useEffect(() => {
