@@ -1,6 +1,6 @@
 {
   "name": "archestra",
-  "version": "1.0.0",
+  "version": "0.0.2",
   "description": "Archestra AI",
   "main": ".vite/build/main.js",
   "scripts": {
