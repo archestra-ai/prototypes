@@ -690,8 +690,9 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
       loadConnectorCatalogCategories,
     } = get();
 
+    // TODO: uncomment this out once we get /mcp working on the backend
     // Connect to the Archestra MCP server
-    connectToArchestraMcpServer();
+    // connectToArchestraMcpServer();
 
     // Load connector catalog + categories
     loadConnectorCatalog();
