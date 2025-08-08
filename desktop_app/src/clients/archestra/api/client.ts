@@ -5,5 +5,5 @@ import type { CreateClientConfig } from './gen/client.gen';
  */
 export const createClientConfig: CreateClientConfig = (config) => ({
   ...config,
-  baseUrl: 'http://localhost:3456',
+  baseUrl: 'http://localhost:54587',
 });

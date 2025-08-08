@@ -2,17 +2,16 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const ARCHESTRA_API_SERVER_PORT = parseInt(process.env.PORT || '3456', 10);
-const ARCHESTRA_API_SERVER_HOST = process.env.HOST || '127.0.0.1';
+const OLLAMA_SERVER_PORT = parseInt(process.env.ARCHESTRA_OLLAMA_SERVER_PORT || '54589', 10);
 
 export default {
   server: {
     http: {
-      port: ARCHESTRA_API_SERVER_PORT,
-      host: ARCHESTRA_API_SERVER_HOST,
+      port: parseInt(process.env.ARCHESTRA_API_SERVER_PORT || '54587', 10),
+      host: 'localhost',
     },
     websocket: {
-      port: parseInt(process.env.ARCHESTRA_WEBSOCKET_PORT || '3457', 10),
+      port: parseInt(process.env.ARCHESTRA_WEBSOCKET_SERVER_PORT || '54588', 10),
     },
   },
   ai: {
@@ -22,7 +21,8 @@ export default {
   },
   ollama: {
     server: {
-      host: process.env.OLLAMA_HOST || 'http://localhost:11434',
+      host: `http://localhost:${OLLAMA_SERVER_PORT}`,
+      port: OLLAMA_SERVER_PORT,
     },
   },
   sandbox: {

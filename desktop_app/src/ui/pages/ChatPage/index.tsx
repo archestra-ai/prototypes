@@ -40,7 +40,10 @@ export default function ChatPage(_props: ChatPageProps) {
       fetch: async (input, init) => {
         // Override fetch to use the correct backend URL
         const url = typeof input === 'string' ? input : input.url;
-        const fullUrl = url.startsWith('http') ? url : `http://localhost:3456${url}`;
+        /**
+         * TODO: don't hardcode this port, pull from config instead..
+         */
+        const fullUrl = url.startsWith('http') ? url : `http://localhost:54587${url}`;
         return fetch(fullUrl, init);
       },
     });

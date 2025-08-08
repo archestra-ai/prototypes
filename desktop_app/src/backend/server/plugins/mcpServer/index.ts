@@ -166,7 +166,19 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       try {
         fastify.log.info(`🚀 Proxying request to MCP server ${id}:`, JSON.stringify(body));
 
-        // 🚀 Hijack the response to handle streaming manually! 🚀
+        // 🎯 Check if container exists BEFORE hijacking! 🎯
+        const containerExists = McpServerSandboxManager.checkContainerExists(id);
+        
+        if (!containerExists) {
+          // Container not ready yet, return 404 so UI can retry
+          fastify.log.info(`Container ${id} not ready yet, returning 404`);
+          return reply.code(404).send({ 
+            error: 'MCP server container not ready yet',
+            retry: true 
+          });
+        }
+
+        // 🚀 Now hijack the response to handle streaming manually! 🚀
         reply.hijack();
 
         // 🔥 Set up streaming response headers! 🔥
@@ -177,20 +189,8 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
           Connection: 'keep-alive',
         });
 
-        // 🎯 Stream the request to the container and pipe the response back! 🎯
-        const result = await McpServerSandboxManager.streamToMcpServerContainer(id, body, reply.raw);
-
-        if (!result.containerExists) {
-          // Container not ready yet, return 404 so UI can retry
-          reply.raw.writeHead(404, { 'Content-Type': 'application/json' });
-          reply.raw.end(
-            JSON.stringify({
-              error: 'MCP server container not ready yet',
-              retry: true,
-            })
-          );
-          return;
-        }
+        // 🎯 Stream the request to the container! 🎯
+        await McpServerSandboxManager.streamToMcpServerContainer(id, body, reply.raw);
 
         // Return undefined when hijacking to prevent Fastify from sending response
         return;

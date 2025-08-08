@@ -2,6 +2,7 @@ import { generateId } from 'ai';
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { Message, Ollama, Tool } from 'ollama';
 
+import config from '@backend/config';
 import Chat from '@backend/models/chat';
 
 import { mcpTools as globalMcpTools, initMCP } from './index';
@@ -11,8 +12,6 @@ interface StreamRequestBody {
   messages: Array<any>;
   sessionId?: string;
 }
-
-const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
 
 const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
   // Initialize MCP on plugin registration if not already done
@@ -55,7 +54,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
         // Write the status code
         reply.raw.writeHead(200);
 
-        const ollama = new Ollama({ host: OLLAMA_HOST });
+        const ollama = new Ollama({ host: config.ollama.server.host });
 
         // Convert MCP tools to Ollama format
         const ollamaTools: Tool[] = [];

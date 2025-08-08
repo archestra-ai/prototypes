@@ -1,15 +1,13 @@
 import { ChildProcess, spawn } from 'child_process';
-import getPort from 'get-port';
 
+import config from '@backend/config';
 import { getBinaryExecPath } from '@backend/utils/binaries';
 
-export default class OllamaServer {
+class OllamaServer {
   private serverProcess: ChildProcess | null = null;
-  private port: number | null = null;
+  private port = config.ollama.server.port;
   private isRunning: boolean = false;
   private binaryPath = getBinaryExecPath('ollama-v0.9.6');
-
-  constructor() {}
 
   /**
    * Start the Ollama server
@@ -21,8 +19,6 @@ export default class OllamaServer {
     }
 
     try {
-      // Get an available port
-      this.port = await getPort();
       console.log(`Starting Ollama server on port ${this.port}`);
 
       // Set up environment variables
@@ -32,7 +28,7 @@ export default class OllamaServer {
          * so that it can write to the user's .ollama directory
          */
         HOME: process.env.HOME,
-        OLLAMA_HOST: `127.0.0.1:${this.port}`,
+        OLLAMA_HOST: `localhost:${this.port}`,
         OLLAMA_ORIGINS: 'http://localhost:54587',
         OLLAMA_DEBUG: '0',
       };
@@ -58,7 +54,6 @@ export default class OllamaServer {
         console.log(`Ollama server exited with code ${code} and signal ${signal}`);
         this.isRunning = false;
         this.serverProcess = null;
-        this.port = null;
       });
 
       // Handle errors
@@ -66,7 +61,6 @@ export default class OllamaServer {
         console.error('Failed to start Ollama server:', error);
         this.isRunning = false;
         this.serverProcess = null;
-        this.port = null;
       });
 
       this.isRunning = true;
@@ -76,13 +70,6 @@ export default class OllamaServer {
       console.error('Failed to start Ollama server:', error);
       throw error;
     }
-  }
-
-  /**
-   * Get the current port the Ollama server is running on
-   */
-  getPort(): number | null {
-    return this.port;
   }
 
   /**
@@ -101,7 +88,6 @@ export default class OllamaServer {
         this.serverProcess.once('exit', () => {
           this.isRunning = false;
           this.serverProcess = null;
-          this.port = null;
           console.log('Ollama server stopped');
           resolve();
         });
@@ -122,3 +108,5 @@ export default class OllamaServer {
     });
   }
 }
+
+export default new OllamaServer();

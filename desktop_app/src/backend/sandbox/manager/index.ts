@@ -10,11 +10,13 @@ class McpServerSandboxManager {
   private podmanRuntime: InstanceType<typeof PodmanRuntime>;
   private mcpServerIdToPodmanContainerMap: Map<string, PodmanContainer> = new Map();
   private _isInitialized = false;
+  private _instanceId = Math.random().toString(36).substring(7);
 
   onSandboxStartupSuccess: () => void = () => {};
   onSandboxStartupError: (error: Error) => void = () => {};
 
   constructor() {
+    console.log(`🎉 Creating McpServerSandboxManager instance: ${this._instanceId}`);
     this.podmanRuntime = new PodmanRuntime(
       this.onPodmanMachineInstallationSuccess.bind(this),
       this.onPodmanMachineInstallationError.bind(this)
@@ -151,25 +153,36 @@ class McpServerSandboxManager {
     this._isInitialized = false;
   }
 
+  checkContainerExists(mcpServerId: string): boolean {
+    console.log(`🔍 Checking if container exists for MCP server ${mcpServerId}...`);
+    console.log(`📋 Available MCP servers:`, Array.from(this.mcpServerIdToPodmanContainerMap.keys()));
+    console.log(`📊 Total containers in map: ${this.mcpServerIdToPodmanContainerMap.size}`);
+    
+    const exists = this.mcpServerIdToPodmanContainerMap.has(mcpServerId);
+    console.log(`Container ${mcpServerId} exists: ${exists}`);
+    
+    // Also log the instance info for debugging
+    console.log(`McpServerSandboxManager instance ID: ${this._instanceId}`);
+    
+    return exists;
+  }
+
   async streamToMcpServerContainer(
     mcpServerId: string,
     request: any,
     responseStream: RawReplyDefaultExpression
-  ): Promise<{ containerExists: boolean }> {
+  ): Promise<void> {
     console.log(`🔍 Looking for MCP server ${mcpServerId} in map...`);
     console.log(`📋 Available MCP servers:`, Array.from(this.mcpServerIdToPodmanContainerMap.keys()));
 
     const podmanContainer = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
     if (!podmanContainer) {
-      console.log(
-        `⏳ MCP server ${mcpServerId} container not ready yet. Available: ${Array.from(this.mcpServerIdToPodmanContainerMap.keys()).join(', ')}`
-      );
-      return { containerExists: false };
+      // This should not happen if checkContainerExists was called first
+      throw new Error(`MCP server ${mcpServerId} container not found`);
     }
 
     console.log(`✅ Found container for ${mcpServerId}, streaming request...`);
     await podmanContainer.streamToContainer(request, responseStream);
-    return { containerExists: true };
   }
 
   getSandboxStatus() {

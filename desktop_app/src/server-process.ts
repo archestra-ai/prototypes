@@ -13,6 +13,81 @@
  * The forge.config.ts defines this as a build target, producing server-process.js
  * which main.ts spawns as a child process with ELECTRON_RUN_AS_NODE=1
  */
-import { startServer } from '@backend/server';
+import OllamaServer from '@backend/llms/ollama/server';
+import { McpServerSandboxManager } from '@backend/sandbox';
+import { startFastifyServer } from '@backend/server';
+import WebSocketServer from '@backend/websocket';
 
-startServer();
+const startup = async () => {
+  McpServerSandboxManager.onSandboxStartupSuccess = () => {
+    console.log('Sandbox startup successful 🥳');
+  };
+  McpServerSandboxManager.onSandboxStartupError = (error) => {
+    console.error('Sandbox startup error 🥲:', error);
+  };
+  McpServerSandboxManager.startAllInstalledMcpServers();
+
+  WebSocketServer.start();
+  await startFastifyServer();
+
+  await OllamaServer.startServer();
+};
+
+/**
+ * Cleanup function to gracefully shut down all services
+ */
+const cleanup = async () => {
+  console.log('🛑 Server process cleanup starting...');
+
+  try {
+    // Stop the WebSocket server
+    console.log('Stopping WebSocket server...');
+    WebSocketServer.stop();
+
+    // Stop the sandbox and all MCP servers
+    console.log('Turning off sandbox...');
+    McpServerSandboxManager.turnOffSandbox();
+
+    // Stop the Ollama server
+    console.log('Stopping Ollama server...');
+    await OllamaServer.stopServer();
+
+    console.log('✅ Server process cleanup completed');
+  } catch (error) {
+    console.error('❌ Error during cleanup:', error);
+  }
+};
+
+// Handle graceful shutdown on various signals
+process.on('SIGTERM', async () => {
+  console.log('Received SIGTERM signal');
+  await cleanup();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('Received SIGINT signal (Ctrl+C)');
+  await cleanup();
+  process.exit(0);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', async (error) => {
+  console.error('Uncaught exception:', error);
+  await cleanup();
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', async (reason, promise) => {
+  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+  await cleanup();
+  process.exit(1);
+});
+
+// Handle process exit
+process.on('exit', (code) => {
+  console.log(`Server process exiting with code: ${code}`);
+});
+
+startup();

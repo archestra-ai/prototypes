@@ -2,24 +2,21 @@ import { Bot, Download, MessageCircle, Settings } from 'lucide-react';
 
 import { NavigationItem, NavigationViewKey } from '@ui/types';
 
-// Frontend configuration using Vite's environment variables
-// These values can be overridden by VITE_* prefixed environment variables
-const ARCHESTRA_API_SERVER_HOST = import.meta.env.VITE_HOST || '127.0.0.1';
-const ARCHESTRA_API_SERVER_PORT = import.meta.env.VITE_PORT || '3456';
-const ARCHESTRA_WEBSOCKET_SERVER_PORT = import.meta.env.VITE_WEBSOCKET_PORT || '3457';
+const HOST = import.meta.env.VITE_HOST || 'localhost';
 
-const ARCHESTRA_SERVER_BASE_URL = `${ARCHESTRA_API_SERVER_HOST}:${ARCHESTRA_API_SERVER_PORT}`;
-const ARCHESTRA_SERVER_BASE_HTTP_URL = `http://${ARCHESTRA_SERVER_BASE_URL}`;
-const ARCHESTRA_SERVER_LLM_PROXY_BASE_URL = `${ARCHESTRA_SERVER_BASE_URL}/llm`;
+// NOTE: 5173 is the default port for Vite's dev server
+const PORT = import.meta.env.VITE_PORT || '5173';
+
+const BASE_URL = `${HOST}:${PORT}`;
 
 export default {
   archestra: {
-    apiUrl: `${ARCHESTRA_SERVER_BASE_HTTP_URL}/api`,
-    mcpUrl: `${ARCHESTRA_SERVER_BASE_HTTP_URL}/mcp`,
-    mcpProxyUrl: `${ARCHESTRA_SERVER_BASE_HTTP_URL}/mcp_proxy`,
-    ollamaProxyUrl: `${ARCHESTRA_SERVER_LLM_PROXY_BASE_URL}/ollama`,
-    openaiProxyUrl: `${ARCHESTRA_SERVER_LLM_PROXY_BASE_URL}/openai`,
-    websocketUrl: `ws://${ARCHESTRA_API_SERVER_HOST}:${ARCHESTRA_WEBSOCKET_SERVER_PORT}`,
+    apiUrl: `${BASE_URL}/api`,
+    mcpUrl: `${BASE_URL}/mcp`,
+    mcpProxyUrl: `http://${BASE_URL}/mcp_proxy`,
+    ollamaProxyUrl: `${BASE_URL}/llm/ollama`,
+    openaiProxyUrl: `${BASE_URL}/llm/openai`,
+    websocketUrl: `ws://${BASE_URL}/ws`,
   },
   chat: {
     defaultTitle: 'New Chat',

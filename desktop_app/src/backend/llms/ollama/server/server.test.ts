@@ -10,9 +10,6 @@ vi.mock('@backend/utils/binaries', () => ({
   getPlatform: vi.fn(() => 'mock-platform'),
   getArchitecture: vi.fn(() => 'mock-architecture'),
 }));
-vi.mock('get-port', () => ({
-  default: vi.fn().mockResolvedValue(12345),
-}));
 
 // Test helper
 function waitFor(ms: number) {
@@ -85,7 +82,7 @@ describe('OllamaServer', () => {
       expect(spawn).toHaveBeenCalledWith('/mock/path/ollama-v0.9.6', ['serve'], {
         env: {
           HOME: '/mock/home',
-          OLLAMA_HOST: '127.0.0.1:12345',
+          OLLAMA_HOST: 'localhost:54589',
           OLLAMA_ORIGINS: 'http://localhost:54587',
           OLLAMA_DEBUG: '0',
         },
@@ -101,13 +98,6 @@ describe('OllamaServer', () => {
       await server.startServer();
 
       expect(vi.mocked(spawn).mock.calls.length).toBe(initialCallCount);
-    });
-
-    it('should handle port allocation failure', async () => {
-      const getPort = await import('get-port');
-      vi.mocked(getPort.default).mockRejectedValueOnce(new Error('Failed to allocate port'));
-
-      await expect(server.startServer()).rejects.toThrow('Failed to allocate port');
     });
 
     it('should capture stdout and stderr', async () => {
