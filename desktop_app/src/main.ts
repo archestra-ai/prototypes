@@ -5,6 +5,7 @@ import { ChildProcess, fork } from 'node:child_process';
 import path from 'node:path';
 import { updateElectronApp } from 'update-electron-app';
 
+import config from '@backend/config';
 import { runDatabaseMigrations } from '@backend/database';
 import { OllamaServer } from '@backend/llms/ollama';
 import { McpServerSandboxManager } from '@backend/sandbox';
@@ -15,10 +16,13 @@ if (started) {
   app.quit();
 }
 
-// Enable automatic updates
+/**
+ * Enable automatic updates
+ * https://github.com/electron/update-electron-app?tab=readme-ov-file#usage
+ */
 updateElectronApp({
-  repo: 'archestra-ai/archestra',
-  updateInterval: '1 hour',
+  repo: config.release.repo,
+  updateInterval: config.release.updateInterval,
 });
 
 const SERVER_PORT = 3456;
