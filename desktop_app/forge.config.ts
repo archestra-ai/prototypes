@@ -8,7 +8,13 @@ import { PublisherGitHubConfig } from '@electron-forge/publisher-github';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
-const config: ForgeConfig = {
+import config from '@backend/config';
+
+const {
+  build: { productName, description, authors, appBundleId, prerelease, draft, github },
+} = config;
+
+const forgeConfig: ForgeConfig = {
   packagerConfig: {
     /**
      * Whether to package the application's source code into an archive, using Electron's archive format.
@@ -26,8 +32,8 @@ const config: ForgeConfig = {
      */
     extraResource: ['./resources/bin'],
     icon: './icons/icon',
-    name: 'Archestra',
-    appBundleId: 'com.archestra.ai',
+    name: productName,
+    appBundleId,
   },
   // https://github.com/WiseLibs/better-sqlite3/issues/1171#issuecomment-2186895668
   rebuildConfig: {
@@ -36,23 +42,23 @@ const config: ForgeConfig = {
   },
   makers: [
     new MakerSquirrel({
-      name: 'Archestra',
-      authors: 'Archestra AI',
-      description: 'Archestra AI Desktop Application',
+      name: productName,
+      authors,
+      description,
     }),
     new MakerZIP({}, ['darwin']),
     new MakerRpm({
       options: {
-        name: 'archestra',
-        productName: 'Archestra',
-        description: 'Archestra AI Desktop Application',
+        name: productName,
+        productName,
+        description,
       },
     }),
     new MakerDeb({
       options: {
-        name: 'archestra',
-        productName: 'Archestra',
-        description: 'Archestra AI Desktop Application',
+        name: productName,
+        productName,
+        description,
       },
     }),
   ],
@@ -105,14 +111,14 @@ const config: ForgeConfig = {
       name: '@electron-forge/publisher-github',
       config: {
         repository: {
-          owner: 'archestra-ai',
-          name: 'archestra',
+          owner: github.owner,
+          name: github.repoName,
         },
-        prerelease: false,
-        draft: true,
+        prerelease,
+        draft,
       } as PublisherGitHubConfig,
     },
   ],
 };
 
-export default config;
+export default forgeConfig;

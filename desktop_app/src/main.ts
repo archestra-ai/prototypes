@@ -21,8 +21,8 @@ if (started) {
  * https://github.com/electron/update-electron-app?tab=readme-ov-file#usage
  */
 updateElectronApp({
-  repo: config.release.repo,
-  updateInterval: config.release.updateInterval,
+  repo: `${config.build.github.owner}/${config.build.github.repoName}`,
+  updateInterval: config.build.updateInterval,
 });
 
 const SERVER_PORT = 3456;

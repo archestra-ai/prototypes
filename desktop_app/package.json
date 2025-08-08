@@ -1,7 +1,21 @@
 {
-  "name": "archestra",
-  "version": "1.0.0",
-  "description": "Archestra AI",
+  "name": "Archestra",
+  "version": "0.0.1",
+  "description": "Enterprise MCP Platform for AI Agents",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/archestra-ai/archestra"
+  },
+  "homepage": "https://archestra.ai",
+  "keywords": [
+    "MCP",
+    "Model Context Protocol",
+    "AI agents",
+    "Enterprise AI",
+    "Secure Runtime",
+    "Prompt Injection Prevention"
+  ],
+  "private": true,
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start 2>&1 | pino-pretty  --single-line --colorize",

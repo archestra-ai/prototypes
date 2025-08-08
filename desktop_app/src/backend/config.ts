@@ -30,8 +30,17 @@ export default {
       process.env.MCP_BASE_DOCKER_IMAGE ||
       'europe-west1-docker.pkg.dev/friendly-path-465518-r6/archestra-public/mcp-server-base:0.0.1',
   },
-  release: {
-    repo: 'archestra-ai/archestra',
+  build: {
     updateInterval: '1 hour',
+    prerelease: false,
+    draft: true,
+    github: {
+      owner: 'archestra-ai',
+      repoName: 'archestra',
+    },
+    productName: 'Archestra',
+    description: 'Enterprise MCP Platform for AI Agents',
+    authors: 'Archestra.ai',
+    appBundleId: 'com.archestra.ai',
   },
 };
