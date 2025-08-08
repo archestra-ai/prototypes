@@ -1,5 +1,5 @@
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
+import { DefaultChatTransport, type UIMessage } from 'ai';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Skeleton } from '@ui/components/ui/skeleton';
@@ -55,6 +55,23 @@ export default function ChatPage(_props: ChatPageProps) {
   });
 
   const isLoading = status === 'streaming';
+
+  // Load messages from database when chat changes
+  useEffect(() => {
+    if (currentChatMessages && currentChatMessages.length > 0) {
+      // Extract UIMessage from ChatMessage wrapper
+      const uiMessages = currentChatMessages
+        .filter(msg => msg.content && typeof msg.content === 'object' && 'id' in msg.content)
+        .map(msg => msg.content as UIMessage);
+      
+      if (uiMessages.length > 0) {
+        setMessages(uiMessages);
+      }
+    } else {
+      // Clear messages when no chat or empty chat
+      setMessages([]);
+    }
+  }, [currentChatSessionId, currentChatMessages, setMessages]);
 
   // Log messages updates
   useEffect(() => {
