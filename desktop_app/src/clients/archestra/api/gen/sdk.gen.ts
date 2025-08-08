@@ -15,6 +15,8 @@ import type {
   DeleteChatResponses,
   DeleteCloudProviderData,
   DeleteCloudProviderResponses,
+  DeleteMcpData,
+  DeleteMcpResponses,
   DisconnectExternalMcpClientData,
   DisconnectExternalMcpClientResponses,
   GetApiMcpTestData,
@@ -30,6 +32,7 @@ import type {
   GetCloudProviderModelsResponses,
   GetConnectedExternalMcpClientsData,
   GetConnectedExternalMcpClientsResponses,
+  GetMcpData,
   GetMcpRequestLogByIdData,
   GetMcpRequestLogByIdErrors,
   GetMcpRequestLogByIdResponses,
@@ -37,6 +40,7 @@ import type {
   GetMcpRequestLogStatsResponses,
   GetMcpRequestLogsData,
   GetMcpRequestLogsResponses,
+  GetMcpResponses,
   GetMcpServersData,
   GetMcpServersResponses,
   GetSandboxStatusData,
@@ -48,6 +52,8 @@ import type {
   InstallMcpServerData,
   InstallMcpServerErrors,
   InstallMcpServerResponses,
+  PostMcpData,
+  PostMcpResponses,
   StartMcpServerOauthData,
   StartMcpServerOauthResponses,
   StreamLlmResponseData,
@@ -255,6 +261,27 @@ export const streamLlmResponse = <ThrowOnError extends boolean = false>(
 ) => {
   return (options?.client ?? _heyApiClient).post<StreamLlmResponseResponses, unknown, ThrowOnError>({
     url: '/api/llm/openai/stream',
+    ...options,
+  });
+};
+
+export const deleteMcp = <ThrowOnError extends boolean = false>(options?: Options<DeleteMcpData, ThrowOnError>) => {
+  return (options?.client ?? _heyApiClient).delete<DeleteMcpResponses, unknown, ThrowOnError>({
+    url: '/mcp',
+    ...options,
+  });
+};
+
+export const getMcp = <ThrowOnError extends boolean = false>(options?: Options<GetMcpData, ThrowOnError>) => {
+  return (options?.client ?? _heyApiClient).get<GetMcpResponses, unknown, ThrowOnError>({
+    url: '/mcp',
+    ...options,
+  });
+};
+
+export const postMcp = <ThrowOnError extends boolean = false>(options?: Options<PostMcpData, ThrowOnError>) => {
+  return (options?.client ?? _heyApiClient).post<PostMcpResponses, unknown, ThrowOnError>({
+    url: '/mcp',
     ...options,
   });
 };

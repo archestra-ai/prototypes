@@ -51,35 +51,7 @@
                   "type": "string",
                   "enum": ["user", "assistant", "system"]
                 },
-                "content": {
-                  "anyOf": [
-                    {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "number"
-                        },
-                        {
-                          "type": "boolean"
-                        },
-                        {
-                          "nullable": true,
-                          "enum": [null]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "object",
-                      "additionalProperties": {}
-                    },
-                    {
-                      "type": "array",
-                      "items": {}
-                    }
-                  ]
-                },
+                "content": {},
                 "createdAt": {
                   "type": "string"
                 }
@@ -523,35 +495,7 @@
                   "type": "string",
                   "enum": ["user", "assistant", "system"]
                 },
-                "content": {
-                  "anyOf": [
-                    {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "number"
-                        },
-                        {
-                          "type": "boolean"
-                        },
-                        {
-                          "nullable": true,
-                          "enum": [null]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "object",
-                      "additionalProperties": {}
-                    },
-                    {
-                      "type": "array",
-                      "items": {}
-                    }
-                  ]
-                },
+                "content": {},
                 "createdAt": {
                   "type": "string"
                 }
@@ -1421,6 +1365,29 @@
         "operationId": "streamLlmResponse",
         "tags": ["LLM"],
         "description": "Stream LLM response",
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/mcp": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "delete": {
         "responses": {
           "200": {
             "description": "Default Response"

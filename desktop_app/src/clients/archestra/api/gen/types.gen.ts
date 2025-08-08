@@ -10,12 +10,7 @@ export type ChatWithMessagesInput = {
     id: string;
     chatId: number;
     role: 'user' | 'assistant' | 'system';
-    content:
-      | (string | number | boolean | null)
-      | {
-          [key: string]: unknown;
-        }
-      | Array<unknown>;
+    content: unknown;
     createdAt: string;
   }>;
 };
@@ -122,12 +117,7 @@ export type ChatWithMessages = {
     id: string;
     chatId: number;
     role: 'user' | 'assistant' | 'system';
-    content:
-      | (string | number | boolean | null)
-      | {
-          [key: string]: unknown;
-        }
-      | Array<unknown>;
+    content: unknown;
     createdAt: string;
   }>;
 };
@@ -519,6 +509,48 @@ export type StreamLlmResponseData = {
 };
 
 export type StreamLlmResponseResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
+export type DeleteMcpData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/mcp';
+};
+
+export type DeleteMcpResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
+export type GetMcpData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/mcp';
+};
+
+export type GetMcpResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
+export type PostMcpData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/mcp';
+};
+
+export type PostMcpResponses = {
   /**
    * Default Response
    */
