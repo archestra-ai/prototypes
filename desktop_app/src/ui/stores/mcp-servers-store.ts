@@ -27,6 +27,8 @@ import {
   ToolWithMcpServerInfo,
 } from '@ui/types';
 
+import { useSandboxStore } from './sandbox-store';
+
 /**
  * NOTE: ideally should be divisible by 3 to make it look nice in the UI (as we tend to have 3 "columns" of servers)
  */
@@ -132,12 +134,14 @@ interface McpServersActions {
   removeSelectedTool: (tool: ToolWithMcpServerInfo) => void;
 
   setToolSearchQuery: (query: string) => void;
+
+  _init: () => void;
 }
 
 type McpServersStore = McpServersState & McpServersActions;
 
-export function constructProxiedMcpServerUrl(mcpServerName: string) {
-  return `${config.archestra.mcpProxyUrl}/${mcpServerName}`;
+export function constructProxiedMcpServerUrl(mcpServerId: string) {
+  return `${config.archestra.apiUrl}/mcp_server/${mcpServerId}/proxy`;
 }
 
 const configureMcpClient = async (
@@ -251,7 +255,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         {
           ...mcpServer,
           tools: [],
-          url: constructProxiedMcpServerUrl(mcpServer.name),
+          url: constructProxiedMcpServerUrl(mcpServer.id),
           status: McpServerStatus.Connecting,
           error: null,
           client: null,
@@ -495,6 +499,17 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
   },
 
   connectToMcpServer: async (mcpServer: ConnectedMcpServer, url: string) => {
+    const { isInitialized } = useSandboxStore.getState();
+
+    /**
+     * If the podman sandbox runtime is ready, we can try connecting to the server
+     * otherwise, the MCP server container likely hasn't been spun up yet
+     * and we'll need to recursively retry until the sandbox is ready
+     *
+     * If the mcpServer is the Archestra MCP server, we can try connecting to it immediately,
+     * because this is the only server that doesn't require a container to be running
+     * (it's served over /mcp on our exposed local server)
+     */
     const { id } = mcpServer;
 
     if (!url) {
@@ -637,6 +652,25 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
   setToolSearchQuery: (query: string) => {
     set({ toolSearchQuery: query });
   },
+
+  _init: () => {
+    const {
+      connectToArchestraMcpServer,
+      loadInstalledMcpServers,
+      loadConnectorCatalog,
+      loadConnectorCatalogCategories,
+    } = get();
+
+    // Connect to the Archestra MCP server
+    connectToArchestraMcpServer();
+
+    // Load connector catalog + categories
+    loadConnectorCatalog();
+    loadConnectorCatalogCategories();
+
+    // Load installed MCP servers
+    loadInstalledMcpServers();
+  },
 }));
 
 // WebSocket event subscriptions for MCP server events
@@ -702,11 +736,8 @@ const subscribeToMcpWebSocketEvents = () => {
 // Initialize WebSocket subscriptions when the store is created
 subscribeToMcpWebSocketEvents();
 
-// Initialize connections on store creation
-useMcpServersStore.getState().connectToArchestraMcpServer();
-useMcpServersStore.getState().loadInstalledMcpServers();
-useMcpServersStore.getState().loadConnectorCatalog();
-useMcpServersStore.getState().loadConnectorCatalogCategories();
+// Initialize data + connections on store creation
+useMcpServersStore.getState()._init();
 
 // Cleanup on window unload
 if (typeof window !== 'undefined') {

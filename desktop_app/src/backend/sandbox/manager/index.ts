@@ -112,13 +112,18 @@ class McpServerSandboxManager {
 
   async startServer(mcpServer: McpServer) {
     const { id, name, serverConfig } = mcpServer;
-
-    console.log(`Starting MCP server ${name} (id: ${id}) with server config: ${JSON.stringify(serverConfig)}`);
-
     const container = new PodmanContainer(mcpServer);
     await container.startOrCreateContainer();
-
     this.mcpServerIdToPodmanContainerMap.set(id, container);
+  }
+
+  async stopServer(mcpServerId: string) {
+    const container = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
+
+    if (container) {
+      await container.stopContainer();
+      this.mcpServerIdToPodmanContainerMap.delete(mcpServerId);
+    }
   }
 
   /**

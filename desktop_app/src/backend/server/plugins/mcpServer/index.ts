@@ -6,6 +6,7 @@ import McpServerModel, {
   McpServerSchema,
   McpServerUserConfigValuesSchema,
 } from '@backend/models/mcpServer';
+import { McpServerSandboxManager } from '@backend/sandbox';
 import { ErrorResponseSchema } from '@backend/schemas';
 
 /**
@@ -132,6 +133,37 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
     },
     async ({ body: { catalogName } }, reply) => {
       return reply.send({ authUrl: `https://oauth-proxy.archestra.ai/auth/${catalogName}` });
+    }
+  );
+
+  fastify.post(
+    '/api/mcp_server/:id/proxy',
+    {
+      schema: {
+        /**
+         * don't include this route in the openapi spec
+         * https://stackoverflow.com/questions/73950993/fastify-swagger-exclude-certain-routes
+         */
+        hide: true,
+        description: 'Proxy requests to the containerized MCP server running in the Archestra.ai sandbox',
+        tags: ['MCP Server'],
+        params: z.object({
+          id: z.string(),
+        }),
+        body: z.any(),
+      },
+    },
+    async ({ params: { id }, body }, reply) => {
+      const mcpServer = await McpServerModel.getById(id);
+      if (!mcpServer) {
+        return reply.code(404).send({ error: 'MCP server not found' });
+      }
+
+      /**
+       * TODO: this probably needs to support streaming??!?
+       */
+      const response = await McpServerSandboxManager.proxyRequestToMcpServerContainer(id, body);
+      return reply.send(response);
     }
   );
 };

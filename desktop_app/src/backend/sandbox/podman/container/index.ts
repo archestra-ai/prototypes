@@ -1,6 +1,12 @@
 import config from '@backend/config';
 import type { McpServer, McpServerConfig, McpServerUserConfigValues } from '@backend/models/mcpServer';
-import { containerCreateLibpod, containerStartLibpod, containerWaitLibpod } from '@clients/libpod/gen';
+import {
+  containerAttachLibpod,
+  containerCreateLibpod,
+  containerStartLibpod,
+  containerStopLibpod,
+  containerWaitLibpod,
+} from '@clients/libpod/gen';
 
 export default class PodmanContainer {
   private containerName: string;
@@ -52,7 +58,7 @@ export default class PodmanContainer {
         },
       });
     } catch (error) {
-      console.error(`Error waiting for container ${this.containerName} to be healthy`, error);
+      console.error(`Error waiting for MCP server container ${this.containerName} to be healthy`, error);
       throw error;
     }
   }
@@ -68,7 +74,7 @@ export default class PodmanContainer {
         },
       });
     } catch (error) {
-      console.error(`Error starting container ${this.containerName}`, error);
+      console.error(`Error starting MCP server container ${this.containerName}`, error);
       throw error;
     }
   }
@@ -77,23 +83,27 @@ export default class PodmanContainer {
    * https://docs.podman.io/en/latest/_static/api.html#tag/containers/operation/ContainerCreateLibpod
    */
   async startOrCreateContainer() {
+    console.log(
+      `Starting MCP server container ${this.containerName} with command: ${this.command} ${this.args.join(' ')}`
+    );
+
     try {
       const { response } = await this.startContainer();
 
       if (response.status === 304) {
-        console.log(`Container ${this.containerName} is already running.`);
+        console.log(`MCP server container ${this.containerName} is already running.`);
         return;
       } else if (response.status === 204) {
-        console.log(`Container ${this.containerName} started.`);
+        console.log(`MCP server container ${this.containerName} started.`);
         return;
       }
     } catch (error) {
-      console.error(`Error starting container ${this.containerName}`, error);
+      console.error(`Error starting MCP server container ${this.containerName}`, error);
       throw error;
     }
 
     console.log(
-      `Container ${this.containerName} does not exist, creating it with base image and command: ${this.command} ${this.args.join(' ')}`
+      `MCP server container ${this.containerName} does not exist, creating it with base image and command: ${this.command} ${this.args.join(' ')}`
     );
 
     try {
@@ -121,24 +131,66 @@ export default class PodmanContainer {
         },
       });
 
-      console.log(`Container ${this.containerName} created, now starting it`);
+      console.log(`MCP server container ${this.containerName} created, now starting it`);
       await this.startContainer();
 
       // MCP servers don't have health checks, they communicate via stdin/stdout
       // Just verify the container is running
-      console.log(`Container ${this.containerName} started`);
+      console.log(`MCP server container ${this.containerName} started`);
     } catch (error) {
-      console.error(`Error creating container ${this.containerName}`, error);
+      console.error(`Error creating MCP server container ${this.containerName}`, error);
       throw error;
     }
   }
 
   /**
-   * NOTE: this isn't fully implemented/tested yet, just a placeholder for now 😅
-   *
-   * Need to figure out how to properly proxy stdio to the container..
+   * https://docs.podman.io/en/latest/_static/api.html#tag/containers/operation/ContainerStopLibpod
    */
-  proxyRequestToContainer(request: any) {
-    console.log('Proxying request to MCP server', request);
+  async stopContainer() {
+    console.log(`Stopping MCP server container ${this.containerName}`);
+
+    try {
+      const { response } = await containerStopLibpod({
+        path: {
+          name: this.containerName,
+        },
+      });
+      const { status } = response;
+
+      if (status === 204) {
+        console.log(`MCP server container ${this.containerName} stopped`);
+      } else if (status === 304) {
+        console.log(`MCP server container ${this.containerName} already stopped`);
+      } else if (status === 404) {
+        console.log(`MCP server container ${this.containerName} not found, already stopped`);
+      } else {
+        console.error(`Error stopping MCP server container ${this.containerName}`, response);
+      }
+    } catch (error) {
+      console.error(`Error stopping MCP server container ${this.containerName}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * https://docs.podman.io/en/latest/_static/api.html#tag/containers/operation/ContainerAttachLibpod
+   */
+  async proxyRequestToContainer(request: any) {
+    console.log(`Proxying request to MCP server container ${this.containerName}`, request);
+
+    const { response } = await containerAttachLibpod({
+      path: {
+        name: this.containerName,
+      },
+    });
+
+    const { status } = response;
+
+    if (status === 200) {
+      return response;
+    } else {
+      console.error(`Error proxying request to MCP server container ${this.containerName}`, response);
+      throw new Error(`Error proxying request to MCP server container ${this.containerName}`);
+    }
   }
 }
