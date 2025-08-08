@@ -2,12 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Note**: The main Electron desktop application code is located in the `desktop_app/` directory.
+**Note**: The main Electron desktop application code is located in the `desktop_app/` directory. Always run commands from the `desktop_app/` directory unless specified otherwise.
 
 ## Important Rules
 
 - **NEVER modify shadcn/ui components**: Do not edit, update, or modify any files in `src/components/ui/`. These are third-party components that should remain untouched. Components in this folder should only be installed using `pnpm dlx shadcn@latest add <component-name>`. If UI changes are needed, create custom components or extend them in other directories.
-- **Always use pnpm**: This project uses pnpm v10.13.1 as the package manager. Never use npm or yarn.
+- **Always use pnpm**: This project uses pnpm v10.14.0 as the package manager. Never use npm or yarn.
+- **Working directory**: Always ensure you're in the `desktop_app/` directory when running commands.
 
 ## Common Development Commands
 
@@ -17,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Install dependencies (uses pnpm)
 pnpm install
 
-# Run the application in development mode
+# Run the application in development mode with pretty logs
 pnpm start
 
 # Package the Electron application
@@ -25,41 +26,32 @@ pnpm package
 
 # Create distributable files
 pnpm make
-
-# Run only the frontend (Vite dev server on port 1420)
-pnpm dev
-
-# Preview production build
-pnpm preview
 ```
 
 ### Testing
 
 ```bash
-# Frontend tests (Vitest in watch mode)
+# Run tests (Vitest with main config)
 pnpm test
 
 # Run a single test file
-pnpm test path/to/test.tsx
+pnpm test path/to/test.ts
 
-# Run frontend tests once (CI mode)
+# Run tests once (CI mode)
 pnpm test run
 ```
 
 ### Code Quality
 
 ```bash
-# Format TypeScript/React code with Prettier
-pnpm prettier
+# Format all files with Prettier
+pnpm exec prettier --write .
 
-# Check TypeScript/React formatting
-pnpm prettier --check .
+# Check formatting without making changes
+pnpm exec prettier --check .
 
 # TypeScript type checking
 pnpm typecheck
-
-# Lint code with ESLint
-pnpm lint
 ```
 
 ### Database Management
@@ -88,17 +80,8 @@ pnpm codegen:all
 
 # Generate individual API clients
 pnpm codegen:archestra:api      # Generate Archestra API client from OpenAPI spec
-pnpm codegen:archestra:catalog  # Generate catalog API client
+pnpm codegen:archestra:catalog  # Generate catalog API client  
 pnpm codegen:libpod            # Generate Podman/libpod client for container management
-```
-
-### OAuth Proxy Service
-
-```bash
-cd backend/oauth-proxy
-npm install
-npm run dev  # Development mode with nodemon
-npm start    # Production mode
 ```
 
 ## High-Level Architecture
@@ -464,11 +447,11 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 
 - Single instance enforcement prevents multiple app instances
 - The app supports deep linking with `archestra-ai://` protocol
-- OAuth proxy runs as a separate service on a configured port
 - Frontend API calls should use the generated client for type safety
 - Database migrations should be created for schema changes using Drizzle
 - Mock external dependencies appropriately in tests
 - CI uses GitHub Actions bot credentials for automated commits
+- Pre-commit hooks run Prettier automatically via Husky and lint-staged
 
 ### Testing Patterns
 

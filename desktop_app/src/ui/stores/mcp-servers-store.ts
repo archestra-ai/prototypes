@@ -10,7 +10,11 @@ import {
   startMcpServerOauth,
   uninstallMcpServer,
 } from '@clients/archestra/api/gen';
-import { type ArchestraMcpServerManifest, getSearch as searchCatalog } from '@clients/archestra/catalog/gen';
+import {
+  type ArchestraMcpServerManifest,
+  getMcpServerCategories,
+  searchMcpServerCatalog,
+} from '@clients/archestra/catalog/gen';
 import config from '@ui/config';
 import { getToolsGroupedByServer } from '@ui/lib/utils/mcp-server';
 import { formatToolName } from '@ui/lib/utils/tools';
@@ -23,7 +27,10 @@ import {
   ToolWithMcpServerInfo,
 } from '@ui/types';
 
-const CATALOG_PAGE_SIZE = 20;
+/**
+ * NOTE: ideally should be divisible by 3 to make it look nice in the UI (as we tend to have 3 "columns" of servers)
+ */
+const CATALOG_PAGE_SIZE = 24;
 
 /**
  * NOTE: these are here because the "archestra" MCP server is "injected" into the list of "installed" MCP servers
@@ -64,50 +71,6 @@ const TEST_USER_CONFIG: ArchestraMcpServerManifest['user_config'] = {
   },
 };
 
-/**
- * TODO: these shouldn't be hardcoded here, instead we should expose an endpoint on the catalog server that
- * returns all options
- *
- * Right now we DO have all of the available values, but this is via a typescript type in the codegen'd types
- * NOT an actual javascript variable that we can use here
- *
- * (somewhere around here https://github.com/archestra-ai/website/blob/5dc8864287bd147c6d3548ae447d4404936e595b/app/app/mcp-catalog/api/search)
- */
-const TEMPORARY_CONNECTOR_CATALOG_CATEGORIES: { value: string; label: string }[] = [
-  { value: 'all', label: 'All Categories' },
-  { value: 'Aggregators', label: 'Aggregators' },
-  { value: 'AI Tools', label: 'AI Tools' },
-  { value: 'Art & Culture', label: 'Art & Culture' },
-  { value: 'Audio', label: 'Audio' },
-  { value: 'Browser Automation', label: 'Browser Automation' },
-  { value: 'CLI Tools', label: 'CLI Tools' },
-  { value: 'Cloud', label: 'Cloud' },
-  { value: 'Communication', label: 'Communication' },
-  { value: 'Data', label: 'Data' },
-  { value: 'Data Science', label: 'Data Science' },
-  { value: 'Development', label: 'Development' },
-  { value: 'File Management', label: 'File Management' },
-  { value: 'Finance', label: 'Finance' },
-  { value: 'Gaming', label: 'Gaming' },
-  { value: 'Healthcare', label: 'Healthcare' },
-  { value: 'IoT', label: 'IoT' },
-  { value: 'Knowledge', label: 'Knowledge' },
-  { value: 'Location', label: 'Location' },
-  { value: 'Logistics', label: 'Logistics' },
-  { value: 'Marketing', label: 'Marketing' },
-  { value: 'Media', label: 'Media' },
-  { value: 'Monitoring', label: 'Monitoring' },
-  { value: 'Productivity', label: 'Productivity' },
-  { value: 'Search', label: 'Search' },
-  { value: 'Security', label: 'Security' },
-  { value: 'Social Media', label: 'Social Media' },
-  { value: 'Sports', label: 'Sports' },
-  { value: 'Support', label: 'Support' },
-  { value: 'Translation', label: 'Translation' },
-  { value: 'Travel', label: 'Travel' },
-  { value: 'Utilities', label: 'Utilities' },
-];
-
 interface McpServersState {
   archestraMcpServer: ConnectedMcpServer;
 
@@ -119,7 +82,7 @@ interface McpServersState {
   loadingConnectorCatalog: boolean;
   errorFetchingConnectorCatalog: string | null;
 
-  connectorCatalogCategories: { value: string; label: string }[];
+  connectorCatalogCategories: string[];
   loadingConnectorCatalogCategories: boolean;
   errorFetchingConnectorCatalogCategories: string | null;
 
@@ -145,6 +108,7 @@ interface McpServersActions {
   removeMcpServerFromInstalledMcpServers: (mcpServerId: string) => void;
 
   loadConnectorCatalog: (append?: boolean) => Promise<void>;
+  loadConnectorCatalogCategories: () => Promise<void>;
   loadMoreCatalogServers: () => Promise<void>;
   setCatalogSearchQuery: (query: string) => void;
   setCatalogSelectedCategory: (category: string) => void;
@@ -245,7 +209,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
   catalogTotalCount: 0,
   catalogOffset: 0,
 
-  connectorCatalogCategories: TEMPORARY_CONNECTOR_CATALOG_CATEGORIES,
+  connectorCatalogCategories: [],
   loadingConnectorCatalogCategories: false,
   errorFetchingConnectorCatalogCategories: null,
 
@@ -336,7 +300,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         params.category = catalogSelectedCategory;
       }
 
-      const { data } = await searchCatalog({ query: params });
+      const { data } = await searchMcpServerCatalog({ query: params });
 
       if (data) {
         /**
@@ -359,6 +323,18 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
       set({ errorFetchingConnectorCatalog: error as string });
     } finally {
       set({ loadingConnectorCatalog: false });
+    }
+  },
+
+  loadConnectorCatalogCategories: async () => {
+    try {
+      set({ loadingConnectorCatalogCategories: true, errorFetchingConnectorCatalogCategories: null });
+      const { data } = await getMcpServerCategories();
+      set({ connectorCatalogCategories: data.categories });
+    } catch (error) {
+      set({ errorFetchingConnectorCatalogCategories: error as string });
+    } finally {
+      set({ loadingConnectorCatalogCategories: false });
     }
   },
 
@@ -730,6 +706,7 @@ subscribeToMcpWebSocketEvents();
 useMcpServersStore.getState().connectToArchestraMcpServer();
 useMcpServersStore.getState().loadInstalledMcpServers();
 useMcpServersStore.getState().loadConnectorCatalog();
+useMcpServersStore.getState().loadConnectorCatalogCategories();
 
 // Cleanup on window unload
 if (typeof window !== 'undefined') {

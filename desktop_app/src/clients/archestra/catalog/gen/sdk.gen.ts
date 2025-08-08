@@ -2,14 +2,16 @@
 import type { Client, Options as ClientOptions, TDataShape } from './client';
 import { client as _heyApiClient } from './client.gen';
 import type {
-  GetBadgeQualityByOrgByRepoData,
-  GetBadgeQualityByOrgByRepoErrors,
-  GetBadgeQualityByOrgByRepoResponses,
-  GetSearchData,
-  GetSearchResponses,
-  GetServerByNameData,
-  GetServerByNameErrors,
-  GetServerByNameResponses,
+  GetMcpServerCategoriesData,
+  GetMcpServerCategoriesResponses,
+  GetMcpServerData,
+  GetMcpServerErrors,
+  GetMcpServerQualityBadgeData,
+  GetMcpServerQualityBadgeErrors,
+  GetMcpServerQualityBadgeResponses,
+  GetMcpServerResponses,
+  SearchMcpServerCatalogData,
+  SearchMcpServerCatalogResponses,
 } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = ClientOptions<
@@ -33,8 +35,10 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
  * Search MCP servers
  * Search for MCP servers with filtering and sorting options
  */
-export const getSearch = <ThrowOnError extends boolean = false>(options?: Options<GetSearchData, ThrowOnError>) => {
-  return (options?.client ?? _heyApiClient).get<GetSearchResponses, unknown, ThrowOnError>({
+export const searchMcpServerCatalog = <ThrowOnError extends boolean = false>(
+  options?: Options<SearchMcpServerCatalogData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).get<SearchMcpServerCatalogResponses, unknown, ThrowOnError>({
     url: '/search',
     ...options,
   });
@@ -44,10 +48,10 @@ export const getSearch = <ThrowOnError extends boolean = false>(options?: Option
  * Get MCP server by name
  * Retrieve detailed information about a specific MCP server by its name identifier
  */
-export const getServerByName = <ThrowOnError extends boolean = false>(
-  options: Options<GetServerByNameData, ThrowOnError>
+export const getMcpServer = <ThrowOnError extends boolean = false>(
+  options: Options<GetMcpServerData, ThrowOnError>
 ) => {
-  return (options.client ?? _heyApiClient).get<GetServerByNameResponses, GetServerByNameErrors, ThrowOnError>({
+  return (options.client ?? _heyApiClient).get<GetMcpServerResponses, GetMcpServerErrors, ThrowOnError>({
     url: '/server/{name}',
     ...options,
   });
@@ -57,15 +61,28 @@ export const getServerByName = <ThrowOnError extends boolean = false>(
  * Get quality badge
  * Get an SVG quality badge for an MCP server
  */
-export const getBadgeQualityByOrgByRepo = <ThrowOnError extends boolean = false>(
-  options: Options<GetBadgeQualityByOrgByRepoData, ThrowOnError>
+export const getMcpServerQualityBadge = <ThrowOnError extends boolean = false>(
+  options: Options<GetMcpServerQualityBadgeData, ThrowOnError>
 ) => {
   return (options.client ?? _heyApiClient).get<
-    GetBadgeQualityByOrgByRepoResponses,
-    GetBadgeQualityByOrgByRepoErrors,
+    GetMcpServerQualityBadgeResponses,
+    GetMcpServerQualityBadgeErrors,
     ThrowOnError
   >({
     url: '/badge/quality/{org}/{repo}',
+    ...options,
+  });
+};
+
+/**
+ * Get available categories
+ * Get a list of all available MCP server categories
+ */
+export const getMcpServerCategories = <ThrowOnError extends boolean = false>(
+  options?: Options<GetMcpServerCategoriesData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).get<GetMcpServerCategoriesResponses, unknown, ThrowOnError>({
+    url: '/category',
     ...options,
   });
 };
