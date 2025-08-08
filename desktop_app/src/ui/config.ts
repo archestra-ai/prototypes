@@ -12,7 +12,14 @@ const BASE_URL = `${HOST}:${PORT}`;
 export default {
   archestra: {
     apiUrl: `${BASE_URL}/api`,
-    mcpUrl: `${BASE_URL}/mcp`,
+    /**
+     * NOTE: for mcpUrl and mcpProxyUrl, we NEED to have the protocol specified, otherwise you'll see this
+     * (on the browser side of things):
+     *
+     * Fetch API cannot load localhost:5173/mcp. URL scheme "localhost" is not supported.
+     *
+     */
+    mcpUrl: `http://${BASE_URL}/mcp`,
     mcpProxyUrl: `http://${BASE_URL}/mcp_proxy`,
     ollamaProxyUrl: `${BASE_URL}/llm/ollama`,
     openaiProxyUrl: `${BASE_URL}/llm/openai`,
