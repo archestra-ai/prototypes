@@ -19,26 +19,11 @@ export enum ChatMessageStatus {
   Error = 'error',
 }
 
-export interface ChatMessage extends ServerChatMessageRepresentation {
-  /**
-   * content is a UIMessage from the 'ai' SDK
-   */
-  content: UIMessage;
-  /**
-   * toolCalls is a superset of the tool_calls field in the backend API
-   */
-  toolCalls: ToolCall[];
-  thinkingContent: string;
-  isStreaming: boolean;
-  isToolExecuting: boolean;
-  isThinkingStreaming: boolean;
-}
-
 export interface ChatWithMessages extends ServerChatWithMessagesRepresentation {
   /**
    * messages is a superset of the messages field in the backend API
    */
-  messages: ChatMessage[];
+  messages: UIMessage[];
 }
 
 export { type ServerChatMessageRepresentation, type ServerChatWithMessagesRepresentation };
