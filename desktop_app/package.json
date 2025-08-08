@@ -1,7 +1,21 @@
 {
-  "name": "archestra",
-  "version": "1.0.0",
-  "description": "Archestra AI",
+  "name": "Archestra",
+  "version": "0.0.1",
+  "description": "Enterprise MCP Platform for AI Agents",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/archestra-ai/archestra"
+  },
+  "homepage": "https://archestra.ai",
+  "keywords": [
+    "MCP",
+    "Model Context Protocol",
+    "AI agents",
+    "Enterprise AI",
+    "Secure Runtime",
+    "Prompt Injection Prevention"
+  ],
+  "private": true,
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start 2>&1 | pino-pretty  --single-line --colorize",
@@ -30,6 +44,7 @@
     "@electron-forge/plugin-auto-unpack-natives": "^7.8.2",
     "@electron-forge/plugin-fuses": "^7.8.2",
     "@electron-forge/plugin-vite": "^7.8.2",
+    "@electron-forge/publisher-github": "^7.8.3",
     "@electron/fuses": "^2.0.0",
     "@electron/rebuild": "^4.0.1",
     "@hey-api/openapi-ts": "^0.80.1",
@@ -118,6 +133,7 @@
     "tailwind-merge": "^3.3.1",
     "tw-animate-css": "^1.3.6",
     "undici": "^7.13.0",
+    "update-electron-app": "^3.1.1",
     "utf-8-validate": "^6.0.5",
     "uuid": "^11.1.0",
     "ws": "^8.18.3",

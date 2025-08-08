@@ -4,10 +4,17 @@ import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { VitePlugin } from '@electron-forge/plugin-vite';
+import { PublisherGitHubConfig } from '@electron-forge/publisher-github';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
-const config: ForgeConfig = {
+import config from '@backend/config';
+
+const {
+  build: { productName, description, authors, appBundleId, prerelease, draft, github },
+} = config;
+
+const forgeConfig: ForgeConfig = {
   packagerConfig: {
     /**
      * Whether to package the application's source code into an archive, using Electron's archive format.
@@ -24,13 +31,37 @@ const config: ForgeConfig = {
      * https://electron.github.io/packager/main/interfaces/Options.html#extraResource
      */
     extraResource: ['./resources/bin'],
+    icon: './icons/icon',
+    name: productName,
+    appBundleId,
   },
   // https://github.com/WiseLibs/better-sqlite3/issues/1171#issuecomment-2186895668
   rebuildConfig: {
     extraModules: ['better-sqlite3'],
     force: true,
   },
-  makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],
+  makers: [
+    new MakerSquirrel({
+      name: productName,
+      authors,
+      description,
+    }),
+    new MakerZIP({}, ['darwin']),
+    new MakerRpm({
+      options: {
+        name: productName,
+        productName,
+        description,
+      },
+    }),
+    new MakerDeb({
+      options: {
+        name: productName,
+        productName,
+        description,
+      },
+    }),
+  ],
   plugins: [
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
@@ -75,6 +106,19 @@ const config: ForgeConfig = {
       [FuseV1Options.OnlyLoadAppFromAsar]: true,
     }),
   ],
+  publishers: [
+    {
+      name: '@electron-forge/publisher-github',
+      config: {
+        repository: {
+          owner: github.owner,
+          name: github.repoName,
+        },
+        prerelease,
+        draft,
+      } as PublisherGitHubConfig,
+    },
+  ],
 };
 
-export default config;
+export default forgeConfig;
