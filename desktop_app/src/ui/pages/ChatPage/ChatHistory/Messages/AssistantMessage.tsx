@@ -1,4 +1,4 @@
-import { UIMessage, type TextUIPart, type DynamicToolUIPart } from 'ai';
+import { type DynamicToolUIPart, type TextUIPart, UIMessage } from 'ai';
 
 import ToolInvocation from '@ui/components/ToolInvocation';
 import { AIResponse } from '@ui/components/kibo/ai-response';
@@ -8,34 +8,34 @@ interface AssistantMessageProps {
   message: UIMessage;
 }
 
-/**
- * TODO: fix the typing issues in this file (also remove the "any" types)
- */
 export default function AssistantMessage({ message }: AssistantMessageProps) {
-  // Extract text content and dynamic tools from parts array (UIMessage in ai SDK v5 uses parts)
-  let textContent = '';
-  const dynamicTools: DynamicToolUIPart[] = [];
-
-  if (message.parts) {
-    message.parts.forEach((part) => {
-      if (part.type === 'text') {
-        textContent += (part as TextUIPart).text;
-      } else if (part.type === 'dynamic-tool') {
-        dynamicTools.push(part as DynamicToolUIPart);
-      }
-    });
+  if (!message.parts) {
+    return null;
   }
 
-  const hasDynamicTools = dynamicTools.length > 0;
-
+  let accumulatedText = '';
+  
   return (
     <div className="relative space-y-2">
-      {/* Display dynamic tools from parts */}
-      {hasDynamicTools && (
-        <div className="space-y-2 mb-3">
-          {dynamicTools.map((tool, index) => (
+      {message.parts.map((part, index) => {
+        if (part.type === 'text') {
+          accumulatedText += (part as TextUIPart).text;
+          // Check if this is the last part or if the next part is not text
+          const isLastOrBeforeTool = 
+            index === message.parts!.length - 1 || 
+            message.parts![index + 1]?.type !== 'text';
+          
+          if (isLastOrBeforeTool && accumulatedText) {
+            const textToRender = accumulatedText;
+            accumulatedText = '';
+            return <AIResponse key={`text-${index}`}>{textToRender}</AIResponse>;
+          }
+          return null;
+        } else if (part.type === 'dynamic-tool') {
+          const tool = part as DynamicToolUIPart;
+          return (
             <ToolInvocation
-              key={tool.toolCallId || index}
+              key={tool.toolCallId || `tool-${index}`}
               toolName={tool.toolName}
               args={'input' in tool ? tool.input : {}}
               result={'output' in tool ? tool.output : undefined}
@@ -49,12 +49,10 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
                       : ToolCallStatus.Pending
               }
             />
-          ))}
-        </div>
-      )}
-
-
-      {textContent && <AIResponse>{textContent}</AIResponse>}
+          );
+        }
+        return null;
+      })}
     </div>
   );
 }
