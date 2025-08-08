@@ -1,4 +1,4 @@
-import { UIMessage } from 'ai';
+import { UIMessage, type TextUIPart } from 'ai';
 
 interface OtherMessageProps {
   message: UIMessage;
@@ -8,15 +8,13 @@ interface OtherMessageProps {
  * TODO: fix the typing issues in this file (also remove the "as" casts)
  */
 export default function OtherMessage({ message }: OtherMessageProps) {
-  // Extract text content from parts if available, otherwise use content
+  // Extract text content from parts array (UIMessage in ai SDK v5 uses parts)
   let textContent = '';
 
-  if (message.content) {
-    textContent = message.content;
-  } else if (message.parts) {
+  if (message.parts) {
     textContent = message.parts
       .filter((part) => part.type === 'text')
-      .map((part) => (part as { text: string }).text)
+      .map((part) => (part as TextUIPart).text)
       .join('');
   }
 

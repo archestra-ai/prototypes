@@ -1,7 +1,8 @@
-import { UIMessage } from 'ai';
+import { UIMessage, type TextUIPart, type DynamicToolUIPart } from 'ai';
 
 import ToolInvocation from '@ui/components/ToolInvocation';
 import { AIResponse } from '@ui/components/kibo/ai-response';
+import { ToolCallStatus } from '@ui/types';
 
 interface AssistantMessageProps {
   message: UIMessage;
@@ -11,24 +12,20 @@ interface AssistantMessageProps {
  * TODO: fix the typing issues in this file (also remove the "any" types)
  */
 export default function AssistantMessage({ message }: AssistantMessageProps) {
-  // Extract text content and dynamic tools from parts
+  // Extract text content and dynamic tools from parts array (UIMessage in ai SDK v5 uses parts)
   let textContent = '';
-  const dynamicTools: any[] = [];
+  const dynamicTools: DynamicToolUIPart[] = [];
 
-  if (message.content) {
-    textContent = message.content;
-  } else if (message.parts) {
-    message.parts.forEach((part: any) => {
+  if (message.parts) {
+    message.parts.forEach((part) => {
       if (part.type === 'text') {
-        textContent += part.text;
+        textContent += (part as TextUIPart).text;
       } else if (part.type === 'dynamic-tool') {
-        dynamicTools.push(part);
+        dynamicTools.push(part as DynamicToolUIPart);
       }
     });
   }
 
-  // Also check for toolInvocations (for backward compatibility)
-  const hasToolInvocations = message.toolInvocations && message.toolInvocations.length > 0;
   const hasDynamicTools = dynamicTools.length > 0;
 
   return (
@@ -40,38 +37,22 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
             <ToolInvocation
               key={tool.toolCallId || index}
               toolName={tool.toolName}
-              args={tool.input || tool.args || {}}
-              result={tool.output || tool.result}
+              args={'input' in tool ? tool.input : {}}
+              result={'output' in tool ? tool.output : undefined}
               state={
                 tool.state === 'output-available'
-                  ? 'completed'
+                  ? ToolCallStatus.Completed
                   : tool.state === 'output-error'
-                    ? 'error'
+                    ? ToolCallStatus.Error
                     : tool.state === 'input-streaming'
-                      ? 'pending'
-                      : 'pending'
+                      ? ToolCallStatus.Pending
+                      : ToolCallStatus.Pending
               }
-              startTime={tool.startTime}
-              endTime={tool.endTime}
             />
           ))}
         </div>
       )}
 
-      {/* Display tool invocations (fallback) */}
-      {!hasDynamicTools && hasToolInvocations && (
-        <div className="space-y-2 mb-3">
-          {message.toolInvocations.map((tool: any, index: number) => (
-            <ToolInvocation
-              key={tool.toolCallId || index}
-              toolName={tool.toolName}
-              args={tool.args}
-              result={tool.result}
-              state={tool.state || (tool.result ? 'completed' : 'pending')}
-            />
-          ))}
-        </div>
-      )}
 
       {textContent && <AIResponse>{textContent}</AIResponse>}
     </div>
