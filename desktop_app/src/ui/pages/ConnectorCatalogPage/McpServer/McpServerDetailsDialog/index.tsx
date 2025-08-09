@@ -22,7 +22,6 @@ export default function McpServerDetailsDialog({ server, open, onOpenChange }: M
     description,
     long_description,
     author,
-    repository,
     homepage,
     documentation,
     license,

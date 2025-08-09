@@ -372,7 +372,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
   },
 
   installMcpServerFromConnectorCatalog: async (
-    { config_for_archestra, name }: ArchestraMcpServerManifest,
+    { archestra_config, name }: ArchestraMcpServerManifest,
     userConfigValues?: McpServerUserConfigValues
   ) => {
     try {
@@ -387,7 +387,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
       });
 
       // Check if OAuth is required
-      if (config_for_archestra.oauth.required) {
+      if (archestra_config.oauth.required) {
         try {
           // Start OAuth flow
           const { data } = await startMcpServerOauth({

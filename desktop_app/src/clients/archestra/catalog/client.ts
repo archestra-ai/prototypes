@@ -1,9 +1,8 @@
+import commonConfig from '@commonConfig';
+
 import type { CreateClientConfig } from './gen/client.gen';
 
-/**
- * TODO: don't hardcode this, pull this from environment variables
- */
 export const createClientConfig: CreateClientConfig = (config) => ({
   ...config,
-  baseUrl: 'https://www.archestra.ai/mcp-catalog/api',
+  baseUrl: commonConfig.archestra.catalogUrl,
 });

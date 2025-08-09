@@ -55,7 +55,7 @@ export default class McpServerModel {
       throw new Error(`Failed to fetch catalog entry: ${error}`);
     }
 
-    if (!data.config_for_archestra) {
+    if (!data.archestra_config) {
       throw new Error(`MCP server ${catalogName} not found in catalog or missing Archestra config`);
     }
 

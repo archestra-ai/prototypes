@@ -41,7 +41,7 @@ export default function McpServer({ server, onInstallClick, onUninstallClick }: 
     description,
     github_info: gitHubInfo,
     category,
-    config_for_archestra: {
+    archestra_config: {
       oauth: { required: requiresOAuthSetup },
     },
     programming_language: programmingLanguage,

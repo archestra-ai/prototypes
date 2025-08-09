@@ -4,7 +4,7 @@ export type ArchestraMcpServerManifest = {
   $schema?: string;
   dxt_version: string;
   name: string;
-  display_name?: string;
+  display_name: string;
   version: string;
   description: string;
   long_description?: string;
@@ -12,10 +12,6 @@ export type ArchestraMcpServerManifest = {
     name: string;
     email?: string;
     url?: string;
-  };
-  repository?: {
-    type: string;
-    url: string;
   };
   homepage?: string;
   documentation?: string;
@@ -116,9 +112,20 @@ export type ArchestraMcpServerManifest = {
     | 'Local files'
     | 'General';
   quality_score: number | null;
-  config_for_archestra: {
+  archestra_config: {
+    client_config_permutations: {
+      mcpServers: {
+        [key: string]: {
+          command: string;
+          args?: Array<string>;
+          env?: {
+            [key: string]: string;
+          };
+        };
+      };
+    } | null;
     oauth: {
-      provider: string;
+      provider: 'google';
       required: boolean;
     };
   };

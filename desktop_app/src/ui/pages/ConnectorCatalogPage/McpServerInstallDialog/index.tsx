@@ -57,7 +57,7 @@ export default function McpServerInstallDialog({
 
   const userConfig = mcpServer.user_config || {};
   const hasUserConfig = Object.keys(userConfig).length > 0;
-  const hasOAuth = mcpServer.config_for_archestra.oauth.required;
+  const hasOAuth = mcpServer.archestra_config.oauth.required;
 
   const toggleSecretVisibility = (key: string) => {
     setShowSecrets((prev) => ({ ...prev, [key]: !prev[key] }));
