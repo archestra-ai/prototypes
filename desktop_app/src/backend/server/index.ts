@@ -8,6 +8,7 @@ import cloudProviderRoutes from '@backend/server/plugins/cloudProviders';
 import externalMcpClientRoutes from '@backend/server/plugins/externalMcpClient';
 import llmRoutes from '@backend/server/plugins/llm';
 import ollamaLLMRoutes from '@backend/server/plugins/llm/ollama';
+import ollamaVercelRoutes from '@backend/server/plugins/llm/ollama-vercel';
 import archestraMcpServerPlugin from '@backend/server/plugins/mcp';
 import mcpRequestLogRoutes from '@backend/server/plugins/mcpRequestLog';
 import mcpServerRoutes from '@backend/server/plugins/mcpServer';
@@ -49,6 +50,7 @@ export const startServer = async () => {
   await app.register(cloudProviderRoutes);
   await app.register(llmRoutes);
   await app.register(ollamaLLMRoutes);
+  await app.register(ollamaVercelRoutes);
   await app.register(externalMcpClientRoutes);
   await app.register(mcpRequestLogRoutes);
   await app.register(mcpServerRoutes);
