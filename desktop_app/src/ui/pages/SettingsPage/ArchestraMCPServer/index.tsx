@@ -4,26 +4,26 @@ import { Badge } from '@ui/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@ui/components/ui/card';
 import { Input } from '@ui/components/ui/input';
 import { Label } from '@ui/components/ui/label';
-import { ConnectedMcpServer, McpServerStatus } from '@ui/types';
+import { ConnectedMcpServer } from '@ui/types';
 
 interface ArchestraMcpServerProps {
   archestraMcpServer: ConnectedMcpServer;
 }
 
 export default function ArchestraMcpServer({
-  archestraMcpServer: { status, tools, error, url },
+  archestraMcpServer: { state, tools, error, url },
 }: ArchestraMcpServerProps) {
   const getStatusBadge = () => {
-    switch (status) {
-      case McpServerStatus.Connected:
+    switch (state) {
+      case 'running':
         return (
           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
             Running
           </Badge>
         );
-      case McpServerStatus.Error:
+      case 'initializing':
         return <Badge variant="destructive">Error</Badge>;
-      case McpServerStatus.Connecting:
+      case 'error':
         return <Badge variant="outline">Loading...</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
@@ -58,7 +58,7 @@ export default function ArchestraMcpServer({
             <Zap className="h-4 w-4" />
             Available Tools
           </h4>
-          {status === McpServerStatus.Connecting ? (
+          {state === 'initializing' ? (
             <div className="space-y-1 text-sm">
               <div>Loading tools...</div>
             </div>

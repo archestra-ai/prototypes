@@ -1,7 +1,7 @@
 import ReconnectingWebSocket from 'reconnecting-websocket';
 
-import { type WebSocketMessage } from '@archestra/types';
 import config from '@ui/config';
+import { type WebSocketMessage } from '@ui/lib/clients/archestra/api/gen';
 
 type MessageHandler<T extends WebSocketMessage = WebSocketMessage> = (message: T) => void;
 
@@ -104,4 +104,4 @@ class WebSocketService {
 }
 
 // Create singleton instance
-export const websocketService = new WebSocketService();
+export default new WebSocketService();

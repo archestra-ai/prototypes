@@ -6,6 +6,174 @@
   },
   "components": {
     "schemas": {
+      "SandboxStatusSummaryInput": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["not_installed", "initializing", "running", "error", "stopping", "stopped"]
+          },
+          "runtime": {
+            "type": "object",
+            "properties": {
+              "startupPercentage": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "startupMessage": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
+              },
+              "startupError": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
+              },
+              "baseImage": {
+                "type": "object",
+                "properties": {
+                  "pullPercentage": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "pullMessage": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "nullable": true,
+                        "enum": [null]
+                      }
+                    ]
+                  },
+                  "pullError": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "nullable": true,
+                        "enum": [null]
+                      }
+                    ]
+                  }
+                },
+                "required": ["pullPercentage", "pullMessage", "pullError"]
+              }
+            },
+            "required": ["startupPercentage", "startupMessage", "startupError", "baseImage"]
+          },
+          "containers": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PodmanContainerStatusSummaryInput"
+            }
+          }
+        },
+        "required": ["status", "runtime", "containers"]
+      },
+      "PodmanContainerStatusSummaryInput": {
+        "type": "object",
+        "properties": {
+          "startupPercentage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "not_created",
+              "created",
+              "initializing",
+              "running",
+              "error",
+              "restarting",
+              "stopping",
+              "stopped",
+              "exited"
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "nullable": true,
+                "enum": [null]
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "nullable": true,
+                "enum": [null]
+              }
+            ]
+          }
+        },
+        "required": ["startupPercentage", "state", "message", "error"]
+      },
+      "WebSocketMessageInput": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["chat-title-updated"]
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "chatId": {
+                    "type": "number"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": ["chatId", "title"]
+              }
+            },
+            "required": ["type", "payload"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["sandbox-status-update"]
+              },
+              "payload": {
+                "$ref": "#/components/schemas/SandboxStatusSummaryInput"
+              }
+            },
+            "required": ["type", "payload"]
+          }
+        ]
+      },
       "ChatWithMessagesInput": {
         "type": "object",
         "properties": {
@@ -489,42 +657,180 @@
         },
         "required": ["logs", "containerName", "logFilePath"]
       },
-      "SandboxStatusInput": {
+      "SandboxStatusSummary": {
         "type": "object",
         "properties": {
-          "isInitialized": {
-            "type": "boolean"
-          },
-          "podmanMachineStatus": {
+          "status": {
             "type": "string",
-            "enum": ["not_installed", "stopped", "running", "initializing"]
+            "enum": ["not_installed", "initializing", "running", "error", "stopping", "stopped"]
           },
-          "mcpServerContainerStatuses": {
+          "runtime": {
+            "type": "object",
+            "properties": {
+              "startupPercentage": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "startupMessage": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
+              },
+              "startupError": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
+              },
+              "baseImage": {
+                "type": "object",
+                "properties": {
+                  "pullPercentage": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "pullMessage": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "nullable": true,
+                        "enum": [null]
+                      }
+                    ]
+                  },
+                  "pullError": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "nullable": true,
+                        "enum": [null]
+                      }
+                    ]
+                  }
+                },
+                "required": ["pullPercentage", "pullMessage", "pullError"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["startupPercentage", "startupMessage", "startupError", "baseImage"],
+            "additionalProperties": false
+          },
+          "containers": {
             "type": "object",
             "additionalProperties": {
-              "$ref": "#/components/schemas/McpServerContainerStatusInput"
+              "$ref": "#/components/schemas/PodmanContainerStatusSummary"
             }
           }
         },
-        "required": ["isInitialized", "podmanMachineStatus", "mcpServerContainerStatuses"]
+        "required": ["status", "runtime", "containers"],
+        "additionalProperties": false
       },
-      "McpServerContainerStatusInput": {
+      "PodmanContainerStatusSummary": {
         "type": "object",
         "properties": {
-          "exists": {
-            "type": "boolean"
-          },
-          "running": {
-            "type": "boolean"
+          "startupPercentage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
           },
           "state": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "not_created",
+              "created",
+              "initializing",
+              "running",
+              "error",
+              "restarting",
+              "stopping",
+              "stopped",
+              "exited"
+            ]
           },
-          "health": {
-            "type": "string"
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "nullable": true,
+                "enum": [null]
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "nullable": true,
+                "enum": [null]
+              }
+            ]
           }
         },
-        "required": ["exists", "running"]
+        "required": ["startupPercentage", "state", "message", "error"],
+        "additionalProperties": false
+      },
+      "WebSocketMessage": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["chat-title-updated"]
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "chatId": {
+                    "type": "number"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": ["chatId", "title"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "payload"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["sandbox-status-update"]
+              },
+              "payload": {
+                "$ref": "#/components/schemas/SandboxStatusSummary"
+              }
+            },
+            "required": ["type", "payload"],
+            "additionalProperties": false
+          }
+        ]
       },
       "ChatWithMessages": {
         "type": "object",
@@ -1017,45 +1323,6 @@
           }
         },
         "required": ["logs", "containerName", "logFilePath"],
-        "additionalProperties": false
-      },
-      "SandboxStatus": {
-        "type": "object",
-        "properties": {
-          "isInitialized": {
-            "type": "boolean"
-          },
-          "podmanMachineStatus": {
-            "type": "string",
-            "enum": ["not_installed", "stopped", "running", "initializing"]
-          },
-          "mcpServerContainerStatuses": {
-            "type": "object",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/McpServerContainerStatus"
-            }
-          }
-        },
-        "required": ["isInitialized", "podmanMachineStatus", "mcpServerContainerStatuses"],
-        "additionalProperties": false
-      },
-      "McpServerContainerStatus": {
-        "type": "object",
-        "properties": {
-          "exists": {
-            "type": "boolean"
-          },
-          "running": {
-            "type": "boolean"
-          },
-          "state": {
-            "type": "string"
-          },
-          "health": {
-            "type": "string"
-          }
-        },
-        "required": ["exists", "running"],
         "additionalProperties": false
       }
     }
@@ -2050,25 +2317,6 @@
                   },
                   "required": ["error"],
                   "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/sandbox/status": {
-      "get": {
-        "operationId": "getSandboxStatus",
-        "tags": ["Sandbox"],
-        "description": "Get the current status of the sandbox environment",
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SandboxStatus"
                 }
               }
             }

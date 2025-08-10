@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Input } from '@ui/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui/components/ui/select';
 import { ArchestraMcpServerManifest } from '@ui/lib/clients/archestra/catalog/gen';
-import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
+import { useConnectorCatalogStore, useMcpServersStore } from '@ui/stores';
 import { type McpServerUserConfigValues } from '@ui/types';
 
 import McpServer from './McpServer';
@@ -23,14 +23,12 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
     catalogSelectedCategory,
     catalogHasMore,
     catalogTotalCount,
-    installedMcpServers,
     loadingConnectorCatalog,
-    installMcpServer: _installMcpServer,
-    uninstallMcpServer,
     setCatalogSearchQuery,
     setCatalogSelectedCategory,
     loadMoreCatalogServers,
-  } = useMcpServersStore();
+  } = useConnectorCatalogStore();
+  const { installedMcpServers, installMcpServer: _installMcpServer, uninstallMcpServer } = useMcpServersStore();
 
   const installMcpServer = async (
     mcpServer: ArchestraMcpServerManifest,

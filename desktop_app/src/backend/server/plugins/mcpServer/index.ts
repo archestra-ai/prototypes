@@ -6,7 +6,7 @@ import McpServerModel, {
   McpServerInstallSchema,
   McpServerSchema,
 } from '@backend/models/mcpServer';
-import { McpServerSandboxManager } from '@backend/sandbox';
+import McpServerSandboxManager from '@backend/sandbox';
 import { ErrorResponseSchema } from '@backend/schemas';
 
 /**

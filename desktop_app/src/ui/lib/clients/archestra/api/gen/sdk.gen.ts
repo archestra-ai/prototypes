@@ -40,8 +40,6 @@ import type {
   GetMcpServerLogsResponses,
   GetMcpServersData,
   GetMcpServersResponses,
-  GetSandboxStatusData,
-  GetSandboxStatusResponses,
   GetSupportedExternalMcpClientsData,
   GetSupportedExternalMcpClientsResponses,
   InstallMcpServerData,
@@ -353,18 +351,6 @@ export const getMcpServerLogs = <ThrowOnError extends boolean = false>(
 ) => {
   return (options.client ?? _heyApiClient).get<GetMcpServerLogsResponses, GetMcpServerLogsErrors, ThrowOnError>({
     url: '/mcp_proxy/{id}/logs',
-    ...options,
-  });
-};
-
-/**
- * Get the current status of the sandbox environment
- */
-export const getSandboxStatus = <ThrowOnError extends boolean = false>(
-  options?: Options<GetSandboxStatusData, ThrowOnError>
-) => {
-  return (options?.client ?? _heyApiClient).get<GetSandboxStatusResponses, unknown, ThrowOnError>({
-    url: '/api/sandbox/status',
     ...options,
   });
 };

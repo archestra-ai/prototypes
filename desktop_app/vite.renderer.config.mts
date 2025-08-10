@@ -9,11 +9,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@backend': path.resolve(__dirname, './src/backend'),
-      /**
-       * NOTE: don't name this @types, see here for why
-       * https://stackoverflow.com/a/77502938
-       */
-      '@archestra/types': path.resolve(__dirname, './src/types'),
       '@ui': path.resolve(__dirname, './src/ui'),
     },
   },

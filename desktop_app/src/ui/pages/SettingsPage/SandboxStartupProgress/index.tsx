@@ -2,36 +2,46 @@ import { CheckCircle, Loader2, Server, XCircle } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@ui/components/ui/card';
 import { Progress } from '@ui/components/ui/progress';
-import { useSandboxStore } from '@ui/stores/sandbox-store';
+import { useSandboxStore } from '@ui/stores';
 
+/**
+ * TODO: finish getting this all wired up..
+ */
 export function SandboxStartupProgress() {
   const {
-    isInitialized,
-    initializationError,
-    podmanMachineProgress,
-    podmanMachineMessage,
-    isFetchingBaseImage,
-    baseImageFetched,
+    statusSummary: {
+      status: sandboxStatus,
+      runtime: {
+        startupPercentage: runtimeStartupPercentage,
+        startupMessage: runtimeStartupMessage,
+        startupError: runtimeStartupError,
+        baseImage: {
+          pullPercentage: baseImagePullPercentage,
+          pullMessage: baseImagePullMessage,
+          pullError: baseImagePullError,
+        },
+      },
+    },
   } = useSandboxStore();
 
   const getOverallStatus = () => {
-    if (initializationError) {
+    if (runtimeStartupError) {
       return {
         icon: <XCircle className="h-5 w-5 text-destructive" />,
         title: 'Sandbox Initialization Failed',
-        description: initializationError,
+        description: runtimeStartupError,
       };
     }
 
-    if (podmanMachineProgress > 0 && podmanMachineProgress < 100) {
+    if (runtimeStartupPercentage > 0 && runtimeStartupPercentage < 100) {
       return {
         icon: <Loader2 className="h-5 w-5 animate-spin" />,
         title: 'Initializing Container Runtime',
-        description: podmanMachineMessage || 'Setting up Podman...',
+        description: runtimeStartupMessage || 'Setting up Podman...',
       };
     }
 
-    if (isFetchingBaseImage) {
+    if (baseImagePullPercentage > 0 && baseImagePullPercentage < 100) {
       return {
         icon: <Loader2 className="h-5 w-5 animate-spin" />,
         title: 'Fetching Base Image',
@@ -39,7 +49,7 @@ export function SandboxStartupProgress() {
       };
     }
 
-    if (baseImageFetched && !isInitialized) {
+    if (baseImagePullPercentage === 100 && runtimeStartupPercentage < 100) {
       return {
         icon: <Loader2 className="h-5 w-5 animate-spin" />,
         title: 'Finalizing Sandbox Setup',
@@ -47,7 +57,7 @@ export function SandboxStartupProgress() {
       };
     }
 
-    if (isInitialized) {
+    if (runtimeStartupPercentage === 100) {
       return {
         icon: <CheckCircle className="h-5 w-5 text-green-500" />,
         title: 'Sandbox Ready',
@@ -81,14 +91,14 @@ export function SandboxStartupProgress() {
           </div>
         </div>
 
-        {podmanMachineProgress > 0 && podmanMachineProgress < 100 && (
+        {runtimeStartupPercentage > 0 && runtimeStartupPercentage < 100 && (
           <div className="space-y-2">
-            <Progress value={podmanMachineProgress} className="h-2" />
-            <p className="text-xs text-muted-foreground text-right">{podmanMachineProgress}%</p>
+            <Progress value={runtimeStartupPercentage} className="h-2" />
+            <p className="text-xs text-muted-foreground text-right">{runtimeStartupPercentage}%</p>
           </div>
         )}
 
-        {initializationError && (
+        {runtimeStartupError && (
           <div className="rounded-md bg-destructive/10 p-3">
             <p className="text-sm text-destructive">Please check the logs for more information about the failure.</p>
           </div>

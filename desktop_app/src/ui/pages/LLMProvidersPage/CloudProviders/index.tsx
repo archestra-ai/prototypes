@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from '@ui/components/ui/button';
 import { Card } from '@ui/components/ui/card';
 import { CloudProviderWithConfig } from '@ui/lib/clients/archestra/api/gen/types.gen';
-import { useCloudProvidersStore } from '@ui/stores/cloud-providers-store';
+import { useCloudProvidersStore } from '@ui/stores';
 
 import CloudProviderConfigDialog from './CloudProviderConfigDialog';
 

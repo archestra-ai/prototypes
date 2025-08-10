@@ -14,7 +14,7 @@
  * which main.ts spawns as a child process with ELECTRON_RUN_AS_NODE=1
  */
 import OllamaServer from '@backend/llms/ollama/server';
-import { McpServerSandboxManager } from '@backend/sandbox';
+import McpServerSandboxManager from '@backend/sandbox';
 import { startFastifyServer } from '@backend/server';
 import WebSocketServer from '@backend/websocket';
 
@@ -25,7 +25,7 @@ const startup = async () => {
   McpServerSandboxManager.onSandboxStartupError = (error) => {
     console.error('Sandbox startup error 🥲:', error);
   };
-  McpServerSandboxManager.startAllInstalledMcpServers();
+  McpServerSandboxManager.start();
 
   WebSocketServer.start();
   await startFastifyServer();

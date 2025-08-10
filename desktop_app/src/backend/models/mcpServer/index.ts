@@ -11,7 +11,7 @@ import {
   mcpServersTable,
 } from '@backend/database/schema/mcpServer';
 import ExternalMcpClientModel from '@backend/models/externalMcpClient';
-import { McpServerSandboxManager } from '@backend/sandbox';
+import McpServerSandboxManager from '@backend/sandbox';
 
 export const McpServerContainerLogsSchema = z.object({
   logs: z.string(),

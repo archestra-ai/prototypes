@@ -15,7 +15,7 @@ import { Input } from '@ui/components/ui/input';
 import { Label } from '@ui/components/ui/label';
 import { Textarea } from '@ui/components/ui/textarea';
 import { installMcpServer } from '@ui/lib/clients/archestra/api/gen';
-import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
+import { useMcpServersStore } from '@ui/stores';
 
 interface SettingsDialogProps {
   open: boolean;

@@ -1,6 +1,6 @@
 import { Label } from '@ui/components/ui/label';
 import { Textarea } from '@ui/components/ui/textarea';
-import { useDeveloperModeStore } from '@ui/stores/developer-mode-store';
+import { useDeveloperModeStore } from '@ui/stores';
 
 interface SystemPromptProps {}
 

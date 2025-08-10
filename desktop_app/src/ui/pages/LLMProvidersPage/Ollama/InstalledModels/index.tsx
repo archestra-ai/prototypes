@@ -5,7 +5,7 @@ import { Badge } from '@ui/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@ui/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/components/ui/collapsible';
 import { ScrollArea } from '@ui/components/ui/scroll-area';
-import { useOllamaStore } from '@ui/stores/ollama-store';
+import { useOllamaStore } from '@ui/stores';
 
 export const formatBytes = (bytes: number) => {
   if (bytes === 0) {

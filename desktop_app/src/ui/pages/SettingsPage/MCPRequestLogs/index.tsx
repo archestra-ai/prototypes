@@ -20,7 +20,7 @@ import { Label } from '@ui/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui/components/ui/select';
 import { Switch } from '@ui/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ui/components/ui/table';
-import { useMcpLogsStore } from '@ui/stores/mcp-logs-store';
+import { useMcpLogsStore } from '@ui/stores';
 
 import FilterBar from './FilterBar';
 import LogDetailModal from './LogDetailModal';

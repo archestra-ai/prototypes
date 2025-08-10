@@ -6,7 +6,6 @@ import { z } from 'zod';
 import {
   containerCreateLibpod,
   containerExecLibpod,
-  containerInspectLibpod,
   containerLogsLibpod,
   containerStartLibpod,
   containerStopLibpod,
@@ -16,20 +15,52 @@ import {
 import config from '@backend/config';
 import type { McpServer, McpServerConfig, McpServerUserConfigValues } from '@backend/models/mcpServer';
 
-export const ContainerStatusSchema = z.object({
-  exists: z.boolean(),
-  running: z.boolean(),
-  state: z.string().optional(),
-  health: z.string().optional(),
+export const PodmanContainerStateSchema = z.enum([
+  'not_created',
+  'created',
+  'initializing',
+  'running',
+  'error',
+  'restarting',
+  'stopping',
+  'stopped',
+  'exited',
+]);
+
+export const PodmanContainerStatusSummarySchema = z.object({
+  /**
+   * startupPercentage is a number between 0 and 100 that represents the percentage of the startup process that has been completed.
+   */
+  startupPercentage: z.number().min(0).max(100),
+  /**
+   * state is the current state of the container.
+   */
+  state: PodmanContainerStateSchema,
+  /**
+   * message is a string that gives a human-readable description of the current state of the container.
+   */
+  message: z.string().nullable(),
+  /**
+   * error is a string that gives a human-readable description of any errors that may have occured
+   * during the container startup process (if one has)
+   */
+  error: z.string().nullable(),
 });
 
-export type ContainerStatus = z.infer<typeof ContainerStatusSchema>;
+type PodmanContainerState = z.infer<typeof PodmanContainerStateSchema>;
+type PodmanContainerStatusSummary = z.infer<typeof PodmanContainerStatusSummarySchema>;
 
 export default class PodmanContainer {
   containerName: string;
   private command: string;
   private args: string[];
   private envVars: Record<string, string>;
+
+  private _startupPercentage = 0;
+  private _state: PodmanContainerState;
+  private _statusMessage: string | null = null;
+  private _statusError: string | null = null;
+
   /*
    * TODO: Use app.getPath('logs') from Electron to get proper logs directory
    *
@@ -265,7 +296,15 @@ export default class PodmanContainer {
         },
       });
 
-      console.log(`MCP server container ${this.containerName} created, now starting it`);
+      if (response.response.status !== 201) {
+        throw new Error(`Failed to create container: ${response.response.status}`);
+      }
+
+      if (!response.data?.Id) {
+        throw new Error('Container created but no ID returned');
+      }
+
+      console.log(`MCP server container ${this.containerName} created with ID: ${response.data.Id}`);
       await this.startContainer();
 
       // Wait for container to be healthy
@@ -281,50 +320,12 @@ export default class PodmanContainer {
   }
 
   /**
-   * Check if the container exists and is running
-   */
-  async checkContainerStatus(): Promise<ContainerStatus> {
-    try {
-      const { response, data } = await containerInspectLibpod({
-        path: {
-          name: this.containerName,
-        },
-      });
-
-      if (response.status === 200 && data) {
-        const state = data.State;
-        const health = state?.Health?.Status;
-
-        return {
-          exists: true,
-          running: state?.Running === true,
-          state: state?.Status,
-          health: health || 'none',
-        };
-      }
-
-      return { exists: false, running: false };
-    } catch (error) {
-      console.log(`Container ${this.containerName} not found or error checking status:`, error);
-      return { exists: false, running: false };
-    }
-  }
-
-  /**
    * Wait for container to be healthy using Podman's native wait API
    */
-  async waitForHealthy(timeoutSeconds: number = 30): Promise<boolean> {
+  async waitForHealthy(): Promise<boolean> {
     console.log(`🏥 Waiting for container ${this.containerName} to be healthy...`);
 
     try {
-      // First check if container has a health check defined
-      const status = await this.checkContainerStatus();
-      if (status.health === 'none') {
-        console.log(`✅ Container ${this.containerName} has no health check defined, considering it ready`);
-        return true;
-      }
-
-      // Use containerWaitLibpod to wait for healthy condition
       const response = await containerWaitLibpod({
         path: {
           name: this.containerName,
@@ -343,9 +344,7 @@ export default class PodmanContainer {
       return false;
     } catch (error) {
       console.error(`❌ Error waiting for container ${this.containerName} to be healthy:`, error);
-      // If wait fails, fall back to checking current status
-      const status = await this.checkContainerStatus();
-      return status.health === 'healthy' || status.health === 'none';
+      return false;
     }
   }
 
@@ -392,41 +391,29 @@ export default class PodmanContainer {
     console.log(`🔥 Handling MCP request for container ${this.containerName}`, request);
 
     try {
-      // First check if container exists and is running
-      const containerStatus = await this.checkContainerStatus();
+      /**
+       * First check if container exists and is running
+       * TODO: this may be excessive and maybe we can drop this?
+       */
+      const containerIsHealthy = await this.waitForHealthy();
 
-      if (!containerStatus.exists) {
-        // Container doesn't exist - it may have been removed or never created
-        throw new Error(`Container ${this.containerName} does not exist. It may need to be restarted.`);
+      if (!containerIsHealthy) {
+        throw new Error(`Container ${this.containerName} is not healthy`);
       }
 
-      if (!containerStatus.running) {
-        // Container exists but is not running - try to restart it
-        console.log(
-          `⚠️ Container ${this.containerName} is not running (state: ${containerStatus.state}). Attempting to restart...`
-        );
-
-        try {
-          await this.startContainer();
-          console.log(`✅ Container ${this.containerName} restarted successfully`);
-        } catch (restartError) {
-          throw new Error(
-            `Container ${this.containerName} is not running and failed to restart: ${restartError instanceof Error ? restartError.message : 'Unknown error'}`
-          );
-        }
-      }
-
-      // TODO: This is a temporary implementation using exec
-      // The proper implementation should:
-      // 1. Keep the MCP server process running continuously in the container
-      // 2. Attach to the container's stdin/stdout streams
-      // 3. Send JSON-RPC requests via stdin and receive responses via stdout
-      // 4. Handle multiplexing of multiple concurrent requests
-
+      /**
+       * TODO: This is a temporary implementation using exec
+       * The proper implementation should:
+       * 1. Keep the MCP server process running continuously in the container
+       * 2. Attach to the container's stdin/stdout streams
+       * 3. Send JSON-RPC requests via stdin and receive responses via stdout
+       * 4. Handle multiplexing of multiple concurrent requests
+       *
+       * For now, we'll use exec to demonstrate the flow
+       * In a real implementation, we'd need to maintain a persistent connection
+       */
       console.log(`📋 Creating exec session for container ${this.containerName} (temporary implementation)...`);
 
-      // For now, we'll use exec to demonstrate the flow
-      // In a real implementation, we'd need to maintain a persistent connection
       const execResponse = await containerExecLibpod({
         path: {
           name: this.containerName,
@@ -510,5 +497,14 @@ export default class PodmanContainer {
 
       throw error;
     }
+  }
+
+  get statusSummary(): PodmanContainerStatusSummary {
+    return {
+      startupPercentage: this._startupPercentage,
+      state: this._state,
+      message: this._statusMessage,
+      error: this._statusError,
+    };
   }
 }

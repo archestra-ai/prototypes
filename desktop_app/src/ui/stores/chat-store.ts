@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import config from '@ui/config';
 import { createChat, deleteChat, getChatById, getChats, updateChat } from '@ui/lib/clients/archestra/api/gen';
 import { initializeChat } from '@ui/lib/utils/chat';
-import { websocketService } from '@ui/lib/websocket';
+import websocketService from '@ui/lib/websocket';
 import { type ChatWithMessages } from '@ui/types';
 
 interface ChatState {
@@ -171,7 +171,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     get().loadChats();
 
     try {
-      await websocketService.connect();
       listenForChatTitleUpdates();
     } catch (error) {
       console.error('Failed to establish WebSocket connection:', error);

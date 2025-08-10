@@ -21,8 +21,7 @@ import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardHeader } from '@ui/components/ui/card';
 import { Separator } from '@ui/components/ui/separator';
 import { ArchestraMcpServerManifest } from '@ui/lib/clients/archestra/catalog/gen';
-import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
-import { useSandboxStore } from '@ui/stores/sandbox-store';
+import { useMcpServersStore, useSandboxStore } from '@ui/stores';
 
 import McpServerDetailsDialog from './McpServerDetailsDialog';
 
@@ -35,7 +34,7 @@ interface McpServerProps {
 export default function McpServer({ server, onInstallClick, onUninstallClick }: McpServerProps) {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const { installedMcpServers, installingMcpServerId, uninstallingMcpServerId } = useMcpServersStore();
-  const { isInitialized } = useSandboxStore();
+  const { isRunning: sandboxIsRunning } = useSandboxStore();
 
   const {
     name,
@@ -199,7 +198,7 @@ export default function McpServer({ server, onInstallClick, onUninstallClick }: 
           <div className="flex justify-between items-center">
             <div className="text-xs text-muted-foreground">v{server.version}</div>
             <div>
-              {!isInitialized ? (
+              {!sandboxIsRunning ? (
                 <Button size="sm" variant="ghost" disabled>
                   <Loader2 className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
                   Sandbox Initializing...

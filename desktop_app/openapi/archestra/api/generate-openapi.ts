@@ -10,6 +10,17 @@ import {
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { z } from 'zod';
+
+import { WebSocketMessageSchema } from '@backend/websocket';
+
+/**
+ * NOTE: registering this here so that it properly gets "noticed" by the openapi spec generator
+ *
+ * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
+ * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
+ */
+z.globalRegistry.add(WebSocketMessageSchema, { id: 'WebSocketMessage' });
 
 /**
  * TODO: update/configure this (somehow) so that it doesn't output the <SchemaName>Input variant component types...

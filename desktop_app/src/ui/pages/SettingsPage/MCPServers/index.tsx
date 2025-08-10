@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@ui/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/components/ui/collapsible';
-import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
-import { McpServerStatus } from '@ui/types';
+import { useMcpServersStore } from '@ui/stores';
 
 import McpServer from './McpServer';
 import SettingsDialog from './SettingsDialog';
@@ -78,9 +77,7 @@ export default function McpServers(_props: McpServersProps) {
                     {installedMcpServers.length !== 1 ? 's' : ''}, {totalNumberOfMcpTools} tool
                     {totalNumberOfMcpTools !== 1 ? 's' : ''}
                   </span>
-                  <span>
-                    {installedMcpServers.filter((s) => s.status === McpServerStatus.Connected).length} connected
-                  </span>
+                  <span>{installedMcpServers.filter((s) => s.state === 'running').length} connected</span>
                 </div>
               </div>
             )}

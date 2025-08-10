@@ -5,7 +5,7 @@ import { Button } from '@ui/components/ui/button';
 import { Separator } from '@ui/components/ui/separator';
 import { useSidebar } from '@ui/components/ui/sidebar';
 import config from '@ui/config';
-import { useChatStore } from '@ui/stores/chat-store';
+import { useChatStore } from '@ui/stores';
 import { NavigationSubViewKey, NavigationViewKey } from '@ui/types';
 
 import { Breadcrumbs } from './Breadcrumbs';

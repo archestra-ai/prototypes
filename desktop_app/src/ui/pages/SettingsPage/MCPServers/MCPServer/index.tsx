@@ -2,39 +2,39 @@ import { AlertCircle, CheckCircle, Loader2, Wrench } from 'lucide-react';
 
 import { Badge } from '@ui/components/ui/badge';
 import { Card, CardContent } from '@ui/components/ui/card';
-import { ConnectedMcpServer, McpServerStatus } from '@ui/types';
+import { ConnectedMcpServer } from '@ui/types';
 
 interface McpServerProps {
   mcpServer: ConnectedMcpServer;
 }
 
-export default function McpServer({ mcpServer: { name, status, tools, url, error } }: McpServerProps) {
-  const getStatusIcon = (status: ConnectedMcpServer['status']) => {
-    switch (status) {
-      case McpServerStatus.Connecting:
+export default function McpServer({ mcpServer: { name, state, tools, url, error } }: McpServerProps) {
+  const getStateIcon = (state: ConnectedMcpServer['state']) => {
+    switch (state) {
+      case 'initializing':
         return <Loader2 className="h-4 w-4 animate-spin text-yellow-500" />;
-      case McpServerStatus.Connected:
+      case 'running':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case McpServerStatus.Error:
+      case 'error':
         return <AlertCircle className="h-4 w-4 text-red-500" />;
     }
   };
 
-  const getStatusBadge = (status: ConnectedMcpServer['status']) => {
-    switch (status) {
-      case McpServerStatus.Connecting:
+  const getStateBadge = (state: ConnectedMcpServer['state']) => {
+    switch (state) {
+      case 'initializing':
         return (
           <Badge variant="outline" className="text-yellow-600 border-yellow-500">
             Connecting
           </Badge>
         );
-      case McpServerStatus.Connected:
+      case 'running':
         return (
           <Badge variant="outline" className="text-green-600 border-green-500">
             Connected
           </Badge>
         );
-      case McpServerStatus.Error:
+      case 'error':
         return (
           <Badge variant="outline" className="text-red-600 border-red-500">
             Error
@@ -49,9 +49,9 @@ export default function McpServer({ mcpServer: { name, status, tools, url, error
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {getStatusIcon(status)}
+              {getStateIcon(state)}
               <h4 className="font-medium">{name}</h4>
-              {getStatusBadge(status)}
+              {getStateBadge(state)}
             </div>
             <div className="text-xs text-muted-foreground">
               {tools.length} tool
@@ -61,7 +61,7 @@ export default function McpServer({ mcpServer: { name, status, tools, url, error
 
           <div className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded">{url}</div>
 
-          {status === McpServerStatus.Error && error && (
+          {state === 'error' && error && (
             <div className="text-xs text-red-600 bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded border border-red-200 dark:border-red-800">
               Error: {error}
             </div>
@@ -93,7 +93,7 @@ export default function McpServer({ mcpServer: { name, status, tools, url, error
             </div>
           )}
 
-          {status === McpServerStatus.Connected && tools.length === 0 && (
+          {state === 'running' && tools.length === 0 && (
             <div className="text-sm text-muted-foreground italic">No tools available from this server</div>
           )}
         </div>

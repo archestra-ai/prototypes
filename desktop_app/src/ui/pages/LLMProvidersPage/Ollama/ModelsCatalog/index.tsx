@@ -8,7 +8,7 @@ import { Checkbox } from '@ui/components/ui/checkbox';
 import { Input } from '@ui/components/ui/input';
 import { ScrollArea } from '@ui/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui/components/ui/select';
-import { useAllAvailableModelLabels, useAvailableModels, useOllamaStore } from '@ui/stores/ollama-store';
+import { useAllAvailableModelLabels, useAvailableModels, useOllamaStore } from '@ui/stores';
 
 interface ModelsCatalogProps {}
 

@@ -12,7 +12,6 @@ import archestraMcpServerPlugin from '@backend/server/plugins/mcp';
 import mcpRequestLogRoutes from '@backend/server/plugins/mcpRequestLog';
 import mcpServerRoutes from '@backend/server/plugins/mcpServer';
 import ollamaRoutes from '@backend/server/plugins/ollama';
-import sandboxRoutes from '@backend/server/plugins/sandbox';
 
 export const startFastifyServer = async () => {
   const app = fastify({
@@ -53,7 +52,6 @@ export const startFastifyServer = async () => {
   await app.register(mcpRequestLogRoutes);
   await app.register(mcpServerRoutes);
   await app.register(ollamaRoutes);
-  await app.register(sandboxRoutes);
 
   await app.register(archestraMcpServerPlugin);
 

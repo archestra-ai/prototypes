@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@ui/components
 import { Input } from '@ui/components/ui/input';
 import { Label } from '@ui/components/ui/label';
 import { CloudProviderWithConfig } from '@ui/lib/clients/archestra/api/gen/types.gen';
-import { useCloudProvidersStore } from '@ui/stores/cloud-providers-store';
+import { useCloudProvidersStore } from '@ui/stores';
 
 interface CloudProviderConfigDialogProps {
   provider: CloudProviderWithConfig;

@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
 
-import { ConnectedMcpServer, McpServerStatus } from '@ui/types';
+import { ConnectedMcpServer } from '@ui/types';
 
 import ArchestraMcpServer from '.';
 
@@ -15,12 +15,14 @@ describe('ArchestraMcpServer', () => {
         args: [],
         env: {},
       },
+      userConfigValues: {},
       url: 'http://localhost:54587/mcp',
       client: null,
       tools: [],
-      status: McpServerStatus.Connected,
+      startupPercentage: 100,
+      state: 'running',
+      message: null,
       error: null,
-      userConfigValues: {},
     } as ConnectedMcpServer;
     render(<ArchestraMcpServer archestraMcpServer={mockArchestraMcpServer} />);
   });

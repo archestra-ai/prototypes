@@ -13,21 +13,20 @@ import {
   SidebarMenuItem,
 } from '@ui/components/ui/sidebar';
 import { formatToolName } from '@ui/lib/utils/tools';
-import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
-import { useNavigationStore } from '@ui/stores/navigation-store';
+import { useMcpServersStore, useNavigationStore, useToolsStore } from '@ui/stores';
 import { NavigationViewKey } from '@ui/types';
 
 interface McpServerWithToolsSidebarSectionProps {}
 
 export default function McpServerWithToolsSidebarSection(_props: McpServerWithToolsSidebarSectionProps) {
+  const { loadingInstalledMcpServers } = useMcpServersStore();
   const {
-    loadingInstalledMcpServers,
     addSelectedTool,
     getAllAvailableToolsGroupedByServer,
     getFilteredToolsGroupedByServer,
     toolSearchQuery,
     setToolSearchQuery,
-  } = useMcpServersStore();
+  } = useToolsStore();
   const { setActiveView } = useNavigationStore();
 
   const allAvailableToolsGroupedByServer = getAllAvailableToolsGroupedByServer();

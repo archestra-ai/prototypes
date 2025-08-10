@@ -1,7 +1,21 @@
 import { WebSocket, WebSocketServer } from 'ws';
+import { z } from 'zod';
 
-import { WebSocketMessage } from '@archestra/types';
 import config from '@backend/config';
+import McpServerSandboxManager, { SandboxStatusSummarySchema } from '@backend/sandbox/manager';
+
+const ChatTitleUpdatedPayloadSchema = z.object({
+  chatId: z.number(),
+  title: z.string(),
+});
+
+export const WebSocketMessageSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('chat-title-updated'), payload: ChatTitleUpdatedPayloadSchema }),
+  z.object({ type: z.literal('sandbox-status-update'), payload: SandboxStatusSummarySchema }),
+]);
+
+// type ChatTitleUpdatedPayload = z.infer<typeof ChatTitleUpdatedPayloadSchema>;
+type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;
 
 class WebSocketService {
   private wss: WebSocketServer | null = null;
@@ -39,6 +53,8 @@ class WebSocketService {
     this.wss.on('error', (error) => {
       console.error('WebSocket server error:', error);
     });
+
+    this.periodicallyEmitSandboxStatusSummaryUpdates();
   }
 
   broadcast(message: WebSocketMessage) {
@@ -70,6 +86,12 @@ class WebSocketService {
       this.wss = null;
       console.log('WebSocket server stopped');
     }
+  }
+
+  private periodicallyEmitSandboxStatusSummaryUpdates() {
+    setInterval(() => {
+      this.broadcast({ type: 'sandbox-status-update', payload: McpServerSandboxManager.statusSummary });
+    }, 1000);
   }
 }
 
