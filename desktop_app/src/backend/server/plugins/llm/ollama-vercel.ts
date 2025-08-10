@@ -87,51 +87,12 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
           },
         } as any);
 
-        // Hijack the response to handle SSE manually
-        reply.hijack();
-
-        // Set CORS headers
-        reply.raw.setHeader('Access-Control-Allow-Origin', '*');
-        reply.raw.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        reply.raw.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
-
-        // Set SSE headers
-        reply.raw.setHeader('Content-Type', 'text/event-stream');
-        reply.raw.setHeader('Cache-Control', 'no-cache');
-        reply.raw.setHeader('Connection', 'keep-alive');
-        reply.raw.setHeader('X-Accel-Buffering', 'no');
-        reply.raw.writeHead(200);
-
-        // Process the UI message stream
-        (async () => {
-          try {
-            for await (const chunk of result.toUIMessageStream()) {
-              console.log('Processing chunk:', chunk);
-
-              // Skip error chunks
-              if (chunk && chunk.type === 'error') {
-                console.log('Skipping error chunk:', chunk);
-                continue;
-              }
-
-              // Send all other chunks
-              if (chunk) {
-                const data = JSON.stringify(chunk);
-                reply.raw.write(`data: ${data}\n\n`);
-              }
-            }
-
-            // Stream completed
-            reply.raw.end();
-            console.log('Stream completed successfully');
-          } catch (error) {
-            fastify.log.error('Stream processing error:', error);
-            reply.raw.end();
-          }
-        })();
-
-        return;
+        // Simply return the UI message stream response like OpenAI does
+        return reply.send(
+          result.toUIMessageStreamResponse({
+            originalMessages: messages,
+          })
+        );
       } catch (error) {
         fastify.log.error('Ollama Vercel streaming error:', error);
         return reply.code(500).send({
