@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 
-import OllamaServer from '.';
+// Import the default instance after mocks are set up
+import OllamaServerInstance from '.';
 
 vi.mock('child_process');
 vi.mock('net');
@@ -35,7 +36,7 @@ const mockProcess = {
 };
 
 describe('OllamaServer', () => {
-  let server: OllamaServer;
+  let server: typeof OllamaServerInstance;
   let originalResourcesPath: string;
 
   beforeEach(async () => {
@@ -60,8 +61,11 @@ describe('OllamaServer', () => {
       configurable: true,
     });
 
-    // Create server instance
-    server = new OllamaServer();
+    // Use the imported instance
+    server = OllamaServerInstance;
+    // Reset the server state
+    (server as any).isRunning = false;
+    (server as any).serverProcess = null;
   });
 
   afterEach(() => {
