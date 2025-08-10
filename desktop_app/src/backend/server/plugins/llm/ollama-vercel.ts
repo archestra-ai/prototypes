@@ -55,7 +55,7 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
         const tools = mcpTools || {};
 
         const stream = createUIMessageStream<UIMessage>({
-          execute: ({ writer }) => {
+          execute: async ({ writer }) => {
             // Create the stream with Vercel AI SDK
             const result = streamText({
               model: ollamaProvider(model),
@@ -67,39 +67,15 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
                   think: false, // Can be enabled for models that support thinking
                 },
               },
-              // onChunk: ({ chunk }) => {
-              //   console.log('onChunk received:', chunk);
-              // },
-              // onError: (error) => {
-              //   console.log('onError received:', error);
-              // },
             } as any);
 
-            (async () => {
-              for await (const uiMessage of result.toUIMessageStream()) {
-                console.log('HIHIHI');
-                uiMessage.parts.forEach((part) => {
-                  console.log('OKOKOK');
-                  console.log(part);
-                });
+            for await (const uiMessage of result.toUIMessageStream()) {
+              console.log(uiMessage);
+              if (uiMessage.type != 'error') {
+                writer.write(uiMessage);
+                console.log('wrote to writer', uiMessage);
               }
-            })();
-
-            console.log('LOLOOL');
-            console.log(result.toUIMessageStream());
-
-            // Log the raw stream chunks
-            (async () => {
-              try {
-                // Try logging from fullStream with JSON.stringify
-                for await (const chunk of result.fullStream) {
-                  console.log('Chunk:', chunk);
-                }
-                fastify.log.info('Stream completed');
-              } catch (error) {
-                fastify.log.error('Stream logging error:', error);
-              }
-            })();
+            }
 
             // writer.merge(result.toUIMessageStream());
           },
@@ -114,7 +90,7 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
         //     fastify.log.error('Error getting final text:', err);
         //   });
         //
-        return reply.send('hi');
+        return reply.send(stream);
 
         // Return UI-compatible stream response
         return reply.send(
