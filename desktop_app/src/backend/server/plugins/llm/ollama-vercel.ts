@@ -67,30 +67,32 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
                   think: false, // Can be enabled for models that support thinking
                 },
               },
+              onChunk: ({ chunk }) => {
+                console.log('onChunk received:', chunk);
+              },
+              onError: (error) => {
+                console.log('onError received:', error);
+              },
             } as any);
 
-            for await (const uiMessage of result.toUIMessageStream()) {
-              console.log(uiMessage);
-              if (uiMessage.type != 'error') {
-                writer.write(uiMessage);
-                console.log('wrote to writer', uiMessage);
-              }
-            }
+            // Create a filtered stream that skips error messages
+            const filteredStream = result.toUIMessageStream().pipeThrough(
+              new TransformStream({
+                transform(chunk, controller) {
+                  console.log('Stream chunk:', chunk);
+                  if (chunk.type !== 'error') {
+                    controller.enqueue(chunk);
+                    console.log('Passed through non-error chunk:', chunk);
+                  } else {
+                    console.log('Filtered out error chunk:', chunk);
+                  }
+                },
+              })
+            );
 
-            // writer.merge(result.toUIMessageStream());
+            writer.merge(filteredStream);
           },
         });
-
-        // // Also try to log the final result
-        // result.text
-        //   .then((text) => {
-        //     fastify.log.info(`Final Ollama response: "${text}"`);
-        //   })
-        //   .catch((err) => {
-        //     fastify.log.error('Error getting final text:', err);
-        //   });
-        //
-        return reply.send(stream);
 
         // Return UI-compatible stream response
         return reply.send(
