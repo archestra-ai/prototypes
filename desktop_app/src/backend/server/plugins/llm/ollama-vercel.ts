@@ -3,6 +3,7 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  generateId,
   readUIMessageStream,
   stepCountIs,
   streamText,
@@ -54,71 +55,77 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
         // Use MCP tools if available
         const tools = mcpTools || {};
 
-        const stream = createUIMessageStream<UIMessage>({
-          execute: async ({ writer }) => {
-            // Create the stream with Vercel AI SDK
-            const result = streamText({
-              model: ollamaProvider(model),
-              messages: convertToModelMessages(messages),
-              tools: Object.keys(tools).length > 0 ? tools : undefined,
-              // Optional: Enable thinking mode for supported models
-              providerOptions: {
-                ollama: {
-                  think: false, // Can be enabled for models that support thinking
-                },
-              },
-              onChunk: ({ chunk }) => {
-                console.log('onChunk received:', chunk);
-              },
-              onError: (error) => {
-                console.log('onError received:', error);
-              },
-            } as any);
-
-            // Create a filtered stream that skips error messages
-            const filteredStream = result.toUIMessageStream().pipeThrough(
-              new TransformStream({
-                transform(chunk, controller) {
-                  console.log('Stream chunk:', chunk);
-                  if (chunk.type !== 'error') {
-                    controller.enqueue(chunk);
-                    console.log('Passed through non-error chunk:', chunk);
-                  } else {
-                    console.log('Filtered out error chunk:', chunk);
-                  }
-                },
-                flush(controller) {
-                  // Ensure the stream is properly closed
-                  controller.terminate();
-                },
-              })
-            );
-
-            await writer.merge(filteredStream);
+        // Create the stream with Vercel AI SDK
+        const result = streamText({
+          model: ollamaProvider(model),
+          messages: convertToModelMessages(messages),
+          tools: Object.keys(tools).length > 0 ? tools : undefined,
+          // Optional: Enable thinking mode for supported models
+          providerOptions: {
+            ollama: {
+              think: false, // Can be enabled for models that support thinking
+            },
           },
-        });
+          onChunk: ({ chunk }) => {
+            console.log('onChunk received:', chunk);
+          },
+          onError: (error) => {
+            console.log('onError received:', error);
+          },
+          onFinish: ({ messages: finalMessages }) => {
+            // Save messages when streaming completes
+            if (sessionId) {
+              Chat.saveMessages(sessionId, finalMessages).catch((error) => {
+                fastify.log.error('Failed to save messages:', error);
+              });
+            }
+            fastify.log.info('Ollama response completed:', {
+              model,
+              sessionId,
+              messagesCount: finalMessages.length,
+            });
+          },
+        } as any);
 
-        // Return UI-compatible stream response
-        return reply.send(
-          createUIMessageStreamResponse({ stream })
-          // result.toUIMessageStreamResponse({
-          //   originalMessages: messages,
-          //   onFinish: ({ messages: finalMessages, text, toolCalls, usage }) => {
-          //     // Log final response details
-          //     fastify.log.info('Ollama response completed:', {
-          //       model,
-          //       sessionId,
-          //       text: text?.substring(0, 200) + (text && text.length > 200 ? '...' : ''),
-          //       toolCallsCount: toolCalls?.length || 0,
-          //       usage,
-          //     });
+        // Hijack the response to handle SSE manually
+        reply.hijack();
 
-          //     if (sessionId) {
-          //       Chat.saveMessages(sessionId, finalMessages);
-          //     }
-          //   },
-          // })
-        );
+        // Set SSE headers
+        reply.raw.setHeader('Content-Type', 'text/event-stream');
+        reply.raw.setHeader('Cache-Control', 'no-cache');
+        reply.raw.setHeader('Connection', 'keep-alive');
+        reply.raw.setHeader('X-Accel-Buffering', 'no');
+        reply.raw.writeHead(200);
+
+        // Process the UI message stream
+        (async () => {
+          try {
+            for await (const chunk of result.toUIMessageStream()) {
+              console.log('Processing chunk:', chunk);
+
+              // Skip error chunks
+              if (chunk && chunk.type === 'error') {
+                console.log('Skipping error chunk:', chunk);
+                continue;
+              }
+
+              // Send all other chunks
+              if (chunk) {
+                const data = JSON.stringify(chunk);
+                reply.raw.write(`data: ${data}\n\n`);
+              }
+            }
+
+            // Stream completed
+            reply.raw.end();
+            console.log('Stream completed successfully');
+          } catch (error) {
+            fastify.log.error('Stream processing error:', error);
+            reply.raw.end();
+          }
+        })();
+
+        return;
       } catch (error) {
         fastify.log.error('Ollama Vercel streaming error:', error);
         return reply.code(500).send({
