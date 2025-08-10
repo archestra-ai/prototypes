@@ -1,4 +1,12 @@
-import { convertToModelMessages, stepCountIs, streamText } from 'ai';
+import {
+  UIMessage,
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  readUIMessageStream,
+  stepCountIs,
+  streamText,
+} from 'ai';
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { createOllama } from 'ollama-ai-provider-v2';
 
@@ -46,44 +54,71 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
         // Use MCP tools if available
         const tools = mcpTools || {};
 
-        // Create the stream with Vercel AI SDK
-        const result = streamText({
-          model: ollamaProvider(model),
-          messages: convertToModelMessages(messages),
-          tools: Object.keys(tools).length > 0 ? tools : undefined,
-          // Optional: Enable thinking mode for supported models
-          providerOptions: {
-            ollama: {
-              think: false, // Can be enabled for models that support thinking
-            },
+        const stream = createUIMessageStream<UIMessage>({
+          execute: ({ writer }) => {
+            // Create the stream with Vercel AI SDK
+            const result = streamText({
+              model: ollamaProvider(model),
+              messages: convertToModelMessages(messages),
+              tools: Object.keys(tools).length > 0 ? tools : undefined,
+              // Optional: Enable thinking mode for supported models
+              providerOptions: {
+                ollama: {
+                  think: false, // Can be enabled for models that support thinking
+                },
+              },
+              // onChunk: ({ chunk }) => {
+              //   console.log('onChunk received:', chunk);
+              // },
+              // onError: (error) => {
+              //   console.log('onError received:', error);
+              // },
+            } as any);
+
+            (async () => {
+              for await (const uiMessage of result.toUIMessageStream()) {
+                console.log('HIHIHI');
+                uiMessage.parts.forEach((part) => {
+                  console.log('OKOKOK');
+                  console.log(part);
+                });
+              }
+            })();
+
+            console.log('LOLOOL');
+            console.log(result.toUIMessageStream());
+
+            // Log the raw stream chunks
+            (async () => {
+              try {
+                // Try logging from fullStream with JSON.stringify
+                for await (const chunk of result.fullStream) {
+                  console.log('Chunk:', chunk);
+                }
+                fastify.log.info('Stream completed');
+              } catch (error) {
+                fastify.log.error('Stream logging error:', error);
+              }
+            })();
+
+            // writer.merge(result.toUIMessageStream());
           },
-        } as any);
+        });
 
-        // Log the raw stream chunks
-        (async () => {
-          try {
-            // Try logging from fullStream with JSON.stringify
-            for await (const chunk of result.fullStream) {
-              console.log('Chunk:', chunk);
-            }
-            fastify.log.info('Stream completed');
-          } catch (error) {
-            fastify.log.error('Stream logging error:', error);
-          }
-        })();
-
-        // Also try to log the final result
-        result.text
-          .then((text) => {
-            fastify.log.info(`Final Ollama response: "${text}"`);
-          })
-          .catch((err) => {
-            fastify.log.error('Error getting final text:', err);
-          });
+        // // Also try to log the final result
+        // result.text
+        //   .then((text) => {
+        //     fastify.log.info(`Final Ollama response: "${text}"`);
+        //   })
+        //   .catch((err) => {
+        //     fastify.log.error('Error getting final text:', err);
+        //   });
+        //
+        return reply.send('hi');
 
         // Return UI-compatible stream response
         return reply.send(
-          'Hi'
+          createUIMessageStreamResponse({ stream })
           // result.toUIMessageStreamResponse({
           //   originalMessages: messages,
           //   onFinish: ({ messages: finalMessages, text, toolCalls, usage }) => {
