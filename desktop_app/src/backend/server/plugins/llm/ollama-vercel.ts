@@ -66,25 +66,19 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
               think: false, // Can be enabled for models that support thinking
             },
           },
-          // onChunk: ({ chunk }) => {
-          //   console.log('onChunk received:', chunk);
-          // },
-          // onError: (error) => {
-          //   console.log('onError received:', error);
-          // },
-          // onFinish: ({ messages: finalMessages }) => {
-          //   // Save messages when streaming completes
-          //   if (sessionId) {
-          //     Chat.saveMessages(sessionId, finalMessages).catch((error) => {
-          //       fastify.log.error('Failed to save messages:', error);
-          //     });
-          //   }
-          //   fastify.log.info('Ollama response completed:', {
-          //     model,
-          //     sessionId,
-          //     messagesCount: finalMessages.length,
-          //   });
-          // },
+          onFinish: ({ messages: finalMessages }) => {
+            // Save messages when streaming completes
+            if (sessionId) {
+              Chat.saveMessages(sessionId, finalMessages).catch((error) => {
+                fastify.log.error('Failed to save messages:', error);
+              });
+            }
+            fastify.log.info('Ollama response completed:', {
+              model,
+              sessionId,
+              messagesCount: finalMessages.length,
+            });
+          },
         } as any);
 
         // Get the UI message stream response
@@ -92,7 +86,11 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
           originalMessages: messages,
         });
 
-        // Create a transform stream to filter out error chunks
+        // Create a transform stream to filter out error chunks and inject text-start
+        let hasSeenStartStep = false;
+        let hasInjectedTextStart = false;
+        let messageId: string | null = null;
+
         const filterTransform = new TransformStream({
           transform(chunk, controller) {
             const chunkStr = new TextDecoder().decode(chunk);
@@ -105,6 +103,20 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
               if (line.startsWith('data: ')) {
                 try {
                   const data = JSON.parse(line.slice(6));
+
+                  // Track when we see start-step
+                  if (data.type === 'start-step') {
+                    hasSeenStartStep = true;
+                  }
+
+                  // Inject text-start before first text-delta
+                  if (data.type === 'text-delta' && hasSeenStartStep && !hasInjectedTextStart) {
+                    messageId = data.id || generateId();
+                    const textStartEvent = `data: {"type":"text-start","id":"${messageId}"}\n\n`;
+                    controller.enqueue(new TextEncoder().encode(textStartEvent));
+                    hasInjectedTextStart = true;
+                  }
+
                   // Filter out "text part not found" errors
                   if (
                     data.type === 'error' &&
