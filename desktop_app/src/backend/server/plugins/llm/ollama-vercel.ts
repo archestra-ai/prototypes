@@ -39,6 +39,21 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.log.info(`MCP tools already available with ${Object.keys(mcpTools).length} tools`);
   }
 
+  // Add test endpoint for MCP status with Ollama
+  fastify.get('/api/llm/ollama-vercel/mcp-status', async (request, reply) => {
+    return reply.send({
+      connected: mcpTools !== null,
+      toolCount: mcpTools ? Object.keys(mcpTools).length : 0,
+      tools: mcpTools
+        ? Object.entries(mcpTools).map(([name, tool]) => ({
+            name,
+            description: (tool as any).description,
+          }))
+        : [],
+      ollamaHost: OLLAMA_HOST,
+    });
+  });
+
   fastify.post<{ Body: StreamRequestBody }>(
     '/api/llm/ollama-vercel/stream',
     {
@@ -60,26 +75,59 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
           model: ollamaProvider(model),
           messages: convertToModelMessages(messages),
           tools: Object.keys(tools).length > 0 ? tools : undefined,
+          maxSteps: 5, // Allow multiple tool calls
+          stopWhen: stepCountIs(5),
           // Optional: Enable thinking mode for supported models
           providerOptions: {
             ollama: {
               think: false, // Can be enabled for models that support thinking
             },
           },
-          onFinish: ({ messages: finalMessages }) => {
-            // Save messages when streaming completes
-            if (sessionId) {
-              Chat.saveMessages(sessionId, finalMessages).catch((error) => {
-                fastify.log.error('Failed to save messages:', error);
-              });
-            }
-            fastify.log.info('Ollama response completed:', {
-              model,
-              sessionId,
-              messagesCount: finalMessages.length,
-            });
-          },
+          // onFinish: ({ messages: finalMessages }) => {
+          //   // Save messages when streaming completes
+          //   if (sessionId) {
+          //     Chat.saveMessages(sessionId, finalMessages).catch((error) => {
+          //       fastify.log.error('Failed to save messages:', error);
+          //     });
+          //   }
+          //   fastify.log.info('Ollama response completed:', {
+          //     model,
+          //     sessionId,
+          //     messagesCount: finalMessages.length,
+          //   });
+          // },
         } as any);
+
+        return reply.send(result.toUIMessageStreamResponse());
+
+        // Log each chunk from the full stream
+        (async () => {
+          try {
+            for await (const chunk of result.fullStream) {
+              // Log different chunk types with appropriate details
+              if (chunk.type === 'text-delta') {
+                fastify.log.info(`Stream chunk [${chunk.type}]:`, {
+                  textDelta: chunk.textDelta,
+                });
+              } else if (chunk.type === 'tool-call') {
+                fastify.log.info(`Stream chunk [${chunk.type}]:`, {
+                  toolName: chunk.toolName,
+                  args: chunk.args,
+                });
+              } else if (chunk.type === 'tool-result') {
+                fastify.log.info(`Stream chunk [${chunk.type}]:`, {
+                  toolName: chunk.toolName,
+                  result: chunk.result,
+                });
+              } else {
+                fastify.log.info(`Stream chunk [${chunk.type}]:`, chunk);
+              }
+            }
+            fastify.log.info('Stream completed - all chunks processed');
+          } catch (error) {
+            fastify.log.error('Error logging stream chunks:', error);
+          }
+        })();
 
         // Get the UI message stream response
         const response = result.toUIMessageStreamResponse({
