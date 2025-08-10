@@ -87,10 +87,14 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
                     console.log('Filtered out error chunk:', chunk);
                   }
                 },
+                flush(controller) {
+                  // Ensure the stream is properly closed
+                  controller.terminate();
+                },
               })
             );
 
-            writer.merge(filteredStream);
+            await writer.merge(filteredStream);
           },
         });
 
