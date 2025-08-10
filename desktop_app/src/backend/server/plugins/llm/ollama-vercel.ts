@@ -3,7 +3,6 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  generateId,
   readUIMessageStream,
   stepCountIs,
   streamText,
@@ -14,6 +13,7 @@ import { createOllama } from 'ollama-ai-provider-v2';
 import Chat from '@backend/models/chat';
 
 import { initMCP, mcpTools } from './index';
+import { createOllamaCustomTransformer } from './ollama-custom-transformer';
 
 interface StreamRequestBody {
   model: string;
@@ -86,62 +86,8 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
           originalMessages: messages,
         });
 
-        // Create a transform stream to filter out error chunks and inject text-start
-        let hasSeenStartStep = false;
-        let hasInjectedTextStart = false;
-        let messageId: string | null = null;
-
-        const filterTransform = new TransformStream({
-          transform(chunk, controller) {
-            const chunkStr = new TextDecoder().decode(chunk);
-
-            // Split by newlines to handle multiple SSE messages
-            const lines = chunkStr.split('\n');
-            let filteredChunk = '';
-
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const data = JSON.parse(line.slice(6));
-
-                  // Track when we see start-step
-                  if (data.type === 'start-step') {
-                    hasSeenStartStep = true;
-                  }
-
-                  // Inject text-start before first text-delta
-                  if (data.type === 'text-delta' && hasSeenStartStep && !hasInjectedTextStart) {
-                    messageId = data.id || generateId();
-                    const textStartEvent = `data: {"type":"text-start","id":"${messageId}"}\n\n`;
-                    controller.enqueue(new TextEncoder().encode(textStartEvent));
-                    hasInjectedTextStart = true;
-                  }
-
-                  // Filter out "text part not found" errors
-                  if (
-                    data.type === 'error' &&
-                    data.errorText?.includes('text part') &&
-                    data.errorText?.includes('not found')
-                  ) {
-                    fastify.log.debug('Filtering out text part not found error');
-                    continue;
-                  }
-                } catch (e) {
-                  // Not JSON or couldn't parse, keep the line (includes [DONE])
-                }
-              }
-              filteredChunk += line + '\n';
-            }
-
-            if (filteredChunk.trim()) {
-              controller.enqueue(new TextEncoder().encode(filteredChunk));
-            }
-          },
-          flush(controller) {
-            // Ensure we send the final [DONE] message if it's not already sent
-            controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
-          },
-        });
+        // Apply our custom transformer to fix Ollama-specific issues
+        const filterTransform = createOllamaCustomTransformer();
 
         // Pipe the response through the filter
         const filteredResponse = new Response(response.body?.pipeThrough(filterTransform), {
