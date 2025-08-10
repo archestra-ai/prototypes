@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
-import { createChat, deleteChat, getChatById, getChats, updateChat } from '@clients/archestra/api/gen';
 import config from '@ui/config';
+import { createChat, deleteChat, getChatById, getChats, updateChat } from '@ui/lib/clients/archestra/api/gen';
 import { initializeChat } from '@ui/lib/utils/chat';
 import { websocketService } from '@ui/lib/websocket';
 import { type ChatWithMessages } from '@ui/types';

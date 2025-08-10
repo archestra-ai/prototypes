@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 export default defineConfig({
   input: 'https://storage.googleapis.com/libpod-master-releases/swagger-latest.yaml',
   output: {
-    path: path.join(__dirname, '../../src/clients/libpod/gen'),
+    path: path.join(__dirname, '../../src/backend/clients/libpod/gen'),
     clean: true,
     format: 'prettier',
     indexFile: true,
@@ -23,7 +23,7 @@ export default defineConfig({
   plugins: [
     {
       name: '@hey-api/client-fetch',
-      runtimeConfigPath: '../../src/clients/libpod/client.ts',
+      runtimeConfigPath: '../../src/backend/clients/libpod/client.ts',
     },
   ],
 });

@@ -1,4 +1,4 @@
-import { type GetMcpRequestLogsData } from '@clients/archestra/api/gen';
+import { type GetMcpRequestLogsData } from '@ui/lib/clients/archestra/api/gen';
 
 /**
  * NOTE: see the comment in desktop_app/src/backend/server/plugins/mcpRequestLog/index.ts

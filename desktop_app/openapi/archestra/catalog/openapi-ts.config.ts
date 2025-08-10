@@ -10,7 +10,7 @@ export default defineConfig({
   // input: 'https://www.archestra.ai/mcp-catalog/api/docs',
   input: 'http://localhost:3000/mcp-catalog/api/docs',
   output: {
-    path: path.join(__dirname, '../../../src/clients/archestra/catalog/gen'),
+    path: path.join(__dirname, '../../../src/ui/lib/clients/archestra/catalog/gen'),
     clean: true,
     format: 'prettier',
     indexFile: true,
@@ -25,7 +25,7 @@ export default defineConfig({
   plugins: [
     {
       name: '@hey-api/client-fetch',
-      runtimeConfigPath: '../../../src/clients/archestra/catalog/client.ts',
+      runtimeConfigPath: '../../../src/ui/lib/clients/archestra/catalog/client.ts',
     },
   ],
 });

@@ -11,7 +11,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@backend': path.resolve(__dirname, './src/backend'),
-      '@clients': path.resolve(__dirname, './src/clients'),
       /**
        * NOTE: don't name this @types, see here for why
        * https://stackoverflow.com/a/77502938

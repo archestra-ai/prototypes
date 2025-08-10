@@ -8,10 +8,11 @@ const HOST = import.meta.env.VITE_HOST || 'localhost';
 const PORT = import.meta.env.VITE_PORT || '5173';
 
 const BASE_URL = `${HOST}:${PORT}`;
+const BASE_URL_WITH_PROTOCOL = `http://${BASE_URL}`;
 
 export default {
   archestra: {
-    apiUrl: `${BASE_URL}/api`,
+    apiUrl: BASE_URL_WITH_PROTOCOL,
     /**
      * NOTE: for mcpUrl and mcpProxyUrl, we NEED to have the protocol specified, otherwise you'll see this
      * (on the browser side of things):
@@ -19,11 +20,12 @@ export default {
      * Fetch API cannot load localhost:5173/mcp. URL scheme "localhost" is not supported.
      *
      */
-    mcpUrl: `http://${BASE_URL}/mcp`,
-    mcpProxyUrl: `http://${BASE_URL}/mcp_proxy`,
+    mcpUrl: `${BASE_URL_WITH_PROTOCOL}/mcp`,
+    mcpProxyUrl: `${BASE_URL_WITH_PROTOCOL}/mcp_proxy`,
     ollamaProxyUrl: `${BASE_URL}/llm/ollama`,
     openaiProxyUrl: `${BASE_URL}/llm/openai`,
     websocketUrl: `ws://${BASE_URL}/ws`,
+    catalogUrl: 'https://www.archestra.ai/mcp-catalog/api',
   },
   chat: {
     defaultTitle: 'New Chat',

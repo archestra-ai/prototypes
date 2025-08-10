@@ -1744,15 +1744,40 @@
       "post": {
         "operationId": "installMcpServer",
         "tags": ["MCP Server"],
-        "description": "Install MCP server from catalog",
+        "description": "Install an MCP server. Either from the catalog, or a customer server",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "properties": {
-                  "catalogName": {
+                  "id": {
                     "type": "string"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "serverConfig": {
+                    "type": "object",
+                    "properties": {
+                      "command": {
+                        "type": "string"
+                      },
+                      "args": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "env": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": ["command"],
+                    "additionalProperties": false
                   },
                   "userConfigValues": {
                     "type": "object",
@@ -1777,7 +1802,7 @@
                     }
                   }
                 },
-                "required": ["catalogName", "userConfigValues"]
+                "required": ["displayName", "serverConfig"]
               }
             }
           },
@@ -1811,23 +1836,6 @@
               }
             }
           },
-          "404": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
           "500": {
             "description": "Default Response",
             "content": {
@@ -1841,63 +1849,6 @@
                   },
                   "required": ["error"],
                   "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/mcp_server/install_custom": {
-      "post": {
-        "operationId": "installCustomMcpServer",
-        "tags": ["MCP Server"],
-        "description": "Install custom MCP server",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string"
-                  },
-                  "serverConfig": {
-                    "type": "object",
-                    "properties": {
-                      "command": {
-                        "type": "string"
-                      },
-                      "args": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "env": {
-                        "type": "object",
-                        "additionalProperties": {
-                          "type": "string"
-                        }
-                      }
-                    },
-                    "required": ["command"],
-                    "additionalProperties": false
-                  }
-                },
-                "required": ["name", "serverConfig"]
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/McpServer"
                 }
               }
             }

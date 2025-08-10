@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
-import { McpServer } from '@clients/archestra/api/gen';
+import { McpServer } from '@ui/lib/clients/archestra/api/gen';
 
 import { type Tool } from './tools';
 

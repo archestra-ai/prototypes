@@ -631,8 +631,16 @@ export type GetMcpServersResponse = GetMcpServersResponses[keyof GetMcpServersRe
 
 export type InstallMcpServerData = {
   body: {
-    catalogName: string;
-    userConfigValues: {
+    id?: string;
+    displayName: string;
+    serverConfig: {
+      command: string;
+      args?: Array<string>;
+      env?: {
+        [key: string]: string;
+      };
+    };
+    userConfigValues?: {
       [key: string]: string | number | boolean | Array<string>;
     };
   };
@@ -646,12 +654,6 @@ export type InstallMcpServerErrors = {
    * Default Response
    */
   400: {
-    error: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
     error: string;
   };
   /**
@@ -672,31 +674,6 @@ export type InstallMcpServerResponses = {
 };
 
 export type InstallMcpServerResponse = InstallMcpServerResponses[keyof InstallMcpServerResponses];
-
-export type InstallCustomMcpServerData = {
-  body: {
-    name: string;
-    serverConfig: {
-      command: string;
-      args?: Array<string>;
-      env?: {
-        [key: string]: string;
-      };
-    };
-  };
-  path?: never;
-  query?: never;
-  url: '/api/mcp_server/install_custom';
-};
-
-export type InstallCustomMcpServerResponses = {
-  /**
-   * Default Response
-   */
-  200: McpServer;
-};
-
-export type InstallCustomMcpServerResponse = InstallCustomMcpServerResponses[keyof InstallCustomMcpServerResponses];
 
 export type UninstallMcpServerData = {
   body?: never;

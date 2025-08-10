@@ -2,7 +2,6 @@ import { Loader2, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { z } from 'zod';
 
-import { installCustomMcpServer } from '@clients/archestra/api/gen';
 import { Button } from '@ui/components/ui/button';
 import {
   Dialog,
@@ -15,6 +14,7 @@ import {
 import { Input } from '@ui/components/ui/input';
 import { Label } from '@ui/components/ui/label';
 import { Textarea } from '@ui/components/ui/textarea';
+import { installMcpServer } from '@ui/lib/clients/archestra/api/gen';
 import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
 
 interface SettingsDialogProps {
@@ -97,9 +97,9 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
       const env = Object.fromEntries(envPairs.map(({ key, value }) => [key, value]));
 
       // Submit to API
-      const { error } = await installCustomMcpServer({
+      const { error } = await installMcpServer({
         body: {
-          name: validated.name,
+          displayName: validated.name,
           serverConfig: {
             command: validated.command,
             args,

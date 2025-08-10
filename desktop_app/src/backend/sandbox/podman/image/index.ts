@@ -1,5 +1,5 @@
+import { imageExistsLibpod, imagePullLibpod } from '@backend/clients/libpod/gen';
 import config from '@backend/config';
-import { imageExistsLibpod, imagePullLibpod } from '@clients/libpod/gen';
 
 export default class PodmanImage {
   private BASE_IMAGE_NAME = config.sandbox.baseDockerImage;

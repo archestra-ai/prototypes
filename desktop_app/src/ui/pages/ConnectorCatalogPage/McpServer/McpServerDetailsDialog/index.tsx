@@ -1,10 +1,10 @@
 import { FileText, GitBranch, Home, Package, Shield } from 'lucide-react';
 
-import { ArchestraMcpServerManifest } from '@clients/archestra/catalog/gen';
 import { Badge } from '@ui/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@ui/components/ui/dialog';
 import { ScrollArea } from '@ui/components/ui/scroll-area';
 import { Separator } from '@ui/components/ui/separator';
+import { ArchestraMcpServerManifest } from '@ui/lib/clients/archestra/catalog/gen';
 
 interface McpServerDetailsDialogProps {
   server: ArchestraMcpServerManifest | null;

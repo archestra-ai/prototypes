@@ -8,7 +8,7 @@ import {
   deleteCloudProvider,
   getAvailableCloudProviders,
   getCloudProviderModels,
-} from '@clients/archestra/api/gen';
+} from '@ui/lib/clients/archestra/api/gen';
 
 interface CloudProvidersStore {
   cloudProviders: CloudProviderWithConfig[];

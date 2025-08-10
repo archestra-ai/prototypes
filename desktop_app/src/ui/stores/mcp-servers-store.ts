@@ -1,31 +1,27 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp';
 import { CallToolRequest, ClientCapabilities } from '@modelcontextprotocol/sdk/types';
+import { v4 as uuidv4 } from 'uuid';
 import { create } from 'zustand';
 
+import config from '@ui/config';
 import {
+  type InstallMcpServerData,
   type McpServer,
   getMcpServers,
   installMcpServer,
   startMcpServerOauth,
   uninstallMcpServer,
-} from '@clients/archestra/api/gen';
+} from '@ui/lib/clients/archestra/api/gen';
 import {
   type ArchestraMcpServerManifest,
   getMcpServerCategories,
   searchMcpServerCatalog,
-} from '@clients/archestra/catalog/gen';
-import config from '@ui/config';
+} from '@ui/lib/clients/archestra/catalog/gen';
 import { getToolsGroupedByServer } from '@ui/lib/utils/mcp-server';
 import { formatToolName } from '@ui/lib/utils/tools';
 import { websocketService } from '@ui/lib/websocket';
-import {
-  ConnectedMcpServer,
-  McpServerStatus,
-  McpServerToolsMap,
-  McpServerUserConfigValues,
-  ToolWithMcpServerInfo,
-} from '@ui/types';
+import { ConnectedMcpServer, McpServerStatus, McpServerToolsMap, ToolWithMcpServerInfo } from '@ui/types';
 
 import { useSandboxStore } from './sandbox-store';
 
@@ -115,10 +111,8 @@ interface McpServersActions {
   setCatalogSearchQuery: (query: string) => void;
   setCatalogSelectedCategory: (category: string) => void;
   resetCatalogSearch: () => void;
-  installMcpServerFromConnectorCatalog: (
-    mcpServer: ArchestraMcpServerManifest,
-    userConfigValues?: McpServerUserConfigValues
-  ) => Promise<void>;
+
+  installMcpServer: (requiresOAuth: boolean, installData: InstallMcpServerData['body']) => Promise<void>;
   uninstallMcpServer: (mcpServerId: string) => Promise<void>;
 
   connectToArchestraMcpServer: () => Promise<void>;
@@ -371,27 +365,27 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
     get().loadConnectorCatalog();
   },
 
-  installMcpServerFromConnectorCatalog: async (
-    { archestra_config, name }: ArchestraMcpServerManifest,
-    userConfigValues?: McpServerUserConfigValues
-  ) => {
+  installMcpServer: async (requiresOAuth: boolean, installData: InstallMcpServerData['body']) => {
+    const { id } = installData;
     try {
       set({
         /**
-         * NOTE: the "name" field is the unique identifier for an MCP server in the catalog
-         * When an mcp server from the catalog is installed (ie. persisted in the database),
-         * the "name" field is what is set as the "id" field
+         * If it is a custom MCP server installation, let's generate a temporary UUID for it
+         * (just for UI purposes of tracking state of "MCP server currently being installed")
          */
-        installingMcpServerId: name,
+        installingMcpServerId: id || uuidv4(),
         errorInstallingMcpServer: null,
       });
 
-      // Check if OAuth is required
-      if (archestra_config.oauth.required) {
+      /**
+       * If OAuth is required for installation of this MCP server, we start the OAuth flow
+       * rather than directly "installing" the MCP server
+       */
+      if (requiresOAuth) {
         try {
           // Start OAuth flow
           const { data } = await startMcpServerOauth({
-            body: { catalogName: name },
+            body: { catalogName: id },
           });
 
           if (data) {
@@ -402,9 +396,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
           set({ errorInstallingMcpServer: error as string });
         }
       } else {
-        await installMcpServer({
-          body: { catalogName: name, userConfigValues },
-        });
+        await installMcpServer({ body: installData });
 
         // Refresh the MCP servers list
         await useMcpServersStore.getState().loadInstalledMcpServers();

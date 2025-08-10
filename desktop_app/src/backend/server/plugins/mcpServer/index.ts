@@ -2,10 +2,9 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import McpServerModel, {
-  McpServerConfigSchema,
   McpServerContainerLogsSchema,
+  McpServerInstallSchema,
   McpServerSchema,
-  McpServerUserConfigValuesSchema,
 } from '@backend/models/mcpServer';
 import { McpServerSandboxManager } from '@backend/sandbox';
 import { ErrorResponseSchema } from '@backend/schemas';
@@ -41,30 +40,22 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
     {
       schema: {
         operationId: 'installMcpServer',
-        description: 'Install MCP server from catalog',
+        description: 'Install an MCP server. Either from the catalog, or a customer server',
         tags: ['MCP Server'],
-        body: z.object({
-          catalogName: z.string(),
-          userConfigValues: McpServerUserConfigValuesSchema,
-        }),
+        body: McpServerInstallSchema,
         response: {
           200: McpServerSchema,
           400: ErrorResponseSchema,
-          404: ErrorResponseSchema,
           500: ErrorResponseSchema,
         },
       },
     },
-    async ({ body: { catalogName, userConfigValues } }, reply) => {
+    async ({ body }, reply) => {
       try {
-        const server = await McpServerModel.saveMcpServerFromCatalog(catalogName, userConfigValues);
+        const server = await McpServerModel.installMcpServer(body);
         return reply.code(200).send(server);
       } catch (error: any) {
-        console.error('Failed to install MCP server from catalog:', error);
-
-        if (error.message?.includes('not found in catalog')) {
-          return reply.code(404).send({ error: error.message });
-        }
+        console.error('Failed to install MCP server:', error);
 
         if (error.message?.includes('already installed')) {
           return reply.code(400).send({ error: error.message });
@@ -72,28 +63,6 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
 
         return reply.code(500).send({ error: 'Internal server error' });
       }
-    }
-  );
-
-  fastify.post(
-    '/api/mcp_server/install_custom',
-    {
-      schema: {
-        operationId: 'installCustomMcpServer',
-        description: 'Install custom MCP server',
-        tags: ['MCP Server'],
-        body: z.object({
-          name: z.string(),
-          serverConfig: McpServerConfigSchema,
-        }),
-        response: {
-          200: McpServerSchema,
-        },
-      },
-    },
-    async ({ body: { name, serverConfig } }, reply) => {
-      const server = await McpServerModel.saveCustomMcpServer(name, serverConfig);
-      return reply.code(200).send(server);
     }
   );
 

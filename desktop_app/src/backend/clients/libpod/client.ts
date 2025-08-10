@@ -5,6 +5,8 @@
  */
 import { Agent, fetch, setGlobalDispatcher } from 'undici';
 
+import config from '@backend/config';
+
 import type { CreateClientConfig } from './gen/client.gen';
 
 /**
@@ -18,8 +20,8 @@ export function setSocketPath(socketPath: string): void {
   setGlobalDispatcher(new Agent({ connect: { socketPath } }));
 }
 
-export const createClientConfig: CreateClientConfig = (config) => ({
-  ...config,
+export const createClientConfig: CreateClientConfig = (clientConfig) => ({
+  ...clientConfig,
   /**
    * this is a workaround to get the client to work with the unix socket path (using undici's fetch)
    * https://heyapi.dev/openapi-ts/clients/fetch#custom-fetch
@@ -40,5 +42,5 @@ export const createClientConfig: CreateClientConfig = (config) => ({
 
     return fetch(url, options) as unknown as Promise<Response>;
   },
-  baseUrl: 'http://d/v5.0.0',
+  baseUrl: config.sandbox.podman.baseUrl,
 });

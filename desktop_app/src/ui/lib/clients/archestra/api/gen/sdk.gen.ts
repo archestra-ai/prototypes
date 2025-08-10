@@ -44,8 +44,6 @@ import type {
   GetSandboxStatusResponses,
   GetSupportedExternalMcpClientsData,
   GetSupportedExternalMcpClientsResponses,
-  InstallCustomMcpServerData,
-  InstallCustomMcpServerResponses,
   InstallMcpServerData,
   InstallMcpServerErrors,
   InstallMcpServerResponses,
@@ -304,29 +302,13 @@ export const getMcpServers = <ThrowOnError extends boolean = false>(
 };
 
 /**
- * Install MCP server from catalog
+ * Install an MCP server. Either from the catalog, or a customer server
  */
 export const installMcpServer = <ThrowOnError extends boolean = false>(
   options: Options<InstallMcpServerData, ThrowOnError>
 ) => {
   return (options.client ?? _heyApiClient).post<InstallMcpServerResponses, InstallMcpServerErrors, ThrowOnError>({
     url: '/api/mcp_server/install',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-};
-
-/**
- * Install custom MCP server
- */
-export const installCustomMcpServer = <ThrowOnError extends boolean = false>(
-  options: Options<InstallCustomMcpServerData, ThrowOnError>
-) => {
-  return (options.client ?? _heyApiClient).post<InstallCustomMcpServerResponses, unknown, ThrowOnError>({
-    url: '/api/mcp_server/install_custom',
     ...options,
     headers: {
       'Content-Type': 'application/json',

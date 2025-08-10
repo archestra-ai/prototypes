@@ -1,9 +1,9 @@
 import { Activity, Calendar, Clock, Server } from 'lucide-react';
 
-import { type McpRequestLog } from '@clients/archestra/api/gen';
 import { Badge } from '@ui/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@ui/components/ui/dialog';
 import { Label } from '@ui/components/ui/label';
+import { type McpRequestLog } from '@ui/lib/clients/archestra/api/gen';
 
 import { formatDuration, formatTimestamp, getStatusColor, getStatusLabel } from '../utils';
 

@@ -1,10 +1,10 @@
 import type { RawReplyDefaultExpression } from 'fastify';
 
+import { setSocketPath } from '@backend/clients/libpod/client';
 import McpServerModel, { type McpServer, type McpServerContainerLogs } from '@backend/models/mcpServer';
 import PodmanContainer from '@backend/sandbox/podman/container';
 import PodmanRuntime from '@backend/sandbox/podman/runtime';
 import websocketService from '@backend/websocket';
-import { setSocketPath } from '@clients/libpod/client';
 
 class McpServerSandboxManager {
   private podmanRuntime: InstanceType<typeof PodmanRuntime>;

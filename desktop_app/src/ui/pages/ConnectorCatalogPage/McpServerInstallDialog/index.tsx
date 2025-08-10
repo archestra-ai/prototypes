@@ -1,7 +1,6 @@
 import { Eye, EyeOff, File, Folder, Info } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { ArchestraMcpServerManifest } from '@clients/archestra/catalog/gen';
 import { Alert, AlertDescription } from '@ui/components/ui/alert';
 import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
@@ -16,6 +15,7 @@ import {
 import { Input } from '@ui/components/ui/input';
 import { Label } from '@ui/components/ui/label';
 import { Switch } from '@ui/components/ui/switch';
+import { ArchestraMcpServerManifest } from '@ui/lib/clients/archestra/catalog/gen';
 import { type McpServerUserConfigValues } from '@ui/types';
 
 interface McpServerInstallDialogProps {

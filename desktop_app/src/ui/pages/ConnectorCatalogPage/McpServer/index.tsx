@@ -16,11 +16,11 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
-import { ArchestraMcpServerManifest } from '@clients/archestra/catalog/gen';
 import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardHeader } from '@ui/components/ui/card';
 import { Separator } from '@ui/components/ui/separator';
+import { ArchestraMcpServerManifest } from '@ui/lib/clients/archestra/catalog/gen';
 import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
 import { useSandboxStore } from '@ui/stores/sandbox-store';
 

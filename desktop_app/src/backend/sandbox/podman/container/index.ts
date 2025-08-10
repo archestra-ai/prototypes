@@ -1,11 +1,7 @@
 import type { RawReplyDefaultExpression } from 'fastify';
 import fs from 'fs';
 import path from 'path';
-import { Transform } from 'stream';
-import { pipeline } from 'stream/promises';
 
-import config from '@backend/config';
-import type { McpServer, McpServerConfig, McpServerUserConfigValues } from '@backend/models/mcpServer';
 import {
   containerCreateLibpod,
   containerExecLibpod,
@@ -14,7 +10,9 @@ import {
   containerStopLibpod,
   containerWaitLibpod,
   execStartLibpod,
-} from '@clients/libpod/gen';
+} from '@backend/clients/libpod/gen';
+import config from '@backend/config';
+import type { McpServer, McpServerConfig, McpServerUserConfigValues } from '@backend/models/mcpServer';
 
 export default class PodmanContainer {
   containerName: string;

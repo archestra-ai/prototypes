@@ -1,4 +1,4 @@
-import type { ChatWithMessages as ServerChatWithMessagesRepresentation } from '@clients/archestra/api/gen';
+import type { ChatWithMessages as ServerChatWithMessagesRepresentation } from '@ui/lib/clients/archestra/api/gen';
 
 import { type ToolCall } from './tools';
 

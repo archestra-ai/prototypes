@@ -25,7 +25,6 @@
     "baseUrl": ".",
     "paths": {
       "@backend/*": ["src/backend/*"],
-      "@clients/*": ["src/clients/*"],
       "@archestra/types": ["src/types"],
       "@ui/*": ["src/ui/*"],
       // https://github.com/langchain-ai/langchainjs/issues/6462#issuecomment-2275810913

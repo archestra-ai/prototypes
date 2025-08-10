@@ -2,8 +2,8 @@ import { AbortableAsyncIterator } from 'ollama';
 import { ChatResponse, ModelResponse, Message as OllamaMessage, Tool as OllamaTool } from 'ollama/browser';
 import { create } from 'zustand';
 
-import { ArchestraOllamaClient } from '@clients/ollama';
 import config from '@ui/config';
+import { ArchestraOllamaClient } from '@ui/lib/clients/ollama';
 import { OllamaLocalStorage } from '@ui/lib/localStorage';
 
 import { AVAILABLE_MODELS } from './available_models';
