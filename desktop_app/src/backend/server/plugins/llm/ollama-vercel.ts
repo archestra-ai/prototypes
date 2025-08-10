@@ -90,6 +90,12 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
         // Hijack the response to handle SSE manually
         reply.hijack();
 
+        // Set CORS headers
+        reply.raw.setHeader('Access-Control-Allow-Origin', '*');
+        reply.raw.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        reply.raw.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
+
         // Set SSE headers
         reply.raw.setHeader('Content-Type', 'text/event-stream');
         reply.raw.setHeader('Cache-Control', 'no-cache');
