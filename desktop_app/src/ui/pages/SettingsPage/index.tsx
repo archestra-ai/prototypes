@@ -3,10 +3,10 @@ import { Server, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@ui/components/ui/tabs';
 import { useMcpServersStore, useSandboxStore } from '@ui/stores';
 
-import ArchestraMcpServer from './ArchestraMcpServer';
+import ArchestraMcpServer from './ArchestraMCPServer';
 import ExternalClients from './ExternalClients';
-import McpRequestLogs from './McpRequestLogs';
-import McpServers from './McpServers';
+import McpRequestLogs from './MCPRequestLogs';
+import McpServers from './MCPServers';
 import { SandboxStartupProgress } from './SandboxStartupProgress';
 
 export default function SettingsPage() {

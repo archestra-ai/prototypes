@@ -71,36 +71,6 @@ export const initializeToolCalls = (toolCalls: ServerToolCallRepresentation[]): 
 export const initializeChat = (chat: ServerChatWithMessagesRepresentation): ChatWithMessages => {
   return {
     ...chat,
-    messages: chat.messages.map((message) => {
-      /**
-       * TODO: message.content can be of the following type:
-       *
-       * (property) content: string | number | boolean | {
-       * [key: string]: unknown;
-       * } | unknown[]
-       *
-       * but parseThinkingContent expects a string, so we should really think carefully about what
-       * we are doing here..
-       */
-      const { thinking, response } = parseThinkingContent(message.content as any);
-
-      return {
-        ...message,
-        /**
-         * TODO: what should this be?👇 message.tool_calls isn't actually a thing, if it's not
-         * then do we actually need to have it on the ChatWithMessages type?
-         *
-         * or if it is, we're not properly typing it (should be typed going into and out of the database, such
-         * that it trickles down into openapi codegen'd types...)
-         */
-        // toolCalls: initializeToolCalls(message.tool_calls || []),
-        toolCalls: [] as ToolCall[],
-        content: response,
-        thinkingContent: thinking,
-        isStreaming: false,
-        isToolExecuting: false,
-        isThinkingStreaming: false,
-      };
-    }),
+    messages: chat.messages.map((message) => message.content as any), // Content is already a UIMessage from the backend
   };
 };

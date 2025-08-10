@@ -201,7 +201,7 @@ export default function McpServerInstallDialog({
                         <Input
                           id={key}
                           type={showValue ? 'text' : 'password'}
-                          placeholder={field.default || `Enter ${field.title || key}`}
+                          placeholder={field.default ? String(field.default) : `Enter ${field.title || key}`}
                           value={(value as string) || ''}
                           onChange={(e) => handleConfigChange(key, e.target.value)}
                           className={`pr-10 ${error ? 'border-destructive' : ''}`}
@@ -308,7 +308,8 @@ export default function McpServerInstallDialog({
                           id={key}
                           placeholder={
                             field.default
-                              ? expandEnvVariables(field.default)
+                              ? // Keep arrays as arrays, convert everything else to string
+                                expandEnvVariables(Array.isArray(field.default) ? field.default : String(field.default))
                               : `Enter ${isDirectory ? 'directory' : 'file'} path${
                                   field.multiple ? 's (comma-separated)' : ''
                                 }`
@@ -341,7 +342,11 @@ export default function McpServerInstallDialog({
                       </div>
                       {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
                       {field.default && (
-                        <p className="text-xs text-muted-foreground">Default: {expandEnvVariables(field.default)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {/* Keep arrays as arrays, convert everything else to string */}
+                          Default:{' '}
+                          {expandEnvVariables(Array.isArray(field.default) ? field.default : String(field.default))}
+                        </p>
                       )}
                       {error && <p className="text-xs text-destructive">{error}</p>}
                     </div>

@@ -1,4 +1,4 @@
-import { generateId } from 'ai';
+import { type DynamicToolUIPart, type TextUIPart, type UIMessage, generateId } from 'ai';
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { Message, Ollama, Tool } from 'ollama';
 
@@ -9,7 +9,7 @@ import { mcpTools as globalMcpTools, initMCP } from './index';
 
 interface StreamRequestBody {
   model: string;
-  messages: Array<any>;
+  messages: UIMessage[];
   sessionId?: string;
 }
 
@@ -85,35 +85,42 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
           fastify.log.warn('No MCP tools available for Ollama');
         }
 
-        // Convert messages to Ollama format with tool calls
-        const ollamaMessages: Message[] = messages.map((msg: any) => {
-          // Extract content from parts array if present
-          let content = msg.content || '';
-          if (!content && msg.parts && Array.isArray(msg.parts)) {
-            const textParts = msg.parts.filter((p: any) => p.type === 'text');
-            content = textParts.map((p: any) => p.text).join('');
+        // Convert UIMessage format to Ollama format
+        const ollamaMessages: Message[] = messages.map((msg: UIMessage) => {
+          // Extract text content from parts array
+          let content = '';
+          const toolCalls: any[] = [];
+
+          if (msg.parts && Array.isArray(msg.parts)) {
+            for (const part of msg.parts) {
+              if (part.type === 'text') {
+                content += (part as TextUIPart).text;
+              } else if (part.type === 'dynamic-tool') {
+                const toolPart = part as DynamicToolUIPart;
+                // Extract tool information from DynamicToolUIPart
+                if (toolPart.state === 'input-available' || toolPart.state === 'output-available') {
+                  toolCalls.push({
+                    id: toolPart.toolCallId,
+                    type: 'function',
+                    function: {
+                      name: toolPart.toolName,
+                      arguments:
+                        typeof toolPart.input === 'string' ? toolPart.input : JSON.stringify(toolPart.input || {}),
+                    },
+                  });
+                }
+              }
+            }
           }
 
           const message: Message = {
             role: msg.role,
-            content: content,
+            content: content || '',
           };
 
-          // Handle tool calls in messages
-          if (msg.toolInvocations && msg.toolInvocations.length > 0) {
-            message.tool_calls = msg.toolInvocations.map((invocation: any) => ({
-              id: invocation.toolCallId,
-              type: 'function',
-              function: {
-                name: invocation.toolName,
-                arguments: JSON.stringify(invocation.args),
-              },
-            }));
-          }
-
-          // Handle tool results
-          if (msg.role === 'tool') {
-            message.role = 'tool';
+          // Add tool calls if present
+          if (toolCalls.length > 0) {
+            message.tool_calls = toolCalls;
           }
 
           return message;
@@ -192,6 +199,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
                   toolCallId,
                   toolName: toolCall.function.name,
                   args: {},
+                  result: null, // Will be populated when tool executes
                 });
               } else if (toolCall.function?.arguments && currentToolCalls.length > 0) {
                 // Continuation of arguments for the last tool call
@@ -252,6 +260,9 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
                   try {
                     const result = await globalMcpTools[toolCall.toolName].execute(args);
 
+                    // Store the result in the tool call
+                    toolCall.result = result;
+
                     // Extract the actual content from the tool result
                     let formattedOutput = '';
                     if (result && result.content && Array.isArray(result.content)) {
@@ -278,6 +289,9 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
                       `data: {"type":"text-delta","id":"${messageId}","delta":"${escapedToolResult}"}\n\n`
                     );
                   } catch (toolError) {
+                    // Store error in tool call
+                    toolCall.error = toolError instanceof Error ? toolError.message : 'Tool execution failed';
+
                     // Send tool error as text message
                     const errorMsg = toolError instanceof Error ? toolError.message : 'Tool execution failed';
                     const errorMessage = `\n\nTool ${toolCall.toolName} failed: ${errorMsg}`;
@@ -322,16 +336,43 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
 
         // Save messages before finishing
         if (sessionId) {
-          const assistantMessage: any = {
+          // Build UIMessage with parts array
+          const parts: Array<TextUIPart | DynamicToolUIPart> = [];
+
+          // Add text content as TextUIPart
+          if (fullContent) {
+            parts.push({
+              type: 'text',
+              text: fullContent,
+            } as TextUIPart);
+          }
+
+          // Add tool calls as DynamicToolUIPart
+          for (const toolCall of currentToolCalls) {
+            const toolPart: DynamicToolUIPart = {
+              type: 'dynamic-tool',
+              toolCallId: toolCall.toolCallId,
+              toolName: toolCall.toolName,
+              input: toolCall.args,
+            } as DynamicToolUIPart;
+
+            // Set state and output based on whether there was an error
+            if (toolCall.error) {
+              (toolPart as any).state = 'output-error';
+              (toolPart as any).errorText = toolCall.error;
+            } else {
+              (toolPart as any).state = 'output-available';
+              (toolPart as any).output = toolCall.result || {};
+            }
+
+            parts.push(toolPart);
+          }
+
+          const assistantMessage: UIMessage = {
             id: messageId,
             role: 'assistant',
-            content: fullContent,
+            parts,
           };
-
-          // Add tool invocations if any
-          if (currentToolCalls.length > 0) {
-            assistantMessage.toolInvocations = currentToolCalls;
-          }
 
           const finalMessages = [...messages, assistantMessage];
           await Chat.saveMessages(sessionId, finalMessages);

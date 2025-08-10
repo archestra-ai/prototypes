@@ -3,6 +3,7 @@ import { DefaultChatTransport } from 'ai';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Skeleton } from '@ui/components/ui/skeleton';
+import config from '@ui/config';
 import { useChatStore, useCloudProvidersStore, useOllamaStore } from '@ui/stores';
 
 import ChatHistory from './ChatHistory';
@@ -27,7 +28,9 @@ export default function ChatPage(_props: ChatPageProps) {
     const isCloudModel = availableCloudProviderModels.some((m) => m.id === selectedModel);
 
     // Use OpenAI endpoint for cloud models, Ollama for local
-    const apiEndpoint = isCloudModel ? '/api/llm/openai/stream' : '/api/llm/ollama/stream';
+    const apiEndpoint = isCloudModel
+      ? `${config.archestra.apiUrl}/llm/openai/stream`
+      : `${config.archestra.apiUrl}/llm/ollama/stream`;
 
     return new DefaultChatTransport({
       api: apiEndpoint,
@@ -35,38 +38,32 @@ export default function ChatPage(_props: ChatPageProps) {
         model: selectedModel || 'llama3.1:8b',
         sessionId: currentChatSessionId,
       },
-      fetch: async (input, init) => {
-        // Override fetch to use the correct backend URL
-        const url = typeof input === 'string' ? input : input.url;
-        /**
-         * TODO: don't hardcode this port, pull from config instead..
-         */
-        const fullUrl = url.startsWith('http') ? url : `http://localhost:54587${url}`;
-        return fetch(fullUrl, init);
-      },
     });
   }, [selectedModel, currentChatSessionId, availableCloudProviderModels]);
 
   const { sendMessage, messages, setMessages, stop, status, error } = useChat({
     id: currentChatSessionId || 'temp-id', // use the provided chat ID or a temp ID
     transport,
-    /**
-     * TODO: we probably need to map our messages to what the ai-sdk expects here
-     */
-    initialMessages: currentChatMessages,
     onFinish: (message) => {
       console.log('Message finished:', message);
     },
     onError: (error) => {
       console.error('Chat error:', error);
     },
-    setMessages: (messages) => {
-      console.log('Setting messages:', messages);
-      setMessages(messages);
-    },
   });
 
   const isLoading = status === 'streaming';
+
+  // Load messages from database when chat changes
+  useEffect(() => {
+    if (currentChatMessages && currentChatMessages.length > 0) {
+      // Messages are already UIMessage type
+      setMessages(currentChatMessages);
+    } else {
+      // Clear messages when no chat or empty chat
+      setMessages([]);
+    }
+  }, [currentChatSessionId]); // Only depend on session ID to avoid infinite loop
 
   // Log messages updates
   useEffect(() => {

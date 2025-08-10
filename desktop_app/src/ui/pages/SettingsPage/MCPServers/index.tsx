@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@ui/components/ui/card
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/components/ui/collapsible';
 import { useMcpServersStore } from '@ui/stores';
 
-import McpServer from './McpServer';
+import McpServer from './MCPServer';
 import SettingsDialog from './SettingsDialog';
 
 interface McpServersProps {}

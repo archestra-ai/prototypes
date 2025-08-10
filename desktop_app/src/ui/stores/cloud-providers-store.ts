@@ -43,11 +43,13 @@ export const useCloudProvidersStore = create<CloudProvidersStore>((set, get) => 
   configureCloudProvider: async (type: SupportedCloudProviders, apiKey: string) => {
     await configureCloudProvider({ body: { type, apiKey } });
     await get().loadCloudProviders();
+    await get().getAvailableCloudProviderModels();
   },
 
   deleteCloudProvider: async (type: SupportedCloudProviders) => {
     await deleteCloudProvider({ path: { type } });
     await get().loadCloudProviders();
+    await get().getAvailableCloudProviderModels();
   },
 
   getAvailableCloudProviderModels: async () => {

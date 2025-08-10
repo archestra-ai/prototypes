@@ -27,7 +27,7 @@ export async function initMCP() {
      * TODO: fix type error here...
      */
     mcpClient = await experimental_createMCPClient({
-      transport,
+      transport: transport as any, // Will be replaced by real MCP integration
     });
 
     // Get available tools from MCP server

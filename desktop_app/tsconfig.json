@@ -13,11 +13,11 @@
     "noImplicitAny": true,
     "sourceMap": true,
     "outDir": "dist",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "jsx": "react-jsx",
 
-    "types": ["vitest/globals"],
+    "types": ["vitest/globals", "vite/client"],
 
     /*
      Aliasing (added for shadcn/ui)

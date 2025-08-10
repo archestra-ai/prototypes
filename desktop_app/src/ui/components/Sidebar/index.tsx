@@ -18,7 +18,7 @@ import { NavigationSubViewKey, NavigationViewKey } from '@ui/types';
 
 import ChatSidebarSection from './ChatSidebarSection';
 import LLMProvidersSidebarSection from './LLMProvidersSidebarSection';
-import McpServerWithToolsSidebarSection from './McpServerWithToolsSidebarSection';
+import McpServerWithToolsSidebarSection from './MCPServerWithToolsSidebarSection';
 
 interface SidebarProps extends React.PropsWithChildren {}
 

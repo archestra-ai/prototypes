@@ -1,6 +1,6 @@
-import type { ChatWithMessages as ServerChatWithMessagesRepresentation } from '@ui/lib/clients/archestra/api/gen';
+import { type UIMessage } from 'ai';
 
-import { type ToolCall } from './tools';
+import type { ChatWithMessages as ServerChatWithMessagesRepresentation } from '@ui/lib/clients/archestra/api/gen';
 
 type ServerChatMessageRepresentation = ServerChatWithMessagesRepresentation['messages'][number];
 
@@ -17,22 +17,16 @@ export enum ChatMessageStatus {
   Error = 'error',
 }
 
-export interface ChatMessage extends ServerChatMessageRepresentation {
+export interface ChatWithMessages {
+  id: number;
+  sessionId: string;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
   /**
-   * toolCalls is a superset of the tool_calls field in the backend API
+   * messages is UIMessage array from the 'ai' SDK
    */
-  toolCalls: ToolCall[];
-  thinkingContent: string;
-  isStreaming: boolean;
-  isToolExecuting: boolean;
-  isThinkingStreaming: boolean;
-}
-
-export interface ChatWithMessages extends ServerChatWithMessagesRepresentation {
-  /**
-   * messages is a superset of the messages field in the backend API
-   */
-  messages: ChatMessage[];
+  messages: UIMessage[];
 }
 
 export { type ServerChatMessageRepresentation, type ServerChatWithMessagesRepresentation };

@@ -1,79 +1,56 @@
-import { UIMessage } from 'ai';
+import { type DynamicToolUIPart, type TextUIPart, UIMessage } from 'ai';
 
 import ToolInvocation from '@ui/components/ToolInvocation';
 import { AIResponse } from '@ui/components/kibo/ai-response';
+import { ToolCallStatus } from '@ui/types';
 
 interface AssistantMessageProps {
   message: UIMessage;
 }
 
-/**
- * TODO: fix the typing issues in this file (also remove the "any" types)
- */
 export default function AssistantMessage({ message }: AssistantMessageProps) {
-  // Extract text content and dynamic tools from parts
-  let textContent = '';
-  const dynamicTools: any[] = [];
-
-  if (message.content) {
-    textContent = message.content;
-  } else if (message.parts) {
-    message.parts.forEach((part: any) => {
-      if (part.type === 'text') {
-        textContent += part.text;
-      } else if (part.type === 'dynamic-tool') {
-        dynamicTools.push(part);
-      }
-    });
+  if (!message.parts) {
+    return null;
   }
 
-  // Also check for toolInvocations (for backward compatibility)
-  const hasToolInvocations = message.toolInvocations && message.toolInvocations.length > 0;
-  const hasDynamicTools = dynamicTools.length > 0;
+  let accumulatedText = '';
 
   return (
     <div className="relative space-y-2">
-      {/* Display dynamic tools from parts */}
-      {hasDynamicTools && (
-        <div className="space-y-2 mb-3">
-          {dynamicTools.map((tool, index) => (
+      {message.parts.map((part, index) => {
+        if (part.type === 'text') {
+          accumulatedText += (part as TextUIPart).text;
+          // Check if this is the last part or if the next part is not text
+          const isLastOrBeforeTool = index === message.parts!.length - 1 || message.parts![index + 1]?.type !== 'text';
+
+          if (isLastOrBeforeTool && accumulatedText) {
+            const textToRender = accumulatedText;
+            accumulatedText = '';
+            return <AIResponse key={`text-${index}`}>{textToRender}</AIResponse>;
+          }
+          return null;
+        } else if (part.type === 'dynamic-tool') {
+          const tool = part as DynamicToolUIPart;
+          return (
             <ToolInvocation
-              key={tool.toolCallId || index}
+              key={tool.toolCallId || `tool-${index}`}
               toolName={tool.toolName}
-              args={tool.input || tool.args || {}}
-              result={tool.output || tool.result}
+              args={'input' in tool ? tool.input : {}}
+              result={'output' in tool ? tool.output : undefined}
               state={
                 tool.state === 'output-available'
-                  ? 'completed'
+                  ? ToolCallStatus.Completed
                   : tool.state === 'output-error'
-                    ? 'error'
+                    ? ToolCallStatus.Error
                     : tool.state === 'input-streaming'
-                      ? 'pending'
-                      : 'pending'
+                      ? ToolCallStatus.Pending
+                      : ToolCallStatus.Pending
               }
-              startTime={tool.startTime}
-              endTime={tool.endTime}
             />
-          ))}
-        </div>
-      )}
-
-      {/* Display tool invocations (fallback) */}
-      {!hasDynamicTools && hasToolInvocations && (
-        <div className="space-y-2 mb-3">
-          {message.toolInvocations.map((tool: any, index: number) => (
-            <ToolInvocation
-              key={tool.toolCallId || index}
-              toolName={tool.toolName}
-              args={tool.args}
-              result={tool.result}
-              state={tool.state || (tool.result ? 'completed' : 'pending')}
-            />
-          ))}
-        </div>
-      )}
-
-      {textContent && <AIResponse>{textContent}</AIResponse>}
+          );
+        }
+        return null;
+      })}
     </div>
   );
 }

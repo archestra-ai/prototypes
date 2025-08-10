@@ -56,12 +56,7 @@ export type ChatWithMessagesInput = {
     id: string;
     chatId: number;
     role: 'user' | 'assistant' | 'system';
-    content:
-      | (string | number | boolean | null)
-      | {
-          [key: string]: unknown;
-        }
-      | Array<unknown>;
+    content: unknown;
     createdAt: string;
   }>;
 };
@@ -218,12 +213,7 @@ export type ChatWithMessages = {
     id: string;
     chatId: number;
     role: 'user' | 'assistant' | 'system';
-    content:
-      | (string | number | boolean | null)
-      | {
-          [key: string]: unknown;
-        }
-      | Array<unknown>;
+    content: unknown;
     createdAt: string;
   }>;
 };

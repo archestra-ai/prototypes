@@ -1,4 +1,4 @@
-import { UIMessage } from 'ai';
+import { type TextUIPart, UIMessage } from 'ai';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ScrollArea } from '@ui/components/ui/scroll-area';
@@ -53,13 +53,17 @@ export default function ChatHistory({ messages }: ChatHistoryProps) {
   useEffect(() => {
     console.log('ChatHistory received messages:', messages);
     messages.forEach((msg, idx) => {
-      /**
-       * TODO: apparently content and toolInvocations are not typed correctly here..
-       */
+      // UIMessage in ai SDK v5 uses parts array instead of content/toolInvocations
+      const textContent = msg.parts
+        ?.filter((part) => part.type === 'text')
+        .map((part) => (part as TextUIPart).text)
+        .join('');
+      const toolParts = msg.parts?.filter((part) => part.type === 'dynamic-tool');
+
       console.log(`Message ${idx}:`, {
         role: msg.role,
-        content: msg.content,
-        toolInvocations: msg.toolInvocations,
+        textContent,
+        toolParts,
       });
     });
   }, [messages]);

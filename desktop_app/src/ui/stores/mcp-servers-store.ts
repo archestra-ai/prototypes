@@ -1,6 +1,6 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp';
-import { ClientCapabilities } from '@modelcontextprotocol/sdk/types';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { ClientCapabilities, Tool } from '@modelcontextprotocol/sdk/types.js';
 import { v4 as uuidv4 } from 'uuid';
 import { create } from 'zustand';
 
@@ -82,7 +82,7 @@ const initializeConnectedMcpServerTools = async (
   server: ConnectedMcpServer
 ): Promise<ToolWithMcpServerInfo[]> => {
   const { tools } = await client.listTools();
-  return tools.map((tool) => ({
+  return tools.map((tool: Tool) => ({
     ...tool,
     server: {
       id: server.id,

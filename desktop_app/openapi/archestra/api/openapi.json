@@ -219,35 +219,7 @@
                   "type": "string",
                   "enum": ["user", "assistant", "system"]
                 },
-                "content": {
-                  "anyOf": [
-                    {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "number"
-                        },
-                        {
-                          "type": "boolean"
-                        },
-                        {
-                          "nullable": true,
-                          "enum": [null]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "object",
-                      "additionalProperties": {}
-                    },
-                    {
-                      "type": "array",
-                      "items": {}
-                    }
-                  ]
-                },
+                "content": {},
                 "createdAt": {
                   "type": "string"
                 }
@@ -877,35 +849,7 @@
                   "type": "string",
                   "enum": ["user", "assistant", "system"]
                 },
-                "content": {
-                  "anyOf": [
-                    {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "number"
-                        },
-                        {
-                          "type": "boolean"
-                        },
-                        {
-                          "nullable": true,
-                          "enum": [null]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "object",
-                      "additionalProperties": {}
-                    },
-                    {
-                      "type": "array",
-                      "items": {}
-                    }
-                  ]
-                },
+                "content": {},
                 "createdAt": {
                   "type": "string"
                 }
