@@ -402,7 +402,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
           set({ errorInstallingMcpServer: error as string });
         }
       } else {
-        const { data } = await installMcpServer({
+        await installMcpServer({
           body: { catalogName: name, userConfigValues },
         });
 

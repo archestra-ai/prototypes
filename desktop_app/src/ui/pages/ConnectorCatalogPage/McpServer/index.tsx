@@ -6,6 +6,7 @@ import {
   GitFork,
   Globe,
   Info,
+  Loader2,
   MessageSquare,
   Package,
   Search,
@@ -21,6 +22,7 @@ import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardHeader } from '@ui/components/ui/card';
 import { Separator } from '@ui/components/ui/separator';
 import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
+import { useSandboxStore } from '@ui/stores/sandbox-store';
 
 import McpServerDetailsDialog from './McpServerDetailsDialog';
 
@@ -33,6 +35,7 @@ interface McpServerProps {
 export default function McpServer({ server, onInstallClick, onUninstallClick }: McpServerProps) {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const { installedMcpServers, installingMcpServerId, uninstallingMcpServerId } = useMcpServersStore();
+  const { isInitialized } = useSandboxStore();
 
   const {
     name,
@@ -117,7 +120,7 @@ export default function McpServer({ server, onInstallClick, onUninstallClick }: 
                 size="sm"
                 variant="ghost"
                 onClick={() => setDetailsDialogOpen(true)}
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 cursor-pointer"
                 title="View details"
               >
                 <Info className="h-4 w-4" />
@@ -197,13 +200,18 @@ export default function McpServer({ server, onInstallClick, onUninstallClick }: 
           <div className="flex justify-between items-center">
             <div className="text-xs text-muted-foreground">v{server.version}</div>
             <div>
-              {isInstalled ? (
+              {!isInitialized ? (
+                <Button size="sm" variant="ghost" disabled>
+                  <Loader2 className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                  Sandbox Initializing...
+                </Button>
+              ) : isInstalled ? (
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => onUninstallClick(name)}
                   disabled={isUninstalling}
-                  className="text-destructive hover:text-destructive"
+                  className="text-destructive hover:text-destructive cursor-pointer"
                 >
                   {isUninstalling ? (
                     <>
@@ -215,7 +223,12 @@ export default function McpServer({ server, onInstallClick, onUninstallClick }: 
                   )}
                 </Button>
               ) : (
-                <Button size="sm" onClick={() => onInstallClick(server)} disabled={isInstalling}>
+                <Button
+                  size="sm"
+                  onClick={() => onInstallClick(server)}
+                  disabled={isInstalling}
+                  className="cursor-pointer"
+                >
                   {isInstalling ? (
                     <>
                       <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />

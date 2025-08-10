@@ -148,7 +148,7 @@ export default function ModelsCatalog({}: ModelsCatalogProps) {
                               variant={isInstalled ? 'secondary' : 'default'}
                               disabled={isDownloading}
                               onClick={() => downloadModel(fullModelName)}
-                              className="h-8 px-3"
+                              className="h-8 px-3 cursor-pointer"
                             >
                               {isDownloading ? (
                                 <div className="flex items-center gap-1">

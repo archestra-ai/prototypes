@@ -29,7 +29,12 @@ export default function CloudProviders() {
                 {provider.configured ? 'Reconfigure' : 'Configure'}
               </Button>
               {provider.configured && (
-                <Button onClick={() => deleteCloudProvider(provider.type)} variant="destructive" size="sm">
+                <Button
+                  className="cursor-pointer"
+                  onClick={() => deleteCloudProvider(provider.type)}
+                  variant="destructive"
+                  size="sm"
+                >
                   Remove
                 </Button>
               )}

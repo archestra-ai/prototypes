@@ -168,13 +168,13 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
 
         // 🎯 Check if container exists BEFORE hijacking! 🎯
         const containerExists = McpServerSandboxManager.checkContainerExists(id);
-        
+
         if (!containerExists) {
           // Container not ready yet, return 404 so UI can retry
           fastify.log.info(`Container ${id} not ready yet, returning 404`);
-          return reply.code(404).send({ 
+          return reply.code(404).send({
             error: 'MCP server container not ready yet',
-            retry: true 
+            retry: true,
           });
         }
 

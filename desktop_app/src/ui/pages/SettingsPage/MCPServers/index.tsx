@@ -24,7 +24,7 @@ export default function McpServers(_props: McpServersProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between p-6">
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="flex-1 justify-between p-0 h-auto">
+            <Button variant="ghost" className="flex-1 justify-between p-0 h-auto cursor-pointer">
               <CardTitle className="flex items-center gap-2">
                 <Server className="h-5 w-5" />
                 MCP Servers & Tools

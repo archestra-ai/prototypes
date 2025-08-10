@@ -6,7 +6,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  input: 'https://www.archestra.ai/mcp-catalog/api/docs',
+  // TODO: uncommment this out when done testing
+  // input: 'https://www.archestra.ai/mcp-catalog/api/docs',
+  input: 'http://localhost:3000/mcp-catalog/api/docs',
   output: {
     path: path.join(__dirname, '../../../src/clients/archestra/catalog/gen'),
     clean: true,

@@ -157,13 +157,13 @@ class McpServerSandboxManager {
     console.log(`🔍 Checking if container exists for MCP server ${mcpServerId}...`);
     console.log(`📋 Available MCP servers:`, Array.from(this.mcpServerIdToPodmanContainerMap.keys()));
     console.log(`📊 Total containers in map: ${this.mcpServerIdToPodmanContainerMap.size}`);
-    
+
     const exists = this.mcpServerIdToPodmanContainerMap.has(mcpServerId);
     console.log(`Container ${mcpServerId} exists: ${exists}`);
-    
+
     // Also log the instance info for debugging
     console.log(`McpServerSandboxManager instance ID: ${this._instanceId}`);
-    
+
     return exists;
   }
 

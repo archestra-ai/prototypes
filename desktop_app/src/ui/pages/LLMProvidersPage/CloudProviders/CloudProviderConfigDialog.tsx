@@ -61,10 +61,10 @@ export default function CloudProviderConfigDialog({ provider, onClose }: CloudPr
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
+            <Button className="cursor-pointer" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!apiKey || loading}>
+            <Button className="cursor-pointer" onClick={handleSave} disabled={!apiKey || loading}>
               {loading ? 'Saving...' : 'Save'}
             </Button>
           </div>

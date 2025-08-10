@@ -211,7 +211,7 @@ export default function McpServerInstallDialog({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent cursor-pointer"
                             onClick={() => toggleSecretVisibility(key)}
                           >
                             {showValue ? (
@@ -329,6 +329,7 @@ export default function McpServerInstallDialog({
                           type="button"
                           variant="outline"
                           size="icon"
+                          className="cursor-pointer"
                           onClick={() =>
                             isDirectory
                               ? handleDirectorySelect(key, field.multiple)
@@ -358,10 +359,10 @@ export default function McpServerInstallDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button className="cursor-pointer" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleInstall} disabled={Object.keys(errors).length > 0}>
+          <Button className="cursor-pointer" onClick={handleInstall} disabled={Object.keys(errors).length > 0}>
             Install
           </Button>
         </DialogFooter>

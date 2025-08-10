@@ -51,6 +51,8 @@ export default class McpServerModel {
     // Fetch the catalog entry using the generated client
     const { data, error } = await getMcpServer({ path: { name: catalogName } });
 
+    console.log('broooooooo', data, error);
+
     if (error) {
       throw new Error(`Failed to fetch catalog entry: ${error}`);
     }

@@ -132,7 +132,7 @@ export default function McpRequestLogs() {
                   variant="outline"
                   size="sm"
                   disabled={isLoading}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 cursor-pointer"
                 >
                   <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                   Refresh
@@ -163,7 +163,7 @@ export default function McpRequestLogs() {
               <div className="flex gap-2">
                 <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="flex items-center gap-2 cursor-pointer">
                       <Trash2 className="h-4 w-4" />
                       Clear All Logs
                     </Button>
@@ -174,10 +174,10 @@ export default function McpRequestLogs() {
                     </DialogHeader>
                     <p>This will remove ALL request logs from the database. This action cannot be undone.</p>
                     <div className="flex gap-2 justify-end">
-                      <Button variant="outline" onClick={() => setShowClearDialog(false)}>
+                      <Button className="cursor-pointer" variant="outline" onClick={() => setShowClearDialog(false)}>
                         Cancel
                       </Button>
-                      <Button variant="destructive" onClick={handleClearLogs}>
+                      <Button className="cursor-pointer" variant="destructive" onClick={handleClearLogs}>
                         Clear Logs
                       </Button>
                     </div>
@@ -263,7 +263,7 @@ export default function McpRequestLogs() {
                             variant="outline"
                             size="sm"
                             onClick={() => setSelectedLogId(log.id)}
-                            className="flex items-center gap-1"
+                            className="flex items-center gap-1 cursor-pointer"
                           >
                             <Eye className="h-3 w-3" />
                             View
@@ -297,6 +297,7 @@ export default function McpRequestLogs() {
 
                 <div className="flex gap-2">
                   <Button
+                    className="cursor-pointer"
                     variant="outline"
                     size="sm"
                     onClick={() => setPage(currentPage - 1)}
@@ -305,6 +306,7 @@ export default function McpRequestLogs() {
                     Previous
                   </Button>
                   <Button
+                    className="cursor-pointer"
                     variant="outline"
                     size="sm"
                     onClick={() => setPage(currentPage + 1)}

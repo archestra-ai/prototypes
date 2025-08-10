@@ -26,7 +26,6 @@
     "paths": {
       "@backend/*": ["src/backend/*"],
       "@clients/*": ["src/clients/*"],
-      "@commonConfig": ["src/config.ts"],
       "@archestra/types": ["src/types"],
       "@ui/*": ["src/ui/*"],
       // https://github.com/langchain-ai/langchainjs/issues/6462#issuecomment-2275810913

@@ -8,7 +8,6 @@ export default defineConfig({
     alias: {
       '@backend': path.resolve(__dirname, './src/backend'),
       '@clients': path.resolve(__dirname, './src/clients'),
-      '@commonConfig': path.resolve(__dirname, './src/config.ts'),
       /**
        * NOTE: don't name this @types, see here for why
        * https://stackoverflow.com/a/77502938

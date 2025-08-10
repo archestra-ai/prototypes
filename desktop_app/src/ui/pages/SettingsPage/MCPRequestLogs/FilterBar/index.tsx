@@ -21,7 +21,7 @@ export default function FilterBar({ filters, onFiltersChange, onReset }: FilterB
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
-        <Button variant="outline" className="w-full justify-between">
+        <Button variant="outline" className="w-full justify-between cursor-pointer">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4" />
             Filters
@@ -82,7 +82,7 @@ export default function FilterBar({ filters, onFiltersChange, onReset }: FilterB
           </div>
         </div>
         <div className="flex gap-2">
-          <Button onClick={onReset} variant="outline" size="sm">
+          <Button className="cursor-pointer" onClick={onReset} variant="outline" size="sm">
             Reset Filters
           </Button>
         </div>
