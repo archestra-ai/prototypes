@@ -53,10 +53,6 @@ export default class PodmanImage {
     }
   }
 
-  /**
-   * TODO: update _baseImagePullPercentage, _baseImagePullMessage, and _baseImagePullError
-   * throughout the base image pull process
-   */
   async pullBaseImage() {
     /**
      * ALWAYS pull to avoid false positives from corrupted storage
@@ -64,14 +60,18 @@ export default class PodmanImage {
      *
      * See https://github.com/containers/podman/issues/14003
      */
-    // const imageExists = await this.checkIfImageExists();
-    // if (imageExists) {
-    //   console.log(`Image ${this.BASE_IMAGE_NAME} already exists`);
-    //   return;
-    // }
     console.log(`Force pulling image ${this.BASE_IMAGE_NAME} to ensure it's available`);
 
+    // Reset state at the beginning
+    this._pullPercentage = 0;
+    this._pullMessage = `Preparing to pull image ${this.BASE_IMAGE_NAME}`;
+    this._pullError = null;
+
     try {
+      // Update state before making the API call
+      this._pullPercentage = 10;
+      this._pullMessage = `Initiating pull for ${this.BASE_IMAGE_NAME}`;
+
       const pullResponse = await imagePullLibpod({
         query: {
           reference: this.BASE_IMAGE_NAME,
@@ -83,9 +83,19 @@ export default class PodmanImage {
       if (pullResponse.response.status === 200) {
         console.log(`Image ${this.BASE_IMAGE_NAME} pull initiated...`);
 
+        // Update progress during pull
+        this._pullPercentage = 50;
+        this._pullMessage = `Downloading ${this.BASE_IMAGE_NAME}`;
+
         // The response contains streaming data - we should check if pull completed
         if (pullResponse.data) {
           console.log(`Image ${this.BASE_IMAGE_NAME} pulled successfully`);
+
+          // Update state on success
+          this._pullPercentage = 100;
+          this._pullMessage = `Successfully pulled ${this.BASE_IMAGE_NAME}`;
+          this._pullError = null;
+
           return;
         }
       } else {
@@ -98,10 +108,22 @@ export default class PodmanImage {
         } catch (e) {
           console.error(`Error pulling image ${this.BASE_IMAGE_NAME}`, pullResponse.response);
         }
+
+        // Update state on error
+        this._pullPercentage = 0;
+        this._pullMessage = null;
+        this._pullError = errorMessage;
+
         throw new Error(errorMessage);
       }
     } catch (error) {
       console.error(`Error pulling image ${this.BASE_IMAGE_NAME}`, error);
+
+      // Update state on catch block error
+      this._pullPercentage = 0;
+      this._pullMessage = null;
+      this._pullError = error instanceof Error ? error.message : `Unknown error pulling image ${this.BASE_IMAGE_NAME}`;
+
       throw error;
     }
   }

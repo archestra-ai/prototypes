@@ -63,7 +63,6 @@ class WebSocketService {
 
     const messageStr = JSON.stringify(message);
     const clientCount = this.wss.clients.size;
-    console.log(`Broadcasting WebSocket message: ${message.type} to ${clientCount} connections`);
 
     let sentCount = 0;
     this.wss.clients.forEach((client) => {

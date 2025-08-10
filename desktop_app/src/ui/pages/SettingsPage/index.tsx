@@ -1,17 +1,15 @@
 import { Server, Users } from 'lucide-react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@ui/components/ui/tabs';
-import { useMcpServersStore, useSandboxStore } from '@ui/stores';
+import { useMcpServersStore } from '@ui/stores';
 
-import ArchestraMcpServer from './ArchestraMCPServer';
+import ArchestraMcpServer from './ArchestraMcpServer';
 import ExternalClients from './ExternalClients';
-import McpRequestLogs from './MCPRequestLogs';
-import McpServers from './MCPServers';
-import { SandboxStartupProgress } from './SandboxStartupProgress';
+import McpRequestLogs from './McpRequestLogs';
+import McpServers from './McpServers';
 
 export default function SettingsPage() {
   const { archestraMcpServer } = useMcpServersStore();
-  const { isRunning: sandboxIsRunning } = useSandboxStore();
   const archestraMcpServerIsLoading = archestraMcpServer === null;
 
   return (
@@ -41,7 +39,7 @@ export default function SettingsPage() {
           ) : (
             <ArchestraMcpServer archestraMcpServer={archestraMcpServer} />
           )}
-          {sandboxIsRunning ? <McpServers /> : <SandboxStartupProgress />}
+          <McpServers />
           <McpRequestLogs />
         </TabsContent>
 

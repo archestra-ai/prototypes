@@ -2,13 +2,15 @@ import { AlertCircle, CheckCircle, Loader2, Wrench } from 'lucide-react';
 
 import { Badge } from '@ui/components/ui/badge';
 import { Card, CardContent } from '@ui/components/ui/card';
+import { Progress } from '@ui/components/ui/progress';
 import { ConnectedMcpServer } from '@ui/types';
 
 interface McpServerProps {
   mcpServer: ConnectedMcpServer;
 }
 
-export default function McpServer({ mcpServer: { name, state, tools, url, error } }: McpServerProps) {
+export default function McpServer({ mcpServer }: McpServerProps) {
+  const { name, state, tools, url, error, startupPercentage, message } = mcpServer;
   const getStateIcon = (state: ConnectedMcpServer['state']) => {
     switch (state) {
       case 'initializing':
@@ -60,6 +62,16 @@ export default function McpServer({ mcpServer: { name, state, tools, url, error 
           </div>
 
           <div className="text-xs text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded">{url}</div>
+
+          {/* Show container status message when initializing */}
+          {state === 'initializing' && message && (
+            <div className="space-y-2">
+              <div className="text-xs text-muted-foreground">{message}</div>
+              {startupPercentage > 0 && startupPercentage < 100 && (
+                <Progress value={startupPercentage} className="h-1" />
+              )}
+            </div>
+          )}
 
           {state === 'error' && error && (
             <div className="text-xs text-red-600 bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded border border-red-200 dark:border-red-800">

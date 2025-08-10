@@ -89,6 +89,12 @@ export default class PodmanContainer {
     this.args = args;
     this.envVars = env;
 
+    // Initialize state
+    this._state = 'not_created';
+    this._startupPercentage = 0;
+    this._statusMessage = 'Container not yet created';
+    this._statusError = null;
+
     // Set up log file path
     const homeDir = process.env.HOME || process.env.USERPROFILE || '';
     const logsDir = path.join(homeDir, 'Desktop', 'archestra', 'logs');
@@ -241,16 +247,30 @@ export default class PodmanContainer {
       `Starting MCP server container ${this.containerName} with command: ${this.command} ${this.args.join(' ')}`
     );
 
+    // Update state to initializing
+    this._state = 'initializing';
+    this._startupPercentage = 10;
+    this._statusMessage = 'Starting MCP server container';
+    this._statusError = null;
+
     try {
       const { response } = await this.startContainer();
 
       if (response.status === 304) {
         console.log(`MCP server container ${this.containerName} is already running.`);
+        // Update state
+        this._state = 'running';
+        this._startupPercentage = 100;
+        this._statusMessage = 'Container is already running';
         // Start streaming logs even if container was already running
         await this.startStreamingLogs();
         return;
       } else if (response.status === 204) {
         console.log(`MCP server container ${this.containerName} started.`);
+        // Update state
+        this._state = 'initializing';
+        this._startupPercentage = 50;
+        this._statusMessage = 'Container started, waiting for health check';
         // Wait for container to be healthy before considering it ready
         await this.waitForHealthy();
         // Start streaming logs for newly started container
@@ -261,8 +281,14 @@ export default class PodmanContainer {
       // If container doesn't exist (404), we'll create it below
       if (error && typeof error === 'object' && 'response' in error && (error as any).response?.status === 404) {
         console.log(`Container ${this.containerName} doesn't exist, will create it...`);
+        this._startupPercentage = 20;
+        this._statusMessage = 'Container does not exist, creating new container';
       } else {
         console.error(`Error starting MCP server container ${this.containerName}`, error);
+        this._state = 'error';
+        this._startupPercentage = 0;
+        this._statusMessage = null;
+        this._statusError = error instanceof Error ? error.message : 'Failed to start container';
         throw error;
       }
     }
@@ -272,6 +298,11 @@ export default class PodmanContainer {
     );
 
     try {
+      // Update state for creation
+      this._state = 'created';
+      this._startupPercentage = 30;
+      this._statusMessage = 'Creating container';
+
       const response = await containerCreateLibpod({
         body: {
           name: this.containerName,
@@ -305,16 +336,37 @@ export default class PodmanContainer {
       }
 
       console.log(`MCP server container ${this.containerName} created with ID: ${response.data.Id}`);
+
+      // Update state
+      this._startupPercentage = 40;
+      this._statusMessage = 'Container created, starting it';
+
       await this.startContainer();
 
       // Wait for container to be healthy
       console.log(`MCP server container ${this.containerName} started, waiting for it to be healthy...`);
+      this._startupPercentage = 60;
+      this._statusMessage = 'Container started, waiting for health check';
+
       await this.waitForHealthy();
 
       // Start streaming logs to file and console
+      this._startupPercentage = 90;
+      this._statusMessage = 'Container healthy, starting log streaming';
+
       await this.startStreamingLogs();
+
+      // Final state
+      this._state = 'running';
+      this._startupPercentage = 100;
+      this._statusMessage = 'Container is running and healthy';
+      this._statusError = null;
     } catch (error) {
       console.error(`Error creating MCP server container ${this.containerName}`, error);
+      this._state = 'error';
+      this._startupPercentage = 0;
+      this._statusMessage = null;
+      this._statusError = error instanceof Error ? error.message : 'Failed to create container';
       throw error;
     }
   }
@@ -338,12 +390,16 @@ export default class PodmanContainer {
 
       if (response.response.status === 200) {
         console.log(`✅ Container ${this.containerName} is healthy!`);
+        this._startupPercentage = 80;
+        this._statusMessage = 'Container is healthy';
         return true;
       }
 
+      this._statusMessage = 'Container health check failed';
       return false;
     } catch (error) {
       console.error(`❌ Error waiting for container ${this.containerName} to be healthy:`, error);
+      this._statusError = error instanceof Error ? error.message : 'Health check failed';
       return false;
     }
   }
@@ -353,6 +409,11 @@ export default class PodmanContainer {
    */
   async stopContainer() {
     console.log(`Stopping MCP server container ${this.containerName}`);
+
+    // Update state
+    this._state = 'stopping';
+    this._statusMessage = 'Stopping container';
+    this._statusError = null;
 
     // Stop streaming logs before stopping container
     this.stopStreamingLogs();
@@ -367,15 +428,27 @@ export default class PodmanContainer {
 
       if (status === 204) {
         console.log(`MCP server container ${this.containerName} stopped`);
+        this._state = 'stopped';
+        this._statusMessage = 'Container stopped successfully';
       } else if (status === 304) {
         console.log(`MCP server container ${this.containerName} already stopped`);
+        this._state = 'stopped';
+        this._statusMessage = 'Container was already stopped';
       } else if (status === 404) {
         console.log(`MCP server container ${this.containerName} not found, already stopped`);
+        this._state = 'not_created';
+        this._statusMessage = 'Container not found';
       } else {
         console.error(`Error stopping MCP server container ${this.containerName}`, response);
+        this._state = 'error';
+        this._statusError = `Unexpected status: ${status}`;
       }
+
+      this._startupPercentage = 0;
     } catch (error) {
       console.error(`Error stopping MCP server container ${this.containerName}`, error);
+      this._state = 'error';
+      this._statusError = error instanceof Error ? error.message : 'Failed to stop container';
       throw error;
     }
   }
@@ -386,6 +459,8 @@ export default class PodmanContainer {
    * MCP servers communicate via stdin/stdout using JSON-RPC protocol.
    * This is a temporary implementation - MCP servers should be running continuously
    * and we should attach to their stdin/stdout, not use exec.
+   *
+   * https://docs.podman.io/en/latest/_static/api.html#tag/exec/operation/ContainerExecLibpod
    */
   async streamToContainer(request: any, responseStream: RawReplyDefaultExpression) {
     console.log(`🔥 Handling MCP request for container ${this.containerName}`, request);
@@ -432,12 +507,14 @@ export default class PodmanContainer {
         },
       });
 
-      if (execResponse.response.status === 201 && execResponse.data?.Id) {
-        console.log(`✅ Exec session created: ${execResponse.data.Id}`);
+      if (execResponse.response.status === 201 && execResponse.data) {
+        // Type assertion since the API returns unknown but we know it has an Id
+        const execData = execResponse.data as { Id: string };
+        console.log(`✅ Exec session created: ${execData.Id}`);
 
         const startResponse = await execStartLibpod({
           path: {
-            id: execResponse.data.Id,
+            id: execData.Id,
           },
           body: {},
         });

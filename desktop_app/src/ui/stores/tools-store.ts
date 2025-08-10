@@ -1,5 +1,5 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index';
-import { CallToolRequest } from '@modelcontextprotocol/sdk/types';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { CallToolRequest } from '@modelcontextprotocol/sdk/types.js';
 import { create } from 'zustand';
 
 import { getToolsGroupedByServer } from '@ui/lib/utils/mcp-server';
