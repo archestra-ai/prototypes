@@ -28,8 +28,7 @@ class WebSocketService {
     console.log(`WebSocket server started on port ${port}`);
 
     this.wss.on('connection', (ws: WebSocket) => {
-      console.log('WebSocket client connected');
-      console.log('Total connections:', this.wss?.clients.size);
+      console.log(`WebSocket client connected. Total connections: ${this.wss?.clients.size}`);
 
       ws.on('message', (data) => {
         try {
@@ -41,8 +40,7 @@ class WebSocketService {
       });
 
       ws.on('close', () => {
-        console.log('WebSocket client disconnected');
-        console.log('Remaining connections:', this.wss?.clients.size);
+        console.log(`WebSocket client disconnected. Remaining connections: ${this.wss?.clients.size}`);
       });
 
       ws.on('error', (error) => {

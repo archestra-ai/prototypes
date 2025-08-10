@@ -20,6 +20,7 @@ type SandboxStore = SandboxState & SandboxActions;
 
 export const useSandboxStore = create<SandboxStore>((set, _get) => ({
   // Initial state
+  isRunning: false,
   statusSummary: {
     status: 'not_installed',
     runtime: {
@@ -33,13 +34,10 @@ export const useSandboxStore = create<SandboxStore>((set, _get) => ({
       },
     },
   },
-  isRunning: false,
 
   _updateStateFromStatusSummary: (payload: SandboxStatusSummaryWebSocketPayload) => {
     const { updateMcpServer } = useMcpServersStore.getState();
     const { containers, ...statusSummary } = payload;
-
-    console.log('🚀 ~ subscribeToWebSocketEvents ~ statusSummary:', payload);
 
     set({
       statusSummary,
