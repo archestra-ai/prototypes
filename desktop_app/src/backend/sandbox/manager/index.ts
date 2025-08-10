@@ -1,10 +1,19 @@
 import type { RawReplyDefaultExpression } from 'fastify';
+import { z } from 'zod';
 
 import { setSocketPath } from '@backend/clients/libpod/client';
 import McpServerModel, { type McpServer, type McpServerContainerLogs } from '@backend/models/mcpServer';
-import PodmanContainer from '@backend/sandbox/podman/container';
-import PodmanRuntime from '@backend/sandbox/podman/runtime';
+import PodmanContainer, { type ContainerStatus, ContainerStatusSchema } from '@backend/sandbox/podman/container';
+import PodmanRuntime, { PodmanMachineStatusSchema } from '@backend/sandbox/podman/runtime';
 import websocketService from '@backend/websocket';
+
+export const SandboxStatusSchema = z.object({
+  isInitialized: z.boolean(),
+  podmanMachineStatus: PodmanMachineStatusSchema,
+  mcpServerContainerStatuses: z.record(z.string(), ContainerStatusSchema),
+});
+
+type SandboxStatus = z.infer<typeof SandboxStatusSchema>;
 
 class McpServerSandboxManager {
   private podmanRuntime: InstanceType<typeof PodmanRuntime>;
@@ -185,14 +194,6 @@ class McpServerSandboxManager {
     await podmanContainer.streamToContainer(request, responseStream);
   }
 
-  getSandboxStatus() {
-    return {
-      isInitialized: this._isInitialized,
-      podmanMachineStatus: this.podmanRuntime.machineStatus,
-      // mcpServersStatus: Record<number, object> - TODO: implement later
-    };
-  }
-
   /**
    * 📖 Get logs for a specific MCP server container
    */
@@ -207,6 +208,29 @@ class McpServerSandboxManager {
       logFilePath: podmanContainer.logFilePath,
     };
   }
+
+  async getSandboxStatus(): Promise<SandboxStatus> {
+    const mcpServersStatusPromises = await Promise.all(
+      Object.entries(this.mcpServerIdToPodmanContainerMap).map(async ([mcpServerId, podmanContainer]) => {
+        const status = await podmanContainer.checkContainerStatus();
+        return { [mcpServerId]: status };
+      })
+    );
+
+    return {
+      isInitialized: this._isInitialized,
+      podmanMachineStatus: this.podmanRuntime.machineStatus,
+      mcpServerContainerStatuses: mcpServersStatusPromises.reduce(
+        (acc, curr) => {
+          acc[curr.mcpServerId] = curr.status;
+          return acc;
+        },
+        {} as Record<string, ContainerStatus>
+      ),
+    };
+  }
 }
 
 export default new McpServerSandboxManager();
+
+export { ContainerStatusSchema };

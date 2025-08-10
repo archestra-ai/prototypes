@@ -1,13 +1,15 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
-import { PodmanMachineStatusSchema } from '@backend/sandbox/podman/runtime';
+import McpServerSandboxManager, { ContainerStatusSchema, SandboxStatusSchema } from '@backend/sandbox/manager';
 
 /**
  * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
  * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
  */
-z.globalRegistry.add(PodmanMachineStatusSchema, { id: 'PodmanMachineStatus' });
+
+z.globalRegistry.add(SandboxStatusSchema, { id: 'SandboxStatus' });
+z.globalRegistry.add(ContainerStatusSchema, { id: 'McpServerContainerStatus' });
 
 const sandboxRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
@@ -18,18 +20,12 @@ const sandboxRoutes: FastifyPluginAsyncZod = async (fastify) => {
         description: 'Get the current status of the sandbox environment',
         tags: ['Sandbox'],
         response: {
-          200: z.object({
-            isInitialized: z.boolean(),
-            podmanMachineStatus: PodmanMachineStatusSchema,
-            // mcpServersStatus: z.record(z.string(), z.object({})), // TODO: implement later
-          }),
+          200: SandboxStatusSchema,
         },
       },
     },
     async (_request, reply) => {
-      // Lazy import to avoid initialization during OpenAPI generation
-      const sandboxManager = (await import('@backend/sandbox/manager')).default;
-      const status = sandboxManager.getSandboxStatus();
+      const status = await McpServerSandboxManager.getSandboxStatus();
       return reply.send(status);
     }
   );

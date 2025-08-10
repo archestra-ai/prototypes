@@ -20,7 +20,6 @@ import {
 } from '@ui/lib/clients/archestra/catalog/gen';
 import { getToolsGroupedByServer } from '@ui/lib/utils/mcp-server';
 import { formatToolName } from '@ui/lib/utils/tools';
-import { websocketService } from '@ui/lib/websocket';
 import { ConnectedMcpServer, McpServerStatus, McpServerToolsMap, ToolWithMcpServerInfo } from '@ui/types';
 
 import { useSandboxStore } from './sandbox-store';
@@ -112,6 +111,7 @@ interface McpServersActions {
   setCatalogSelectedCategory: (category: string) => void;
   resetCatalogSearch: () => void;
 
+  updateMcpServer: (mcpServerId: string, data: Partial<ConnectedMcpServer>) => void;
   installMcpServer: (requiresOAuth: boolean, installData: InstallMcpServerData['body']) => Promise<void>;
   uninstallMcpServer: (mcpServerId: string) => Promise<void>;
 
@@ -365,6 +365,18 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
     get().loadConnectorCatalog();
   },
 
+  updateMcpServer: (mcpServerId: string, data: Partial<ConnectedMcpServer>) => {
+    set((state) => {
+      const server = state.installedMcpServers.find((s) => s.id === mcpServerId);
+      if (server) {
+        return {
+          installedMcpServers: state.installedMcpServers.map((s) => (s.id === mcpServerId ? { ...s, ...data } : s)),
+        };
+      }
+      return state;
+    });
+  },
+
   installMcpServer: async (requiresOAuth: boolean, installData: InstallMcpServerData['body']) => {
     const { id } = installData;
     try {
@@ -513,35 +525,21 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
     const sandboxReady = await waitForSandbox();
 
     if (!sandboxReady) {
-      set((state) => ({
-        installedMcpServers: state.installedMcpServers.map((server) =>
-          server.id === id
-            ? {
-                ...server,
-                client: null,
-                status: McpServerStatus.Error,
-                error: 'Sandbox initialization timeout - Podman runtime not ready',
-              }
-            : server
-        ),
-      }));
+      get().updateMcpServer(id, {
+        client: null,
+        status: McpServerStatus.Error,
+        error: 'Sandbox initialization timeout - Podman runtime not ready',
+      });
       return null;
     }
 
     // 🔥 Sandbox is ready, proceed with connection! 🔥
     if (!url) {
-      set((state) => ({
-        installedMcpServers: state.installedMcpServers.map((server) =>
-          server.id === id
-            ? {
-                ...server,
-                client: null,
-                status: McpServerStatus.Error,
-                error: 'No URL configured',
-              }
-            : server
-        ),
-      }));
+      get().updateMcpServer(id, {
+        client: null,
+        status: McpServerStatus.Error,
+        error: 'No URL configured',
+      });
       return null;
     }
 
@@ -557,19 +555,11 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
       // List available tools
       const tools = await initializeConnectedMcpServerTools(client, mcpServer);
 
-      set(({ installedMcpServers }) => ({
-        installedMcpServers: installedMcpServers.map((server) =>
-          server.id === id
-            ? {
-                ...server,
-                client,
-                tools,
-                status: McpServerStatus.Connected,
-              }
-            : server
-        ),
-      }));
-
+      get().updateMcpServer(id, {
+        client,
+        tools,
+        status: McpServerStatus.Connected,
+      });
       return client;
     } catch (error) {
       // Extract more detailed error information
@@ -581,18 +571,11 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         }
       }
 
-      set((state) => ({
-        installedMcpServers: state.installedMcpServers.map((server) =>
-          server.id === id
-            ? {
-                ...server,
-                client: null,
-                status: McpServerStatus.Error,
-                error: errorMessage,
-              }
-            : server
-        ),
-      }));
+      get().updateMcpServer(id, {
+        client: null,
+        status: McpServerStatus.Error,
+        error: errorMessage,
+      });
       return null;
     }
   },
@@ -678,7 +661,6 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
       loadConnectorCatalogCategories,
     } = get();
 
-    // TODO: uncomment this out once we get /mcp working on the backend
     // Connect to the Archestra MCP server
     connectToArchestraMcpServer();
 
@@ -691,68 +673,69 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
   },
 }));
 
+// TODO: uncomment this out once we have websocket events working
 // WebSocket event subscriptions for MCP server events
-let mcpUnsubscribers: Array<() => void> = [];
+// let mcpUnsubscribers: Array<() => void> = [];
 
-const subscribeToMcpWebSocketEvents = () => {
-  // Cleanup any existing subscriptions
-  mcpUnsubscribers.forEach((unsubscribe) => unsubscribe());
-  mcpUnsubscribers = [];
+// const subscribeToMcpWebSocketEvents = () => {
+//   // Cleanup any existing subscriptions
+//   mcpUnsubscribers.forEach((unsubscribe) => unsubscribe());
+//   mcpUnsubscribers = [];
 
-  // MCP server starting
-  mcpUnsubscribers.push(
-    websocketService.subscribe('sandbox-mcp-server-starting', (message) => {
-      const { serverId } = message.payload;
+//   // MCP server starting
+//   mcpUnsubscribers.push(
+//     websocketService.subscribe('sandbox-mcp-server-starting', (message) => {
+//       const { serverId } = message.payload;
 
-      useMcpServersStore.setState((state) => ({
-        installedMcpServers: state.installedMcpServers.map((server) =>
-          server.id === serverId
-            ? {
-                ...server,
-                status: McpServerStatus.Connecting,
-                error: null,
-              }
-            : server
-        ),
-      }));
-    })
-  );
+//       useMcpServersStore.setState((state) => ({
+//         installedMcpServers: state.installedMcpServers.map((server) =>
+//           server.id === serverId
+//             ? {
+//                 ...server,
+//                 status: McpServerStatus.Connecting,
+//                 error: null,
+//               }
+//             : server
+//         ),
+//       }));
+//     })
+//   );
 
-  // MCP server started successfully
-  mcpUnsubscribers.push(
-    websocketService.subscribe('sandbox-mcp-server-started', (message) => {
-      const { serverId } = message.payload;
+//   // MCP server started successfully
+//   mcpUnsubscribers.push(
+//     websocketService.subscribe('sandbox-mcp-server-started', (message) => {
+//       const { serverId } = message.payload;
 
-      // Server started in sandbox, now connect to it
-      const server = useMcpServersStore.getState().installedMcpServers.find((s) => s.id === serverId);
-      if (server) {
-        useMcpServersStore.getState().connectToMcpServer(server, server.url);
-      }
-    })
-  );
+//       // Server started in sandbox, now connect to it
+//       const server = useMcpServersStore.getState().installedMcpServers.find((s) => s.id === serverId);
+//       if (server) {
+//         useMcpServersStore.getState().connectToMcpServer(server, server.url);
+//       }
+//     })
+//   );
 
-  // MCP server failed to start
-  mcpUnsubscribers.push(
-    websocketService.subscribe('sandbox-mcp-server-failed', (message) => {
-      const { serverId, error } = message.payload;
+//   // MCP server failed to start
+//   mcpUnsubscribers.push(
+//     websocketService.subscribe('sandbox-mcp-server-failed', (message) => {
+//       const { serverId, error } = message.payload;
 
-      useMcpServersStore.setState((state) => ({
-        installedMcpServers: state.installedMcpServers.map((server) =>
-          server.id === serverId
-            ? {
-                ...server,
-                status: McpServerStatus.Error,
-                error: error,
-              }
-            : server
-        ),
-      }));
-    })
-  );
-};
+//       useMcpServersStore.setState((state) => ({
+//         installedMcpServers: state.installedMcpServers.map((server) =>
+//           server.id === serverId
+//             ? {
+//                 ...server,
+//                 status: McpServerStatus.Error,
+//                 error: error,
+//               }
+//             : server
+//         ),
+//       }));
+//     })
+//   );
+// };
 
-// Initialize WebSocket subscriptions when the store is created
-subscribeToMcpWebSocketEvents();
+// // Initialize WebSocket subscriptions when the store is created
+// subscribeToMcpWebSocketEvents();
 
 // Initialize data + connections on store creation
 useMcpServersStore.getState()._init();
@@ -764,7 +747,8 @@ if (typeof window !== 'undefined') {
     store.archestraMcpServer?.client?.close();
     store.installedMcpServers.forEach((server) => server.client?.close());
 
+    // TODO: uncomment this out once we have websocket events working
     // Cleanup WebSocket subscriptions
-    mcpUnsubscribers.forEach((unsubscribe) => unsubscribe());
+    // mcpUnsubscribers.forEach((unsubscribe) => unsubscribe());
   });
 }

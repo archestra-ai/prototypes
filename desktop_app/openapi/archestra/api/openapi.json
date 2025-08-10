@@ -489,9 +489,42 @@
         },
         "required": ["logs", "containerName", "logFilePath"]
       },
-      "PodmanMachineStatusInput": {
-        "type": "string",
-        "enum": ["not_installed", "stopped", "running", "initializing"]
+      "SandboxStatusInput": {
+        "type": "object",
+        "properties": {
+          "isInitialized": {
+            "type": "boolean"
+          },
+          "podmanMachineStatus": {
+            "type": "string",
+            "enum": ["not_installed", "stopped", "running", "initializing"]
+          },
+          "mcpServerContainerStatuses": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/McpServerContainerStatusInput"
+            }
+          }
+        },
+        "required": ["isInitialized", "podmanMachineStatus", "mcpServerContainerStatuses"]
+      },
+      "McpServerContainerStatusInput": {
+        "type": "object",
+        "properties": {
+          "exists": {
+            "type": "boolean"
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string"
+          },
+          "health": {
+            "type": "string"
+          }
+        },
+        "required": ["exists", "running"]
       },
       "ChatWithMessages": {
         "type": "object",
@@ -986,9 +1019,44 @@
         "required": ["logs", "containerName", "logFilePath"],
         "additionalProperties": false
       },
-      "PodmanMachineStatus": {
-        "type": "string",
-        "enum": ["not_installed", "stopped", "running", "initializing"]
+      "SandboxStatus": {
+        "type": "object",
+        "properties": {
+          "isInitialized": {
+            "type": "boolean"
+          },
+          "podmanMachineStatus": {
+            "type": "string",
+            "enum": ["not_installed", "stopped", "running", "initializing"]
+          },
+          "mcpServerContainerStatuses": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/McpServerContainerStatus"
+            }
+          }
+        },
+        "required": ["isInitialized", "podmanMachineStatus", "mcpServerContainerStatuses"],
+        "additionalProperties": false
+      },
+      "McpServerContainerStatus": {
+        "type": "object",
+        "properties": {
+          "exists": {
+            "type": "boolean"
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string"
+          },
+          "health": {
+            "type": "string"
+          }
+        },
+        "required": ["exists", "running"],
+        "additionalProperties": false
       }
     }
   },
@@ -2000,17 +2068,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "isInitialized": {
-                      "type": "boolean"
-                    },
-                    "podmanMachineStatus": {
-                      "$ref": "#/components/schemas/PodmanMachineStatus"
-                    }
-                  },
-                  "required": ["isInitialized", "podmanMachineStatus"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SandboxStatus"
                 }
               }
             }

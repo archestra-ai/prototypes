@@ -40,7 +40,6 @@ export default function McpServer({ server, onInstallClick, onUninstallClick }: 
   const {
     name,
     display_name,
-    server: serverConfig,
     description,
     github_info: gitHubInfo,
     category,

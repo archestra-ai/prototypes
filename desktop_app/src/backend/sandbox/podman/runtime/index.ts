@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import { z } from 'zod';
 
 import PodmanImage from '@backend/sandbox/podman/image';
@@ -73,6 +75,7 @@ export default class PodmanRuntime {
   private ARCHESTRA_MACHINE_NAME = 'archestra-ai-machine';
   private _machineStatus: z.infer<typeof PodmanMachineStatusSchema> = 'not_installed';
 
+  private registryAuthFilePath: string;
   private onMachineInstallationSuccess: () => void = () => {};
   private onMachineInstallationError: (error: Error) => void = () => {};
 
@@ -94,6 +97,28 @@ export default class PodmanRuntime {
   constructor(onMachineInstallationSuccess: () => void, onMachineInstallationError: (error: Error) => void) {
     this.onMachineInstallationSuccess = onMachineInstallationSuccess;
     this.onMachineInstallationError = onMachineInstallationError;
+
+    /*
+     * TODO: Use app.getPath('<thing>') from Electron to get proper directory where to store this sort of config
+     *
+     * Currently we're hardcoding to ~/Desktop/archestra/podman/auth.json because:
+     * - This code runs in the backend Node.js process, not the Electron main process
+     * - app.getPath() is only available in the Electron main process
+     * - We need to either:
+     *   1. Pass the path from the main process when starting the backend server
+     *   2. Use IPC to request the path from the main process
+     *   3. Use an environment variable set by the main process
+     *
+     * For now, using a hardcoded path for simplicity during development.
+     */
+    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+    this.registryAuthFilePath = path.join(homeDir, 'Desktop', 'archestra', 'podman', 'auth.json');
+
+    // https://docs.podman.io/en/v5.2.2/markdown/podman-create.1.html#authfile-path
+    if (!fs.existsSync(this.registryAuthFilePath)) {
+      fs.mkdirSync(path.dirname(this.registryAuthFilePath), { recursive: true });
+      fs.writeFileSync(this.registryAuthFilePath, '{}');
+    }
   }
 
   async pullBaseImageOnMachineInstallationSuccess() {
@@ -139,6 +164,20 @@ export default class PodmanRuntime {
          * https://docs.podman.io/en/stable/markdown/podman.1.html#environment-variables
          */
         CONTAINERS_HELPER_BINARY_DIR: this.gvproxyBinaryDirectory,
+
+        /**
+         * Basically we don't want the podman machine to use the user's docker config (if one exists)
+         *
+         * From the podman docs (https://docs.podman.io/en/v5.2.2/markdown/podman-create.1.html#authfile-path):
+         *
+         * Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json on Linux, and $HOME/.
+         * config/containers/auth.json on Windows/macOS. The file is created by podman login. If the authorization
+         * state is not found there, $HOME/.docker/config.json is checked, which is set using docker login.
+         *
+         * Note: There is also the option to override the default path of the authentication file by setting the
+         * REGISTRY_AUTH_FILE environment variable. This can be done with export REGISTRY_AUTH_FILE=path.
+         */
+        REGISTRY_AUTH_FILE: this.registryAuthFilePath,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });

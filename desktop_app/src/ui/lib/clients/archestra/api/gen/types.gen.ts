@@ -116,7 +116,20 @@ export type McpServerContainerLogsInput = {
   logFilePath: string;
 };
 
-export type PodmanMachineStatusInput = 'not_installed' | 'stopped' | 'running' | 'initializing';
+export type SandboxStatusInput = {
+  isInitialized: boolean;
+  podmanMachineStatus: 'not_installed' | 'stopped' | 'running' | 'initializing';
+  mcpServerContainerStatuses: {
+    [key: string]: McpServerContainerStatusInput;
+  };
+};
+
+export type McpServerContainerStatusInput = {
+  exists: boolean;
+  running: boolean;
+  state?: string;
+  health?: string;
+};
 
 export type ChatWithMessages = {
   id: number;
@@ -234,7 +247,20 @@ export type McpServerContainerLogs = {
   logFilePath: string;
 };
 
-export type PodmanMachineStatus = 'not_installed' | 'stopped' | 'running' | 'initializing';
+export type SandboxStatus = {
+  isInitialized: boolean;
+  podmanMachineStatus: 'not_installed' | 'stopped' | 'running' | 'initializing';
+  mcpServerContainerStatuses: {
+    [key: string]: McpServerContainerStatus;
+  };
+};
+
+export type McpServerContainerStatus = {
+  exists: boolean;
+  running: boolean;
+  state?: string;
+  health?: string;
+};
 
 export type GetChatsData = {
   body?: never;
@@ -757,10 +783,7 @@ export type GetSandboxStatusResponses = {
   /**
    * Default Response
    */
-  200: {
-    isInitialized: boolean;
-    podmanMachineStatus: PodmanMachineStatus;
-  };
+  200: SandboxStatus;
 };
 
 export type GetSandboxStatusResponse = GetSandboxStatusResponses[keyof GetSandboxStatusResponses];
