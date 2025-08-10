@@ -104,7 +104,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
           //   chunking: 'line', // optional: defaults to 'word'
           // }),
           // onError({ error }) {
-          //   console.error(error); // your error logging logic here
           // },
         };
 

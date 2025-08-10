@@ -5,6 +5,7 @@ import { ChildProcess, fork } from 'node:child_process';
 import path from 'node:path';
 
 import { runDatabaseMigrations } from '@backend/database';
+import log from '@backend/utils/logger';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -71,12 +72,12 @@ function startFastifyServer(): void {
 
   // Handle server process errors
   serverProcess.on('error', (error) => {
-    console.error('Server process error:', error);
+    log.error('Server process error:', error);
   });
 
   // Handle server process exit
   serverProcess.on('exit', (code, signal) => {
-    console.log(`Server process exited with code ${code} and signal ${signal}`);
+    log.info(`Server process exited with code ${code} and signal ${signal}`);
     serverProcess = null;
   });
 }
@@ -91,7 +92,7 @@ app.on('ready', async () => {
     const serverPath = path.resolve(__dirname, '.vite/build/server-process.js');
 
     chokidar.watch(serverPath).on('change', () => {
-      console.log('Restarting server..');
+      log.info('Restarting server..');
       startFastifyServer();
     });
   }

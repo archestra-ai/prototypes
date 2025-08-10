@@ -12,11 +12,12 @@ import archestraMcpServerPlugin from '@backend/server/plugins/mcp';
 import mcpRequestLogRoutes from '@backend/server/plugins/mcpRequestLog';
 import mcpServerRoutes from '@backend/server/plugins/mcpServer';
 import ollamaRoutes from '@backend/server/plugins/ollama';
+import log from '@backend/utils/logger';
 
 export const startFastifyServer = async () => {
   const app = fastify({
     logger: {
-      level: 'debug',
+      level: config.logLevel,
       serializers: {
         req: (req) => ({ method: req.method, url: req.url }),
         res: (res) => ({ statusCode: res.statusCode }),
@@ -57,7 +58,7 @@ export const startFastifyServer = async () => {
 
   const { http } = config.server;
 
-  console.log(`Fastify server starting on port ${http.port}`);
+  log.info(`Fastify server starting on port ${http.port}`);
 
   // Start the Fastify server
   try {

@@ -320,7 +320,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
   connectToMcpServer: async (mcpServer: ConnectedMcpServer, url: string) => {
     const { id } = mcpServer;
 
-    // 🎯 For containerized MCP servers, wait for sandbox to be ready! 🎯
+    // For containerized MCP servers, wait for sandbox to be ready!
     const MAX_SANDBOX_WAIT_RETRIES = 60; // 60 seconds total
     const SANDBOX_RETRY_DELAY_MS = 1000;
     let sandboxRetries = 0;
@@ -330,7 +330,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         const { statusSummary } = useSandboxStore.getState();
 
         if (statusSummary.status === 'running') {
-          return true; // 🔥 Sandbox is ready!
+          return true; // Sandbox is ready!
         }
 
         sandboxRetries++;
@@ -338,7 +338,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
           await new Promise((resolve) => setTimeout(resolve, SANDBOX_RETRY_DELAY_MS));
         }
       }
-      return false; // 😢 Timeout
+      return false; // Timeout
     };
 
     const sandboxReady = await waitForSandbox();
@@ -352,7 +352,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
       return null;
     }
 
-    // 🔥 Sandbox is ready, proceed with connection! 🔥
+    // Sandbox is ready, proceed with connection!
     if (!url) {
       get().updateMcpServer(id, {
         client: null,

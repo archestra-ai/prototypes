@@ -14,6 +14,7 @@ import {
 } from '@backend/clients/libpod/gen';
 import config from '@backend/config';
 import type { McpServer, McpServerConfig, McpServerUserConfigValues } from '@backend/models/mcpServer';
+import log from '@backend/utils/logger';
 
 export const PodmanContainerStateSchema = z.enum([
   'not_created',
@@ -110,9 +111,9 @@ export default class PodmanContainer {
   private ensureLogDirectoryExists(logsDir: string) {
     try {
       fs.mkdirSync(logsDir, { recursive: true });
-      console.log(`📁 Ensured log directory exists: ${logsDir}`);
+      log.info(`Ensured log directory exists: ${logsDir}`);
     } catch (error) {
-      console.error(`❌ Failed to create log directory: ${logsDir}`, error);
+      log.error(`Failed to create log directory: ${logsDir}`, error);
     }
   }
 
@@ -121,9 +122,9 @@ export default class PodmanContainer {
       // Create write stream for log file (append mode)
       this.logStream = fs.createWriteStream(this.logFilePath, { flags: 'a' });
       this.logStream.write(`\n=== Container started at ${new Date().toISOString()} ===\n`);
-      console.log(`📝 Started logging to: ${this.logFilePath}`);
+      log.info(`Started logging to: ${this.logFilePath}`);
     } catch (error) {
-      console.error(`❌ Failed to create log file stream:`, error);
+      log.error(`Failed to create log file stream:`, error);
     }
   }
 
@@ -132,21 +133,21 @@ export default class PodmanContainer {
       this.logStream.write(`\n=== Container stopped at ${new Date().toISOString()} ===\n`);
       this.logStream.end();
       this.logStream = null;
-      console.log(`📝 Stopped logging to file`);
+      log.info(`Stopped logging to file`);
     }
   }
 
   /**
-   * 🚀 Start streaming container logs to both console and file
+   * Start streaming container logs to both console and file
    */
   async startStreamingLogs() {
     if (this.isStreamingLogs) {
-      console.log(`📋 Already streaming logs for ${this.containerName}`);
+      log.info(`Already streaming logs for ${this.containerName}`);
       return;
     }
 
     this.isStreamingLogs = true;
-    console.log(`🎬 Starting to stream logs for ${this.containerName}`);
+    log.info(`Starting to stream logs for ${this.containerName}`);
 
     try {
       // Start logging to file
@@ -168,28 +169,28 @@ export default class PodmanContainer {
 
       // TODO: Handle the streaming response
       // The actual implementation will depend on how the libpod client handles streaming
-      console.log(`📊 Container logs streaming started for ${this.containerName}`);
+      log.info(`Container logs streaming started for ${this.containerName}`);
     } catch (error) {
-      console.error(`❌ Failed to start streaming logs:`, error);
+      log.error(`Failed to start streaming logs:`, error);
       this.isStreamingLogs = false;
     }
   }
 
   /**
-   * 🛑 Stop streaming container logs
+   * Stop streaming container logs
    */
   stopStreamingLogs() {
     if (!this.isStreamingLogs) {
       return;
     }
 
-    console.log(`🛑 Stopping log streaming for ${this.containerName}`);
+    log.info(`Stopping log streaming for ${this.containerName}`);
     this.isStreamingLogs = false;
     this.stopLoggingToFile();
   }
 
   /**
-   * 📖 Get recent logs from the log file
+   * Get recent logs from the log file
    */
   async getRecentLogs(lines: number = 100): Promise<string> {
     try {
@@ -204,7 +205,7 @@ export default class PodmanContainer {
       // Return the last N lines
       return logLines.slice(-lines).join('\n');
     } catch (error) {
-      console.error(`❌ Failed to read logs:`, error);
+      log.error(`Failed to read logs:`, error);
       return `Error reading logs: ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
   }
@@ -234,7 +235,7 @@ export default class PodmanContainer {
         },
       });
     } catch (error) {
-      console.error(`Error starting MCP server container ${this.containerName}`, error);
+      log.error(`Error starting MCP server container ${this.containerName}`, error);
       throw error;
     }
   }
@@ -243,7 +244,7 @@ export default class PodmanContainer {
    * https://docs.podman.io/en/latest/_static/api.html#tag/containers/operation/ContainerCreateLibpod
    */
   async startOrCreateContainer() {
-    console.log(
+    log.info(
       `Starting MCP server container ${this.containerName} with command: ${this.command} ${this.args.join(' ')}`
     );
 
@@ -257,20 +258,24 @@ export default class PodmanContainer {
       const { response } = await this.startContainer();
 
       if (response.status === 304) {
-        console.log(`MCP server container ${this.containerName} is already running.`);
+        log.info(`MCP server container ${this.containerName} is already running.`);
+
         // Update state
         this._state = 'running';
         this._startupPercentage = 100;
         this._statusMessage = 'Container is already running';
+
         // Start streaming logs even if container was already running
         await this.startStreamingLogs();
         return;
       } else if (response.status === 204) {
-        console.log(`MCP server container ${this.containerName} started.`);
+        log.info(`MCP server container ${this.containerName} started.`);
+
         // Update state
         this._state = 'initializing';
         this._startupPercentage = 50;
         this._statusMessage = 'Container started, waiting for health check';
+
         // Wait for container to be healthy before considering it ready
         await this.waitForHealthy();
         // Start streaming logs for newly started container
@@ -280,11 +285,11 @@ export default class PodmanContainer {
     } catch (error) {
       // If container doesn't exist (404), we'll create it below
       if (error && typeof error === 'object' && 'response' in error && (error as any).response?.status === 404) {
-        console.log(`Container ${this.containerName} doesn't exist, will create it...`);
+        log.info(`Container ${this.containerName} doesn't exist, will create it...`);
         this._startupPercentage = 20;
         this._statusMessage = 'Container does not exist, creating new container';
       } else {
-        console.error(`Error starting MCP server container ${this.containerName}`, error);
+        log.error(`Error starting MCP server container ${this.containerName}`, error);
         this._state = 'error';
         this._startupPercentage = 0;
         this._statusMessage = null;
@@ -293,7 +298,7 @@ export default class PodmanContainer {
       }
     }
 
-    console.log(
+    log.info(
       `MCP server container ${this.containerName} does not exist, creating it with base image and command: ${this.command} ${this.args.join(' ')}`
     );
 
@@ -335,7 +340,7 @@ export default class PodmanContainer {
         throw new Error('Container created but no ID returned');
       }
 
-      console.log(`MCP server container ${this.containerName} created with ID: ${response.data.Id}`);
+      log.info(`MCP server container ${this.containerName} created with ID: ${response.data.Id}`);
 
       // Update state
       this._startupPercentage = 40;
@@ -344,7 +349,7 @@ export default class PodmanContainer {
       await this.startContainer();
 
       // Wait for container to be healthy
-      console.log(`MCP server container ${this.containerName} started, waiting for it to be healthy...`);
+      log.info(`MCP server container ${this.containerName} started, waiting for it to be healthy...`);
       this._startupPercentage = 60;
       this._statusMessage = 'Container started, waiting for health check';
 
@@ -362,7 +367,7 @@ export default class PodmanContainer {
       this._statusMessage = 'Container is running and healthy';
       this._statusError = null;
     } catch (error) {
-      console.error(`Error creating MCP server container ${this.containerName}`, error);
+      log.error(`Error creating MCP server container ${this.containerName}`, error);
       this._state = 'error';
       this._startupPercentage = 0;
       this._statusMessage = null;
@@ -375,7 +380,7 @@ export default class PodmanContainer {
    * Wait for container to be healthy using Podman's native wait API
    */
   async waitForHealthy(): Promise<boolean> {
-    console.log(`🏥 Waiting for container ${this.containerName} to be healthy...`);
+    log.info(`Waiting for container ${this.containerName} to be healthy...`);
 
     try {
       const response = await containerWaitLibpod({
@@ -389,7 +394,7 @@ export default class PodmanContainer {
       });
 
       if (response.response.status === 200) {
-        console.log(`✅ Container ${this.containerName} is healthy!`);
+        log.info(`Container ${this.containerName} is healthy!`);
         this._startupPercentage = 80;
         this._statusMessage = 'Container is healthy';
         return true;
@@ -398,7 +403,7 @@ export default class PodmanContainer {
       this._statusMessage = 'Container health check failed';
       return false;
     } catch (error) {
-      console.error(`❌ Error waiting for container ${this.containerName} to be healthy:`, error);
+      log.error(`Error waiting for container ${this.containerName} to be healthy:`, error);
       this._statusError = error instanceof Error ? error.message : 'Health check failed';
       return false;
     }
@@ -408,7 +413,7 @@ export default class PodmanContainer {
    * https://docs.podman.io/en/latest/_static/api.html#tag/containers/operation/ContainerStopLibpod
    */
   async stopContainer() {
-    console.log(`Stopping MCP server container ${this.containerName}`);
+    log.info(`Stopping MCP server container ${this.containerName}`);
 
     // Update state
     this._state = 'stopping';
@@ -427,26 +432,26 @@ export default class PodmanContainer {
       const { status } = response;
 
       if (status === 204) {
-        console.log(`MCP server container ${this.containerName} stopped`);
+        log.info(`MCP server container ${this.containerName} stopped`);
         this._state = 'stopped';
         this._statusMessage = 'Container stopped successfully';
       } else if (status === 304) {
-        console.log(`MCP server container ${this.containerName} already stopped`);
+        log.info(`MCP server container ${this.containerName} already stopped`);
         this._state = 'stopped';
         this._statusMessage = 'Container was already stopped';
       } else if (status === 404) {
-        console.log(`MCP server container ${this.containerName} not found, already stopped`);
+        log.info(`MCP server container ${this.containerName} not found, already stopped`);
         this._state = 'not_created';
         this._statusMessage = 'Container not found';
       } else {
-        console.error(`Error stopping MCP server container ${this.containerName}`, response);
+        log.error(`Error stopping MCP server container ${this.containerName}`, response);
         this._state = 'error';
         this._statusError = `Unexpected status: ${status}`;
       }
 
       this._startupPercentage = 0;
     } catch (error) {
-      console.error(`Error stopping MCP server container ${this.containerName}`, error);
+      log.error(`Error stopping MCP server container ${this.containerName}`, error);
       this._state = 'error';
       this._statusError = error instanceof Error ? error.message : 'Failed to stop container';
       throw error;
@@ -454,7 +459,7 @@ export default class PodmanContainer {
   }
 
   /**
-   * 🚀 Stream bidirectional communication with the MCP server container! 🚀
+   * Stream bidirectional communication with the MCP server container!
    *
    * MCP servers communicate via stdin/stdout using JSON-RPC protocol.
    * This is a temporary implementation - MCP servers should be running continuously
@@ -463,7 +468,7 @@ export default class PodmanContainer {
    * https://docs.podman.io/en/latest/_static/api.html#tag/exec/operation/ContainerExecLibpod
    */
   async streamToContainer(request: any, responseStream: RawReplyDefaultExpression) {
-    console.log(`🔥 Handling MCP request for container ${this.containerName}`, request);
+    log.info(`Handling MCP request for container ${this.containerName}`, request);
 
     try {
       /**
@@ -487,7 +492,7 @@ export default class PodmanContainer {
        * For now, we'll use exec to demonstrate the flow
        * In a real implementation, we'd need to maintain a persistent connection
        */
-      console.log(`📋 Creating exec session for container ${this.containerName} (temporary implementation)...`);
+      log.info(`Creating exec session for container ${this.containerName} (temporary implementation)...`);
 
       const execResponse = await containerExecLibpod({
         path: {
@@ -510,7 +515,7 @@ export default class PodmanContainer {
       if (execResponse.response.status === 201 && execResponse.data) {
         // Type assertion since the API returns unknown but we know it has an Id
         const execData = execResponse.data as { Id: string };
-        console.log(`✅ Exec session created: ${execData.Id}`);
+        log.info(`Exec session created: ${execData.Id}`);
 
         const startResponse = await execStartLibpod({
           path: {
@@ -519,7 +524,7 @@ export default class PodmanContainer {
           body: {},
         });
 
-        console.log(`📡 Exec start response status: ${startResponse.response.status}`);
+        log.info(`Exec start response status: ${startResponse.response.status}`);
 
         if (startResponse.response.status === 200) {
           // Send the response back
@@ -544,8 +549,8 @@ export default class PodmanContainer {
         );
       }
     } catch (error) {
-      console.error(`❌ Error communicating with MCP server container ${this.containerName}:`, error);
-      console.error(`Error details:`, {
+      log.error(`Error communicating with MCP server container ${this.containerName}:`, error);
+      log.error(`Error details:`, {
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
         errorType: error?.constructor?.name,
@@ -569,7 +574,7 @@ export default class PodmanContainer {
         );
         responseStream.end();
       } catch (writeError) {
-        console.error(`❌ Failed to write error response:`, writeError);
+        log.error(`Failed to write error response:`, writeError);
       }
 
       throw error;

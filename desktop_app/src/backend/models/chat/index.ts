@@ -8,6 +8,7 @@ import {
   SelectMessagesSchema as DatabaseMessageRepresentationSchema,
   messagesTable,
 } from '@backend/database/schema/messages';
+import log from '@backend/utils/logger';
 
 const TransformedMessageSchema = DatabaseMessageRepresentationSchema.extend({
   /**
@@ -151,7 +152,7 @@ export default class ChatModel {
     const [chat] = await db.select().from(chatsTable).where(eq(chatsTable.sessionId, sessionId)).limit(1);
 
     if (!chat) {
-      console.error(`Chat not found for session ID: ${sessionId}`);
+      log.error(`Chat not found for session ID: ${sessionId}`);
       return;
     }
 

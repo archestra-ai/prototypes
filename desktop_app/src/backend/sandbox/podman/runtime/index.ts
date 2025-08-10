@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import PodmanImage, { PodmanImageStatusSummarySchema } from '@backend/sandbox/podman/image';
 import { getBinariesDirectory, getBinaryExecPath } from '@backend/utils/binaries';
+import log from '@backend/utils/logger';
 
 export const PodmanRuntimeStatusSummarySchema = z.object({
   /**
@@ -157,7 +158,7 @@ export default class PodmanRuntime {
   }: RunCommandOptions<T>): void {
     const commandForLogs = `${this.binaryPath} ${command.join(' ')}`;
 
-    console.log(`[Podman command]: running ${commandForLogs}`);
+    log.info(`[Podman command]: running ${commandForLogs}`);
 
     const commandProcess = spawn(this.binaryPath, command, {
       env: {
@@ -188,14 +189,14 @@ export default class PodmanRuntime {
 
     if (onStdout) {
       commandProcess.stdout?.on('data', (data) => {
-        console.log(`[Podman stdout]: ${commandForLogs} ${data}`);
+        log.info(`[Podman stdout]: ${commandForLogs} ${data}`);
 
         let parsedData: T | string;
         if (onStdout.attemptToParseOutputAsJson) {
           try {
             parsedData = JSON.parse(data.toString()) as T;
           } catch (e) {
-            console.error(
+            log.error(
               `[Podman stdout]: ${commandForLogs} error parsing JSON: ${data}. Falling back to string parsing.`,
               e
             );
@@ -211,21 +212,21 @@ export default class PodmanRuntime {
 
     if (onStderr) {
       commandProcess.stderr?.on('data', (data) => {
-        console.log(`[Podman stderr]: ${commandForLogs} ${data}`);
+        log.info(`[Podman stderr]: ${commandForLogs} ${data}`);
         onStderr(data.toString());
       });
     }
 
     if (onExit) {
       commandProcess.on('exit', (code, signal) => {
-        console.log(`[Podman exit]: ${commandForLogs} code=${code} signal=${signal}`);
+        log.info(`[Podman exit]: ${commandForLogs} code=${code} signal=${signal}`);
         onExit(code, signal);
       });
     }
 
     if (onError) {
       commandProcess.on('error', (error) => {
-        console.log(`[Podman error]: ${commandForLogs} ${error}`);
+        log.info(`[Podman error]: ${commandForLogs} ${error}`);
         onError(error);
       });
     }
@@ -476,7 +477,7 @@ export default class PodmanRuntime {
             if (code === 0) {
               const socketPath = output.trim();
               if (socketPath) {
-                console.log(`Found podman socket path: ${socketPath}`);
+                log.info(`Found podman socket path: ${socketPath}`);
                 resolve(socketPath);
               } else {
                 reject(new Error('Could not find socket path in podman machine inspect output'));

@@ -12,6 +12,7 @@ import {
 } from '@backend/database/schema/mcpServer';
 import ExternalMcpClientModel from '@backend/models/externalMcpClient';
 import McpServerSandboxManager from '@backend/sandbox';
+import log from '@backend/utils/logger';
 
 export const McpServerContainerLogsSchema = z.object({
   logs: z.string(),
@@ -80,9 +81,9 @@ export default class McpServerModel {
      */
     if (!id) {
       id = uuidv4();
-      console.log(`no id provided (custom mcp server installation), generating a new one: ${id}`);
+      log.info(`no id provided (custom mcp server installation), generating a new one: ${id}`);
     } else {
-      console.log(`id provided (mcp server installation from catalog), using the provided one: ${id}`);
+      log.info(`id provided (mcp server installation from catalog), using the provided one: ${id}`);
     }
 
     const existing = await db.select().from(mcpServersTable).where(eq(mcpServersTable.id, id));

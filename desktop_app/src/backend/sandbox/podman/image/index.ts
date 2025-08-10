@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { imageExistsLibpod, imagePullLibpod } from '@backend/clients/libpod/gen';
 import config from '@backend/config';
+import log from '@backend/utils/logger';
 
 export const PodmanImageStatusSummarySchema = z.object({
   /**
@@ -31,7 +32,7 @@ export default class PodmanImage {
    * https://docs.podman.io/en/latest/_static/api.html#tag/images/operation/ImageExistsLibpod
    */
   private async checkIfImageExists() {
-    console.log(`Checking if image ${this.BASE_IMAGE_NAME} exists`);
+    log.info(`Checking if image ${this.BASE_IMAGE_NAME} exists`);
 
     try {
       const { response } = await imageExistsLibpod({
@@ -41,14 +42,14 @@ export default class PodmanImage {
       });
 
       if (response.status === 204) {
-        console.log(`Image ${this.BASE_IMAGE_NAME} exists`);
+        log.info(`Image ${this.BASE_IMAGE_NAME} exists`);
         return true;
       } else {
-        console.log(`Image ${this.BASE_IMAGE_NAME} does not exist`);
+        log.info(`Image ${this.BASE_IMAGE_NAME} does not exist`);
         return false;
       }
     } catch (error) {
-      console.error(`Error checking if image ${this.BASE_IMAGE_NAME} exists`, error);
+      log.error(`Error checking if image ${this.BASE_IMAGE_NAME} exists`, error);
       return false;
     }
   }
@@ -60,7 +61,7 @@ export default class PodmanImage {
      *
      * See https://github.com/containers/podman/issues/14003
      */
-    console.log(`Force pulling image ${this.BASE_IMAGE_NAME} to ensure it's available`);
+    log.info(`Force pulling image ${this.BASE_IMAGE_NAME} to ensure it's available`);
 
     // Reset state at the beginning
     this._pullPercentage = 0;
@@ -81,7 +82,7 @@ export default class PodmanImage {
       // The pull endpoint streams JSON responses during the pull
       // We need to wait for the complete response
       if (pullResponse.response.status === 200) {
-        console.log(`Image ${this.BASE_IMAGE_NAME} pull initiated...`);
+        log.info(`Image ${this.BASE_IMAGE_NAME} pull initiated...`);
 
         // Update progress during pull
         this._pullPercentage = 50;
@@ -89,7 +90,7 @@ export default class PodmanImage {
 
         // The response contains streaming data - we should check if pull completed
         if (pullResponse.data) {
-          console.log(`Image ${this.BASE_IMAGE_NAME} pulled successfully`);
+          log.info(`Image ${this.BASE_IMAGE_NAME} pulled successfully`);
 
           // Update state on success
           this._pullPercentage = 100;
@@ -103,10 +104,10 @@ export default class PodmanImage {
         let errorMessage = `Error pulling image ${this.BASE_IMAGE_NAME} - Status: ${pullResponse.response.status}`;
         try {
           const errorBody = await pullResponse.response.text();
-          console.error(`Error pulling image ${this.BASE_IMAGE_NAME}`, pullResponse.response.status, errorBody);
+          log.error(`Error pulling image ${this.BASE_IMAGE_NAME}`, pullResponse.response.status, errorBody);
           errorMessage += ` - ${errorBody}`;
         } catch (e) {
-          console.error(`Error pulling image ${this.BASE_IMAGE_NAME}`, pullResponse.response);
+          log.error(`Error pulling image ${this.BASE_IMAGE_NAME}`, pullResponse.response);
         }
 
         // Update state on error
@@ -117,7 +118,7 @@ export default class PodmanImage {
         throw new Error(errorMessage);
       }
     } catch (error) {
-      console.error(`Error pulling image ${this.BASE_IMAGE_NAME}`, error);
+      log.error(`Error pulling image ${this.BASE_IMAGE_NAME}`, error);
 
       // Update state on catch block error
       this._pullPercentage = 0;

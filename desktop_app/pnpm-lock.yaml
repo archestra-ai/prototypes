@@ -119,6 +119,9 @@ importers:
       drizzle-zod:
         specifier: ^0.8.3
         version: 0.8.3(drizzle-orm@0.44.4(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0))(zod@4.0.15)
+      electron-log:
+        specifier: ^5.4.2
+        version: 5.4.2
       electron-squirrel-startup:
         specifier: ^1.0.1
         version: 1.0.1
@@ -2679,6 +2682,10 @@ packages:
     engines: {node: '>= 10.0.0'}
     os: [darwin, linux]
     hasBin: true
+
+  electron-log@5.4.2:
+    resolution: {integrity: sha512-L55kJzbVVoBY6kyJ3A+cjPchL1aXLdV2/Q8SvIj4sE5VmOcwZa6KXaFICZE+Z+RMXhAIFta79kSaXBqn+0XXMA==}
+    engines: {node: '>= 14'}
 
   electron-squirrel-startup@1.0.1:
     resolution: {integrity: sha512-sTfFIHGku+7PsHLJ7v0dRcZNkALrV+YEozINTW8X1nM//e5O3L+rfYuvSW00lmGHnYmUjARZulD8F2V8ISI9RA==}
@@ -7750,6 +7757,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
     optional: true
+
+  electron-log@5.4.2: {}
 
   electron-squirrel-startup@1.0.1:
     dependencies:

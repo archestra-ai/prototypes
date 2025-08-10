@@ -8,6 +8,7 @@ import McpServerModel, {
 } from '@backend/models/mcpServer';
 import McpServerSandboxManager from '@backend/sandbox';
 import { ErrorResponseSchema } from '@backend/schemas';
+import log from '@backend/utils/logger';
 
 /**
  * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
@@ -55,7 +56,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         const server = await McpServerModel.installMcpServer(body);
         return reply.code(200).send(server);
       } catch (error: any) {
-        console.error('Failed to install MCP server:', error);
+        log.error('Failed to install MCP server:', error);
 
         if (error.message?.includes('already installed')) {
           return reply.code(400).send({ error: error.message });
@@ -133,9 +134,9 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       }
 
       try {
-        fastify.log.info(`🚀 Proxying request to MCP server ${id}:`, JSON.stringify(body));
+        fastify.log.info(`Proxying request to MCP server ${id}:`, JSON.stringify(body));
 
-        // 🎯 Check if container exists BEFORE hijacking! 🎯
+        // Check if container exists BEFORE hijacking!
         const containerExists = McpServerSandboxManager.checkContainerExists(id);
 
         if (!containerExists) {
@@ -147,10 +148,10 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
           });
         }
 
-        // 🚀 Now hijack the response to handle streaming manually! 🚀
+        // Now hijack the response to handle streaming manually!
         reply.hijack();
 
-        // 🔥 Set up streaming response headers! 🔥
+        // Set up streaming response headers!
         reply.raw.writeHead(200, {
           'Content-Type': 'application/octet-stream',
           'Transfer-Encoding': 'chunked',
@@ -158,7 +159,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
           Connection: 'keep-alive',
         });
 
-        // 🎯 Stream the request to the container! 🎯
+        // Stream the request to the container!
         await McpServerSandboxManager.streamToMcpServerContainer(id, body, reply.raw);
 
         // Return undefined when hijacking to prevent Fastify from sending response

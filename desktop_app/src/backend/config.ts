@@ -4,7 +4,11 @@ dotenv.config();
 
 const OLLAMA_SERVER_PORT = parseInt(process.env.ARCHESTRA_OLLAMA_SERVER_PORT || '54589', 10);
 
+const DEBUG = !['production', 'prod'].includes(process.env.NODE_ENV?.toLowerCase() || '');
+
 export default {
+  debug: DEBUG,
+  logLevel: process.env.LOG_LEVEL || (DEBUG ? 'debug' : 'info'),
   server: {
     http: {
       port: parseInt(process.env.ARCHESTRA_API_SERVER_PORT || '54587', 10),

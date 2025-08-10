@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import log from '@backend/utils/logger';
+
 /**
  * Get platform-specific application data directory
  * - macOS: ~/Library/Application Support/archestra
@@ -41,8 +43,8 @@ const db = drizzle({
 
 export async function runDatabaseMigrations() {
   try {
-    console.log('Running database migrations...');
-    console.log('Database path:', DATABASE_PATH);
+    log.info('Running database migrations...');
+    log.info('Database path:', DATABASE_PATH);
 
     // In development, migrations are in src folder
     // In production, they should be bundled with the app
@@ -57,14 +59,14 @@ export async function runDatabaseMigrations() {
       migrationsFolder = path.join(__dirname, '../../src/backend/database/migrations');
     }
 
-    console.log('Migrations folder:', migrationsFolder);
+    log.info('Migrations folder:', migrationsFolder);
 
     // Run migrations
     await migrate(db, { migrationsFolder });
 
-    console.log('Database migrations completed successfully');
+    log.info('Database migrations completed successfully');
   } catch (error) {
-    console.error('Failed to run migrations:', error);
+    log.error('Failed to run migrations:', error);
     throw error;
   }
 }

@@ -6,6 +6,7 @@
 import { Agent, fetch, setGlobalDispatcher } from 'undici';
 
 import config from '@backend/config';
+import log from '@backend/utils/logger';
 
 import type { CreateClientConfig } from './gen/client.gen';
 
@@ -16,7 +17,7 @@ import type { CreateClientConfig } from './gen/client.gen';
  * NOTE: this NEEDS to be called, before the libpod client is properly initialized/ready to use.
  */
 export function setSocketPath(socketPath: string): void {
-  console.log(`Setting libpod socket path to: ${socketPath}`);
+  log.info(`Setting libpod socket path to: ${socketPath}`);
   setGlobalDispatcher(new Agent({ connect: { socketPath } }));
 }
 
