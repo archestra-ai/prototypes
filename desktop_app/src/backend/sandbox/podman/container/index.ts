@@ -1,6 +1,7 @@
 import type { RawReplyDefaultExpression } from 'fastify';
 import fs from 'fs';
 import path from 'path';
+import type { Duplex } from 'stream';
 import { Agent, upgrade } from 'undici';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
@@ -66,7 +67,7 @@ export default class PodmanContainer {
   private socketPath: string | null = null;
 
   // Connection pooling for MCP server communication
-  private mcpSocket = null;
+  private mcpSocket: Duplex | null = null;
   private mcpSocketConnecting: boolean = false;
   private pendingRequests: Map<string, (response: any) => void> = new Map();
 
@@ -479,7 +480,7 @@ export default class PodmanContainer {
   /**
    * Get or create a persistent socket connection to the MCP server container
    */
-  private async getOrCreateMcpSocket() {
+  private async getOrCreateMcpSocket(): Promise<Duplex> {
     // If we already have a socket, return it
     if (this.mcpSocket && !this.mcpSocket.destroyed) {
       return this.mcpSocket;
