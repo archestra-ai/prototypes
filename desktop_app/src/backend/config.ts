@@ -37,17 +37,4 @@ export default {
       baseUrl: 'http://d/v5.0.0',
     },
   },
-  build: {
-    updateInterval: '1 hour',
-    prerelease: false,
-    draft: true,
-    github: {
-      owner: 'archestra-ai',
-      repoName: 'archestra',
-    },
-    productName: 'Archestra',
-    description: 'Enterprise MCP Platform for AI Agents',
-    authors: 'Archestra.ai',
-    appBundleId: 'com.archestra.ai',
-  },
 };

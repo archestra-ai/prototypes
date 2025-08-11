@@ -8,7 +8,7 @@ import { PublisherGitHubConfig } from '@electron-forge/publisher-github';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
-import config from '@backend/config';
+import config from './src/config';
 
 const {
   build: { productName, description, authors, appBundleId, prerelease, draft, github },
