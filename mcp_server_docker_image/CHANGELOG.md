@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.0.3](https://github.com/archestra-ai/archestra/compare/mcp_server_docker_image-v0.0.2...mcp_server_docker_image-v0.0.3) (2025-08-11)
+
+
+### Features
+
+* 'base MCP server' Dockerfile + CI workflow to publish image to GAR ([#163](https://github.com/archestra-ai/archestra/issues/163)) ([eda80b8](https://github.com/archestra-ai/archestra/commit/eda80b8c912dcf9fa763c3e2ab76fce336596b80))
+
+
+### Miscellaneous Chores
+
+* release main ([#164](https://github.com/archestra-ai/archestra/issues/164)) ([27dfdf5](https://github.com/archestra-ai/archestra/commit/27dfdf5250b14394b5d1ab3fae40dadc64ad15c2))
+* trigger release-please update to recheck CLAassistant ([b9e4445](https://github.com/archestra-ai/archestra/commit/b9e444564069f64441787be850d9acecae49f070))
+
 ## [0.0.2](https://github.com/archestra-ai/archestra/compare/mcp_server_docker_image-v0.0.1...mcp_server_docker_image-v0.0.2) (2025-08-11)
 
 
