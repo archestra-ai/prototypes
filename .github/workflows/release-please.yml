@@ -58,8 +58,8 @@ jobs:
         run: |
           echo "$OUTPUTS"
 
-  build-desktop-application-and-create-github-release:
-    name: Build ${{ matrix.platform }}-${{ matrix.arch }} desktop application and create GitHub release
+  build-desktop-application:
+    name: Build ${{ matrix.platform }} (${{ matrix.args }}) desktop application
     runs-on: ${{ matrix.platform }}
     if: needs.release-please.outputs.desktop_release_created
     needs:
@@ -67,13 +67,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job#standard-github-hosted-runners-for-public-repositories
         include:
           - platform: macos-latest
-            arch: arm64
             args: "--arch=arm64"
           - platform: macos-latest
-            arch: x64
             args: "--arch=x64"
+          - platform: windows-11-arm
+            args: "--arch=arm64"
+          - platform: windows-latest
+            args: "--arch=x64"
+          - platform: ubuntu-latest
+            args: "--arch=x64"
+          - platform: ubuntu-24.04-arm
+            args: "--arch=arm64"
+    defaults:
+      run:
+        working-directory: desktop_app
     steps:
       - name: Checkout project
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -90,11 +100,60 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-env
 
-      - name: Publish to GitHub
+      # See https://brunoscheufler.com/blog/2023-11-12-setting-up-hosted-macos-github-actions-workflows-for-electron-builds
+      # was super helpful for getting macOS signing working on GitHub Actions
+      - name: Install Apple codesigning certificate
+        if: matrix.platform == 'macos-latest'
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # import certificate and provisioning profile from secrets
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+
+          # create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Build desktop application
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
-        working-directory: desktop_app
-        run: pnpm run publish ${{ matrix.args }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm publish ${{ matrix.args }}
+
+  # create-github-release:
+  #   name: Create GitHub release
+  #   runs-on: ubuntu-latest
+  #   needs:
+  #     - build-macos-desktop-application
+  #   steps:
+  #     - name: Checkout project
+  #       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+  #       with:
+  #         persist-credentials: false
+
+  #     - name: Generate a token
+  #       id: generate-token
+  #       uses: ./.github/actions/generate-release-token
+  #       with:
+  #         app-id: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_ID }}
+  #         private-key: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY }}
+
+  #     - name: Publish to GitHub
+  #       env:
+  #         GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+  #       run: pnpm run publish --dry-run
 
   build-and-push-mcp-server-docker-image:
     name: Build and push MCP Server Docker image

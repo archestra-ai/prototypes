@@ -34,6 +34,33 @@ const forgeConfig: ForgeConfig = {
     icon: './icons/icon',
     name: productName,
     appBundleId,
+
+    /**
+     * For the full list of configuration options for `osxSign`, see the following resources:
+     * https://js.electronforge.io/modules/_electron_forge_shared_types.InternalOptions.html#OsxSignOptions
+     * https://github.com/electron/osx-sign
+     *
+     * A common use case for modifying the default osxSign configuration is to customize its entitlements.
+     * In macOS, entitlements are privileges that grant apps certain capabilities (e.g. access to the camera, microphone, or USB devices).
+     * These are stored within the code signature in an app's executable file.
+     *
+     * By default, the @electron/osx-sign tool comes with a set of entitlements that should work on both MAS or direct
+     * distribution targets. See the complete set of default entitlement files here👇
+     * https://github.com/electron/osx-sign/tree/main/entitlements
+     * https://developer.apple.com/documentation/bundleresources/entitlements
+     * https://developer.apple.com/documentation/security/hardened_runtime
+     */
+    osxSign: {},
+    /**
+     * We are currently using the "app-specific password" method for "notarizing" the macOS app
+     *
+     * https://www.electronforge.io/guides/code-signing/code-signing-macos#option-1-using-an-app-specific-password
+     */
+    osxNotarize: {
+      appleId: process.env.APPLE_ID,
+      appleIdPassword: process.env.APPLE_PASSWORD,
+      teamId: process.env.APPLE_TEAM_ID,
+    },
   },
   // https://github.com/WiseLibs/better-sqlite3/issues/1171#issuecomment-2186895668
   rebuildConfig: {
@@ -114,8 +141,15 @@ const forgeConfig: ForgeConfig = {
           owner: github.owner,
           name: github.repoName,
         },
-        prerelease,
-        draft,
+        /**
+         * Publish the release as a draft. Will allow us to see the release with its generated
+         * artifacts without actually publishing it to end users.
+         *
+         * We can then manually publish the release via GitHub after writing release-notes and double-checking
+         * that distributables work.
+         */
+        prerelease: false,
+        draft: true,
       } as PublisherGitHubConfig,
     },
   ],

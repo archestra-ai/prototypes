@@ -7,8 +7,6 @@ export default {
   },
   build: {
     updateInterval: '1 hour',
-    prerelease: false,
-    draft: true,
     github: {
       owner: 'archestra-ai',
       repoName: 'archestra',
