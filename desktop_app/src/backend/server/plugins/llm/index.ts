@@ -1,3 +1,5 @@
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createDeepSeek } from '@ai-sdk/deepseek';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI, openai } from '@ai-sdk/openai';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -79,7 +81,7 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
 
         let modelInstance;
         if (providerConfig) {
-          // Check if it's a Gemini model
+          // Check provider type and use appropriate client
           if (providerConfig.provider.type === 'gemini') {
             // Use Google Generative AI client for Gemini
             const googleClient = createGoogleGenerativeAI({
@@ -87,6 +89,20 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
               baseURL: providerConfig.provider.baseUrl,
             });
             modelInstance = googleClient(model);
+          } else if (providerConfig.provider.type === 'anthropic') {
+            // Use Anthropic client for Claude
+            const anthropicClient = createAnthropic({
+              apiKey: providerConfig.apiKey,
+              baseURL: providerConfig.provider.baseUrl,
+            });
+            modelInstance = anthropicClient(model);
+          } else if (providerConfig.provider.type === 'deepseek') {
+            const deepseekClient = createDeepSeek({
+              apiKey: providerConfig.apiKey,
+              baseURL: providerConfig.provider.baseUrl || 'https://api.deepseek.com/v1',
+              // headers: providerConfig.provider.headers,
+            });
+            modelInstance = deepseekClient(model);
           } else {
             // Use OpenAI-compatible client for other providers
             const openaiClient = createOpenAI({
