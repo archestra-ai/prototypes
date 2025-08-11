@@ -29,8 +29,18 @@ const forgeConfig: ForgeConfig = {
      * platforms, and the resources directory for other target platforms. The resources directory can be
      * referenced in the packaged app via the process.resourcesPath value.
      * https://electron.github.io/packager/main/interfaces/Options.html#extraResource
+     *
+     * IMPORTANT: We only include binaries for the specific platform and architecture being built.
+     * This prevents RPM/DEB build failures on Linux where the strip command fails when it
+     * encounters binaries from different architectures. It also reduces the final package size
+     * by not including unnecessary binaries for other platforms.
      */
-    extraResource: ['./resources/bin'],
+    extraResource:
+      process.platform === 'darwin'
+        ? [`./resources/bin/mac/${process.arch}`]
+        : process.platform === 'win32'
+          ? [`./resources/bin/windows/${process.arch === 'x64' ? 'x86_64' : process.arch}`]
+          : [`./resources/bin/linux/${process.arch === 'x64' ? 'x86_64' : process.arch}`],
     icon: './icons/icon',
     name: productName,
     appBundleId,
