@@ -82,6 +82,21 @@ const forgeConfig: ForgeConfig = {
       name: productName,
       authors,
       description,
+      /**
+       * Skip signing for now - requires Windows code signing certificate
+       *
+       * Also, skip MSI generation to avoid potential issues
+       *
+       * See here for more details:
+       * https://www.electronforge.io/guides/code-signing/code-signing-windows
+       */
+      certificateFile: undefined,
+      certificatePassword: undefined,
+      noMsi: true,
+      /**
+       * Use the icon if available
+       */
+      setupIcon: './icons/icon.ico',
     }),
     new MakerZIP({}, ['darwin']),
     new MakerRpm({
