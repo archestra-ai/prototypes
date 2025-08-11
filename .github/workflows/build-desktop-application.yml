@@ -8,6 +8,23 @@ on:
         type: boolean
         required: false
         default: false
+    secrets:
+      ARCHESTRA_RELEASER_GITHUB_APP_ID:
+        required: true
+      ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY:
+        required: true
+      APPLE_SIGNING_CERTIFICATE_BASE64:
+        required: true
+      APPLE_SIGNING_CERTIFICATE_PASSWORD:
+        required: true
+      KEYCHAIN_PASSWORD:
+        required: true
+      APPLE_ID:
+        required: true
+      APPLE_PASSWORD:
+        required: true
+      APPLE_TEAM_ID:
+        required: true
 
 jobs:
   build-desktop-application:
