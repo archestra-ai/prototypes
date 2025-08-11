@@ -59,10 +59,13 @@
   "packages": {
     "desktop_app": {
       "component": "desktop_app",
-      "release-type": "node"
+      "release-type": "node",
+      "prerelease": false,
+      "draft": true
     },
     "mcp_server_docker_image": {
       "component": "mcp_server_docker_image",
+      "skip-github-release": true,
       "release-type": "simple"
     }
   },
