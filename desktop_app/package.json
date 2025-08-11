@@ -15,13 +15,13 @@
     "Secure Runtime",
     "Prompt Injection Prevention"
   ],
+  "private": true,
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "prepare": "cd .. && husky desktop_app/.husky",
     "typecheck": "tsc --noEmit",
     "test": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/vitest/dist/cli.js --config vite.main.config.ts",
     "prettier": "ELECTRON_RUN_AS_NODE=1 pnpm exec electron ./node_modules/prettier/bin/prettier.cjs --write .",

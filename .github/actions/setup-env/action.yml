@@ -11,7 +11,7 @@ runs:
     - name: Setup Node.js
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
-        node-version: "22.17.1"
+        node-version: "22.16.0"
         cache: "pnpm"
         cache-dependency-path: desktop_app/pnpm-lock.yaml
 
