@@ -1,3 +1,4 @@
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI, openai } from '@ai-sdk/openai';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { convertToModelMessages, experimental_createMCPClient, stepCountIs, streamText } from 'ai';
@@ -76,25 +77,36 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
         // Check if it's a cloud provider model
         const providerConfig = await CloudProviderModel.getProviderConfigForModel(model);
 
-        let client;
+        let modelInstance;
         if (providerConfig) {
-          // Use cloud provider configuration
-          client = createOpenAI({
-            apiKey: providerConfig.apiKey,
-            baseURL: providerConfig.provider.baseUrl,
-            headers: providerConfig.provider.headers,
-          });
+          // Check if it's a Gemini model
+          if (providerConfig.provider.type === 'gemini') {
+            // Use Google Generative AI client for Gemini
+            const googleClient = createGoogleGenerativeAI({
+              apiKey: providerConfig.apiKey,
+              baseURL: providerConfig.provider.baseUrl,
+            });
+            modelInstance = googleClient(model);
+          } else {
+            // Use OpenAI-compatible client for other providers
+            const openaiClient = createOpenAI({
+              apiKey: providerConfig.apiKey,
+              baseURL: providerConfig.provider.baseUrl,
+              headers: providerConfig.provider.headers,
+            });
+            modelInstance = openaiClient(model);
+          }
         } else {
           // Default OpenAI client (for backward compatibility)
-          client = openai;
+          modelInstance = openai(model);
         }
 
         // Use MCP tools directly from Vercel AI SDK
         const tools = mcpTools || {};
 
-        // Create the stream with the appropriate client
+        // Create the stream with the appropriate model
         const streamConfig = {
-          model: client(model),
+          model: modelInstance,
           messages: convertToModelMessages(messages),
           tools: Object.keys(tools).length > 0 ? tools : undefined,
           maxSteps: 5, // Allow multiple tool calls
