@@ -107,4 +107,4 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm publish ${{ matrix.args }} --no-git-checks
+        run: pnpm run publish ${{ matrix.args }}
