@@ -11,7 +11,7 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 import config from './src/config';
 
 const {
-  build: { productName, description, authors, appBundleId, prerelease, draft, github },
+  build: { productName, description, authors, appBundleId, github },
 } = config;
 
 const forgeConfig: ForgeConfig = {
