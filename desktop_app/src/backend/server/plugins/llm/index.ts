@@ -9,10 +9,13 @@ import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import Chat from '@backend/models/chat';
 import CloudProviderModel from '@backend/models/cloudProvider';
 
+import { handleOllamaStream } from './ollama-stream-handler';
+
 interface StreamRequestBody {
   model: string;
   messages: Array<any>;
   sessionId?: string;
+  provider?: string;
 }
 
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL || 'http://localhost:3001';
@@ -73,9 +76,13 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request: FastifyRequest<{ Body: StreamRequestBody }>, reply: FastifyReply) => {
-      const { messages, sessionId, model = 'gpt-4o' } = request.body;
+      const { messages, sessionId, model = 'gpt-4o', provider } = request.body;
 
       try {
+        // Handle Ollama provider separately
+        if (provider === 'ollama') {
+          return handleOllamaStream(fastify, request, reply, mcpTools);
+        }
         // Check if it's a cloud provider model
         const providerConfig = await CloudProviderModel.getProviderConfigForModel(model);
 

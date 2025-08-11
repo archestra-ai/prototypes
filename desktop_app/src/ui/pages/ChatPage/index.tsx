@@ -22,22 +22,27 @@ export default function ChatPage(_props: ChatPageProps) {
   const currentChatSessionId = currentChat?.sessionId || '';
   const currentChatMessages = currentChat?.messages || [];
 
-  // Create transport that changes based on model selection
+  // Create transport with dynamic body using prepareSendMessagesRequest
   const transport = useMemo(() => {
-    // Check if it's a cloud model
-    const isCloudModel = availableCloudProviderModels.some((m) => m.id === selectedModel);
-
-    /**
-     * TODO: update this to work with ALL cloud providers..
-     * Use OpenAI endpoint for cloud models, Ollama for local
-     */
-    const apiEndpoint = `${config.archestra.chatStreamBaseUrl}/${isCloudModel ? 'openai' : 'ollama'}/stream`;
+    // Always use the unified stream endpoint
+    const apiEndpoint = `${config.archestra.chatStreamBaseUrl}/openai/stream`;
 
     return new DefaultChatTransport({
       api: apiEndpoint,
-      body: {
-        model: selectedModel || 'llama3.1:8b',
-        sessionId: currentChatSessionId,
+      prepareSendMessagesRequest: ({ id, messages }) => {
+        // Find if this is a cloud model and get its provider
+        const cloudModel = availableCloudProviderModels.find((m) => m.id === selectedModel);
+        const provider = cloudModel ? cloudModel.provider : 'ollama';
+
+        return {
+          body: {
+            hi: 'ildar',
+            messages,
+            model: selectedModel || 'llama3.1:8b',
+            sessionId: id || currentChatSessionId,
+            provider: provider,
+          },
+        };
       },
     });
   }, [selectedModel, currentChatSessionId, availableCloudProviderModels]);
