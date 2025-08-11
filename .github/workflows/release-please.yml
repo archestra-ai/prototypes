@@ -59,7 +59,7 @@ jobs:
           echo "$OUTPUTS"
 
   build-desktop-application:
-    name: Build ${{ matrix.platform }} (${{ matrix.args }}) desktop application
+    name: Build desktop application (${{ matrix.os }}-${{ matrix.arch }})
     runs-on: ${{ matrix.platform }}
     if: needs.release-please.outputs.desktop_release_created
     needs:
@@ -70,17 +70,23 @@ jobs:
         # https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job#standard-github-hosted-runners-for-public-repositories
         include:
           - platform: macos-latest
-            args: "--arch=arm64"
+            os: macos
+            arch: arm64
           - platform: macos-latest
-            args: "--arch=x64"
+            os: macos
+            arch: x64
           - platform: windows-11-arm
-            args: "--arch=arm64"
+            os: windows
+            arch: arm64
           - platform: windows-latest
-            args: "--arch=x64"
+            os: windows
+            arch: x64
           - platform: ubuntu-latest
-            args: "--arch=x64"
+            os: linux
+            arch: x64
           - platform: ubuntu-24.04-arm
-            args: "--arch=arm64"
+            os: linux
+            arch: arm64
     defaults:
       run:
         working-directory: desktop_app
@@ -130,7 +136,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm publish ${{ matrix.args }}
+        run: pnpm publish
 
   # create-github-release:
   #   name: Create GitHub release

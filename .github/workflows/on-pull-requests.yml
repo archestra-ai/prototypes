@@ -103,4 +103,4 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm publish ${{ matrix.args }} --publish-branch ${{ github.head_ref }}
+        run: pnpm publish ${{ matrix.args }} --no-git-checks
