@@ -90,10 +90,6 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-env
 
-      - name: Install dependencies
-        working-directory: desktop_app
-        run: pnpm install --frozen-lockfile
-
       - name: Publish to GitHub
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
