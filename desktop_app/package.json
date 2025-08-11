@@ -15,7 +15,6 @@
     "Secure Runtime",
     "Prompt Injection Prevention"
   ],
-  "private": true,
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
