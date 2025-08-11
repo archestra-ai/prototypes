@@ -1,6 +1,6 @@
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
-import { MakerSquirrel } from '@electron-forge/maker-squirrel';
+import { MakerZIP } from '@electron-forge/maker-zip';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { PublisherGitHubConfig } from '@electron-forge/publisher-github';
@@ -77,26 +77,20 @@ const forgeConfig: ForgeConfig = {
     force: true,
   },
   makers: [
-    new MakerSquirrel({
-      name: productName,
-      authors,
-      description,
-      /**
-       * Skip signing for now - requires Windows code signing certificate
-       *
-       * Also, skip MSI generation to avoid potential issues
-       *
-       * See here for more details:
-       * https://www.electronforge.io/guides/code-signing/code-signing-windows
-       */
-      certificateFile: undefined,
-      certificatePassword: undefined,
-      noMsi: true,
-      /**
-       * Use the icon if available
-       */
-      setupIcon: './icons/icon.ico',
-    }),
+    /**
+     * TODO: Re-enable Squirrel for Windows once we have proper code signing setup
+     * For now, just create ZIP files for Windows to avoid build failures
+     */
+    // new MakerSquirrel({
+    //   name: productName,
+    //   authors,
+    //   description,
+    //   setupIcon: './icons/icon.ico',
+    // }),
+    /**
+     * ZIP for macOS and Windows
+     */
+    new MakerZIP({}, ['darwin', 'win32']),
     new MakerRpm({
       options: {
         name: productName,
