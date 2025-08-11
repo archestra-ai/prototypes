@@ -13,6 +13,86 @@
  * The forge.config.ts defines this as a build target, producing server-process.js
  * which main.ts spawns as a child process with ELECTRON_RUN_AS_NODE=1
  */
-import { startServer } from '@backend/server';
+import OllamaServer from '@backend/llms/ollama/server';
+import McpServerSandboxManager from '@backend/sandbox';
+import { startFastifyServer, stopFastifyServer } from '@backend/server';
+import log from '@backend/utils/logger';
+import WebSocketServer from '@backend/websocket';
 
-startServer();
+const startup = async () => {
+  McpServerSandboxManager.onSandboxStartupSuccess = () => {
+    log.info('Sandbox startup successful');
+  };
+  McpServerSandboxManager.onSandboxStartupError = (error) => {
+    log.error('Sandbox startup error:', error);
+  };
+  McpServerSandboxManager.start();
+
+  WebSocketServer.start();
+  await startFastifyServer();
+
+  await OllamaServer.startServer();
+};
+
+/**
+ * Cleanup function to gracefully shut down all services
+ */
+const cleanup = async () => {
+  log.info('Server process cleanup starting...');
+
+  try {
+    // Stop the Fastify server first to free the port
+    log.info('Stopping Fastify server...');
+    await stopFastifyServer();
+
+    // Stop the WebSocket server
+    log.info('Stopping WebSocket server...');
+    WebSocketServer.stop();
+
+    // Stop the sandbox and all MCP servers
+    log.info('Turning off sandbox...');
+    McpServerSandboxManager.turnOffSandbox();
+
+    // Stop the Ollama server
+    log.info('Stopping Ollama server...');
+    await OllamaServer.stopServer();
+
+    log.info('Server process cleanup completed');
+  } catch (error) {
+    log.error('Error during cleanup:', error);
+  }
+};
+
+// Handle graceful shutdown on various signals
+process.on('SIGTERM', async () => {
+  log.info('Received SIGTERM signal');
+  await cleanup();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  log.info('Received SIGINT signal (Ctrl+C)');
+  await cleanup();
+  process.exit(0);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', async (error) => {
+  log.error('Uncaught exception:', error);
+  await cleanup();
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', async (reason, promise) => {
+  log.error('Unhandled rejection at:', promise, 'reason:', reason);
+  await cleanup();
+  process.exit(1);
+});
+
+// Handle process exit
+process.on('exit', (code) => {
+  log.info(`Server process exiting with code: ${code}`);
+});
+
+startup();

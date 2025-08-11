@@ -4,7 +4,7 @@ import { DeleteChatConfirmation } from '@ui/components/DeleteChatConfirmation';
 import { EditableTitle } from '@ui/components/EditableTitle';
 import { SidebarMenuButton, SidebarMenuItem } from '@ui/components/ui/sidebar';
 import config from '@ui/config';
-import { useChatStore } from '@ui/stores/chat-store';
+import { useChatStore } from '@ui/stores';
 
 interface ChatSidebarProps {}
 

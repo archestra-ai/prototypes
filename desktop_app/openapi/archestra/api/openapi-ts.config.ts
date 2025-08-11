@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 export default defineConfig({
   input: path.join(__dirname, 'openapi.json'),
   output: {
-    path: path.join(__dirname, '../../../src/clients/archestra/api/gen'),
+    path: path.join(__dirname, '../../../src/ui/lib/clients/archestra/api/gen'),
     clean: true,
     format: 'prettier',
     indexFile: true,
@@ -23,7 +23,7 @@ export default defineConfig({
   plugins: [
     {
       name: '@hey-api/client-fetch',
-      runtimeConfigPath: '../../../src/clients/archestra/api/client.ts',
+      runtimeConfigPath: '../../../src/ui/lib/clients/archestra/api/client.ts',
     },
   ],
 });

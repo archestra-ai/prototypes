@@ -98,7 +98,10 @@ export default function ToolExecutionResult({
                       {isExpanded ? result : truncateResult(result)}
                     </p>
                     <CollapsibleTrigger asChild>
-                      <Button variant="ghost" className="h-6 p-0 mt-1 text-xs text-blue-600 hover:text-blue-800">
+                      <Button
+                        variant="ghost"
+                        className="h-6 p-0 mt-1 text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
+                      >
                         {isExpanded ? (
                           <>
                             <ChevronDown className="h-3 w-3 mr-1" />

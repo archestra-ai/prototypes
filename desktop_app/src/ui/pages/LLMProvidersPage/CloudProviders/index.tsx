@@ -1,9 +1,9 @@
 import { useState } from 'react';
 
-import { CloudProviderWithConfig } from '@clients/archestra/api/gen/types.gen';
 import { Button } from '@ui/components/ui/button';
 import { Card } from '@ui/components/ui/card';
-import { useCloudProvidersStore } from '@ui/stores/cloud-providers-store';
+import { CloudProviderWithConfig } from '@ui/lib/clients/archestra/api/gen/types.gen';
+import { useCloudProvidersStore } from '@ui/stores';
 
 import CloudProviderConfigDialog from './CloudProviderConfigDialog';
 
@@ -29,7 +29,12 @@ export default function CloudProviders() {
                 {provider.configured ? 'Reconfigure' : 'Configure'}
               </Button>
               {provider.configured && (
-                <Button onClick={() => deleteCloudProvider(provider.type)} variant="destructive" size="sm">
+                <Button
+                  className="cursor-pointer"
+                  onClick={() => deleteCloudProvider(provider.type)}
+                  variant="destructive"
+                  size="sm"
+                >
                   Remove
                 </Button>
               )}

@@ -19,10 +19,7 @@ import {
 } from '@ui/components/kibo/ai-input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ui/components/ui/tooltip';
 import { cn } from '@ui/lib/utils/tailwind';
-import { useCloudProvidersStore } from '@ui/stores/cloud-providers-store';
-import { useDeveloperModeStore } from '@ui/stores/developer-mode-store';
-import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
-import { useOllamaStore } from '@ui/stores/ollama-store';
+import { useCloudProvidersStore, useDeveloperModeStore, useOllamaStore, useToolsStore } from '@ui/stores';
 
 interface ChatInputProps {
   input: string;
@@ -33,7 +30,7 @@ interface ChatInputProps {
 }
 
 export default function ChatInput({ input, handleInputChange, handleSubmit, isLoading, stop }: ChatInputProps) {
-  const { selectedTools } = useMcpServersStore();
+  const { selectedTools } = useToolsStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const { installedModels, selectedModel, setSelectedModel } = useOllamaStore();
   const { availableCloudProviderModels } = useCloudProvidersStore();

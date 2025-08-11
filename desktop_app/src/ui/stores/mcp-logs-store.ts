@@ -7,7 +7,7 @@ import {
   getMcpRequestLogById,
   getMcpRequestLogStats,
   getMcpRequestLogs,
-} from '@clients/archestra/api/gen';
+} from '@ui/lib/clients/archestra/api/gen';
 import { type McpRequestLogFilters } from '@ui/types';
 
 interface McpLogsStore {

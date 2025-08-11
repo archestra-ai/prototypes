@@ -1,10 +1,10 @@
 import { Filter, Package, Search } from 'lucide-react';
 import { useState } from 'react';
 
-import { ArchestraMcpServerManifest } from '@clients/archestra/catalog/gen';
 import { Input } from '@ui/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui/components/ui/select';
-import { useMcpServersStore } from '@ui/stores/mcp-servers-store';
+import { ArchestraMcpServerManifest } from '@ui/lib/clients/archestra/catalog/gen';
+import { useConnectorCatalogStore, useMcpServersStore } from '@ui/stores';
 import { type McpServerUserConfigValues } from '@ui/types';
 
 import McpServer from './McpServer';
@@ -23,14 +23,30 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
     catalogSelectedCategory,
     catalogHasMore,
     catalogTotalCount,
-    installedMcpServers,
     loadingConnectorCatalog,
-    installMcpServerFromConnectorCatalog,
-    uninstallMcpServer,
     setCatalogSearchQuery,
     setCatalogSelectedCategory,
     loadMoreCatalogServers,
-  } = useMcpServersStore();
+  } = useConnectorCatalogStore();
+  const { installedMcpServers, installMcpServer: _installMcpServer, uninstallMcpServer } = useMcpServersStore();
+
+  const installMcpServer = async (
+    mcpServer: ArchestraMcpServerManifest,
+    userConfigValues?: McpServerUserConfigValues
+  ) => {
+    _installMcpServer(mcpServer.archestra_config.oauth.required, {
+      id: mcpServer.name,
+      displayName: mcpServer.display_name,
+      /**
+       * NOTE: TBD.. should we be sending the entire `mcpServer.server` object here? Is there
+       * value in persisting that?
+       *
+       * https://github.com/anthropics/dxt/blob/main/MANIFEST.md#server-configuration
+       */
+      serverConfig: mcpServer.server.mcp_config,
+      userConfigValues: userConfigValues || {},
+    });
+  };
 
   const handleInstallClick = (mcpServer: ArchestraMcpServerManifest) => {
     // If server has user_config, show the dialog
@@ -39,13 +55,13 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
       setInstallDialogOpen(true);
     } else {
       // Otherwise, install directly
-      installMcpServerFromConnectorCatalog(mcpServer);
+      installMcpServer(mcpServer);
     }
   };
 
   const handleInstallWithConfig = async (config: McpServerUserConfigValues) => {
     if (selectedServerForInstall) {
-      await installMcpServerFromConnectorCatalog(selectedServerForInstall, config);
+      await installMcpServer(selectedServerForInstall, config);
       setInstallDialogOpen(false);
       setSelectedServerForInstall(null);
     }

@@ -1,10 +1,33 @@
 import { eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 
 import db from '@backend/database';
-import { mcpServersTable } from '@backend/database/schema/mcpServer';
+import {
+  McpServer,
+  McpServerConfigSchema,
+  McpServerSchema,
+  McpServerUserConfigValuesSchema,
+  mcpServersTable,
+} from '@backend/database/schema/mcpServer';
 import ExternalMcpClientModel from '@backend/models/externalMcpClient';
-import { getMcpServer } from '@clients/archestra/catalog/gen';
+import McpServerSandboxManager from '@backend/sandbox';
+import log from '@backend/utils/logger';
+
+export const McpServerContainerLogsSchema = z.object({
+  logs: z.string(),
+  containerName: z.string(),
+  logFilePath: z.string(),
+});
+
+export const McpServerInstallSchema = z.object({
+  id: z.string().optional(),
+  displayName: z.string(),
+  serverConfig: McpServerConfigSchema,
+  userConfigValues: McpServerUserConfigValuesSchema.optional(),
+});
+
+export type McpServerContainerLogs = z.infer<typeof McpServerContainerLogsSchema>;
 
 export default class McpServerModel {
   static async create(data: typeof mcpServersTable.$inferInsert) {
@@ -19,6 +42,11 @@ export default class McpServerModel {
     return db.select().from(mcpServersTable).where(eq(mcpServersTable.id, id));
   }
 
+  static async startServerAndSyncAllConnectedExternalMcpClients(mcpServer: McpServer) {
+    await McpServerSandboxManager.startServer(mcpServer);
+    await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();
+  }
+
   /**
    * Get installed MCP servers
    */
@@ -27,78 +55,56 @@ export default class McpServerModel {
   }
 
   /**
-   * Save MCP server from catalog
+   * Install an MCP server. Either from the catalog, or a customer server
+   *
+   * id here is "polymorphic"
+   *
+   * For mcp servers installed from the catalog, it will represent the "name" (unique identifier)
+   * of an entry in the catalog. Example:
+   *
+   * modelcontextprotocol__servers__src__everything
+   *
+   * Otherwise, if this is not specified, it infers that this is a "custom" MCP server, and
+   * a UUID will be generated for it
+   *
+   * Additionally, for custom MCP servers, there's no `userConfigValues` as users can simply input those values
+   * directly in the `serverConfig` that they provider
    */
-  static async saveMcpServerFromCatalog(
-    catalogName: string,
-    userConfigValues?: (typeof mcpServersTable.$inferSelect)['userConfigValues']
-  ) {
-    // Fetch the catalog entry using the generated client
-    const { data, error } = await getMcpServer({ path: { name: catalogName } });
-
-    if (error) {
-      throw new Error(`Failed to fetch catalog entry: ${error}`);
-    }
-
-    if (!data.config_for_archestra) {
-      throw new Error(`MCP server ${catalogName} not found in catalog or missing Archestra config`);
-    }
-
+  static async installMcpServer({
+    id,
+    displayName,
+    serverConfig,
+    userConfigValues,
+  }: z.infer<typeof McpServerInstallSchema>) {
     /**
-     * Check if already installed
-     *
-     * In this case 'name' represents the unique identifier of an mcp catalog entry
+     * Check if an mcp server with this id already exists
      */
-    const existing = await db.select().from(mcpServersTable).where(eq(mcpServersTable.id, data.name));
+    if (!id) {
+      id = uuidv4();
+      log.info(`no id provided (custom mcp server installation), generating a new one: ${id}`);
+    } else {
+      log.info(`id provided (mcp server installation from catalog), using the provided one: ${id}`);
+    }
+
+    const existing = await db.select().from(mcpServersTable).where(eq(mcpServersTable.id, id));
 
     if (existing.length > 0) {
-      throw new Error(`MCP server ${data.name} is already installed`);
+      throw new Error(`MCP server ${id} is already installed`);
     }
 
     const now = new Date();
     const [server] = await db
       .insert(mcpServersTable)
       .values({
-        /**
-         * The "name" field is the unique identifier for an MCP server in the catalog
-         */
-        id: data.name,
-        name: data.display_name,
-        serverConfig: data.server.mcp_config,
+        id,
+        name: displayName,
+        serverConfig,
         userConfigValues: userConfigValues,
         createdAt: now.toISOString(),
       })
       .returning();
 
-    // Sync all connected external MCP clients after installing
-    await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();
-
-    return server;
-  }
-
-  /**
-   * Save custom MCP server
-   *
-   * There's no `userConfigValues` for custom servers as users can simply input those values
-   * directly in the `serverConfig` that they provider
-   */
-  static async saveCustomMcpServer(name: string, serverConfig: (typeof mcpServersTable.$inferSelect)['serverConfig']) {
-    const now = new Date();
-    const [server] = await db
-      .insert(mcpServersTable)
-      .values({
-        /**
-         * Generate a UUID for custom servers to repesent the unique identifier
-         */
-        id: uuidv4(),
-        name,
-        serverConfig,
-        createdAt: now.toISOString(),
-      })
-      .returning();
-
-    // Sync all connected external MCP clients after installing
-    await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();
+    await this.startServerAndSyncAllConnectedExternalMcpClients(server);
 
     return server;
   }
@@ -109,16 +115,17 @@ export default class McpServerModel {
   static async uninstallMcpServer(id: (typeof mcpServersTable.$inferSelect)['id']) {
     await db.delete(mcpServersTable).where(eq(mcpServersTable.id, id));
 
+    // Stop the server in the sandbox
+    await McpServerSandboxManager.stopServer(id);
+
     // Sync all connected external MCP clients after uninstalling
     await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();
   }
 }
 
 export {
-  McpServerConfigSchema,
-  McpServerSchema,
-  McpServerUserConfigValuesSchema,
   type McpServer,
   type McpServerConfig,
   type McpServerUserConfigValues,
 } from '@backend/database/schema/mcpServer';
+export { McpServerSchema };

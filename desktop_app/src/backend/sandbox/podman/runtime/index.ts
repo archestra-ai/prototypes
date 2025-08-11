@@ -1,11 +1,29 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import { z } from 'zod';
 
-import PodmanImage from '@backend/sandbox/podman/image';
+import PodmanImage, { PodmanImageStatusSummarySchema } from '@backend/sandbox/podman/image';
 import { getBinariesDirectory, getBinaryExecPath } from '@backend/utils/binaries';
-import websocketService from '@backend/websocket';
+import log from '@backend/utils/logger';
 
-export const PodmanMachineStatusSchema = z.enum(['not_installed', 'stopped', 'running', 'initializing']);
+export const PodmanRuntimeStatusSummarySchema = z.object({
+  /**
+   * startupPercentage is a number between 0 and 100 that represents the percentage of the startup process that has been completed.
+   */
+  startupPercentage: z.number().min(0).max(100),
+  /**
+   * startupMessage is a string that gives a human-readable description of the current state of the startup process.
+   */
+  startupMessage: z.string().nullable(),
+  /**
+   * startupError is a string that gives a human-readable description of the error that occurred during the startup process (if one has)
+   */
+  startupError: z.string().nullable(),
+  baseImage: PodmanImageStatusSummarySchema,
+});
+
+type PodmanRuntimeStatusSummary = z.infer<typeof PodmanRuntimeStatusSummarySchema>;
 
 type RunCommandPipes<T extends object | object[]> = {
   onStdout?: {
@@ -71,12 +89,18 @@ export type PodmanMachineInspectOutput = {
  */
 export default class PodmanRuntime {
   private ARCHESTRA_MACHINE_NAME = 'archestra-ai-machine';
-  private _machineStatus: z.infer<typeof PodmanMachineStatusSchema> = 'not_installed';
+
+  private machineStartupPercentage = 0;
+  private machineStartupMessage: string | null = null;
+  private machineStartupError: string | null = null;
 
   private onMachineInstallationSuccess: () => void = () => {};
   private onMachineInstallationError: (error: Error) => void = () => {};
 
+  private registryAuthFilePath: string;
   private binaryPath = getBinaryExecPath('podman-remote-static-v5.5.2');
+
+  private baseImage: PodmanImage;
 
   /**
    * NOTE: see here as to why we need to bundle, and configure, `gvproxy`, alongside `podman`:
@@ -92,32 +116,38 @@ export default class PodmanRuntime {
   private gvproxyBinaryDirectory = getBinariesDirectory();
 
   constructor(onMachineInstallationSuccess: () => void, onMachineInstallationError: (error: Error) => void) {
+    this.baseImage = new PodmanImage();
+
     this.onMachineInstallationSuccess = onMachineInstallationSuccess;
     this.onMachineInstallationError = onMachineInstallationError;
+
+    /*
+     * TODO: Use app.getPath('<thing>') from Electron to get proper directory where to store this sort of config
+     *
+     * Currently we're hardcoding to ~/Desktop/archestra/podman/auth.json because:
+     * - This code runs in the backend Node.js process, not the Electron main process
+     * - app.getPath() is only available in the Electron main process
+     * - We need to either:
+     *   1. Pass the path from the main process when starting the backend server
+     *   2. Use IPC to request the path from the main process
+     *   3. Use an environment variable set by the main process
+     *
+     * For now, using a hardcoded path for simplicity during development.
+     */
+    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+    this.registryAuthFilePath = path.join(homeDir, 'Desktop', 'archestra', 'podman', 'auth.json');
+
+    // https://docs.podman.io/en/v5.2.2/markdown/podman-create.1.html#authfile-path
+    if (!fs.existsSync(this.registryAuthFilePath)) {
+      fs.mkdirSync(path.dirname(this.registryAuthFilePath), { recursive: true });
+      fs.writeFileSync(this.registryAuthFilePath, '{}');
+    }
   }
 
   async pullBaseImageOnMachineInstallationSuccess() {
     try {
-      websocketService.broadcast({
-        type: 'sandbox-base-image-fetch-started',
-        payload: {},
-      });
-
-      const image = new PodmanImage();
-      await image.pullBaseImage();
-
-      websocketService.broadcast({
-        type: 'sandbox-base-image-fetch-completed',
-        payload: {},
-      });
+      await this.baseImage.pullBaseImage();
     } catch (error) {
-      websocketService.broadcast({
-        type: 'sandbox-base-image-fetch-failed',
-        payload: {
-          error: `There was an error pulling the base image: ${error.message}`,
-        },
-      });
-
       throw error; // Re-throw to be handled by caller
     }
   }
@@ -128,7 +158,7 @@ export default class PodmanRuntime {
   }: RunCommandOptions<T>): void {
     const commandForLogs = `${this.binaryPath} ${command.join(' ')}`;
 
-    console.log(`[Podman command]: running ${commandForLogs}`);
+    log.info(`[Podman command]: running ${commandForLogs}`);
 
     const commandProcess = spawn(this.binaryPath, command, {
       env: {
@@ -139,20 +169,34 @@ export default class PodmanRuntime {
          * https://docs.podman.io/en/stable/markdown/podman.1.html#environment-variables
          */
         CONTAINERS_HELPER_BINARY_DIR: this.gvproxyBinaryDirectory,
+
+        /**
+         * Basically we don't want the podman machine to use the user's docker config (if one exists)
+         *
+         * From the podman docs (https://docs.podman.io/en/v5.2.2/markdown/podman-create.1.html#authfile-path):
+         *
+         * Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json on Linux, and $HOME/.
+         * config/containers/auth.json on Windows/macOS. The file is created by podman login. If the authorization
+         * state is not found there, $HOME/.docker/config.json is checked, which is set using docker login.
+         *
+         * Note: There is also the option to override the default path of the authentication file by setting the
+         * REGISTRY_AUTH_FILE environment variable. This can be done with export REGISTRY_AUTH_FILE=path.
+         */
+        REGISTRY_AUTH_FILE: this.registryAuthFilePath,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
     if (onStdout) {
       commandProcess.stdout?.on('data', (data) => {
-        console.log(`[Podman stdout]: ${commandForLogs} ${data}`);
+        log.info(`[Podman stdout]: ${commandForLogs} ${data}`);
 
         let parsedData: T | string;
         if (onStdout.attemptToParseOutputAsJson) {
           try {
             parsedData = JSON.parse(data.toString()) as T;
           } catch (e) {
-            console.error(
+            log.error(
               `[Podman stdout]: ${commandForLogs} error parsing JSON: ${data}. Falling back to string parsing.`,
               e
             );
@@ -168,21 +212,21 @@ export default class PodmanRuntime {
 
     if (onStderr) {
       commandProcess.stderr?.on('data', (data) => {
-        console.log(`[Podman stderr]: ${commandForLogs} ${data}`);
+        log.info(`[Podman stderr]: ${commandForLogs} ${data}`);
         onStderr(data.toString());
       });
     }
 
     if (onExit) {
       commandProcess.on('exit', (code, signal) => {
-        console.log(`[Podman exit]: ${commandForLogs} code=${code} signal=${signal}`);
+        log.info(`[Podman exit]: ${commandForLogs} code=${code} signal=${signal}`);
         onExit(code, signal);
       });
     }
 
     if (onError) {
       commandProcess.on('error', (error) => {
-        console.log(`[Podman error]: ${commandForLogs} ${error}`);
+        log.info(`[Podman error]: ${commandForLogs} ${error}`);
         onError(error);
       });
     }
@@ -206,7 +250,7 @@ export default class PodmanRuntime {
    */
   private async startArchestraMachine() {
     let stderrOutput = '';
-    this._machineStatus = 'initializing';
+
     this.runCommand({
       command: ['machine', 'start', this.ARCHESTRA_MACHINE_NAME],
       pipes: {
@@ -215,21 +259,11 @@ export default class PodmanRuntime {
             const output = typeof data === 'string' ? data : JSON.stringify(data);
             // Look for "Starting machine" to indicate progress
             if (output.includes('Starting machine')) {
-              websocketService.broadcast({
-                type: 'sandbox-podman-runtime-progress',
-                payload: {
-                  percentage: 50,
-                  message: 'Starting podman machine...',
-                },
-              });
+              this.machineStartupPercentage = 50;
+              this.machineStartupMessage = 'Starting podman machine...';
             } else if (output.includes('started successfully')) {
-              websocketService.broadcast({
-                type: 'sandbox-podman-runtime-progress',
-                payload: {
-                  percentage: 100,
-                  message: 'Podman machine started successfully',
-                },
-              });
+              this.machineStartupPercentage = 100;
+              this.machineStartupMessage = 'Podman machine started successfully';
             }
           },
         },
@@ -238,14 +272,18 @@ export default class PodmanRuntime {
         },
         onExit: (code, signal) => {
           if (code === 0) {
-            this._machineStatus = 'running';
+            this.machineStartupPercentage = 100;
+            this.machineStartupMessage = 'Podman machine started successfully';
+
             // Call the success callback - socket setup will happen there first
             this.onMachineInstallationSuccess();
           } else {
-            this._machineStatus = 'stopped';
-            this.onMachineInstallationError(
-              new Error(`Podman machine start failed with code ${code} and signal ${signal}. Error: ${stderrOutput}`)
-            );
+            const errorMessage = `Podman machine start failed with code ${code} and signal ${signal}. Error: ${stderrOutput}`;
+
+            this.machineStartupPercentage = 0;
+            this.machineStartupMessage = errorMessage;
+
+            this.onMachineInstallationError(new Error(errorMessage));
           }
         },
         onError: this.onMachineInstallationError,
@@ -284,7 +322,10 @@ export default class PodmanRuntime {
 
   */
   private initArchestraMachine() {
-    this._machineStatus = 'initializing';
+    this.machineStartupPercentage = 0;
+    this.machineStartupMessage = 'Initializing podman machine...';
+    this.machineStartupError = null;
+
     this.runCommand({
       command: ['machine', 'init', '--now', this.ARCHESTRA_MACHINE_NAME],
       pipes: {
@@ -301,42 +342,28 @@ export default class PodmanRuntime {
               const total = parseFloat(extractionMatch[3]);
               const percentage = Math.round((current / total) * 100);
 
-              websocketService.broadcast({
-                type: 'sandbox-podman-runtime-progress',
-                payload: {
-                  percentage,
-                  message: `Extracting podman machine image: ${current}MiB / ${total}MiB`,
-                },
-              });
+              this.machineStartupPercentage = percentage;
+              this.machineStartupMessage = `Extracting podman machine image: ${current}MiB / ${total}MiB`;
             } else if (output.includes('Machine init complete')) {
-              websocketService.broadcast({
-                type: 'sandbox-podman-runtime-progress',
-                payload: {
-                  percentage: 90,
-                  message: 'Machine initialization complete',
-                },
-              });
+              this.machineStartupPercentage = 90;
+              this.machineStartupMessage = 'Machine initialization complete';
             } else if (output.includes('started successfully')) {
-              websocketService.broadcast({
-                type: 'sandbox-podman-runtime-progress',
-                payload: {
-                  percentage: 100,
-                  message: 'Podman machine started successfully',
-                },
-              });
+              this.machineStartupPercentage = 100;
+              this.machineStartupMessage = 'Podman machine started successfully';
             }
           },
         },
         onExit: (code, signal) => {
           if (code === 0) {
-            this._machineStatus = 'running';
             // Call the success callback - socket setup will happen there first
             this.onMachineInstallationSuccess();
           } else {
-            this._machineStatus = 'not_installed';
-            this.onMachineInstallationError(
-              new Error(`Podman machine init failed with code ${code} and signal ${signal}`)
-            );
+            const errorMessage = `Podman machine init failed with code ${code} and signal ${signal}`;
+
+            this.machineStartupPercentage = 0;
+            this.machineStartupMessage = errorMessage;
+
+            this.onMachineInstallationError(new Error(errorMessage));
           }
         },
         onError: this.onMachineInstallationError,
@@ -378,12 +405,16 @@ export default class PodmanRuntime {
               this.initArchestraMachine();
             } else if (archestraMachine.Running) {
               // We're all good to go. The archesta podman machine is installed and running.
-              this._machineStatus = 'running';
+              this.machineStartupPercentage = 100;
+              this.machineStartupMessage = 'Podman machine is running';
+
               // Call the success callback - socket setup will happen there first
               this.onMachineInstallationSuccess();
             } else {
               // The archesta podman machine is installed, but not running. Let's start it.
-              this._machineStatus = 'stopped';
+              this.machineStartupPercentage = 25;
+              this.machineStartupMessage = 'Podman machine is installed! Starting it...';
+
               this.startArchestraMachine();
             }
           },
@@ -404,7 +435,9 @@ export default class PodmanRuntime {
       pipes: {
         onExit: (code) => {
           if (code === 0) {
-            this._machineStatus = 'stopped';
+            this.machineStartupPercentage = 0;
+            this.machineStartupMessage = 'Podman machine stopped successfully';
+            this.machineStartupError = null;
           }
         },
         onError: this.onMachineInstallationError,
@@ -444,7 +477,7 @@ export default class PodmanRuntime {
             if (code === 0) {
               const socketPath = output.trim();
               if (socketPath) {
-                console.log(`Found podman socket path: ${socketPath}`);
+                log.info(`Found podman socket path: ${socketPath}`);
                 resolve(socketPath);
               } else {
                 reject(new Error('Could not find socket path in podman machine inspect output'));
@@ -461,7 +494,12 @@ export default class PodmanRuntime {
     });
   }
 
-  get machineStatus() {
-    return this._machineStatus;
+  get statusSummary(): PodmanRuntimeStatusSummary {
+    return {
+      startupPercentage: this.machineStartupPercentage,
+      startupMessage: this.machineStartupMessage,
+      startupError: this.machineStartupError,
+      baseImage: this.baseImage.statusSummary,
+    };
   }
 }

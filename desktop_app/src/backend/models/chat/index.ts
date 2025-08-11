@@ -1,3 +1,4 @@
+import { type UIMessage } from 'ai';
 import { asc, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -7,6 +8,7 @@ import {
   SelectMessagesSchema as DatabaseMessageRepresentationSchema,
   messagesTable,
 } from '@backend/database/schema/messages';
+import log from '@backend/utils/logger';
 
 const TransformedMessageSchema = DatabaseMessageRepresentationSchema.extend({
   /**
@@ -14,6 +16,10 @@ const TransformedMessageSchema = DatabaseMessageRepresentationSchema.extend({
    * `${chat.sessionId}-${message.id}`
    */
   id: z.string(),
+  /**
+   * Content is a UIMessage from the 'ai' SDK
+   */
+  content: z.custom<UIMessage>(),
 });
 
 export const ChatWithMessagesSchema = SelectChatSchema.extend({
@@ -51,11 +57,11 @@ export default class ChatModel {
       }
 
       if (message) {
-        // Parse the message content and add to the chat's messages array
+        // Content is already a UIMessage, just need to update the id
         const parsedMessage = {
           ...message,
           id: `${chat.sessionId}-${message.id}`,
-          content: JSON.parse(message.content as string),
+          content: message.content as UIMessage,
         };
         chatMap.get(chat.id)!.messages.push(parsedMessage);
       }
@@ -87,7 +93,7 @@ export default class ChatModel {
         messages.push({
           ...row.messages,
           id: this.generateCompositeMessageId(chat, row.messages),
-          content: JSON.parse(row.messages.content as string),
+          content: row.messages.content as UIMessage,
         });
       }
     }
@@ -141,24 +147,24 @@ export default class ChatModel {
     await db.delete(chatsTable).where(eq(chatsTable.id, id));
   }
 
-  static async saveMessages(sessionId: string, messages: DatabaseMessage[]): Promise<void> {
+  static async saveMessages(sessionId: string, messages: UIMessage[]): Promise<void> {
     // First, find the chat by session ID
     const [chat] = await db.select().from(chatsTable).where(eq(chatsTable.sessionId, sessionId)).limit(1);
 
     if (!chat) {
-      console.error(`Chat not found for session ID: ${sessionId}`);
+      log.error(`Chat not found for session ID: ${sessionId}`);
       return;
     }
 
     // Clear existing messages for this chat to avoid duplicates
     await db.delete(messagesTable).where(eq(messagesTable.chatId, chat.id));
 
-    // Save each message
+    // Save each message (message is already a UIMessage)
     for (const message of messages) {
       await db.insert(messagesTable).values({
         chatId: chat.id,
         role: message.role,
-        content: JSON.stringify(message),
+        content: message, // Store the entire UIMessage
       });
     }
   }

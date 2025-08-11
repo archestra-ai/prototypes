@@ -1,7 +1,6 @@
 import { Eye, EyeOff, File, Folder, Info } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { ArchestraMcpServerManifest } from '@clients/archestra/catalog/gen';
 import { Alert, AlertDescription } from '@ui/components/ui/alert';
 import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
@@ -16,6 +15,7 @@ import {
 import { Input } from '@ui/components/ui/input';
 import { Label } from '@ui/components/ui/label';
 import { Switch } from '@ui/components/ui/switch';
+import { ArchestraMcpServerManifest } from '@ui/lib/clients/archestra/catalog/gen';
 import { type McpServerUserConfigValues } from '@ui/types';
 
 interface McpServerInstallDialogProps {
@@ -57,7 +57,7 @@ export default function McpServerInstallDialog({
 
   const userConfig = mcpServer.user_config || {};
   const hasUserConfig = Object.keys(userConfig).length > 0;
-  const hasOAuth = mcpServer.config_for_archestra.oauth.required;
+  const hasOAuth = mcpServer.archestra_config.oauth.required;
 
   const toggleSecretVisibility = (key: string) => {
     setShowSecrets((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -201,7 +201,7 @@ export default function McpServerInstallDialog({
                         <Input
                           id={key}
                           type={showValue ? 'text' : 'password'}
-                          placeholder={field.default || `Enter ${field.title || key}`}
+                          placeholder={field.default ? String(field.default) : `Enter ${field.title || key}`}
                           value={(value as string) || ''}
                           onChange={(e) => handleConfigChange(key, e.target.value)}
                           className={`pr-10 ${error ? 'border-destructive' : ''}`}
@@ -211,7 +211,7 @@ export default function McpServerInstallDialog({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent cursor-pointer"
                             onClick={() => toggleSecretVisibility(key)}
                           >
                             {showValue ? (
@@ -308,7 +308,8 @@ export default function McpServerInstallDialog({
                           id={key}
                           placeholder={
                             field.default
-                              ? expandEnvVariables(field.default)
+                              ? // Keep arrays as arrays, convert everything else to string
+                                expandEnvVariables(Array.isArray(field.default) ? field.default : String(field.default))
                               : `Enter ${isDirectory ? 'directory' : 'file'} path${
                                   field.multiple ? 's (comma-separated)' : ''
                                 }`
@@ -329,6 +330,7 @@ export default function McpServerInstallDialog({
                           type="button"
                           variant="outline"
                           size="icon"
+                          className="cursor-pointer"
                           onClick={() =>
                             isDirectory
                               ? handleDirectorySelect(key, field.multiple)
@@ -340,7 +342,11 @@ export default function McpServerInstallDialog({
                       </div>
                       {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
                       {field.default && (
-                        <p className="text-xs text-muted-foreground">Default: {expandEnvVariables(field.default)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {/* Keep arrays as arrays, convert everything else to string */}
+                          Default:{' '}
+                          {expandEnvVariables(Array.isArray(field.default) ? field.default : String(field.default))}
+                        </p>
                       )}
                       {error && <p className="text-xs text-destructive">{error}</p>}
                     </div>
@@ -358,10 +364,10 @@ export default function McpServerInstallDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button className="cursor-pointer" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleInstall} disabled={Object.keys(errors).length > 0}>
+          <Button className="cursor-pointer" onClick={handleInstall} disabled={Object.keys(errors).length > 0}>
             Install
           </Button>
         </DialogFooter>

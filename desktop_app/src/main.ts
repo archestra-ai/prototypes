@@ -7,9 +7,7 @@ import { updateElectronApp } from 'update-electron-app';
 
 import config from '@backend/config';
 import { runDatabaseMigrations } from '@backend/database';
-import { OllamaServer } from '@backend/llms/ollama';
-import { McpServerSandboxManager } from '@backend/sandbox';
-import WebSocketServer from '@backend/websocket';
+import log from '@backend/utils/logger';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -25,9 +23,7 @@ updateElectronApp({
   updateInterval: config.build.updateInterval,
 });
 
-const SERVER_PORT = 3456;
 let serverProcess: ChildProcess | null = null;
-let ollamaServer: OllamaServer | null = null;
 
 const createWindow = () => {
   // Create the browser window.
@@ -57,24 +53,45 @@ const createWindow = () => {
 };
 
 /**
- * Start the Fastify server in a separate Node.js process
+ * Start the backendin a separate Node.js process
  *
- * This function spawns the server as a child process because:
- * 1. The server needs access to native Node.js modules (better-sqlite3)
+ * This function spawns the backend as a child process because:
+ * 1. The backend needs access to native Node.js modules (better-sqlite3)
  * 2. Electron's renderer process has restrictions on native modules
  * 3. Running in a separate process allows for better error isolation
  * 4. The server can be restarted independently of the Electron app
  */
-function startFastifyServer(ollamaPort: number | null): void {
+async function startBackendServer(): Promise<void> {
   // server-process.js is built by Vite from src/server-process.ts
   // It's placed in the same directory as main.js after building
   const serverPath = path.join(__dirname, 'server-process.js');
 
-  if (serverProcess) serverProcess.kill();
+  // If there's an existing server process, kill it and wait for it to exit
+  if (serverProcess) {
+    await new Promise<void>((resolve) => {
+      const existingProcess = serverProcess;
 
-  console.log(`Fastify server starting on port ${SERVER_PORT}`);
-  if (ollamaPort) {
-    console.log(`Ollama server running on port ${ollamaPort}`);
+      // Set up a one-time listener for the exit event
+      existingProcess.once('exit', () => {
+        log.info('Previous server process has exited');
+        resolve();
+      });
+
+      // Send SIGTERM to trigger graceful shutdown
+      existingProcess.kill('SIGTERM');
+
+      // If process doesn't exit after 5 seconds, force kill it
+      setTimeout(() => {
+        if (existingProcess.killed === false) {
+          log.warn('Server process did not exit gracefully, force killing');
+          existingProcess.kill('SIGKILL');
+        }
+        resolve();
+      }, 5000);
+    });
+
+    // Wait a bit more to ensure ports are released
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
   // Fork creates a new Node.js process that can communicate with the parent
@@ -86,20 +103,18 @@ function startFastifyServer(ollamaPort: number | null): void {
       // CRITICAL: This flag tells Electron to run this process as pure Node.js
       // Without it, the process would run as an Electron process and fail to load native modules
       ELECTRON_RUN_AS_NODE: '1',
-      // Pass Ollama port to server process
-      OLLAMA_HOST: ollamaPort ? `http://localhost:${ollamaPort}` : undefined,
     },
     silent: false, // Allow console output from child process for debugging
   });
 
   // Handle server process errors
   serverProcess.on('error', (error) => {
-    console.error('Server process error:', error);
+    log.error('Server process error:', error);
   });
 
   // Handle server process exit
   serverProcess.on('exit', (code, signal) => {
-    console.log(`Server process exited with code ${code} and signal ${signal}`);
+    log.info(`Server process exited with code ${code} and signal ${signal}`);
     serverProcess = null;
   });
 }
@@ -110,40 +125,15 @@ function startFastifyServer(ollamaPort: number | null): void {
 app.on('ready', async () => {
   await runDatabaseMigrations();
 
-  // Start the WebSocket server
-  WebSocketServer.start();
-
-  ollamaServer = new OllamaServer();
-  await ollamaServer.startServer();
-
-  /**
-   * NOTE: for now the podman mcp server sandbox is still super experimental/WIP
-   *
-   * NOTE: for now we'll just console out success/error from spinning everything up in the sandbox
-   * In the near-future we should hook this up to our websocket server and send a message to the renderer
-   * to show a notifications/progress-bar to the user in the app UI
-   */
-  McpServerSandboxManager.onSandboxStartupSuccess = () => {
-    console.log('Sandbox startup successful 🥳');
-  };
-  McpServerSandboxManager.onSandboxStartupError = (error) => {
-    console.error('Sandbox startup error 🥲:', error);
-  };
-
-  McpServerSandboxManager.startAllInstalledMcpServers();
-
-  // Start Fastify server with Ollama port
-  const ollamaPort = ollamaServer.getPort();
-
   if (process.env.NODE_ENV === 'development') {
     const serverPath = path.resolve(__dirname, '.vite/build/server-process.js');
 
-    chokidar.watch(serverPath).on('change', () => {
-      console.log('Restarting server..');
-      startFastifyServer(ollamaPort);
+    chokidar.watch(serverPath).on('change', async () => {
+      log.info('Restarting server..');
+      await startBackendServer();
     });
   }
-  startFastifyServer(ollamaPort);
+  await startBackendServer();
   createWindow();
 });
 
@@ -166,23 +156,8 @@ app.on('activate', () => {
 
 // Gracefully stop server on quit
 app.on('before-quit', async (event) => {
-  if (serverProcess || ollamaServer) {
+  if (serverProcess) {
     event.preventDefault();
-
-    // Stop the WebSocket server
-    WebSocketServer.stop();
-
-    // Stop Ollama server
-    if (ollamaServer) {
-      try {
-        await ollamaServer.stopServer();
-        console.log('Ollama server stopped');
-      } catch (error) {
-        console.error('Error stopping Ollama server:', error);
-      }
-    }
-
-    McpServerSandboxManager.turnOffSandbox();
 
     // Kill the server process gracefully
     if (serverProcess) {
@@ -218,15 +193,6 @@ process.on('exit', async () => {
   if (serverProcess) {
     serverProcess.kill('SIGKILL');
   }
-
-  // Stop the WebSocket server
-  WebSocketServer.stop();
-
-  if (ollamaServer) {
-    await ollamaServer.stopServer();
-  }
-
-  McpServerSandboxManager.turnOffSandbox();
 });
 
 // In this file you can include the rest of your app's specific main process

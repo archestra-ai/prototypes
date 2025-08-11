@@ -2,7 +2,8 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 import { contextBridge } from 'electron';
 
-// Server runs on static port 3456
 contextBridge.exposeInMainWorld('electronAPI', {
-  serverPort: 3456,
+  serverPort: 54587,
+  websocketPort: 54588,
+  ollamaPort: 54589,
 });

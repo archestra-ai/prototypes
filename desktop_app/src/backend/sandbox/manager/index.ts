@@ -1,13 +1,37 @@
-import McpServerModel, { type McpServer } from '@backend/models/mcpServer';
-import PodmanContainer from '@backend/sandbox/podman/container';
-import PodmanRuntime from '@backend/sandbox/podman/runtime';
-import websocketService from '@backend/websocket';
-import { setSocketPath } from '@clients/libpod/client';
+import type { RawReplyDefaultExpression } from 'fastify';
+import { z } from 'zod';
+
+import { setSocketPath } from '@backend/clients/libpod/client';
+import McpServerModel, { type McpServer, type McpServerContainerLogs } from '@backend/models/mcpServer';
+import PodmanContainer, { PodmanContainerStatusSummarySchema } from '@backend/sandbox/podman/container';
+import PodmanRuntime, { PodmanRuntimeStatusSummarySchema } from '@backend/sandbox/podman/runtime';
+import log from '@backend/utils/logger';
+
+export const SandboxStatusSchema = z.enum(['not_installed', 'initializing', 'running', 'error', 'stopping', 'stopped']);
+
+export const SandboxStatusSummarySchema = z.object({
+  status: SandboxStatusSchema,
+  runtime: PodmanRuntimeStatusSummarySchema,
+  containers: z.record(z.string().describe('The MCP server ID'), PodmanContainerStatusSummarySchema),
+});
+
+/**
+ * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
+ * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
+ */
+z.globalRegistry.add(SandboxStatusSummarySchema, { id: 'SandboxStatusSummary' });
+z.globalRegistry.add(PodmanContainerStatusSummarySchema, { id: 'PodmanContainerStatusSummary' });
+
+type SandboxStatus = z.infer<typeof SandboxStatusSchema>;
+export type SandboxStatusSummary = z.infer<typeof SandboxStatusSummarySchema>;
 
 class McpServerSandboxManager {
   private podmanRuntime: InstanceType<typeof PodmanRuntime>;
   private mcpServerIdToPodmanContainerMap: Map<string, PodmanContainer> = new Map();
-  private _isInitialized = false;
+
+  private status: SandboxStatus = 'not_installed';
+
+  private socketPath: string | null = null;
 
   onSandboxStartupSuccess: () => void = () => {};
   onSandboxStartupError: (error: Error) => void = () => {};
@@ -20,34 +44,32 @@ class McpServerSandboxManager {
   }
 
   private async onPodmanMachineInstallationSuccess() {
-    console.log('Podman machine installation successful. Starting all installed MCP servers...');
+    log.info('Podman machine installation successful. Starting all installed MCP servers...');
 
     try {
       // Get the actual socket path from the running podman machine
-      console.log('Getting podman socket address...');
+      log.info('Getting podman socket address...');
       const socketPath = await this.podmanRuntime.getSocketAddress();
-      console.log('Got podman socket address:', socketPath);
+      log.info('Got podman socket address:', socketPath);
+
+      // Store the socket path for later use
+      this.socketPath = socketPath;
 
       // Configure the libpod client to use this socket
       setSocketPath(socketPath);
-      console.log('Socket path has been updated in libpod client');
+      log.info('Socket path has been updated in libpod client');
 
       // Now pull the base image with the correct socket configured
-      console.log('Pulling base image...');
+      log.info('Pulling base image...');
       await this.podmanRuntime.pullBaseImageOnMachineInstallationSuccess();
-      console.log('Base image pulled successfully');
+      log.info('Base image pulled successfully');
     } catch (error) {
-      console.error('Failed during podman setup:', error);
+      log.error('Failed during podman setup:', error);
       this.onPodmanMachineInstallationError(error as Error);
       return;
     }
 
-    this._isInitialized = true;
-
-    websocketService.broadcast({
-      type: 'sandbox-startup-completed',
-      payload: {},
-    });
+    this.status = 'running';
 
     const installedMcpServers = await McpServerModel.getAll();
 
@@ -55,25 +77,9 @@ class McpServerSandboxManager {
     const startPromises = installedMcpServers.map(async (mcpServer) => {
       const { id: serverId } = mcpServer;
 
-      websocketService.broadcast({
-        type: 'sandbox-mcp-server-starting',
-        payload: { serverId },
-      });
-
       try {
         await this.startServer(mcpServer);
-        websocketService.broadcast({
-          type: 'sandbox-mcp-server-started',
-          payload: { serverId },
-        });
       } catch (error) {
-        websocketService.broadcast({
-          type: 'sandbox-mcp-server-failed',
-          payload: {
-            serverId,
-            error: error instanceof Error ? error.message : String(error),
-          },
-        });
         throw error;
       }
     });
@@ -83,52 +89,52 @@ class McpServerSandboxManager {
     // Check for failures
     const failures = results.filter((result) => result.status === 'rejected');
     if (failures.length > 0) {
-      console.error(`Failed to start ${failures.length} MCP server(s):`);
+      log.error(`Failed to start ${failures.length} MCP server(s):`);
       failures.forEach((failure, index) => {
-        console.error(`  - ${(failure as PromiseRejectedResult).reason}`);
+        log.error(`  - ${(failure as PromiseRejectedResult).reason}`);
       });
       this.onSandboxStartupError(new Error(`Failed to start ${failures.length} MCP server(s)`));
       return;
     }
 
-    console.log('All MCP server containers started successfully');
+    log.info('All MCP server containers started successfully');
     this.onSandboxStartupSuccess();
   }
 
   private onPodmanMachineInstallationError(error: Error) {
     const errorMessage = `There was an error starting up podman machine: ${error.message}`;
-
-    this._isInitialized = false;
-
-    websocketService.broadcast({
-      type: 'sandbox-startup-failed',
-      payload: {
-        error: errorMessage,
-      },
-    });
-
+    this.status = 'error';
     this.onSandboxStartupError(new Error(errorMessage));
   }
 
   async startServer(mcpServer: McpServer) {
-    const { id, name, serverConfig } = mcpServer;
+    const { id, name } = mcpServer;
+    log.info(`Starting MCP server: id="${id}", name="${name}"`);
 
-    console.log(`Starting MCP server ${name} (id: ${id}) with server config: ${JSON.stringify(serverConfig)}`);
-
-    const container = new PodmanContainer(mcpServer);
+    const container = new PodmanContainer(mcpServer, this.socketPath);
     await container.startOrCreateContainer();
 
     this.mcpServerIdToPodmanContainerMap.set(id, container);
+    log.info(`Registered container for MCP server ${id} in map`);
+  }
+
+  async stopServer(mcpServerId: string) {
+    const container = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
+
+    if (container) {
+      await container.stopContainer();
+      this.mcpServerIdToPodmanContainerMap.delete(mcpServerId);
+    }
   }
 
   /**
-   * Start the archestra podman machine and all installed MCP server containers
+   * Responsible for doing the following:
+   * - Starting the archestra podman machine
+   * - Pulling the base image required to run MCP servers as containers
+   * - Starting all installed MCP server containers
    */
-  startAllInstalledMcpServers() {
-    websocketService.broadcast({
-      type: 'sandbox-startup-started',
-      payload: {},
-    });
+  start() {
+    this.status = 'initializing';
     this.podmanRuntime.ensureArchestraMachineIsRunning();
   }
 
@@ -136,23 +142,64 @@ class McpServerSandboxManager {
    * Stop the archestra podman machine (which will stop all installed MCP server containers)
    */
   turnOffSandbox() {
+    this.status = 'stopping';
     this.podmanRuntime.stopArchestraMachine();
-    this._isInitialized = false;
+    this.status = 'stopped';
   }
 
-  proxyRequestToMcpServerContainer(mcpServerId: string, request: any) {
+  checkContainerExists(mcpServerId: string): boolean {
+    log.info(`Checking if container exists for MCP server ${mcpServerId}...`);
+    log.info(`Available MCP servers:`, Array.from(this.mcpServerIdToPodmanContainerMap.keys()));
+    log.info(`Total containers in map: ${this.mcpServerIdToPodmanContainerMap.size}`);
+
+    const exists = this.mcpServerIdToPodmanContainerMap.has(mcpServerId);
+    log.info(`Container ${mcpServerId} exists: ${exists}`);
+    return exists;
+  }
+
+  async streamToMcpServerContainer(
+    mcpServerId: string,
+    request: any,
+    responseStream: RawReplyDefaultExpression
+  ): Promise<void> {
+    log.info(`Looking for MCP server ${mcpServerId} in map...`);
+    log.info(`Available MCP servers:`, Array.from(this.mcpServerIdToPodmanContainerMap.keys()));
+
     const podmanContainer = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
     if (!podmanContainer) {
-      throw new Error(`MCP server with id ${mcpServerId} not found`);
+      // This should not happen if checkContainerExists was called first
+      throw new Error(`MCP server ${mcpServerId} container not found`);
     }
-    return podmanContainer.proxyRequestToContainer(request);
+
+    log.info(`Found container for ${mcpServerId}, streaming request...`);
+    await podmanContainer.streamToContainer(request, responseStream);
   }
 
-  getSandboxStatus() {
+  /**
+   * Get logs for a specific MCP server container
+   */
+  async getMcpServerLogs(mcpServerId: string, lines: number = 100): Promise<McpServerContainerLogs> {
+    const podmanContainer = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
+    if (!podmanContainer) {
+      throw new Error(`MCP server ${mcpServerId} container not found`);
+    }
     return {
-      isInitialized: this._isInitialized,
-      podmanMachineStatus: this.podmanRuntime.machineStatus,
-      // mcpServersStatus: Record<number, object> - TODO: implement later
+      logs: await podmanContainer.getRecentLogs(lines),
+      containerName: podmanContainer.containerName,
+      logFilePath: podmanContainer.logFilePath,
+    };
+  }
+
+  get statusSummary(): SandboxStatusSummary {
+    return {
+      status: this.status,
+      runtime: this.podmanRuntime.statusSummary,
+      containers: Object.fromEntries(
+        Array.from(this.mcpServerIdToPodmanContainerMap.entries()).map(([mcpServerId, podmanContainer]) => [
+          mcpServerId,
+          podmanContainer.statusSummary,
+        ])
+      ),
     };
   }
 }

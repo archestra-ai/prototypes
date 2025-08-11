@@ -1,5 +1,5 @@
 import { SidebarMenuButton, SidebarMenuItem } from '@ui/components/ui/sidebar';
-import { useNavigationStore } from '@ui/stores/navigation-store';
+import { useNavigationStore } from '@ui/stores';
 import { NavigationSubViewKey } from '@ui/types';
 
 interface LLMProvidersSidebarSectionProps {}

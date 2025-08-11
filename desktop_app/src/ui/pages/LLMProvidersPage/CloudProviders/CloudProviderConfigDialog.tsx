@@ -1,11 +1,11 @@
 import { useState } from 'react';
 
-import { CloudProviderWithConfig } from '@clients/archestra/api/gen/types.gen';
 import { Button } from '@ui/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@ui/components/ui/dialog';
 import { Input } from '@ui/components/ui/input';
 import { Label } from '@ui/components/ui/label';
-import { useCloudProvidersStore } from '@ui/stores/cloud-providers-store';
+import { CloudProviderWithConfig } from '@ui/lib/clients/archestra/api/gen/types.gen';
+import { useCloudProvidersStore } from '@ui/stores';
 
 interface CloudProviderConfigDialogProps {
   provider: CloudProviderWithConfig;
@@ -61,10 +61,10 @@ export default function CloudProviderConfigDialog({ provider, onClose }: CloudPr
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
+            <Button className="cursor-pointer" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!apiKey || loading}>
+            <Button className="cursor-pointer" onClick={handleSave} disabled={!apiKey || loading}>
               {loading ? 'Saving...' : 'Save'}
             </Button>
           </div>

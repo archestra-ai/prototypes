@@ -13,11 +13,11 @@
     "noImplicitAny": true,
     "sourceMap": true,
     "outDir": "dist",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "jsx": "react-jsx",
 
-    "types": ["vitest/globals"],
+    "types": ["vitest/globals", "vite/client"],
 
     /*
      Aliasing (added for shadcn/ui)
@@ -25,8 +25,6 @@
     "baseUrl": ".",
     "paths": {
       "@backend/*": ["src/backend/*"],
-      "@clients/*": ["src/clients/*"],
-      "@archestra/types": ["src/types"],
       "@ui/*": ["src/ui/*"],
       // https://github.com/langchain-ai/langchainjs/issues/6462#issuecomment-2275810913
       "ollama/browser": ["./node_modules/ollama/dist"]

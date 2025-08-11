@@ -7,7 +7,7 @@ import {
   disconnectExternalMcpClient,
   getConnectedExternalMcpClients,
   getSupportedExternalMcpClients,
-} from '@clients/archestra/api/gen';
+} from '@ui/lib/clients/archestra/api/gen';
 
 interface ExternalMcpClientsState {
   supportedExternalMcpClientNames: string[];

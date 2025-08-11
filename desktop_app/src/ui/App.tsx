@@ -4,7 +4,7 @@ import ChatPage from '@ui/pages/ChatPage';
 import ConnectorCatalogPage from '@ui/pages/ConnectorCatalogPage';
 import LLMProvidersPage from '@ui/pages/LLMProvidersPage';
 import SettingsPage from '@ui/pages/SettingsPage';
-import { useNavigationStore } from '@ui/stores/navigation-store';
+import { useNavigationStore } from '@ui/stores';
 import { NavigationViewKey } from '@ui/types';
 
 export default function App() {

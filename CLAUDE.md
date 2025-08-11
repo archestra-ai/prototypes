@@ -80,7 +80,7 @@ pnpm codegen:all
 
 # Generate individual API clients
 pnpm codegen:archestra:api      # Generate Archestra API client from OpenAPI spec
-pnpm codegen:archestra:catalog  # Generate catalog API client  
+pnpm codegen:archestra:catalog  # Generate catalog API client
 pnpm codegen:libpod            # Generate Podman/libpod client for container management
 ```
 
@@ -95,7 +95,7 @@ This is an **Electron desktop application** that integrates AI/LLM capabilities 
 - **Routing**: Tanstack React Router
 - **Backend**: Node.js with Fastify web framework, Drizzle ORM for SQLite database
 - **Desktop Framework**: Electron v37 with Electron Forge for building and packaging
-- **API Layer**: HTTP server on port 3456 with WebSocket support
+- **API Layer**: HTTP server on port 54587 with WebSocket support
 - **Services**: Node.js OAuth proxy for handling OAuth flows
 - **AI Integration**: Ollama for local LLM support, MCP (Model Context Protocol) for tool integration
 - **Testing**: Vitest + React Testing Library
@@ -179,6 +179,7 @@ The application uses SQLite with Drizzle ORM for database management. Key tables
 #### Chat Management Tables
 
 - **chats**: Stores chat sessions with metadata
+
   - `id` (Primary Key): Auto-incrementing integer
   - `session_id` (Unique): UUID-v4 identifier
   - `title` (Optional): Chat title (auto-generated after 4 messages or user-defined)
@@ -262,7 +263,7 @@ The application implements container-based sandboxing for MCP servers using Podm
 #### Sandbox API and UI
 
 - **API Endpoint**: `GET /api/sandbox/status` - Returns initialization status
-- **UI Components**: 
+- **UI Components**:
   - `SandboxStartupProgress`: Real-time initialization progress display
   - `sandbox-store.ts`: Zustand store for sandbox state management
 - **Bundled Binaries**: Located in `resources/bin/` directory
@@ -360,8 +361,8 @@ Response: 204 No Content
 
 - **Package Manager**: pnpm v10.14.0 (NEVER use npm or yarn)
 - **Node Version**: 24.4.1
-- **Backend Port**: 3456 (configured in `src/consts.ts`)
-- **WebSocket Endpoint**: `ws://localhost:3456/ws` (configured in `src/consts.ts`)
+- **Backend Port**: 54587 (configured in `src/consts.ts`)
+- **WebSocket Endpoint**: `ws://localhost:54587/ws` (configured in `src/consts.ts`)
 - **TypeScript Path Aliases**:
   - `@backend/*` maps to `./src/backend/*`
   - `@clients/*` maps to `./src/clients/*`

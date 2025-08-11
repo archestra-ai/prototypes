@@ -12,12 +12,14 @@ import archestraMcpServerPlugin from '@backend/server/plugins/mcp';
 import mcpRequestLogRoutes from '@backend/server/plugins/mcpRequestLog';
 import mcpServerRoutes from '@backend/server/plugins/mcpServer';
 import ollamaRoutes from '@backend/server/plugins/ollama';
-import sandboxRoutes from '@backend/server/plugins/sandbox';
+import log from '@backend/utils/logger';
 
-export const startServer = async () => {
-  const app = fastify({
+let app: ReturnType<typeof fastify> | null = null;
+
+export const startFastifyServer = async () => {
+  app = fastify({
     logger: {
-      level: 'info',
+      level: config.logLevel,
       serializers: {
         req: (req) => ({ method: req.method, url: req.url }),
         res: (res) => ({ statusCode: res.statusCode }),
@@ -53,11 +55,12 @@ export const startServer = async () => {
   await app.register(mcpRequestLogRoutes);
   await app.register(mcpServerRoutes);
   await app.register(ollamaRoutes);
-  await app.register(sandboxRoutes);
 
   await app.register(archestraMcpServerPlugin);
 
   const { http } = config.server;
+
+  log.info(`Fastify server starting on port ${http.port}`);
 
   // Start the Fastify server
   try {
@@ -68,16 +71,18 @@ export const startServer = async () => {
     // Exit with error code to signal failure to parent process
     process.exit(1);
   }
+};
 
-  // Handle graceful shutdown for clean process termination
-  const gracefulShutdown = async () => {
-    app.log.info('Shutdown signal received, closing server...');
-    await app.close(); // Close all connections properly
-    app.log.info('Server closed');
-    process.exit(0);
-  };
-
-  // Listen for termination signals from the parent process
-  process.on('SIGTERM', gracefulShutdown); // Standard termination signal
-  process.on('SIGINT', gracefulShutdown); // Ctrl+C signal
+export const stopFastifyServer = async () => {
+  if (app) {
+    log.info('Stopping Fastify server...');
+    try {
+      await app.close();
+      app = null;
+      log.info('Fastify server stopped successfully');
+    } catch (error) {
+      log.error('Error stopping Fastify server:', error);
+      throw error;
+    }
+  }
 };
