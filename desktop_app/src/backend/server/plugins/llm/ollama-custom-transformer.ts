@@ -12,10 +12,14 @@ import { generateId } from 'ai';
  * 2. **Missing tool-input-start event**: When tools are called, the SDK expects a
  *    tool-input-start event before tool-input-delta events.
  *
- * 3. **Error filtering**: Filters out spurious "text part not found" errors that can
+ * 3. **Reasoning support**: Detects and handles reasoning content from models like
+ *    deepseek-r1 and qwen3. Converts text-delta events containing <think> or <thinking>
+ *    tags into reasoning-start and reasoning-delta events for proper UI display.
+ *
+ * 4. **Error filtering**: Filters out spurious "text part not found" errors that can
  *    occur during streaming but don't affect the actual message content.
  *
- * 4. **Ensures proper stream termination**: Guarantees that a [DONE] message is sent
+ * 5. **Ensures proper stream termination**: Guarantees that a [DONE] message is sent
  *    at the end of the stream for proper client-side handling.
  *
  * @returns TransformStream that processes SSE chunks from Ollama
@@ -34,6 +38,10 @@ export function createOllamaCustomTransformer() {
   // Store the message ID to ensure consistency across events
   let messageId: string | null = null;
 
+  // Track reasoning-related state
+  let hasInjectedReasoningStart = false;
+  let isInReasoningMode = false;
+
   return new TransformStream({
     /**
      * Processes each chunk of the SSE stream
@@ -48,6 +56,9 @@ export function createOllamaCustomTransformer() {
       let filteredChunk = '';
 
       for (const line of lines) {
+        let processedLine = line;
+        let shouldSkipLine = false;
+
         // SSE data lines start with "data: "
         if (line.startsWith('data: ')) {
           try {
@@ -58,9 +69,49 @@ export function createOllamaCustomTransformer() {
               hasSeenStartStep = true;
             }
 
-            // Inject text-start event before the first text-delta
+            // Check if this is reasoning content (for models like deepseek-r1 or qwen3)
+            // Reasoning content typically starts with <think> or similar markers
+            const isReasoningContent =
+              data.type === 'text-delta' &&
+              data.delta &&
+              (data.delta.includes('<think>') || data.delta.includes('<thinking>'));
+
+            // Inject reasoning-start event before reasoning content
+            if (isReasoningContent && !hasInjectedReasoningStart) {
+              messageId = data.id || generateId();
+              const reasoningStartEvent = `data: {"type":"reasoning-start","id":"${messageId}"}\n\n`;
+              controller.enqueue(new TextEncoder().encode(reasoningStartEvent));
+              hasInjectedReasoningStart = true;
+              isInReasoningMode = true;
+            }
+
+            // Convert text-delta to reasoning-delta if in reasoning mode
+            if (data.type === 'text-delta' && isInReasoningMode) {
+              // Check if reasoning is ending
+              if (data.delta && (data.delta.includes('</think>') || data.delta.includes('</thinking>'))) {
+                isInReasoningMode = false;
+                // Remove the closing tag from the delta
+                data.delta = data.delta.replace(/<\/think>/g, '').replace(/<\/thinking>/g, '');
+                if (!data.delta.trim()) {
+                  shouldSkipLine = true;
+                }
+              }
+
+              if (!shouldSkipLine) {
+                // Remove opening tags if present
+                if (data.delta) {
+                  data.delta = data.delta.replace(/<think>/g, '').replace(/<thinking>/g, '');
+                }
+
+                // Convert to reasoning-delta and reconstruct the line
+                data.type = 'reasoning-delta';
+                processedLine = 'data: ' + JSON.stringify(data);
+              }
+            }
+
+            // Inject text-start event before the first text-delta (non-reasoning)
             // This is required for Vercel AI SDK to properly initialize the message
-            if (data.type === 'text-delta' && hasSeenStartStep && !hasInjectedTextStart) {
+            if (data.type === 'text-delta' && hasSeenStartStep && !hasInjectedTextStart && !isInReasoningMode) {
               // Use the ID from the text-delta or generate a new one
               messageId = data.id || generateId();
 
@@ -88,15 +139,15 @@ export function createOllamaCustomTransformer() {
               currentToolCallId = null;
             }
 
-            // Filter out "text part not found" errors
+            // Filter out "text part not found" and "reasoning part 0 not found" errors
             // These are spurious errors that can occur but don't affect the message
             if (
               data.type === 'error' &&
-              data.errorText?.includes('text part') &&
+              // data.errorText?.includes('text part') &&
               data.errorText?.includes('not found')
             ) {
               // Skip this line entirely - don't add to filteredChunk
-              continue;
+              shouldSkipLine = true;
             }
           } catch (e) {
             // If we can't parse as JSON, it might be [DONE] or other special messages
@@ -105,7 +156,9 @@ export function createOllamaCustomTransformer() {
         }
 
         // Add the line to our filtered output (unless it was filtered out above)
-        filteredChunk += line + '\n';
+        if (!shouldSkipLine) {
+          filteredChunk += processedLine + '\n';
+        }
       }
 
       // Only enqueue if we have actual content to send
