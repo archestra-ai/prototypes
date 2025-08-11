@@ -11,10 +11,14 @@ runs:
     - name: Setup Node.js
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
-        node-version: "24.4.1"
+        node-version: "22.17.1"
         cache: "pnpm"
         cache-dependency-path: desktop_app/pnpm-lock.yaml
 
     - name: Install dependencies
       shell: bash
       run: cd desktop_app && pnpm install --frozen-lockfile --prefer-offline
+
+    # This step is crucial for ensuring native modules are compiled against the correct Electron version.
+    - name: Rebuild Electron native modules
+      run: pnpm electron-rebuild --force
