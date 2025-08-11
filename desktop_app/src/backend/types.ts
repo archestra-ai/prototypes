@@ -6,4 +6,4 @@ export type SupportedArchitecture = 'arm64' | 'x86_64';
  * `podman` internally is looking specifically for that binary naming convention. As of this writing, the version
  * of `gvproxy` that we are using is [`v0.8.6`](https://github.com/containers/gvisor-tap-vsock/releases/tag/v0.8.6)
  */
-export type SupportedBinary = 'ollama-v0.9.6' | 'podman-remote-static-v5.5.2' | 'gvproxy';
+export type SupportedBinary = 'ollama-v0.11.4' | 'podman-remote-static-v5.5.2' | 'gvproxy';

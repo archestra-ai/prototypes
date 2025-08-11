@@ -74,7 +74,7 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
         const result = streamText({
           model: ollamaProvider(model),
           messages: convertToModelMessages(messages),
-          tools: Object.keys(tools).length > 0 ? tools : undefined,
+          // tools: Object.keys(tools).length > 0 ? tools : undefined,
           maxSteps: 5, // Allow multiple tool calls
           stopWhen: stepCountIs(5),
           // Optional: Enable thinking mode for supported models
@@ -97,8 +97,6 @@ const ollamaVercelRoutes: FastifyPluginAsync = async (fastify) => {
           //   });
           // },
         } as any);
-
-        return reply.send(result.toUIMessageStreamResponse());
 
         // Log each chunk from the full stream
         (async () => {

@@ -9,10 +9,13 @@ import { generateId } from 'ai';
  *    text-delta events to properly initialize message streaming. Ollama's response
  *    doesn't include this, so we inject it before the first text-delta.
  *
- * 2. **Error filtering**: Filters out spurious "text part not found" errors that can
+ * 2. **Missing tool-input-start event**: When tools are called, the SDK expects a
+ *    tool-input-start event before tool-input-delta events.
+ *
+ * 3. **Error filtering**: Filters out spurious "text part not found" errors that can
  *    occur during streaming but don't affect the actual message content.
  *
- * 3. **Ensures proper stream termination**: Guarantees that a [DONE] message is sent
+ * 4. **Ensures proper stream termination**: Guarantees that a [DONE] message is sent
  *    at the end of the stream for proper client-side handling.
  *
  * @returns TransformStream that processes SSE chunks from Ollama
@@ -23,6 +26,10 @@ export function createOllamaCustomTransformer() {
 
   // Track whether we've already injected the text-start event
   let hasInjectedTextStart = false;
+
+  // Track tool-related state
+  let currentToolCallId: string | null = null;
+  let hasInjectedToolStart = false;
 
   // Store the message ID to ensure consistency across events
   let messageId: string | null = null;
@@ -61,6 +68,24 @@ export function createOllamaCustomTransformer() {
               const textStartEvent = `data: {"type":"text-start","id":"${messageId}"}\n\n`;
               controller.enqueue(new TextEncoder().encode(textStartEvent));
               hasInjectedTextStart = true;
+            }
+
+            // Inject tool-input-start event before the first tool-input-delta
+            if (data.type === 'tool-input-delta' && !hasInjectedToolStart) {
+              // Extract or generate tool call ID
+              currentToolCallId = data.toolCallId || generateId();
+              const toolName = data.toolName || 'unknown';
+
+              // Create and send the tool-input-start event
+              const toolStartEvent = `data: {"type":"tool-input-start","toolCallId":"${currentToolCallId}","toolName":"${toolName}","dynamic":true}\n\n`;
+              controller.enqueue(new TextEncoder().encode(toolStartEvent));
+              hasInjectedToolStart = true;
+            }
+
+            // Reset tool tracking when we see a new tool call or finish
+            if (data.type === 'tool-result' || data.type === 'finish-step') {
+              hasInjectedToolStart = false;
+              currentToolCallId = null;
             }
 
             // Filter out "text part not found" errors

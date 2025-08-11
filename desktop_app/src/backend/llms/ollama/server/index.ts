@@ -7,7 +7,7 @@ export default class OllamaServer {
   private serverProcess: ChildProcess | null = null;
   private port: number | null = null;
   private isRunning: boolean = false;
-  private binaryPath = getBinaryExecPath('ollama-v0.9.6');
+  private binaryPath = getBinaryExecPath('ollama-v0.11.4');
 
   constructor() {}
 
