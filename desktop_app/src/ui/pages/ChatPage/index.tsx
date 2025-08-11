@@ -22,25 +22,21 @@ export default function ChatPage(_props: ChatPageProps) {
   const currentChatSessionId = currentChat?.sessionId || '';
   const currentChatMessages = currentChat?.messages || [];
 
-  // Use a ref to always get the current model value
+  // We use useRef because prepareSendMessagesRequest captures selectedModel when created.
+  // Without ref, switching models wouldn't work - it would always use the old model.
+  // The ref lets us always get the current selected model value.
   const selectedModelRef = useRef(selectedModel);
   selectedModelRef.current = selectedModel;
 
-  // Create transport once, but use ref for dynamic values
   const transport = useMemo(() => {
-    // Always use the unified stream endpoint
     const apiEndpoint = `${config.archestra.chatStreamBaseUrl}/openai/stream`;
 
     return new DefaultChatTransport({
       api: apiEndpoint,
       prepareSendMessagesRequest: ({ id, messages }) => {
-        // Use ref to get current model value
         const currentModel = selectedModelRef.current;
 
-        // Find if this is a cloud model and get its provider
         const cloudModel = availableCloudProviderModels.find((m) => m.id === currentModel);
-        console.log('here is', cloudModel);
-        console.log('here is', currentModel);
         const provider = cloudModel ? cloudModel.provider : 'ollama';
 
         return {
@@ -53,7 +49,7 @@ export default function ChatPage(_props: ChatPageProps) {
         };
       },
     });
-  }, [currentChatSessionId, availableCloudProviderModels]); // Don't depend on selectedModel
+  }, [currentChatSessionId, availableCloudProviderModels]);
 
   const { sendMessage, messages, setMessages, stop, status, error } = useChat({
     id: currentChatSessionId || 'temp-id', // use the provided chat ID or a temp ID
