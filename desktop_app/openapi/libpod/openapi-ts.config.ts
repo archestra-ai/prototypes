@@ -6,7 +6,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  input: 'https://storage.googleapis.com/libpod-master-releases/swagger-latest.yaml',
+  /**
+   * NOTE: if we bump the version of the Podman binary that we bundle with the app, we should also bump
+   * the swagger version here, such that we're guaranteed to have the correct API schema for the version
+   * of Podman that we're using.
+   */
+  input: 'https://storage.googleapis.com/libpod-master-releases/swagger-v5.5.2.yaml',
   output: {
     path: path.join(__dirname, '../../src/backend/clients/libpod/gen'),
     clean: true,
