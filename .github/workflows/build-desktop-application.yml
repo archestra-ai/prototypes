@@ -106,13 +106,19 @@ jobs:
 
       - name: Build desktop application
         env:
+          ARCHESTRA_OS: ${{ matrix.os }}
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         # TODO: the following DEBUG env var can be removed once we're done debugging Apple's "notary service" taking forever
         # https://github.com/electron/notarize/issues/197#issuecomment-2153484132
-        run: DEBUG=electron-notarize* pnpm run publish ${{ inputs.dry_run && '--dry-run' }}
+        run: |
+          if [ "$ARCHETRA_OS" = "macos" ]; then
+            DEBUG=electron-notarize* pnpm run publish ${{ inputs.dry_run && '--dry-run' }}
+          else
+            pnpm run publish ${{ inputs.dry_run && '--dry-run' }}
+          fi
 
       # https://brunoscheufler.com/blog/2023-11-12-setting-up-hosted-macos-github-actions-workflows-for-electron-builds
       - name: Clean up keychain
