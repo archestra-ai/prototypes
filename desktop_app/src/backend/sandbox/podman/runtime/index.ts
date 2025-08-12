@@ -7,6 +7,8 @@ import PodmanImage from '@backend/sandbox/podman/image';
 import { getBinariesDirectory, getBinaryExecPath } from '@backend/utils/binaries';
 import log from '@backend/utils/logger';
 
+import { parsePodmanMachineInstallationProgress } from './utils';
+
 export const PodmanRuntimeStatusSummarySchema = z.object({
   /**
    * startupPercentage is a number between 0 and 100 that represents the percentage of the startup process that has been completed.
@@ -326,8 +328,8 @@ export default class PodmanRuntime {
    *
    * ==============================
    * --now = Start machine now
-
-  */
+   *
+   */
   private initArchestraMachine() {
     this.machineStartupPercentage = 0;
     this.machineStartupMessage = 'Initializing podman machine...';
@@ -339,25 +341,10 @@ export default class PodmanRuntime {
         onStdout: {
           callback: (data) => {
             const output = typeof data === 'string' ? data : JSON.stringify(data);
+            const { percentage, message } = parsePodmanMachineInstallationProgress(output);
 
-            // Parse extraction progress
-            const extractionMatch = output.match(
-              /Extracting compressed file:.*\[([=\s>]+)\]\s*(\d+\.?\d*)MiB\s*\/\s*(\d+\.?\d*)MiB/
-            );
-            if (extractionMatch) {
-              const current = parseFloat(extractionMatch[2]);
-              const total = parseFloat(extractionMatch[3]);
-              const percentage = Math.round((current / total) * 100);
-
-              this.machineStartupPercentage = percentage;
-              this.machineStartupMessage = `Extracting podman machine image: ${current}MiB / ${total}MiB`;
-            } else if (output.includes('Machine init complete')) {
-              this.machineStartupPercentage = 90;
-              this.machineStartupMessage = 'Machine initialization complete';
-            } else if (output.includes('started successfully')) {
-              this.machineStartupPercentage = 100;
-              this.machineStartupMessage = 'Podman machine started successfully';
-            }
+            this.machineStartupPercentage = percentage;
+            this.machineStartupMessage = message;
           },
         },
         onExit: (code, signal) => {

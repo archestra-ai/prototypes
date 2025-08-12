@@ -75,8 +75,6 @@ class McpServerSandboxManager {
 
     // Start all servers in parallel
     const startPromises = installedMcpServers.map(async (mcpServer) => {
-      const { id: serverId } = mcpServer;
-
       try {
         await this.startServer(mcpServer);
       } catch (error) {
