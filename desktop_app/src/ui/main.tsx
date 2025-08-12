@@ -17,16 +17,7 @@ Sentry.init({
    * https://docs.sentry.io/platforms/javascript/guides/electron/configuration/options/#sendDefaultPii
    */
   sendDefaultPii: true,
-  integrations: [
-    Sentry.browserTracingIntegration(),
-    Sentry.replayIntegration(),
-    Sentry.feedbackIntegration({
-      /**
-       * Additional SDK configuration goes in here, for example:
-       */
-      colorScheme: 'system',
-    }),
-  ],
+  integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
 
   /**
    * https://docs.sentry.io/platforms/javascript/configuration/options/#traces-sample-rate

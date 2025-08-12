@@ -3,6 +3,7 @@ import fastify from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 
 import config from '@backend/config';
+import { onboardingRoutes } from '@backend/routes/onboarding';
 import chatRoutes from '@backend/server/plugins/chat';
 import cloudProviderRoutes from '@backend/server/plugins/cloudProviders';
 import externalMcpClientRoutes from '@backend/server/plugins/externalMcpClient';
@@ -55,6 +56,7 @@ export const startFastifyServer = async () => {
   await app.register(mcpRequestLogRoutes);
   await app.register(mcpServerRoutes);
   await app.register(ollamaRoutes);
+  await app.register(onboardingRoutes);
 
   await app.register(archestraMcpServerPlugin);
 
