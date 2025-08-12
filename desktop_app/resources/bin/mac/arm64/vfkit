@@ -1,0 +1,6 @@
+#!/bin/sh
+# Placeholder for vfkit binary
+# This file needs to be replaced with the actual vfkit binary
+# Download from: https://github.com/crc-org/vfkit/releases/download/v0.5.1/vfkit-arm64
+echo "ERROR: This is a placeholder file. Please download the actual vfkit binary."
+exit 1
