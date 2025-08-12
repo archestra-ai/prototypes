@@ -90,20 +90,33 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Multi-platform binary distribution (Linux, macOS, Windows)
   - Enhanced progress tracking with percentage-based reporting
   - Combined progress calculation (50% machine startup + 50% image pull)
+  - Progress parsing utilities for real-time output processing
 - **McpServerSandboxManager**: Orchestrates sandbox initialization
   - Base image management (`europe-west1-docker.pkg.dev/friendly-path-465518-r6/archestra-public/mcp-server-base:0.0.1`)
   - Container lifecycle management per MCP server
   - WebSocket progress broadcasting with detailed status updates
   - Comprehensive `statusSummary` getter combining runtime and container statuses
+- **Progress Tracking Architecture**:
+  - Hierarchical progress system: Runtime → Image → Container levels
+  - Real-time progress parsing from Podman machine installation output
+  - Detailed percentage mapping for each stage (0-5% lookup, 5-60% download, etc.)
+  - Type-safe status schemas using Zod validation
 - **Container Management**: Enhanced container lifecycle tracking
   - Multiple container states: `not_created`, `created`, `initializing`, `running`, `error`
   - Percentage-based progress tracking (0-100%) through container lifecycle
   - Human-readable status messages for each stage of container startup
   - Detailed error reporting for different failure scenarios
+  - MCP socket connection pooling and management
 - **Image Management**: Streaming progress during base image operations
   - Real-time progress tracking during image pull with percentage completion
   - Stage-specific messages (resolving, copying blobs, writing manifest)
   - Proper error capture and reporting during image operations
+  - Progressive percentage calculation based on blob count
+- **UI Progress Components**:
+  - Real-time progress bars in MCP server settings
+  - Status badges (Connecting/Connected/Error) with color coding
+  - Loading states with spinner animations
+  - Error display with detailed messages
 - **Security Features**:
   - Non-root container execution (uid: 1000, gid: 1000)
   - Process isolation per MCP server
