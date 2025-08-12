@@ -1,0 +1,76 @@
+name: Claude Pull Requests
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    branches-ignore:
+      - release-please--branches--main
+
+concurrency:
+  # Cancel any running workflow for the same branch when new commits are pushed.
+  # We group both by ref_name (available when CI is triggered by a push to a branch/tag)
+  # and head_ref (available when CI is triggered by a PR).
+  group: "claude-pull-requests-${{ github.ref_name }}-${{ github.head_ref }}"
+  cancel-in-progress: true
+
+jobs:
+  claude-pull-requests:
+    name: Claude Pull Requests
+    runs-on: ubuntu-latest
+    # NOTE! This workflow will only run if the pull request was opened by the following users.
+    # If you'd like to be able to tap into this workflow, you'll need to add your username here +
+    # add the necessary GitHub Actions secret (see further down below)
+    #
+    # See here for more details:
+    # https://github.com/anthropics/claude-code-action/issues/4#issuecomment-3046770474
+    if: |
+      github.event.pull_request.user.login == 'joeyorlando' &&
+      !contains(github.event.pull_request.title, '[WIP]')
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read # Required for Claude to read CI results on PRs
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 10 # give Claude a bit more context
+          persist-credentials: true # credentials are needed here as Claude will use them to read stuffs
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@e26577a930883943cf9d90885cd1e8da510078dd # beta tag
+        with:
+          claude_code_oauth_token: ${{ secrets[format('{0}_CLAUDE_CODE_OAUTH_TOKEN', github.event.pull_request.user.login)] }}
+
+          # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
+          use_sticky_comment: true
+
+          # This will allow Claude to edit the PR description
+          # See https://github.com/anthropics/claude-code-action/tree/main?tab=readme-ov-file#custom-tools
+          allowed_tools: |
+            Bash(gh pr edit:*)
+
+          # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
+          model: "claude-opus-4-20250514"
+          fallback_model: "claude-sonnet-4-20250514"
+
+          # This is an optional setting that allows Claude to read CI results on PRs
+          # See https://github.com/anthropics/claude-code-action?tab=readme-ov-file#additional-permissions-for-cicd-integration
+          additional_permissions: |
+            actions: read
+
+          direct_prompt: |
+            So I want you to do a few things to help with the current pull request:
+            1. If the pull request description is missing, add one based on the changes.
+            2. Update the CLAUDE.md file to reflect the changes made in this PR.
+            3. Please review this pull request and provide feedback on the below items, be constructive and helpful in
+            your feedback:
+              - Code quality and best practices
+              - Potential bugs or issues
+              - Performance considerations
+              - Security concerns
+              - Test coverage
