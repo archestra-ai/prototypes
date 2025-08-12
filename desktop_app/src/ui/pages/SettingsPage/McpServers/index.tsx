@@ -18,17 +18,7 @@ export default function McpServers(_props: McpServersProps) {
   const {
     isRunning: sandboxIsRunning,
     statusSummary: {
-      status: sandboxStatus,
-      runtime: {
-        startupPercentage: runtimeStartupPercentage,
-        startupMessage: runtimeStartupMessage,
-        startupError: runtimeStartupError,
-        baseImage: {
-          pullPercentage: baseImagePullPercentage,
-          pullMessage: baseImagePullMessage,
-          pullError: baseImagePullError,
-        },
-      },
+      runtime: { startupPercentage, startupMessage, startupError },
     },
   } = useSandboxStore();
   const { installedMcpServers, loadingInstalledMcpServers, errorLoadingInstalledMcpServers } = useMcpServersStore();
@@ -37,50 +27,26 @@ export default function McpServers(_props: McpServersProps) {
   const hasErrorLoadingInstalledMcpServers = errorLoadingInstalledMcpServers !== null;
 
   const getOverallSandboxStatus = () => {
-    if (runtimeStartupError || baseImagePullError) {
+    if (startupError) {
       return {
         icon: <XCircle className="h-5 w-5 text-destructive" />,
         title: 'Sandbox Initialization Failed',
-        description: runtimeStartupError || baseImagePullError,
+        description: startupError,
       };
     }
 
-    if (runtimeStartupPercentage > 0 && runtimeStartupPercentage < 100) {
+    if (startupPercentage > 0 && startupPercentage < 100) {
       return {
         icon: <Loader2 className="h-5 w-5 animate-spin" />,
         title: 'Initializing Container Runtime',
-        description: runtimeStartupMessage || 'Setting up Podman...',
-      };
-    }
-
-    if (baseImagePullPercentage > 0 && baseImagePullPercentage < 100) {
-      return {
-        icon: <Loader2 className="h-5 w-5 animate-spin" />,
-        title: 'Fetching Base Image',
-        description: baseImagePullMessage || 'Downloading container base image...',
-      };
-    }
-
-    if (baseImagePullPercentage === 100 && runtimeStartupPercentage < 100) {
-      return {
-        icon: <Loader2 className="h-5 w-5 animate-spin" />,
-        title: 'Finalizing Sandbox Setup',
-        description: 'Almost ready...',
-      };
-    }
-
-    if (runtimeStartupPercentage === 100) {
-      return {
-        icon: <CheckCircle className="h-5 w-5 text-green-500" />,
-        title: 'Sandbox Ready',
-        description: 'Container environment is up and running',
+        description: startupMessage,
       };
     }
 
     return {
-      icon: <Loader2 className="h-5 w-5 animate-spin" />,
-      title: 'Initializing Sandbox',
-      description: 'Preparing sandbox environment...',
+      icon: <CheckCircle className="h-5 w-5 text-green-500" />,
+      title: 'Sandbox Ready',
+      description: 'Container environment is up and running',
     };
   };
 
@@ -104,21 +70,14 @@ export default function McpServers(_props: McpServersProps) {
             </div>
           </div>
 
-          {runtimeStartupPercentage > 0 && runtimeStartupPercentage < 100 && (
+          {startupPercentage > 0 && startupPercentage < 100 && (
             <div className="space-y-2">
-              <Progress value={runtimeStartupPercentage} className="h-2" />
-              <p className="text-xs text-muted-foreground text-right">{runtimeStartupPercentage}%</p>
+              <Progress value={startupPercentage} className="h-2" />
+              <p className="text-xs text-muted-foreground text-right">{startupPercentage}%</p>
             </div>
           )}
 
-          {baseImagePullPercentage > 0 && baseImagePullPercentage < 100 && (
-            <div className="space-y-2">
-              <Progress value={baseImagePullPercentage} className="h-2" />
-              <p className="text-xs text-muted-foreground text-right">{baseImagePullPercentage}%</p>
-            </div>
-          )}
-
-          {(runtimeStartupError || baseImagePullError) && (
+          {startupError && (
             <div className="rounded-md bg-destructive/10 p-3">
               <p className="text-sm text-destructive">Please check the logs for more information about the failure.</p>
             </div>

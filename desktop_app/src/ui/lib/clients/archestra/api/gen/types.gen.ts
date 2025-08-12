@@ -6,11 +6,6 @@ export type SandboxStatusSummaryInput = {
     startupPercentage: number;
     startupMessage: string | null;
     startupError: string | null;
-    baseImage: {
-      pullPercentage: number;
-      pullMessage: string | null;
-      pullError: string | null;
-    };
   };
   containers: {
     [key: string]: PodmanContainerStatusSummaryInput;
@@ -163,11 +158,6 @@ export type SandboxStatusSummary = {
     startupPercentage: number;
     startupMessage: string | null;
     startupError: string | null;
-    baseImage: {
-      pullPercentage: number;
-      pullMessage: string | null;
-      pullError: string | null;
-    };
   };
   containers: {
     [key: string]: PodmanContainerStatusSummary;

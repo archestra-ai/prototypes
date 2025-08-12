@@ -42,42 +42,9 @@
                     "enum": [null]
                   }
                 ]
-              },
-              "baseImage": {
-                "type": "object",
-                "properties": {
-                  "pullPercentage": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 100
-                  },
-                  "pullMessage": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "nullable": true,
-                        "enum": [null]
-                      }
-                    ]
-                  },
-                  "pullError": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "nullable": true,
-                        "enum": [null]
-                      }
-                    ]
-                  }
-                },
-                "required": ["pullPercentage", "pullMessage", "pullError"]
               }
             },
-            "required": ["startupPercentage", "startupMessage", "startupError", "baseImage"]
+            "required": ["startupPercentage", "startupMessage", "startupError"]
           },
           "containers": {
             "type": "object",
@@ -665,43 +632,9 @@
                     "enum": [null]
                   }
                 ]
-              },
-              "baseImage": {
-                "type": "object",
-                "properties": {
-                  "pullPercentage": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 100
-                  },
-                  "pullMessage": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "nullable": true,
-                        "enum": [null]
-                      }
-                    ]
-                  },
-                  "pullError": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "nullable": true,
-                        "enum": [null]
-                      }
-                    ]
-                  }
-                },
-                "required": ["pullPercentage", "pullMessage", "pullError"],
-                "additionalProperties": false
               }
             },
-            "required": ["startupPercentage", "startupMessage", "startupError", "baseImage"],
+            "required": ["startupPercentage", "startupMessage", "startupError"],
             "additionalProperties": false
           },
           "containers": {
