@@ -117,6 +117,12 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Status badges (Connecting/Connected/Error) with color coding
   - Loading states with spinner animations
   - Error display with detailed messages
+- **Logging and Debugging**:
+  - Persistent MCP server log files stored in app data directory
+  - Real-time log streaming from container stdout/stderr
+  - UI dialog for viewing container logs (accessible via note icon)
+  - MCP request/response logging for debugging API calls
+  - Centralized log path management via shared paths utility
 - **Security Features**:
   - Non-root container execution (uid: 1000, gid: 1000)
   - Process isolation per MCP server
@@ -134,7 +140,8 @@ desktop_app/src/
 │   ├── mcpServer/     # MCP server implementation
 │   ├── models/        # Data models
 │   ├── sandbox/       # Container sandboxing logic
-│   └── server/        # Fastify server and plugins
+│   ├── server/        # Fastify server and plugins
+│   └── utils/         # Utility functions (paths, binaries, etc.)
 └── ui/
     ├── components/    # React components (don't modify ui/ subdirectory)
     ├── pages/        # Application pages
@@ -184,6 +191,7 @@ Key tables (snake_case naming):
 
 - Database file: `~/Library/Application Support/archestra/archestra.db`
 - Logs directory: `~/Library/Application Support/archestra/logs/`
+  - MCP server logs: `~/Library/Application Support/archestra/logs/mcp-servers/<container-name>.log`
 - Binary resources: `desktop_app/resources/bin/` (platform-specific)
 - Code signing configured for macOS notarization
 - ASAR packaging enabled for production builds
