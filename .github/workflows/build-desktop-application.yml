@@ -114,6 +114,6 @@ jobs:
 
       # https://brunoscheufler.com/blog/2023-11-12-setting-up-hosted-macos-github-actions-workflows-for-electron-builds
       - name: Clean up keychain
-        if: ${{ always() }}
+        if: ${{ always() && matrix.os == 'macos' }}
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
