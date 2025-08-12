@@ -31,18 +31,18 @@ jobs:
           persist-credentials: false
 
       - name: Authenticate to Google Cloud
-        if: inputs.push_to_gcr == 'true'
+        if: inputs.push_to_gcr
         uses: google-github-actions/auth@6fc4af4b145ae7821d527454aa9bd537d1f2dc5f # v2.1.7
         with:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_NAME }}
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER_IDENTIFIER }}
 
       - name: Set up Google Cloud
-        if: inputs.push_to_gcr == 'true'
+        if: inputs.push_to_gcr
         uses: google-github-actions/setup-gcloud@6a7c903a70c8625ed6700fa299f5ddb4ca6022e9 # v2.1.5
 
       - name: Configure Docker for Artifact Registry
-        if: inputs.push_to_gcr == 'true'
+        if: inputs.push_to_gcr
         run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
 
       - name: Set up Docker Buildx
@@ -54,7 +54,7 @@ jobs:
           context: ./mcp_server_docker_image
           file: ./mcp_server_docker_image/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ inputs.push_to_gcr == 'true' }}
+          push: ${{ inputs.push_to_gcr }}
           tags: |
             europe-west1-docker.pkg.dev/friendly-path-465518-r6/archestra-public/mcp-server-base:${{ inputs.version }}
             europe-west1-docker.pkg.dev/friendly-path-465518-r6/archestra-public/mcp-server-base:latest

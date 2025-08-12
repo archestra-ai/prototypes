@@ -1,11 +1,10 @@
 {
-  "bootstrap-sha": "27dfdf5250b14394b5d1ab3fae40dadc64ad15c2",
+  "bootstrap-sha": "3acea16972b4ee2fbed72d20abe8837c7e7b551c",
   "changelog-path": "CHANGELOG.md",
   "changelog-type": "default",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
   "pull-request-footer": "",
-  "include-component-in-tag": false,
   "include-v-in-tag": true,
   "prerelease": true,
   "prerelease-type": "alpha",
@@ -64,11 +63,11 @@
   "packages": {
     "desktop_app": {
       "component": "desktop_app",
+      "include-component-in-tag": false,
       "release-type": "node"
     },
     "mcp_server_docker_image": {
       "component": "mcp_server_docker_image",
-      "skip-github-release": true,
       "release-type": "simple"
     }
   },
