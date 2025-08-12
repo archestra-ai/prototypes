@@ -226,10 +226,9 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
           set({ errorInstallingMcpServer: error as string });
         }
       } else {
-        await installMcpServer({ body: installData });
+        const { data: newlyInstalledMcpServer } = await installMcpServer({ body: installData });
 
-        // Refresh the MCP servers list
-        await useMcpServersStore.getState().loadInstalledMcpServers();
+        await get().addMcpServerToInstalledMcpServers(newlyInstalledMcpServer);
       }
     } catch (error) {
       set({ errorInstallingMcpServer: error as string });

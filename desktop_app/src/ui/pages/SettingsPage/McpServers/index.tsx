@@ -43,10 +43,23 @@ export default function McpServers(_props: McpServersProps) {
       };
     }
 
+    /**
+     * Only show "Sandbox Ready" if we've actually completed initialization (100%)
+     * When startupPercentage is 0, it means initialization hasn't started yet
+     */
+    if (startupPercentage === 100) {
+      return {
+        icon: <CheckCircle className="h-5 w-5 text-green-500" />,
+        title: 'Sandbox Ready',
+        description: 'Container environment is up and running',
+      };
+    }
+
+    // Default state when not yet initialized (startupPercentage === 0)
     return {
-      icon: <CheckCircle className="h-5 w-5 text-green-500" />,
-      title: 'Sandbox Ready',
-      description: 'Container environment is up and running',
+      icon: <Loader2 className="h-5 w-5 animate-spin" />,
+      title: 'Initializing Sandbox',
+      description: 'Starting container environment...',
     };
   };
 
@@ -73,7 +86,7 @@ export default function McpServers(_props: McpServersProps) {
           {startupPercentage > 0 && startupPercentage < 100 && (
             <div className="space-y-2">
               <Progress value={startupPercentage} className="h-2" />
-              <p className="text-xs text-muted-foreground text-right">{startupPercentage}%</p>
+              <p className="text-xs text-muted-foreground text-right">{Math.floor(startupPercentage)}%</p>
             </div>
           )}
 

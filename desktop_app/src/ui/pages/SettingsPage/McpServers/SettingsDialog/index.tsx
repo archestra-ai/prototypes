@@ -14,7 +14,6 @@ import {
 import { Input } from '@ui/components/ui/input';
 import { Label } from '@ui/components/ui/label';
 import { Textarea } from '@ui/components/ui/textarea';
-import { installMcpServer } from '@ui/lib/clients/archestra/api/gen';
 import { useMcpServersStore } from '@ui/stores';
 
 interface SettingsDialogProps {
@@ -55,76 +54,52 @@ const defaultFormData: FormData = {
 };
 
 export default function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const { loadInstalledMcpServers } = useMcpServersStore();
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Form state
   const [formData, setFormData] = useState<FormData>(defaultFormData);
+
+  const { installMcpServer, installingMcpServerId, errorInstallingMcpServer } = useMcpServersStore();
+
+  const isSubmitting = installingMcpServerId !== null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
 
-    try {
-      // Validate form data
-      const validated = FormSchema.parse(formData);
+    // Validate form data
+    const validated = FormSchema.parse(formData);
 
-      // Parse args and env
-      const args = validated.args
-        .split('\n')
-        .map((arg) => arg.trim())
-        .filter((arg) => arg.length > 0);
+    // Parse args and env
+    const args = validated.args
+      .split('\n')
+      .map((arg) => arg.trim())
+      .filter((arg) => arg.length > 0);
 
-      const envPairs = validated.env
-        .split('\n')
-        .map((pair) => pair.trim())
-        .filter((pair) => pair.length > 0)
-        .map((pair) => {
-          const [key, value] = pair.split('=');
-          return { key: key?.trim(), value: value?.trim() };
-        });
-
-      // Validate env pairs
-      for (const { key, value } of envPairs) {
-        if (!key || !value) {
-          throw new Error('Invalid environment variable format. Use KEY=value format.');
-        }
-      }
-
-      const env = Object.fromEntries(envPairs.map(({ key, value }) => [key, value]));
-
-      // Submit to API
-      const { error } = await installMcpServer({
-        body: {
-          displayName: validated.name,
-          serverConfig: {
-            command: validated.command,
-            args,
-            env,
-          },
-        },
+    const envPairs = validated.env
+      .split('\n')
+      .map((pair) => pair.trim())
+      .filter((pair) => pair.length > 0)
+      .map((pair) => {
+        const [key, value] = pair.split('=');
+        return { key: key?.trim(), value: value?.trim() };
       });
 
-      if (error) {
-        setError(`There was an error installing the MCP server: ${error}`);
-      } else {
-        // Refresh the list and close dialog
-        await loadInstalledMcpServers();
-        onOpenChange(false);
-        setFormData(defaultFormData);
+    // Validate env pairs
+    for (const { key, value } of envPairs) {
+      if (!key || !value) {
+        throw new Error('Invalid environment variable format. Use KEY=value format.');
       }
-    } catch (err) {
-      if (err instanceof z.ZodError || err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Failed to install MCP server');
-      }
-    } finally {
-      setIsSubmitting(false);
     }
+
+    await installMcpServer(false, {
+      displayName: validated.name,
+      serverConfig: {
+        command: validated.command,
+        args,
+        env: Object.fromEntries(envPairs.map(({ key, value }) => [key, value])),
+      },
+      userConfigValues: {},
+    });
+
+    onOpenChange(false);
+    setFormData(defaultFormData);
   };
 
   const handleInputChange =
@@ -199,7 +174,7 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
             <p className="text-xs text-muted-foreground">Environment variables in KEY=value format, one per line</p>
           </div>
 
-          {error && <div className="text-sm text-destructive">{error}</div>}
+          {errorInstallingMcpServer && <div className="text-sm text-destructive">{errorInstallingMcpServer}</div>}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>

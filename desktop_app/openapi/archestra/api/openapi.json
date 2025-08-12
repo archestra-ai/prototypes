@@ -554,26 +554,34 @@
             "additionalProperties": false
           },
           "userConfigValues": {
-            "type": "object",
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
                 }
-              ]
-            }
+              },
+              {
+                "nullable": true,
+                "enum": [null]
+              }
+            ]
           },
           "createdAt": {
             "type": "string"
@@ -1158,26 +1166,34 @@
             "additionalProperties": false
           },
           "userConfigValues": {
-            "type": "object",
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
                 }
-              ]
-            }
+              },
+              {
+                "nullable": true,
+                "enum": [null]
+              }
+            ]
           },
           "createdAt": {
             "type": "string"

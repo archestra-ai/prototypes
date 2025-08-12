@@ -142,7 +142,7 @@ export type McpServerInput = {
   };
   userConfigValues: {
     [key: string]: string | number | boolean | Array<string>;
-  };
+  } | null;
   createdAt: string;
 };
 
@@ -294,7 +294,7 @@ export type McpServer = {
   };
   userConfigValues: {
     [key: string]: string | number | boolean | Array<string>;
-  };
+  } | null;
   createdAt: string;
 };
 
