@@ -78,6 +78,10 @@ jobs:
 
       # See https://brunoscheufler.com/blog/2023-11-12-setting-up-hosted-macos-github-actions-workflows-for-electron-builds
       # was super helpful for getting macOS signing working on GitHub Actions
+      #
+      # See also:
+      # https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications
+      # https://help.apple.com/xcode/mac/current/#/dev154b28f09
       - name: Install Apple codesigning certificate
         if: matrix.os == 'macos'
         env:
@@ -109,3 +113,9 @@ jobs:
         # TODO: the following DEBUG env var can be removed once we're done debugging Apple's "notary service" taking forever
         # https://github.com/electron/notarize/issues/197#issuecomment-2153484132
         run: DEBUG=electron-notarize* pnpm run publish ${{ inputs.dry_run && '--dry-run' }}
+
+      # https://brunoscheufler.com/blog/2023-11-12-setting-up-hosted-macos-github-actions-workflows-for-electron-builds
+      - name: Clean up keychain
+        if: ${{ always() && matrix.os == 'macos' }}
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
