@@ -1,3 +1,6 @@
+import { useState } from 'react';
+
+import OnboardingWizard from '@ui/components/OnboardingWizard';
 import Sidebar from '@ui/components/Sidebar';
 import { SidebarInset } from '@ui/components/ui/sidebar';
 import ChatPage from '@ui/pages/ChatPage';
@@ -9,6 +12,7 @@ import { NavigationViewKey } from '@ui/types';
 
 export default function App() {
   const { activeView, activeSubView } = useNavigationStore();
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   const renderContent = () => {
     switch (activeView) {
@@ -27,11 +31,14 @@ export default function App() {
 
   return (
     <div className="[--header-height:2.25rem] h-screen flex flex-col">
-      <Sidebar>
-        <SidebarInset className="overflow-hidden h-full">
-          <main className={`flex-1 space-y-4 p-4 h-full${overflowClassName}`}>{renderContent()}</main>
-        </SidebarInset>
-      </Sidebar>
+      <OnboardingWizard onOpenChange={setIsOnboardingOpen} />
+      <div className={`h-full transition-all duration-300 ${isOnboardingOpen ? 'blur-md pointer-events-none' : ''}`}>
+        <Sidebar>
+          <SidebarInset className="overflow-hidden h-full">
+            <main className={`flex-1 space-y-4 p-4 h-full${overflowClassName}`}>{renderContent()}</main>
+          </SidebarInset>
+        </Sidebar>
+      </div>
     </div>
   );
 }
