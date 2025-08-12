@@ -124,7 +124,7 @@ jobs:
         if: matrix.os != 'macos'
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
-        run: pnpm run publish${{ inputs.dry_run && ' --dry-run' || '' }}}
+        run: pnpm run publish${{ inputs.dry_run && ' --dry-run' || '' }}
 
       # https://brunoscheufler.com/blog/2023-11-12-setting-up-hosted-macos-github-actions-workflows-for-electron-builds
       - name: Clean up keychain
