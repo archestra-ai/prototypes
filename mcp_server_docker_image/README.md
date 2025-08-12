@@ -29,6 +29,7 @@ docker build -t mcp-server-base .
 ## Dependencies Included
 
 ### Python
+
 - mcp[cli]>=1.2.0
 - httpx
 - fastapi
@@ -37,6 +38,7 @@ docker build -t mcp-server-base .
 - python-dotenv>=1.0.0
 
 ### Node.js
+
 - @modelcontextprotocol/sdk
 - typescript@5
 - zod

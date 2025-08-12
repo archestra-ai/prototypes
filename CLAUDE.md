@@ -84,6 +84,16 @@ pnpm codegen:archestra:catalog  # Generate catalog API client
 pnpm codegen:libpod            # Generate Podman/libpod client for container management
 ```
 
+### Publishing and Releasing
+
+```bash
+# Publish the application (builds and uploads to GitHub release)
+pnpm publish
+
+# Publish with dry run (test without uploading)
+pnpm publish --dry-run
+```
+
 ## High-Level Architecture
 
 This is an **Electron desktop application** that integrates AI/LLM capabilities with MCP (Model Context Protocol) support for a privacy-focused AI assistant with extensible tool support.
@@ -266,9 +276,11 @@ The application implements container-based sandboxing for MCP servers using Podm
 - **UI Components**:
   - `SandboxStartupProgress`: Real-time initialization progress display
   - `sandbox-store.ts`: Zustand store for sandbox state management
-- **Bundled Binaries**: Located in `resources/bin/` directory
-  - `podman-remote-static-v5.5.2` (multi-platform)
-  - `gvproxy-v0.8.6` (networking proxy)
+- **Bundled Binaries**: Located in `resources/bin/` directory, organized by platform:
+  - `linux/arm64/`, `linux/x86_64/`: Linux binaries
+  - `mac/arm64/`, `mac/x86_64/`: macOS binaries  
+  - `windows/arm64/`, `windows/x86_64/`: Windows binaries
+  - Each platform includes: `podman-remote-static-v5.5.2`, `gvproxy`, and `ollama`
 
 ### Key Patterns
 
@@ -360,7 +372,8 @@ Response: 204 No Content
 ### Important Configuration
 
 - **Package Manager**: pnpm v10.14.0 (NEVER use npm or yarn)
-- **Node Version**: 24.4.1
+- **Node Version**: 22.16.0 (matches Electron 37's bundled Node.js version)
+- **Electron Version**: 37.x
 - **Backend Port**: 54587 (configured in `src/consts.ts`)
 - **WebSocket Endpoint**: `ws://localhost:54587/ws` (configured in `src/consts.ts`)
 - **TypeScript Path Aliases**:
@@ -371,6 +384,9 @@ Response: 204 No Content
 - **Prettier Config**: 120 character line width, single quotes, sorted imports
 - **Pre-commit Hooks**: Prettier formatting via Husky
 - **Electron Configuration**: Managed via Electron Forge in `forge.config.ts`
+  - Platform-specific binary bundling: Only includes binaries for target platform/architecture
+  - macOS code signing: Configured for Developer ID certificates and notarization
+  - Windows/Linux: Currently creates ZIP files (Squirrel installer disabled pending code signing)
 
 ### Build Configuration
 
@@ -422,18 +438,20 @@ The GitHub Actions CI/CD pipeline consists of several workflows with concurrency
 - Creates and maintains release PRs with changelogs
 - **Triggers**: Runs on pushes to `main` branch
 - **Authentication**: Uses GitHub App authentication
-- **Version Management**: Release-please automatically manages version updates through `extra-files` configuration:
+- **Version Management**: Release-please automatically manages version updates:
   - **Configuration**: Located in `.github/release-please/release-please-config.json`
-  - **Extra Files**: Automatically updates version numbers in:
-    - `package.json` (JSON format, path: `$.version`)
-    - `forge.config.ts` (if versioned)
+  - **Versioning Strategy**: Currently using alpha pre-releases (`0.0.1-alpha.x`)
+  - **Extra Files**: Automatically updates version numbers in `package.json`
   - **Process**: Version updates happen when release-please creates the release PR
-  - **Format**: Versions are extracted from release-please tags (format: `app-vX.Y.Z`)
+  - **Tag Format**: `v{version}` (e.g., `v0.0.1-alpha.0`)
 - **Multi-platform desktop builds**: When a desktop release is created:
-  - Builds Electron applications for Linux, macOS, and Windows
-  - Uses matrix strategy with `fail-fast: false` to ensure all platforms build
-  - Creates draft GitHub releases with platform-specific binaries
-  - Tags releases with format `app-v__VERSION__`
+  - Builds Electron applications for all platforms:
+    - Linux: x64, ARM64
+    - macOS: x64, ARM64 (with code signing and notarization)
+    - Windows: x64, ARM64
+  - Uses reusable workflow (`.github/workflows/build-desktop-application.yml`)
+  - Uploads binaries to GitHub release created by release-please
+  - Supports dry-run mode for testing builds without publishing
 
 #### Interactive Claude Workflow (`.github/workflows/claude.yml`)
 

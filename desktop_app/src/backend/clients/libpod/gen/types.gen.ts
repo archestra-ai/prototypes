@@ -18,33 +18,6 @@ export type Address = {
   PrefixLength?: number;
 };
 
-export type ArtifactAddReport = {
-  ArtifactDigest?: Digest;
-};
-
-export type ArtifactInspectReport = {
-  Digest?: string;
-  Manifest?: Oci1;
-  Name?: string;
-};
-
-export type ArtifactListReport = {
-  Manifest?: Oci1;
-  Name?: string;
-};
-
-export type ArtifactPullReport = {
-  ArtifactDigest?: Digest;
-};
-
-export type ArtifactPushReport = {
-  ArtifactDigest?: Digest;
-};
-
-export type ArtifactRemoveReport = {
-  ArtifactDigests?: Array<Digest>;
-};
-
 /**
  * ArtifactVolume is a volume based on a artifact. The artifact blobs will
  * be bind mounted directly as files and must always be read only.
@@ -65,13 +38,6 @@ export type ArtifactVolume = {
    * Optional. Conflicts with Title.
    */
   digest?: string;
-  /**
-   * Name is the name that should be used for the path inside the container. When a single blob
-   * is mounted the name is used as is. If multiple blobs are mounted then mount them as
-   * "<name>-x" where x is a 0 indexed integer based on the layer order.
-   * Optional.
-   */
-  name?: string;
   /**
    * Source is the name or digest of the artifact that should be mounted
    */
@@ -1525,73 +1491,6 @@ export type DistributionInfo = {
 };
 
 /**
- * DockerOCIImageConfig is a ocispec.ImageConfig extended with Docker specific fields.
- */
-export type DockerOciImageConfig = {
-  /**
-   * ArgsEscaped
-   *
-   * Deprecated: This field is present only for legacy compatibility with
-   * Docker and should not be used by new image builders.  It is used by Docker
-   * for Windows images to indicate that the `Entrypoint` or `Cmd` or both,
-   * contains only a single element array, that is a pre-escaped, and combined
-   * into a single string `CommandLine`. If `true` the value in `Entrypoint` or
-   * `Cmd` should be used as-is to avoid double escaping.
-   * https://github.com/opencontainers/image-spec/pull/892
-   */
-  ArgsEscaped?: boolean;
-  /**
-   * Cmd defines the default arguments to the entrypoint of the container.
-   */
-  Cmd?: Array<string>;
-  /**
-   * Entrypoint defines a list of arguments to use as the command to execute when the container starts.
-   */
-  Entrypoint?: Array<string>;
-  /**
-   * Env is a list of environment variables to be used in a container.
-   */
-  Env?: Array<string>;
-  /**
-   * ExposedPorts a set of ports to expose from a container running this image.
-   */
-  ExposedPorts?: {
-    [key: string]: {
-      [key: string]: unknown;
-    };
-  };
-  Healthcheck?: HealthcheckConfig;
-  /**
-   * Labels contains arbitrary metadata for the container.
-   */
-  Labels?: {
-    [key: string]: string;
-  };
-  OnBuild?: Array<string>;
-  Shell?: Array<string>;
-  /**
-   * StopSignal contains the system call signal that will be sent to the container to exit.
-   */
-  StopSignal?: string;
-  /**
-   * User defines the username or UID which the process in the container should run as.
-   */
-  User?: string;
-  /**
-   * Volumes is a set of directories describing where the process is likely write data specific to a container instance.
-   */
-  Volumes?: {
-    [key: string]: {
-      [key: string]: unknown;
-    };
-  };
-  /**
-   * WorkingDir sets the current working directory of the entrypoint process in the container.
-   */
-  WorkingDir?: string;
-};
-
-/**
  * Driver represents a volume driver.
  */
 export type Driver = {
@@ -2030,7 +1929,6 @@ export type HostInfo = {
   cpus?: number;
   databaseBackend?: string;
   distribution?: DistributionInfo;
-  emulatedArchitectures?: Array<string>;
   eventLogger?: string;
   freeLocks?: number;
   hostname?: string;
@@ -2108,9 +2006,6 @@ export type IdMappings = {
   uidmap?: Array<IdMap>;
 };
 
-/**
- * IDResponse Response to an API call that returns just an Id
- */
 export type IdResponse = {
   /**
    * The id of the newly created object.
@@ -2272,7 +2167,7 @@ export type ImageInspect = {
    * importing the image.
    */
   Comment?: string;
-  Config?: DockerOciImageConfig;
+  Config?: Config;
   /**
    * Container is for backwards compat but is basically unused
    */
@@ -5602,37 +5497,6 @@ export type NetworkingConfig = {
   EndpointsConfig?: {
     [key: string]: EndpointSettings;
   };
-};
-
-/**
- * OCI1 is a manifest.Manifest implementation for OCI images.
- * The underlying data from imgspecv1.Manifest is also available.
- */
-export type Oci1 = {
-  /**
-   * Annotations contains arbitrary metadata for the image manifest.
-   */
-  annotations?: {
-    [key: string]: string;
-  };
-  /**
-   * ArtifactType specifies the IANA media type of artifact when the manifest is used for an artifact.
-   */
-  artifactType?: string;
-  config?: Descriptor;
-  /**
-   * Layers is an indexed list of layers referenced by the manifest.
-   */
-  layers?: Array<Descriptor>;
-  /**
-   * MediaType specifies the type of this document data structure e.g. `application/vnd.oci.image.manifest.v1+json`
-   */
-  mediaType?: string;
-  /**
-   * SchemaVersion is the image manifest schema that this image follows
-   */
-  schemaVersion?: number;
-  subject?: Descriptor;
 };
 
 /**
@@ -9102,10 +8966,6 @@ export type VolumeCreateOptions = {
    */
   Driver?: string;
   /**
-   * GID that the volume will be created as
-   */
-  GID?: number;
-  /**
    * Ignore existing volumes
    */
   IgnoreIfExists?: boolean;
@@ -9131,10 +8991,6 @@ export type VolumeCreateOptions = {
   Options?: {
     [key: string]: string;
   };
-  /**
-   * UID that the volume will be created as
-   */
-  UID?: number;
 };
 
 /**
@@ -9439,6 +9295,18 @@ export type ImageBuildData = {
      *
      */
     q?: boolean;
+    /**
+     * Contents of base images to be modified on ADD or COPY only
+     * (As of Podman version v5.2)
+     *
+     */
+    compatvolumes?: boolean;
+    /**
+     * Inherit the labels from the base image or base stages
+     * (As of Podman version v5.5)
+     *
+     */
+    inheritlabels?: boolean;
     /**
      * Do not use the cache when building the image
      * (As of version 1.xx)
@@ -10886,7 +10754,7 @@ export type ImageDeleteData = {
   };
   query?: {
     /**
-     * Remove the image even if it is being used by stopped containers or has other tags
+     * remove the image even if used by containers or has other tags
      */
     force?: boolean;
     /**
@@ -11476,342 +11344,8 @@ export type SystemPingResponses = {
 
 export type SystemPingResponse = SystemPingResponses[keyof SystemPingResponses];
 
-export type ArtifactDeleteLibpodData = {
-  body?: never;
-  path: {
-    /**
-     * name or ID of artifact to delete
-     */
-    name: string;
-  };
-  query?: never;
-  url: '/libpod/artifacts/{name}';
-};
-
-export type ArtifactDeleteLibpodErrors = {
-  /**
-   * No such artifact
-   */
-  404: ErrorModel;
-  /**
-   * Internal server error
-   */
-  500: ErrorModel;
-};
-
-export type ArtifactDeleteLibpodError = ArtifactDeleteLibpodErrors[keyof ArtifactDeleteLibpodErrors];
-
-export type ArtifactDeleteLibpodResponses = {
-  /**
-   * Artifact Remove
-   */
-  200: ArtifactRemoveReport;
-};
-
-export type ArtifactDeleteLibpodResponse = ArtifactDeleteLibpodResponses[keyof ArtifactDeleteLibpodResponses];
-
-export type ArtifactExtractLibpodData = {
-  body?: never;
-  path: {
-    /**
-     * The name or digest of artifact
-     */
-    name: string;
-  };
-  query?: {
-    /**
-     * Only extract blob with the given title
-     */
-    title?: string;
-    /**
-     * Only extract blob with the given digest
-     */
-    digest?: string;
-    /**
-     * When extracting a single Artifact blob, don't use the blob title as the filename in the tar
-     */
-    excludeTitle?: boolean;
-  };
-  url: '/libpod/artifacts/{name}/extract';
-};
-
-export type ArtifactExtractLibpodErrors = {
-  /**
-   * Bad parameter in request
-   */
-  400: ErrorModel;
-  /**
-   * No such artifact
-   */
-  404: ErrorModel;
-  /**
-   * Internal server error
-   */
-  500: ErrorModel;
-};
-
-export type ArtifactExtractLibpodError = ArtifactExtractLibpodErrors[keyof ArtifactExtractLibpodErrors];
-
-export type ArtifactExtractLibpodResponses = {
-  /**
-   * Extract successful
-   */
-  200: unknown;
-};
-
-export type ArtifactInspectLibpodData = {
-  body?: never;
-  path: {
-    /**
-     * The name or ID of the artifact
-     */
-    name: string;
-  };
-  query?: never;
-  url: '/libpod/artifacts/{name}/json';
-};
-
-export type ArtifactInspectLibpodErrors = {
-  /**
-   * No such artifact
-   */
-  404: ErrorModel;
-  /**
-   * Internal server error
-   */
-  500: ErrorModel;
-};
-
-export type ArtifactInspectLibpodError = ArtifactInspectLibpodErrors[keyof ArtifactInspectLibpodErrors];
-
-export type ArtifactInspectLibpodResponses = {
-  /**
-   * Inspect Artifact
-   */
-  200: ArtifactInspectReport;
-};
-
-export type ArtifactInspectLibpodResponse = ArtifactInspectLibpodResponses[keyof ArtifactInspectLibpodResponses];
-
-export type ArtifactPushLibpodData = {
-  body?: never;
-  headers?: {
-    /**
-     * base-64 encoded auth config.
-     * Must include the following four values: username, password, email and server address
-     * OR simply just an identity token.
-     *
-     */
-    'X-Registry-Auth'?: string;
-  };
-  path: {
-    /**
-     * Mandatory reference to the artifact (e.g., quay.io/image/artifact:tag)
-     */
-    name: string;
-  };
-  query?: {
-    /**
-     * Number of times to retry in case of failure when performing pull
-     */
-    retry?: number;
-    /**
-     * Delay between retries in case of pull failures (e.g., 10s)
-     */
-    retryDelay?: string;
-    /**
-     * Require TLS verification.
-     */
-    tlsVerify?: boolean;
-  };
-  url: '/libpod/artifacts/{name}/push';
-};
-
-export type ArtifactPushLibpodErrors = {
-  /**
-   * Bad parameter in request
-   */
-  400: ErrorModel;
-  /**
-   * error in authentication
-   */
-  401: ErrorModel;
-  /**
-   * No such artifact
-   */
-  404: ErrorModel;
-  /**
-   * Internal server error
-   */
-  500: ErrorModel;
-};
-
-export type ArtifactPushLibpodError = ArtifactPushLibpodErrors[keyof ArtifactPushLibpodErrors];
-
-export type ArtifactPushLibpodResponses = {
-  /**
-   * Artifact Push
-   */
-  200: ArtifactPushReport;
-};
-
-export type ArtifactPushLibpodResponse = ArtifactPushLibpodResponses[keyof ArtifactPushLibpodResponses];
-
-export type ArtifactAddLibpodData = {
-  /**
-   * A binary stream of the blob to add to artifact
-   */
-  body?: Blob | File;
-  path?: never;
-  query: {
-    /**
-     * Mandatory reference to the artifact (e.g., quay.io/image/artifact:tag)
-     */
-    name: string;
-    /**
-     * File to be added to the artifact
-     */
-    fileName: string;
-    /**
-     * Optionally set the type of file
-     */
-    fileMIMEType?: string;
-    /**
-     * Array of annotation strings e.g "test=true"
-     */
-    annotations?: Array<string>;
-    /**
-     * Use type to describe an artifact
-     */
-    artifactMIMEType?: string;
-    /**
-     * Append files to an existing artifact
-     */
-    append?: boolean;
-  };
-  url: '/libpod/artifacts/add';
-};
-
-export type ArtifactAddLibpodErrors = {
-  /**
-   * Bad parameter in request
-   */
-  400: ErrorModel;
-  /**
-   * No such artifact
-   */
-  404: ErrorModel;
-  /**
-   * Internal server error
-   */
-  500: ErrorModel;
-};
-
-export type ArtifactAddLibpodError = ArtifactAddLibpodErrors[keyof ArtifactAddLibpodErrors];
-
-export type ArtifactAddLibpodResponses = {
-  /**
-   * Artifact Add
-   */
-  201: ArtifactAddReport;
-};
-
-export type ArtifactAddLibpodResponse = ArtifactAddLibpodResponses[keyof ArtifactAddLibpodResponses];
-
-export type ArtifactListLibpodData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/libpod/artifacts/json';
-};
-
-export type ArtifactListLibpodErrors = {
-  /**
-   * Internal server error
-   */
-  500: ErrorModel;
-};
-
-export type ArtifactListLibpodError = ArtifactListLibpodErrors[keyof ArtifactListLibpodErrors];
-
-export type ArtifactListLibpodResponses = {
-  /**
-   * Artifact list
-   */
-  200: Array<ArtifactListReport>;
-};
-
-export type ArtifactListLibpodResponse = ArtifactListLibpodResponses[keyof ArtifactListLibpodResponses];
-
-export type ArtifactPullLibpodData = {
-  body?: never;
-  headers?: {
-    /**
-     * base-64 encoded auth config.
-     * Must include the following four values: username, password, email and server address
-     * OR simply just an identity token.
-     *
-     */
-    'X-Registry-Auth'?: string;
-  };
-  path?: never;
-  query: {
-    /**
-     * Mandatory reference to the artifact (e.g., quay.io/image/artifact:tag)
-     */
-    name: string;
-    /**
-     * Number of times to retry in case of failure when performing pull
-     */
-    retry?: number;
-    /**
-     * Delay between retries in case of pull failures (e.g., 10s)
-     */
-    retryDelay?: string;
-    /**
-     * Require TLS verification.
-     */
-    tlsVerify?: boolean;
-  };
-  url: '/libpod/artifacts/pull';
-};
-
-export type ArtifactPullLibpodErrors = {
-  /**
-   * Bad parameter in request
-   */
-  400: ErrorModel;
-  /**
-   * error in authentication
-   */
-  401: ErrorModel;
-  /**
-   * No such artifact
-   */
-  404: ErrorModel;
-  /**
-   * Internal server error
-   */
-  500: ErrorModel;
-};
-
-export type ArtifactPullLibpodError = ArtifactPullLibpodErrors[keyof ArtifactPullLibpodErrors];
-
-export type ArtifactPullLibpodResponses = {
-  /**
-   * Artifact Pull
-   */
-  200: ArtifactPullReport;
-};
-
-export type ArtifactPullLibpodResponse = ArtifactPullLibpodResponses[keyof ArtifactPullLibpodResponses];
-
 export type ImageBuildLibpodData = {
   body?: never;
-  headers?: {
-    'Content-Type'?: 'application/x-tar' | 'multipart/form-data';
-    'X-Registry-Config'?: string;
-  };
   path?: never;
   query?: {
     /**
@@ -11831,25 +11365,6 @@ export type ImageBuildLibpodData = {
      *
      */
     allplatforms?: boolean;
-    /**
-     * Additional build contexts for builds that require more than one context.
-     * Each additional context must be specified as a key-value pair in the format "name=value".
-     *
-     * The value can be specified in two formats:
-     * - URL context: Use the prefix "url:" followed by a URL to a tar archive
-     * Example: "mycontext=url:https://example.com/context.tar"
-     * - Image context: Use the prefix "image:" followed by an image reference
-     * Example: "mycontext=image:alpine:latest" or "mycontext=image:docker.io/library/ubuntu:22.04"
-     *
-     * Local contexts are provided via multipart/form-data upload. When using multipart/form-data,
-     * include additional build contexts as separate form fields with names prefixed by "build-context-".
-     * For example, a local context named "mycontext" should be uploaded as a tar file in a field
-     * named "build-context-mycontext".
-     *
-     * (As of version 5.6.0)
-     *
-     */
-    additionalbuildcontexts?: Array<string>;
     /**
      * TBD Extra hosts to add to /etc/hosts
      * (As of version 1.xx)
@@ -11879,50 +11394,17 @@ export type ImageBuildLibpodData = {
      */
     q?: boolean;
     /**
-     * Contents of volume locations to be modified on ADD or COPY only
+     * Contents of base images to be modified on ADD or COPY only
      * (As of Podman version v5.2)
      *
      */
     compatvolumes?: boolean;
-    /**
-     * Add an "org.opencontainers.image.created" annotation to the
-     * image.
-     * (As of Podman version v5.6)
-     *
-     */
-    createdannotation?: boolean;
-    /**
-     * Timestamp to use for newly-added history entries and the image's
-     * creation date.
-     * (As of Podman version v5.6)
-     *
-     */
-    sourcedateepoch?: number;
-    /**
-     * If sourcedateepoch is set, force new content added in layers to
-     * have timestamps no later than the sourcedateepoch date.
-     * (As of Podman version v5.6)
-     *
-     */
-    rewritetimestamp?: boolean;
-    /**
-     * Timestamp to use for newly-added history entries, the image's
-     * creation date, and for new content added in layers.
-     *
-     */
-    timestamp?: number;
     /**
      * Inherit the labels from the base image or base stages
      * (As of Podman version v5.5)
      *
      */
     inheritlabels?: boolean;
-    /**
-     * Inherit the annotations from the base image or base stages
-     * (As of Podman version v5.6)
-     *
-     */
-    inheritannotations?: boolean;
     /**
      * Do not use the cache when building the image
      * (As of version 1.xx)
@@ -12077,12 +11559,6 @@ export type ImageBuildLibpodData = {
      * Unset the image label, causing the label not to be inherited from the base image.
      */
     unsetlabel?: Array<string>;
-    /**
-     * Unset the image annotation, causing the annotation not to be inherited from the base image.
-     * (As of Podman version v5.6)
-     *
-     */
-    unsetannotation?: Array<string>;
     /**
      * Extra volumes that should be mounted in the build container.
      */
@@ -16802,76 +16278,6 @@ export type VolumeExistsLibpodError = VolumeExistsLibpodErrors[keyof VolumeExist
 export type VolumeExistsLibpodResponses = {
   /**
    * volume exists
-   */
-  204: unknown;
-};
-
-export type VolumeExportLibpodData = {
-  body?: never;
-  path: {
-    /**
-     * the name or ID of the volume
-     */
-    name: string;
-  };
-  query?: never;
-  url: '/libpod/volumes/{name}/export';
-};
-
-export type VolumeExportLibpodErrors = {
-  /**
-   * No such volume
-   */
-  404: ErrorModel;
-  /**
-   * Internal server error
-   */
-  500: ErrorModel;
-};
-
-export type VolumeExportLibpodError = VolumeExportLibpodErrors[keyof VolumeExportLibpodErrors];
-
-export type VolumeExportLibpodResponses = {
-  /**
-   * no error
-   */
-  200: Blob | File;
-};
-
-export type VolumeExportLibpodResponse = VolumeExportLibpodResponses[keyof VolumeExportLibpodResponses];
-
-export type VolumeImportLibpodData = {
-  /**
-   * An uncompressed tar archive
-   *
-   */
-  body?: Blob | File;
-  path: {
-    /**
-     * the name or ID of the volume
-     */
-    name: string;
-  };
-  query?: never;
-  url: '/libpod/volumes/{name}/import';
-};
-
-export type VolumeImportLibpodErrors = {
-  /**
-   * No such volume
-   */
-  404: ErrorModel;
-  /**
-   * Internal server error
-   */
-  500: ErrorModel;
-};
-
-export type VolumeImportLibpodError = VolumeImportLibpodErrors[keyof VolumeImportLibpodErrors];
-
-export type VolumeImportLibpodResponses = {
-  /**
-   * Successful import
    */
   204: unknown;
 };

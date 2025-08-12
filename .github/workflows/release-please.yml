@@ -58,37 +58,27 @@ jobs:
         run: |
           echo "$OUTPUTS"
 
-  build-desktop-application-and-create-github-release:
-    name: Build ${{ matrix.platform }} desktop application and create GitHub release
-    runs-on: ${{ matrix.platform }}
+  build-desktop-application:
+    name: Build desktop application
     if: needs.release-please.outputs.desktop_release_created
     needs:
       - release-please
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: ubuntu-latest
-            args: ""
-          - platform: windows-latest
-            args: ""
-    steps:
-      - name: Checkout project
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-
-      - name: Generate a token
-        id: generate-token
-        uses: ./.github/actions/generate-release-token
-        with:
-          app-id: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_ID }}
-          private-key: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY }}
-
-      - name: Setup environment
-        uses: ./.github/actions/setup-env
-
-      # TODO: add Electron Forge steps here
+    permissions:
+      # publisher requires write permissions to the repo's contents to create new releases
+      # https://www.electronforge.io/config/publishers/github#authentication
+      contents: write
+    uses: ./.github/workflows/build-desktop-application.yml
+    with:
+      dry_run: false
+    secrets:
+      ARCHESTRA_RELEASER_GITHUB_APP_ID: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_ID }}
+      ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY: ${{ secrets.ARCHESTRA_RELEASER_GITHUB_APP_PRIVATE_KEY }}
+      APPLE_SIGNING_CERTIFICATE_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_BASE64 }}
+      APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
   build-and-push-mcp-server-docker-image:
     name: Build and push MCP Server Docker image
