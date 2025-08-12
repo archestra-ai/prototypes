@@ -150,8 +150,8 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0(zod@4.0.15)
       ollama-ai-provider-v2:
-        specifier: 1.0.0-alpha.3
-        version: 1.0.0-alpha.3(zod@4.0.15)
+        specifier: 1.0.0
+        version: 1.0.0(zod@4.0.15)
       react:
         specifier: ^19.1.1
         version: 19.1.1
@@ -354,12 +354,6 @@ packages:
     peerDependencies:
       zod: ^3.23.8
 
-  '@ai-sdk/provider-utils@3.0.0-beta.2':
-    resolution: {integrity: sha512-H4K+4weOVgWqrDDeAbQWoA4U5mN4WrQPHQFdH7ynQYcnhj/pzctU9Q6mGlR5ESMWxaXxazxlOblSITlXo9bahA==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.49
-
   '@ai-sdk/provider-utils@3.0.1':
     resolution: {integrity: sha512-/iP1sKc6UdJgGH98OCly7sWJKv+J9G47PnTjIj40IJMUQKwDrUMyf7zOOfRtPwSuNifYhSoJQ4s1WltI65gJ/g==}
     engines: {node: '>=18'}
@@ -372,10 +366,6 @@ packages:
 
   '@ai-sdk/provider@2.0.0':
     resolution: {integrity: sha512-6o7Y2SeO9vFKB8lArHXehNuusnpddKPk7xqL7T2/b+OvXMRIXUO1rR4wcv1hAFUAT9avGZshty3Wlua/XA7TvA==}
-    engines: {node: '>=18'}
-
-  '@ai-sdk/provider@2.0.0-beta.1':
-    resolution: {integrity: sha512-Z8SPncMtS3RsoXITmT7NVwrAq6M44dmw0DoUOYJqNNtCu8iMWuxB8Nxsoqpa0uEEy9R1V1ZThJAXTYgjTUxl3w==}
     engines: {node: '>=18'}
 
   '@ai-sdk/react@2.0.5':
@@ -3952,11 +3942,11 @@ packages:
   ohash@1.1.6:
     resolution: {integrity: sha512-TBu7PtV8YkAZn0tSxobKY2n2aAQva936lhRrj6957aDaCf9IEtqsKbgMzXE/F/sjqYOwmrukeORHNLe5glk7Cg==}
 
-  ollama-ai-provider-v2@1.0.0-alpha.3:
-    resolution: {integrity: sha512-91wtWFTIeTdrqgE/Ygm+t/S6LrcxKxjrwuJ/2/dvce6jCrZbXmp9WI/00/EdoT3mxihOcmL2FSQX4+EwJ26thA==}
+  ollama-ai-provider-v2@1.0.0:
+    resolution: {integrity: sha512-26r/QQiYMpwSeO68HFO19uiEiiMonkwKNlE5EzLTs4Ltd3jne41kqwavnWudO7Fn8VOZv1C6BZVhj0H4RYEfew==}
     engines: {node: '>=18'}
     peerDependencies:
-      zod: ^3.25.49
+      zod: ^4.0.16
 
   ollama-ai-provider@1.2.0:
     resolution: {integrity: sha512-jTNFruwe3O/ruJeppI/quoOUxG7NA6blG3ZyQj3lei4+NnJo7bi3eIRWqlVpRlu/mbzbFXeJSBuYQWF6pzGKww==}
@@ -5298,14 +5288,6 @@ snapshots:
       secure-json-parse: 2.7.0
       zod: 4.0.15
 
-  '@ai-sdk/provider-utils@3.0.0-beta.2(zod@4.0.15)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.0-beta.1
-      '@standard-schema/spec': 1.0.0
-      eventsource-parser: 3.0.3
-      zod: 4.0.15
-      zod-to-json-schema: 3.24.6(zod@4.0.15)
-
   '@ai-sdk/provider-utils@3.0.1(zod@4.0.15)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
@@ -5319,10 +5301,6 @@ snapshots:
       json-schema: 0.4.0
 
   '@ai-sdk/provider@2.0.0':
-    dependencies:
-      json-schema: 0.4.0
-
-  '@ai-sdk/provider@2.0.0-beta.1':
     dependencies:
       json-schema: 0.4.0
 
@@ -9402,10 +9380,10 @@ snapshots:
 
   ohash@1.1.6: {}
 
-  ollama-ai-provider-v2@1.0.0-alpha.3(zod@4.0.15):
+  ollama-ai-provider-v2@1.0.0(zod@4.0.15):
     dependencies:
-      '@ai-sdk/provider': 2.0.0-beta.1
-      '@ai-sdk/provider-utils': 3.0.0-beta.2(zod@4.0.15)
+      '@ai-sdk/provider': 2.0.0
+      '@ai-sdk/provider-utils': 3.0.1(zod@4.0.15)
       zod: 4.0.15
 
   ollama-ai-provider@1.2.0(zod@4.0.15):
