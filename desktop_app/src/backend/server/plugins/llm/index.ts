@@ -148,7 +148,7 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
           })
         );
       } catch (error) {
-        fastify.log.error('LLM streaming error:', error);
+        fastify.log.error(`LLM streaming error: ${error}`);
         return reply.code(500).send({
           error: 'Failed to stream response',
           details: error instanceof Error ? error.message : 'Unknown error',

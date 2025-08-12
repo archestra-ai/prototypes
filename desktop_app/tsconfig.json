@@ -29,13 +29,5 @@
       // https://github.com/langchain-ai/langchainjs/issues/6462#issuecomment-2275810913
       "ollama/browser": ["./node_modules/ollama/dist"]
     }
-  },
-  "ts-node": {
-    // these options are overrides used only by ts-node
-    // same as our --compilerOptions flag and our TS_NODE_COMPILER_OPTIONS environment variable
-    // see https://github.com/electron/forge/issues/3317#issuecomment-1891475744
-    "compilerOptions": {
-      "module": "commonjs"
-    }
   }
 }

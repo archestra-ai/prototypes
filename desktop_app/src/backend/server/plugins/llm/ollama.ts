@@ -387,11 +387,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         const errorStack = error instanceof Error ? error.stack : '';
 
-        fastify.log.error('Ollama streaming error:', {
-          message: errorMessage,
-          stack: errorStack,
-          error: error,
-        });
+        fastify.log.error(`Ollama streaming error: message=${errorMessage} stack=${errorStack} error=${error}`);
 
         // Check if we've already hijacked
         if (!reply.sent) {
@@ -407,7 +403,7 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
             reply.raw.end();
           } catch (writeError) {
             // If writing fails, just log it
-            fastify.log.error('Failed to write error to stream:', writeError);
+            fastify.log.error(`Failed to write error to stream: ${writeError}`);
           }
         }
       }
