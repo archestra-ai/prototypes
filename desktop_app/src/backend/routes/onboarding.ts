@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 
-import { onboardingService } from '@backend/services/onboarding-service';
+import { onboardingService } from '@backend/models/onboarding';
 
 export async function onboardingRoutes(app: FastifyInstance) {
   app.get('/api/onboarding/status', async (request, reply) => {
