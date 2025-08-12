@@ -44,6 +44,100 @@ export type WebSocketMessageInput =
   | {
       type: 'sandbox-status-update';
       payload: SandboxStatusSummaryInput;
+    }
+  | {
+      type: 'sandbox-startup-started';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-startup-completed';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-startup-failed';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-podman-runtime-progress';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-base-image-fetch-started';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-base-image-fetch-progress';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-base-image-fetch-completed';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-base-image-fetch-failed';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-mcp-server-starting';
+      payload: {
+        serverId: string;
+        serverName: string;
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-mcp-server-started';
+      payload: {
+        serverId: string;
+        serverName: string;
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-mcp-server-failed';
+      payload: {
+        serverId: string;
+        serverName: string;
+        message: string;
+        progress?: number;
+        error?: string;
+      };
     };
 
 export type ChatWithMessagesInput = {
@@ -201,6 +295,100 @@ export type WebSocketMessage =
   | {
       type: 'sandbox-status-update';
       payload: SandboxStatusSummary;
+    }
+  | {
+      type: 'sandbox-startup-started';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-startup-completed';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-startup-failed';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-podman-runtime-progress';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-base-image-fetch-started';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-base-image-fetch-progress';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-base-image-fetch-completed';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-base-image-fetch-failed';
+      payload: {
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-mcp-server-starting';
+      payload: {
+        serverId: string;
+        serverName: string;
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-mcp-server-started';
+      payload: {
+        serverId: string;
+        serverName: string;
+        message: string;
+        progress?: number;
+        error?: string;
+      };
+    }
+  | {
+      type: 'sandbox-mcp-server-failed';
+      payload: {
+        serverId: string;
+        serverName: string;
+        message: string;
+        progress?: number;
+        error?: string;
+      };
     };
 
 export type ChatWithMessages = {

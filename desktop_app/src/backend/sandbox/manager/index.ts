@@ -6,6 +6,7 @@ import McpServerModel, { type McpServer, type McpServerContainerLogs } from '@ba
 import PodmanContainer, { PodmanContainerStatusSummarySchema } from '@backend/sandbox/podman/container';
 import PodmanRuntime, { PodmanRuntimeStatusSummarySchema } from '@backend/sandbox/podman/runtime';
 import log from '@backend/utils/logger';
+import websocketService from '@backend/websocket';
 
 export const SandboxStatusSchema = z.enum(['not_installed', 'initializing', 'running', 'error', 'stopping', 'stopped']);
 
@@ -59,10 +60,55 @@ class McpServerSandboxManager {
       setSocketPath(socketPath);
       log.info('Socket path has been updated in libpod client');
 
+      // Broadcast base image fetch started
+      websocketService.broadcast({
+        type: 'sandbox-base-image-fetch-started',
+        payload: {
+          message: 'Starting to pull MCP server base image',
+        },
+      });
+
       // Now pull the base image with the correct socket configured
       log.info('Pulling base image...');
-      await this.podmanRuntime.pullBaseImageOnMachineInstallationSuccess();
-      log.info('Base image pulled successfully');
+
+      // Create an interval to broadcast base image pull progress
+      const progressInterval = setInterval(() => {
+        const imageStatus = this.podmanRuntime.statusSummary.baseImage;
+        if (imageStatus.pullPercentage > 0 && imageStatus.pullPercentage < 100) {
+          websocketService.broadcast({
+            type: 'sandbox-base-image-fetch-progress',
+            payload: {
+              message: imageStatus.pullMessage || 'Pulling base image...',
+              progress: imageStatus.pullPercentage,
+            },
+          });
+        }
+      }, 500); // Update every 500ms
+
+      try {
+        await this.podmanRuntime.pullBaseImageOnMachineInstallationSuccess();
+        clearInterval(progressInterval);
+
+        websocketService.broadcast({
+          type: 'sandbox-base-image-fetch-completed',
+          payload: {
+            message: 'Base image pulled successfully',
+            progress: 100,
+          },
+        });
+        log.info('Base image pulled successfully');
+      } catch (error) {
+        clearInterval(progressInterval);
+
+        websocketService.broadcast({
+          type: 'sandbox-base-image-fetch-failed',
+          payload: {
+            message: 'Failed to pull base image',
+            error: error instanceof Error ? error.message : 'Unknown error',
+          },
+        });
+        throw error;
+      }
     } catch (error) {
       log.error('Failed during podman setup:', error);
       this.onPodmanMachineInstallationError(error as Error);
@@ -75,11 +121,39 @@ class McpServerSandboxManager {
 
     // Start all servers in parallel
     const startPromises = installedMcpServers.map(async (mcpServer) => {
-      const { id: serverId } = mcpServer;
+      const { id: serverId, name: serverName } = mcpServer;
 
       try {
+        websocketService.broadcast({
+          type: 'sandbox-mcp-server-starting',
+          payload: {
+            serverId,
+            serverName,
+            message: `Starting MCP server: ${serverName}`,
+          },
+        });
+
         await this.startServer(mcpServer);
+
+        websocketService.broadcast({
+          type: 'sandbox-mcp-server-started',
+          payload: {
+            serverId,
+            serverName,
+            message: `MCP server ${serverName} started successfully`,
+            progress: 100,
+          },
+        });
       } catch (error) {
+        websocketService.broadcast({
+          type: 'sandbox-mcp-server-failed',
+          payload: {
+            serverId,
+            serverName,
+            message: `Failed to start MCP server ${serverName}`,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          },
+        });
         throw error;
       }
     });
@@ -135,6 +209,51 @@ class McpServerSandboxManager {
    */
   start() {
     this.status = 'initializing';
+
+    websocketService.broadcast({
+      type: 'sandbox-startup-started',
+      payload: {
+        message: 'Starting sandbox initialization',
+      },
+    });
+
+    // Create an interval to broadcast runtime progress
+    const runtimeProgressInterval = setInterval(() => {
+      const runtimeStatus = this.podmanRuntime.statusSummary;
+      if (runtimeStatus.startupPercentage > 0 && runtimeStatus.startupPercentage < 100) {
+        websocketService.broadcast({
+          type: 'sandbox-podman-runtime-progress',
+          payload: {
+            message: runtimeStatus.startupMessage || 'Initializing Podman runtime...',
+            progress: runtimeStatus.startupPercentage,
+          },
+        });
+      }
+    }, 500); // Update every 500ms
+
+    // Store the interval so we can clear it later
+    this.onSandboxStartupSuccess = () => {
+      clearInterval(runtimeProgressInterval);
+      websocketService.broadcast({
+        type: 'sandbox-startup-completed',
+        payload: {
+          message: 'Sandbox initialization completed successfully',
+          progress: 100,
+        },
+      });
+    };
+
+    this.onSandboxStartupError = (error: Error) => {
+      clearInterval(runtimeProgressInterval);
+      websocketService.broadcast({
+        type: 'sandbox-startup-failed',
+        payload: {
+          message: 'Sandbox initialization failed',
+          error: error.message,
+        },
+      });
+    };
+
     this.podmanRuntime.ensureArchestraMachineIsRunning();
   }
 

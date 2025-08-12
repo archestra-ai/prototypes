@@ -10,9 +10,35 @@ const ChatTitleUpdatedPayloadSchema = z.object({
   title: z.string(),
 });
 
+const SandboxEventPayloadSchema = z.object({
+  message: z.string(),
+  progress: z.number().optional(),
+  error: z.string().optional(),
+});
+
+const McpServerEventPayloadSchema = z.object({
+  serverId: z.string(),
+  serverName: z.string(),
+  message: z.string(),
+  progress: z.number().optional(),
+  error: z.string().optional(),
+});
+
 export const WebSocketMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('chat-title-updated'), payload: ChatTitleUpdatedPayloadSchema }),
   z.object({ type: z.literal('sandbox-status-update'), payload: SandboxStatusSummarySchema }),
+  // New granular sandbox events
+  z.object({ type: z.literal('sandbox-startup-started'), payload: SandboxEventPayloadSchema }),
+  z.object({ type: z.literal('sandbox-startup-completed'), payload: SandboxEventPayloadSchema }),
+  z.object({ type: z.literal('sandbox-startup-failed'), payload: SandboxEventPayloadSchema }),
+  z.object({ type: z.literal('sandbox-podman-runtime-progress'), payload: SandboxEventPayloadSchema }),
+  z.object({ type: z.literal('sandbox-base-image-fetch-started'), payload: SandboxEventPayloadSchema }),
+  z.object({ type: z.literal('sandbox-base-image-fetch-progress'), payload: SandboxEventPayloadSchema }),
+  z.object({ type: z.literal('sandbox-base-image-fetch-completed'), payload: SandboxEventPayloadSchema }),
+  z.object({ type: z.literal('sandbox-base-image-fetch-failed'), payload: SandboxEventPayloadSchema }),
+  z.object({ type: z.literal('sandbox-mcp-server-starting'), payload: McpServerEventPayloadSchema }),
+  z.object({ type: z.literal('sandbox-mcp-server-started'), payload: McpServerEventPayloadSchema }),
+  z.object({ type: z.literal('sandbox-mcp-server-failed'), payload: McpServerEventPayloadSchema }),
 ]);
 
 // type ChatTitleUpdatedPayload = z.infer<typeof ChatTitleUpdatedPayloadSchema>;
