@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       dry_run:
-        description: Whether to run the build in dry run mode
+        description: Whether to run make or publish. If true, make will be run. If false, publish will be run.
         type: boolean
         required: false
         default: false
@@ -104,21 +104,23 @@ jobs:
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
-      - name: Build desktop application
+      - name: Build desktop application (macOS)
+        if: matrix.os == 'macos'
         env:
-          ARCHESTRA_OS: ${{ matrix.os }}
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        # TODO: the following DEBUG env var can be removed once we're done debugging Apple's "notary service" taking forever
-        # https://github.com/electron/notarize/issues/197#issuecomment-2153484132
-        run: |
-          if [ "$ARCHETRA_OS" = "macos" ]; then
-            DEBUG=electron-notarize* pnpm run publish ${{ inputs.dry_run && '--dry-run' }}
-          else
-            pnpm run publish ${{ inputs.dry_run && '--dry-run' }}
-          fi
+          # TODO: the following DEBUG env var can be removed once we're done debugging Apple's "notary service" taking forever
+          # https://github.com/electron/notarize/issues/197#issuecomment-2153484132
+          DEBUG: electron-notarize*
+        run: pnpm run ${{ inputs.dry_run && 'make' || 'publish' }}
+
+      - name: Build desktop application (Windows/Linux)
+        if: matrix.os != 'macos'
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: pnpm run ${{ inputs.dry_run && 'make' || 'publish' }}
 
       # https://brunoscheufler.com/blog/2023-11-12-setting-up-hosted-macos-github-actions-workflows-for-electron-builds
       - name: Clean up keychain
