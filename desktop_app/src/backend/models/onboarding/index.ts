@@ -4,8 +4,8 @@ import db from '@backend/database';
 import { onboardingTable } from '@backend/database/schema/onboarding';
 import log from '@backend/utils/logger';
 
-export class OnboardingService {
-  async isOnboardingCompleted(): Promise<boolean> {
+export default class OnboardingModel {
+  static async isOnboardingCompleted(): Promise<boolean> {
     try {
       const result = await db.select().from(onboardingTable).limit(1);
 
@@ -24,7 +24,7 @@ export class OnboardingService {
     }
   }
 
-  async markOnboardingCompleted(): Promise<void> {
+  static async markOnboardingCompleted(): Promise<void> {
     try {
       const existingRecord = await db.select().from(onboardingTable).limit(1);
 
@@ -51,5 +51,3 @@ export class OnboardingService {
     }
   }
 }
-
-export const onboardingService = new OnboardingService();

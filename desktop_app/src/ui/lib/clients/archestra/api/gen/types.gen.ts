@@ -814,6 +814,38 @@ export type GetMcpServerLogsResponses = {
 
 export type GetMcpServerLogsResponse = GetMcpServerLogsResponses[keyof GetMcpServerLogsResponses];
 
+export type IsOnboardingCompletedData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/onboarding/status';
+};
+
+export type IsOnboardingCompletedResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    completed: boolean;
+  };
+};
+
+export type IsOnboardingCompletedResponse = IsOnboardingCompletedResponses[keyof IsOnboardingCompletedResponses];
+
+export type MarkOnboardingCompletedData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/onboarding/complete';
+};
+
+export type MarkOnboardingCompletedResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
 export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});
 };

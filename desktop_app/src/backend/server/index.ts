@@ -3,7 +3,6 @@ import fastify from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 
 import config from '@backend/config';
-import { onboardingRoutes } from '@backend/routes/onboarding';
 import chatRoutes from '@backend/server/plugins/chat';
 import cloudProviderRoutes from '@backend/server/plugins/cloudProviders';
 import externalMcpClientRoutes from '@backend/server/plugins/externalMcpClient';
@@ -13,6 +12,7 @@ import archestraMcpServerPlugin from '@backend/server/plugins/mcp';
 import mcpRequestLogRoutes from '@backend/server/plugins/mcpRequestLog';
 import mcpServerRoutes from '@backend/server/plugins/mcpServer';
 import ollamaRoutes from '@backend/server/plugins/ollama';
+import onboardingRoutes from '@backend/server/plugins/onboarding';
 import log from '@backend/utils/logger';
 
 let app: ReturnType<typeof fastify> | null = null;

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { Button } from '@ui/components/ui/button';
 import { Dialog, DialogContent } from '@ui/components/ui/dialog';
-import config from '@ui/config';
+import { isOnboardingCompleted, markOnboardingCompleted } from '@ui/lib/clients/archestra/api/gen/sdk.gen';
 
 enum OnboardingStep {
   Welcome = 0,
@@ -20,7 +20,7 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(OnboardingStep.Welcome);
   const [isLoading, setIsLoading] = useState(true);
-  const [countdown, setCountdown] = useState(5);
+  const [_countdown, setCountdown] = useState(5);
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
 
   useEffect(() => {
@@ -52,8 +52,7 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
 
   const checkOnboardingStatus = async () => {
     try {
-      const response = await fetch(`${config.archestra.apiUrl}/api/onboarding/status`);
-      const data = await response.json();
+      const { data } = await isOnboardingCompleted();
       if (!data.completed) {
         setIsOpen(true);
       }
@@ -66,12 +65,7 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
 
   const completeOnboarding = async () => {
     try {
-      await fetch(`${config.archestra.apiUrl}/api/onboarding/complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      await markOnboardingCompleted();
       setIsOpen(false);
     } catch (error) {
       console.error('Failed to complete onboarding:', error);

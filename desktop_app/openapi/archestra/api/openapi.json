@@ -2217,6 +2217,44 @@
           }
         }
       }
+    },
+    "/api/onboarding/status": {
+      "get": {
+        "operationId": "isOnboardingCompleted",
+        "tags": ["Onboarding"],
+        "description": "Check if the onboarding process has been completed",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "completed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["completed"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/onboarding/complete": {
+      "post": {
+        "operationId": "markOnboardingCompleted",
+        "tags": ["Onboarding"],
+        "description": "Mark the onboarding process as completed",
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
     }
   }
 }
