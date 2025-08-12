@@ -119,19 +119,24 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
       return;
     }
 
-    await installMcpServer(false, {
-      displayName: validated.name,
-      serverConfig: {
-        command: validated.command,
-        args,
-        env: Object.fromEntries(envPairs.map(({ key, value }) => [key, value])),
-      },
-      userConfigValues: {},
-    });
+    try {
+      await installMcpServer(false, {
+        displayName: validated.name,
+        serverConfig: {
+          command: validated.command,
+          args,
+          env: Object.fromEntries(envPairs.map(({ key, value }) => [key, value])),
+        },
+        userConfigValues: {},
+      });
 
-    onOpenChange(false);
-    setFormData(defaultFormData);
-    setFormErrors({});
+      onOpenChange(false);
+      setFormData(defaultFormData);
+      setFormErrors({});
+    } catch (error) {
+      // Error is already set in the store by installMcpServer, so we just need to prevent crash
+      console.error('Failed to install MCP server:', error);
+    }
   };
 
   const handleInputChange =

@@ -1983,7 +1983,8 @@
                     "type": "string"
                   },
                   "displayName": {
-                    "type": "string"
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9-\\s]{1,63}$"
                   },
                   "serverConfig": {
                     "type": "object",
