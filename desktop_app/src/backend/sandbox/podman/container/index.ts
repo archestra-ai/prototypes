@@ -117,6 +117,12 @@ export default class PodmanContainer {
     this.ensureLogDirectoryExists(logsDir);
   }
 
+  /**
+   * NOTE: they're certain naming restrictions/conventions that we should follow here
+   *
+   * See:
+   * https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
+   */
   private static prettifyServerNameIntoContainerName = (serverName: string) =>
     `archestra-ai-${serverName.replace(/ /g, '-').toLowerCase()}-mcp-server`;
 

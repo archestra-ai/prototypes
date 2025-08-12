@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle, ChevronDown, Loader2, Server, Settings, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, Loader2, Server, Settings, XCircle } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@ui/components/ui/button';
@@ -14,6 +14,7 @@ interface McpServersProps {}
 
 export default function McpServers(_props: McpServersProps) {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
 
   const {
     isRunning: sandboxIsRunning,
@@ -101,28 +102,35 @@ export default function McpServers(_props: McpServersProps) {
   }
 
   return (
-    <Collapsible defaultOpen>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between p-6">
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="flex-1 justify-between p-0 h-auto cursor-pointer">
-              <CardTitle className="flex items-center gap-2">
-                <Server className="h-5 w-5" />
-                MCP Servers & Tools
-                {loadingInstalledMcpServers && <Loader2 className="h-4 w-4 animate-spin" />}
-              </CardTitle>
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </CollapsibleTrigger>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 ml-2 cursor-pointer"
-            onClick={() => setSettingsDialogOpen(true)}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-        </CardHeader>
+    <Card>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Server className="h-5 w-5" />
+                  MCP Servers & Tools
+                  {loadingInstalledMcpServers && <Loader2 className="h-4 w-4 animate-spin" />}
+                </CardTitle>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSettingsDialogOpen(true);
+                  }}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+                {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </div>
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
 
         <CollapsibleContent>
           <CardContent className="space-y-4">
@@ -165,9 +173,9 @@ export default function McpServers(_props: McpServersProps) {
             )}
           </CardContent>
         </CollapsibleContent>
-      </Card>
+      </Collapsible>
 
       <SettingsDialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen} />
-    </Collapsible>
+    </Card>
   );
 }
