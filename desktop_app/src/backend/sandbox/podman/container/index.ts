@@ -201,6 +201,20 @@ export default class PodmanContainer {
     this.stopLoggingToFile();
   }
 
+  private setContainerAsRunning() {
+    this.state = 'running';
+    this.startupPercentage = 100;
+    this.statusMessage = 'Container is running';
+    this.statusError = null;
+  }
+
+  private setContainerAsError(error: string) {
+    this.state = 'error';
+    this.startupPercentage = 0;
+    this.statusMessage = null;
+    this.statusError = error;
+  }
+
   /**
    * Get recent logs from the log file
    */
@@ -273,9 +287,7 @@ export default class PodmanContainer {
         log.info(`MCP server container ${this.containerName} is already running.`);
 
         // Update state
-        this.state = 'running';
-        this.startupPercentage = 100;
-        this.statusMessage = 'Container is already running';
+        this.setContainerAsRunning();
 
         // Start streaming logs even if container was already running
         await this.startStreamingLogs();
@@ -290,8 +302,11 @@ export default class PodmanContainer {
 
         // Wait for container to be healthy before considering it ready
         await this.waitForHealthy();
+
         // Start streaming logs for newly started container
         await this.startStreamingLogs();
+
+        this.setContainerAsRunning();
         return;
       }
     } catch (error) {
@@ -302,10 +317,7 @@ export default class PodmanContainer {
         this.statusMessage = 'Container does not exist, creating new container';
       } else {
         log.error(`Error starting MCP server container ${this.containerName}`, error);
-        this.state = 'error';
-        this.startupPercentage = 0;
-        this.statusMessage = null;
-        this.statusError = error instanceof Error ? error.message : 'Failed to start container';
+        this.setContainerAsError(error instanceof Error ? error.message : 'Failed to start container');
         throw error;
       }
     }
@@ -373,17 +385,10 @@ export default class PodmanContainer {
 
       await this.startStreamingLogs();
 
-      // Final state
-      this.state = 'running';
-      this.startupPercentage = 100;
-      this.statusMessage = 'Container is running and healthy';
-      this.statusError = null;
+      this.setContainerAsRunning();
     } catch (error) {
       log.error(`Error creating MCP server container ${this.containerName}`, error);
-      this.state = 'error';
-      this.startupPercentage = 0;
-      this.statusMessage = null;
-      this.statusError = error instanceof Error ? error.message : 'Failed to create container';
+      this.setContainerAsError(error instanceof Error ? error.message : 'Failed to create container');
       throw error;
     }
   }
@@ -464,15 +469,13 @@ export default class PodmanContainer {
         this.statusMessage = 'Container not found';
       } else {
         log.error(`Error stopping MCP server container ${this.containerName}`, response);
-        this.state = 'error';
-        this.statusError = `Unexpected status: ${status}`;
+        this.setContainerAsError(`Unexpected status: ${status}`);
       }
 
       this.startupPercentage = 0;
     } catch (error) {
       log.error(`Error stopping MCP server container ${this.containerName}`, error);
-      this.state = 'error';
-      this.statusError = error instanceof Error ? error.message : 'Failed to stop container';
+      this.setContainerAsError(error instanceof Error ? error.message : 'Failed to stop container');
       throw error;
     }
   }

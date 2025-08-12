@@ -10,7 +10,9 @@ interface McpServerProps {
 }
 
 export default function McpServer({ mcpServer }: McpServerProps) {
-  const { name, state, tools, url, error, startupPercentage, message } = mcpServer;
+  const { name, state, tools, url, error, startupPercentage, hasFetchedTools, message } = mcpServer;
+  const isRunning = state === 'running';
+
   const getStateIcon = (state: ConnectedMcpServer['state']) => {
     switch (state) {
       case 'initializing':
@@ -42,6 +44,46 @@ export default function McpServer({ mcpServer }: McpServerProps) {
             Error
           </Badge>
         );
+    }
+  };
+
+  const Tools = () => {
+    if (!isRunning) {
+      // MCP server is still starting up.. not possible to display tools related information just yet
+      return null;
+    } else if (!hasFetchedTools) {
+      // MCP server is running, but tools have not yet been fetched
+      return <div className="text-sm text-muted-foreground italic">Loading tools...</div>;
+    } else if (tools.length === 0) {
+      // MCP server is running, and tools have been fetched, but no tools are available
+      return <div className="text-sm text-muted-foreground italic">No tools available from this server</div>;
+    } else {
+      // MCP server is running, and tools have been fetched, and tools are available
+      return (
+        <div className="space-y-2">
+          <h5 className="text-sm font-medium flex items-center gap-1">
+            <Wrench className="h-3 w-3" />
+            Available Tools
+          </h5>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {tools.map((tool) => (
+              <div
+                key={`${name}-${tool.name}`}
+                className="p-2 border rounded-md bg-background/50 hover:bg-background transition-colors"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-mono text-sm font-medium truncate">{tool.name}</div>
+                    {tool.description && (
+                      <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{tool.description}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
     }
   };
 
@@ -79,35 +121,7 @@ export default function McpServer({ mcpServer }: McpServerProps) {
             </div>
           )}
 
-          {tools.length > 0 && (
-            <div className="space-y-2">
-              <h5 className="text-sm font-medium flex items-center gap-1">
-                <Wrench className="h-3 w-3" />
-                Available Tools
-              </h5>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {tools.map((tool) => (
-                  <div
-                    key={`${name}-${tool.name}`}
-                    className="p-2 border rounded-md bg-background/50 hover:bg-background transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-mono text-sm font-medium truncate">{tool.name}</div>
-                        {tool.description && (
-                          <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{tool.description}</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {state === 'running' && tools.length === 0 && (
-            <div className="text-sm text-muted-foreground italic">No tools available from this server</div>
-          )}
+          <Tools />
         </div>
       </CardContent>
     </Card>
