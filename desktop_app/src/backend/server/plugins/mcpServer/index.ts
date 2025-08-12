@@ -153,7 +153,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       let errorMessage: string | null = null;
 
       try {
-        fastify.log.info(`Proxying request to MCP server ${id}:`, JSON.stringify(body));
+        fastify.log.info(`Proxying request to MCP server ${id}: ${JSON.stringify(body)}`);
 
         // Check if container exists BEFORE hijacking!
         const containerExists = McpServerSandboxManager.checkContainerExists(id);
@@ -334,7 +334,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         const logs = await McpServerSandboxManager.getMcpServerLogs(id, lines);
         return reply.send(logs);
       } catch (error) {
-        fastify.log.error(`Error getting logs for MCP server ${id}:`, error);
+        fastify.log.error(`Error getting logs for MCP server ${id}: ${error}`);
         return reply.code(404).send({
           error: error instanceof Error ? error.message : 'Failed to get logs',
         });

@@ -61,7 +61,7 @@ class McpServerSandboxManager {
 
       // Now pull the base image with the correct socket configured
       log.info('Pulling base image...');
-      await this.podmanRuntime.pullBaseImageOnMachineInstallationSuccess();
+      await this.podmanRuntime.pullBaseImageOnMachineInstallationSuccess(socketPath);
       log.info('Base image pulled successfully');
     } catch (error) {
       log.error('Failed during podman setup:', error);
@@ -75,8 +75,6 @@ class McpServerSandboxManager {
 
     // Start all servers in parallel
     const startPromises = installedMcpServers.map(async (mcpServer) => {
-      const { id: serverId } = mcpServer;
-
       try {
         await this.startServer(mcpServer);
       } catch (error) {

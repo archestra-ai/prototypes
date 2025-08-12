@@ -3,9 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 
-import PodmanImage, { PodmanImageStatusSummarySchema } from '@backend/sandbox/podman/image';
+import PodmanImage from '@backend/sandbox/podman/image';
 import { getBinariesDirectory, getBinaryExecPath } from '@backend/utils/binaries';
 import log from '@backend/utils/logger';
+
+import { parsePodmanMachineInstallationProgress } from './utils';
 
 export const PodmanRuntimeStatusSummarySchema = z.object({
   /**
@@ -20,7 +22,6 @@ export const PodmanRuntimeStatusSummarySchema = z.object({
    * startupError is a string that gives a human-readable description of the error that occurred during the startup process (if one has)
    */
   startupError: z.string().nullable(),
-  baseImage: PodmanImageStatusSummarySchema,
 });
 
 type PodmanRuntimeStatusSummary = z.infer<typeof PodmanRuntimeStatusSummarySchema>;
@@ -152,9 +153,9 @@ export default class PodmanRuntime {
     }
   }
 
-  async pullBaseImageOnMachineInstallationSuccess() {
+  async pullBaseImageOnMachineInstallationSuccess(machineSocketPath: string) {
     try {
-      await this.baseImage.pullBaseImage();
+      await this.baseImage.pullBaseImage(machineSocketPath);
     } catch (error) {
       throw error; // Re-throw to be handled by caller
     }
@@ -327,8 +328,8 @@ export default class PodmanRuntime {
    *
    * ==============================
    * --now = Start machine now
-
-  */
+   *
+   */
   private initArchestraMachine() {
     this.machineStartupPercentage = 0;
     this.machineStartupMessage = 'Initializing podman machine...';
@@ -340,25 +341,10 @@ export default class PodmanRuntime {
         onStdout: {
           callback: (data) => {
             const output = typeof data === 'string' ? data : JSON.stringify(data);
+            const { percentage, message } = parsePodmanMachineInstallationProgress(output);
 
-            // Parse extraction progress
-            const extractionMatch = output.match(
-              /Extracting compressed file:.*\[([=\s>]+)\]\s*(\d+\.?\d*)MiB\s*\/\s*(\d+\.?\d*)MiB/
-            );
-            if (extractionMatch) {
-              const current = parseFloat(extractionMatch[2]);
-              const total = parseFloat(extractionMatch[3]);
-              const percentage = Math.round((current / total) * 100);
-
-              this.machineStartupPercentage = percentage;
-              this.machineStartupMessage = `Extracting podman machine image: ${current}MiB / ${total}MiB`;
-            } else if (output.includes('Machine init complete')) {
-              this.machineStartupPercentage = 90;
-              this.machineStartupMessage = 'Machine initialization complete';
-            } else if (output.includes('started successfully')) {
-              this.machineStartupPercentage = 100;
-              this.machineStartupMessage = 'Podman machine started successfully';
-            }
+            this.machineStartupPercentage = percentage;
+            this.machineStartupMessage = message;
           },
         },
         onExit: (code, signal) => {
@@ -502,12 +488,28 @@ export default class PodmanRuntime {
     });
   }
 
+  /**
+   * the startup progress is a function of the startup progress of the podman machine and the base image pull
+   *
+   * If the podman machine is still starting up then we show messages/errors related to that process, otherwise
+   * if the machine is done starting up, we show messages/errors related to the base image pull
+   */
   get statusSummary(): PodmanRuntimeStatusSummary {
+    let startupMessage: string;
+    let startupError: string | null;
+
+    if (this.machineStartupPercentage < 100) {
+      startupMessage = this.machineStartupMessage;
+      startupError = this.machineStartupError;
+    } else {
+      startupMessage = this.baseImage.statusSummary.pullMessage;
+      startupError = this.baseImage.statusSummary.pullError;
+    }
+
     return {
-      startupPercentage: this.machineStartupPercentage,
-      startupMessage: this.machineStartupMessage,
-      startupError: this.machineStartupError,
-      baseImage: this.baseImage.statusSummary,
+      startupPercentage: (this.machineStartupPercentage + this.baseImage.statusSummary.pullPercentage) / 2,
+      startupMessage,
+      startupError,
     };
   }
 }

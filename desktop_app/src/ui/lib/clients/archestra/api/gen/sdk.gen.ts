@@ -45,6 +45,10 @@ import type {
   InstallMcpServerData,
   InstallMcpServerErrors,
   InstallMcpServerResponses,
+  IsOnboardingCompletedData,
+  IsOnboardingCompletedResponses,
+  MarkOnboardingCompletedData,
+  MarkOnboardingCompletedResponses,
   StartMcpServerOauthData,
   StartMcpServerOauthResponses,
   UninstallMcpServerData,
@@ -351,6 +355,30 @@ export const getMcpServerLogs = <ThrowOnError extends boolean = false>(
 ) => {
   return (options.client ?? _heyApiClient).get<GetMcpServerLogsResponses, GetMcpServerLogsErrors, ThrowOnError>({
     url: '/mcp_proxy/{id}/logs',
+    ...options,
+  });
+};
+
+/**
+ * Check if the onboarding process has been completed
+ */
+export const isOnboardingCompleted = <ThrowOnError extends boolean = false>(
+  options?: Options<IsOnboardingCompletedData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).get<IsOnboardingCompletedResponses, unknown, ThrowOnError>({
+    url: '/api/onboarding/status',
+    ...options,
+  });
+};
+
+/**
+ * Mark the onboarding process as completed
+ */
+export const markOnboardingCompleted = <ThrowOnError extends boolean = false>(
+  options?: Options<MarkOnboardingCompletedData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).post<MarkOnboardingCompletedResponses, unknown, ThrowOnError>({
+    url: '/api/onboarding/complete',
     ...options,
   });
 };

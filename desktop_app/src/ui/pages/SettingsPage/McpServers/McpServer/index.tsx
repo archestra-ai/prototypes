@@ -1,10 +1,12 @@
-import { AlertCircle, CheckCircle, FileText, Loader2, Wrench } from 'lucide-react';
+import { AlertCircle, CheckCircle, FileText, Loader2, Trash2, Wrench } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '@ui/components/ui/badge';
 import { Button } from '@ui/components/ui/button';
 import { Card, CardContent } from '@ui/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@ui/components/ui/dialog';
 import { Progress } from '@ui/components/ui/progress';
+import { useMcpServersStore } from '@ui/stores';
 import { ConnectedMcpServer } from '@ui/types';
 
 import LogViewerDialog from './LogViewerDialog';
@@ -14,8 +16,14 @@ interface McpServerProps {
 }
 
 export default function McpServer({ mcpServer }: McpServerProps) {
-  const { id, name, state, tools, url, error, startupPercentage, message } = mcpServer;
+  const { id, name, state, tools, url, error, startupPercentage, hasFetchedTools, message } = mcpServer;
+  const isRunning = state === 'running';
+
   const [showLogs, setShowLogs] = useState(false);
+  const [showUninstallDialog, setShowUninstallDialog] = useState(false);
+  const { uninstallMcpServer, uninstallingMcpServerId } = useMcpServersStore();
+  const isUninstalling = uninstallingMcpServerId === mcpServer.id;
+
   const getStateIcon = (state: ConnectedMcpServer['state']) => {
     switch (state) {
       case 'initializing':
@@ -50,6 +58,46 @@ export default function McpServer({ mcpServer }: McpServerProps) {
     }
   };
 
+  const Tools = () => {
+    if (!isRunning) {
+      // MCP server is still starting up.. not possible to display tools related information just yet
+      return null;
+    } else if (!hasFetchedTools) {
+      // MCP server is running, but tools have not yet been fetched
+      return <div className="text-sm text-muted-foreground italic">Loading tools...</div>;
+    } else if (tools.length === 0) {
+      // MCP server is running, and tools have been fetched, but no tools are available
+      return <div className="text-sm text-muted-foreground italic">No tools available from this server</div>;
+    } else {
+      // MCP server is running, and tools have been fetched, and tools are available
+      return (
+        <div className="space-y-2">
+          <h5 className="text-sm font-medium flex items-center gap-1">
+            <Wrench className="h-3 w-3" />
+            Available Tools
+          </h5>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {tools.map((tool) => (
+              <div
+                key={`${name}-${tool.name}`}
+                className="p-2 border rounded-md bg-background/50 hover:bg-background transition-colors"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-mono text-sm font-medium truncate">{tool.name}</div>
+                    {tool.description && (
+                      <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{tool.description}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+  };
+
   return (
     <>
       <Card className="border-l-4 border-l-blue-500/20">
@@ -67,15 +115,25 @@ export default function McpServer({ mcpServer }: McpServerProps) {
                   {tools.length !== 1 ? 's' : ''}
                 </div>
                 {state === 'running' && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={() => setShowLogs(true)}
-                    title="View container logs"
-                  >
-                    <FileText className="h-3 w-3" />
-                  </Button>
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setShowLogs(true)}
+                      title="View container logs"
+                    >
+                      <FileText className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 cursor-pointer"
+                      onClick={() => setShowUninstallDialog(true)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -98,38 +156,57 @@ export default function McpServer({ mcpServer }: McpServerProps) {
               </div>
             )}
 
-            {tools.length > 0 && (
-              <div className="space-y-2">
-                <h5 className="text-sm font-medium flex items-center gap-1">
-                  <Wrench className="h-3 w-3" />
-                  Available Tools
-                </h5>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {tools.map((tool) => (
-                    <div
-                      key={`${name}-${tool.name}`}
-                      className="p-2 border rounded-md bg-background/50 hover:bg-background transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="font-mono text-sm font-medium truncate">{tool.name}</div>
-                          {tool.description && (
-                            <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{tool.description}</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {state === 'running' && tools.length === 0 && (
-              <div className="text-sm text-muted-foreground italic">No tools available from this server</div>
-            )}
+            <Tools />
           </div>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={showUninstallDialog}
+        onOpenChange={(open) => {
+          // Prevent closing dialog while uninstalling
+          if (!isUninstalling) {
+            setShowUninstallDialog(open);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Uninstall {name}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This will remove the MCP server and all its tools. This action cannot be undone.
+          </p>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowUninstallDialog(false)}
+              disabled={isUninstalling}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                await uninstallMcpServer(mcpServer.id);
+                setShowUninstallDialog(false);
+              }}
+              disabled={isUninstalling}
+              className="cursor-pointer"
+            >
+              {isUninstalling ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Uninstalling...
+                </>
+              ) : (
+                'Uninstall'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <LogViewerDialog open={showLogs} onOpenChange={setShowLogs} mcpServerId={id} mcpServerName={name} />
     </>
