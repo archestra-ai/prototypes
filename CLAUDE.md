@@ -153,3 +153,14 @@ Key tables (snake_case naming):
 - Binary resources: `desktop_app/resources/bin/` (platform-specific)
 - Code signing configured for macOS notarization
 - ASAR packaging enabled for production builds
+
+### macOS Code Signing
+
+For macOS builds, the following environment variables are required:
+
+- `APPLE_ID`: Apple ID email associated with your developer account
+- `APPLE_PASSWORD`: App-specific password (generate at https://support.apple.com/102654)
+- `APPLE_TEAM_ID`: Apple Team ID from https://developer.apple.com/account/#/membership
+- `APPLE_CERTIFICATE_PASSWORD`: Password for the signing certificate
+
+The build process automatically handles certificate installation and keychain cleanup.
