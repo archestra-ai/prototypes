@@ -249,6 +249,10 @@ The application uses WebSockets for real-time event broadcasting between the bac
   - `sandbox-podman-runtime-progress`
   - `sandbox-base-image-fetch-started/completed/failed`
   - `sandbox-mcp-server-starting/started/failed`
+  - `sandbox-status-update`: Comprehensive sandbox status updates
+    - Payload: `{sandbox_status: SandboxStatusSummary}` containing detailed progress information
+    - Includes percentage-based progress tracking (0-100%)
+    - Provides human-readable status messages for each initialization stage
 
 ### Sandbox Architecture
 
@@ -258,12 +262,24 @@ The application implements container-based sandboxing for MCP servers using Podm
 
 - **PodmanRuntime**: Manages Podman machine lifecycle
   - Automatic machine creation and startup
-  - Dynamic socket path resolution (avoids Docker/Orbstack conflicts)
+  - Dynamic socket path resolution (avoids Docker/Orbstock conflicts)
   - Multi-platform binary distribution (Linux, macOS, Windows)
+  - Enhanced progress tracking with percentage-based reporting
+  - Combined progress calculation (50% machine startup + 50% image pull)
 - **McpServerSandboxManager**: Orchestrates sandbox initialization
   - Base image management (`europe-west1-docker.pkg.dev/friendly-path-465518-r6/archestra-public/mcp-server-base:0.0.1`)
   - Container lifecycle management per MCP server
-  - WebSocket progress broadcasting
+  - WebSocket progress broadcasting with detailed status updates
+  - Comprehensive `statusSummary` getter combining runtime and container statuses
+- **Container Management**: Enhanced container lifecycle tracking
+  - Multiple container states: `not_created`, `created`, `initializing`, `running`, `error`
+  - Percentage-based progress tracking (0-100%) through container lifecycle
+  - Human-readable status messages for each stage of container startup
+  - Detailed error reporting for different failure scenarios
+- **Image Management**: Streaming progress during base image operations
+  - Real-time progress tracking during image pull with percentage completion
+  - Stage-specific messages (resolving, copying blobs, writing manifest)
+  - Proper error capture and reporting during image operations
 - **Security Features**:
   - Non-root container execution (uid: 1000, gid: 1000)
   - Process isolation per MCP server
@@ -272,10 +288,20 @@ The application implements container-based sandboxing for MCP servers using Podm
 
 #### Sandbox API and UI
 
-- **API Endpoint**: `GET /api/sandbox/status` - Returns initialization status
 - **UI Components**:
-  - `SandboxStartupProgress`: Real-time initialization progress display
-  - `sandbox-store.ts`: Zustand store for sandbox state management
+  - `SettingsPage/McpServers`: Enhanced sandbox status display with detailed progress
+    - Shows initialization progress with visual progress bars
+    - Displays percentage-based progress indicators
+    - Different UI states based on sandbox initialization status
+    - User-friendly error messages for different failure scenarios
+  - `SettingsPage/McpServers/McpServer`: Individual container status display
+    - Container-specific progress tracking and messages
+    - Visual progress bars during container initialization
+    - State-aware UI (initializing, running, error)
+  - `sandbox-store.ts`: Simplified Zustand store for sandbox state management
+    - Container tracking moved to MCP servers store for better separation of concerns
+    - WebSocket integration for real-time `sandbox-status-update` events
+    - Automatic state synchronization with MCP server statuses
 - **Bundled Binaries**: Located in `resources/bin/` directory, organized by platform:
   - `linux/arm64/`, `linux/x86_64/`: Linux binaries
   - `mac/arm64/`, `mac/x86_64/`: macOS binaries  
