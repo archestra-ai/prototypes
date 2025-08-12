@@ -241,7 +241,7 @@ importers:
         specifier: ^4.0.1
         version: 4.0.1
       '@hey-api/openapi-ts':
-        specifier: ^0.80.4
+        specifier: ^0.80.1
         version: 0.80.8(typescript@5.9.2)
       '@tailwindcss/vite':
         specifier: ^4.1.11
