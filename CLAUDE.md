@@ -281,6 +281,7 @@ The application implements container-based sandboxing for MCP servers using Podm
   - `mac/arm64/`, `mac/x86_64/`: macOS binaries  
   - `windows/arm64/`, `windows/x86_64/`: Windows binaries
   - Each platform includes: `podman-remote-static-v5.5.2`, `gvproxy`, and `ollama`
+  - macOS additionally includes: `vfkit` (v0.5.1) - Required for Podman virtualization on macOS
 
 ### Key Patterns
 
