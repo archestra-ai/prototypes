@@ -66,8 +66,21 @@ const forgeConfig: ForgeConfig = {
      * https://www.electronforge.io/guides/code-signing/code-signing-macos#option-1-using-an-app-specific-password
      */
     osxNotarize: {
+      /**
+       * Apple ID associated with your Apple Developer account
+       * (aka the email address you used to create your Apple account)
+       */
       appleId: process.env.APPLE_ID,
+      /**
+       * App-specific password
+       *
+       * Was generated following the instructions here https://support.apple.com/en-us/102654
+       */
       appleIdPassword: process.env.APPLE_PASSWORD,
+      /**
+       * The Apple Team ID you want to notarize under. You can find Team IDs for team you belong to by going to
+       * https://developer.apple.com/account/#/membership
+       */
       teamId: process.env.APPLE_TEAM_ID,
     },
   },
