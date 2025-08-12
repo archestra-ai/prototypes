@@ -103,17 +103,25 @@ export default class PodmanRuntime {
   private baseImage: PodmanImage;
 
   /**
-   * NOTE: see here as to why we need to bundle, and configure, `gvproxy`, alongside `podman`:
+   * NOTE: see here as to why we need to bundle, and configure, `gvproxy` + `vfkit`, alongside `podman`:
    * https://podman-desktop.io/docs/troubleshooting/troubleshooting-podman-on-macos#unable-to-set-custom-binary-path-for-podman-on-macos
    * https://github.com/containers/podman/issues/11960#issuecomment-953672023
    *
-   * NOTE: `gvproxy` MUST be named explicitly `gvproxy`. It cannot have the version appended to it, this is because
-   * `podman` internally is looking specifically for that binary naming convention. As of this writing, the version
-   * of `gvproxy` that we are using is [`v0.8.6`](https://github.com/containers/gvisor-tap-vsock/releases/tag/v0.8.6)
+   * Basically, when you install podman via the "pkginstaller" (https://github.com/containers/podman/blob/v5.5.2/contrib/pkginstaller/README.md?plain=1#L14)
+   * it comes with `gvproxy` and `vfkit` binaries "baked in". We need to do a bit more configuration here to
+   * tell the podman binary where to find these "helper" binaries.
+   *
+   * NOTE: `gvproxy` and `vfkit` MUST be named explicitly `gvproxy` and `vfkit` respectively.
+   *
+   * It cannot have the version appended to it, this is because `podman` internally is looking specifically for that
+   * binary naming convention. As of this writing, the versions we are using are:
+   * - `gvproxy` is [`v0.8.6`](https://github.com/containers/gvisor-tap-vsock/releases/tag/v0.8.6) -- podman v5.5.2 comes with this version (see https://github.com/containers/podman/blob/v5.5.2/go.mod#L18)
+   * - `vfkit` is [`v0.6.0`](https://github.com/crc-org/vfkit/releases/tag/v0.6.0) -- podman v5.5.2 comes with this version (see https://github.com/containers/podman/blob/v5.5.2/go.mod#L26)
+   *   - NOTE: in the releases of `vfkit` they have `vfkit` + `vfkit-unsigned` (we are using `vfkit`.. honestly not sure of the difference?)
    *
    * See also `CONTAINERS_HELPER_BINARY_DIR` env var which is being passed into our podman commands below.
    */
-  private gvproxyBinaryDirectory = getBinariesDirectory();
+  private helperBinariesDirectory = getBinariesDirectory();
 
   constructor(onMachineInstallationSuccess: () => void, onMachineInstallationError: (error: Error) => void) {
     this.baseImage = new PodmanImage();
@@ -168,7 +176,7 @@ export default class PodmanRuntime {
          * https://github.com/containers/podman/blob/0c4c9e4fbc0cf9cdcdcb5ea1683a2ffeddb03e77/hack/bats#L131
          * https://docs.podman.io/en/stable/markdown/podman.1.html#environment-variables
          */
-        CONTAINERS_HELPER_BINARY_DIR: this.gvproxyBinaryDirectory,
+        CONTAINERS_HELPER_BINARY_DIR: this.helperBinariesDirectory,
 
         /**
          * Basically we don't want the podman machine to use the user's docker config (if one exists)
