@@ -46,7 +46,7 @@ export const useMcpLogsStore = create<McpLogsStore>((set, get) => ({
   // Initial state
   logs: [],
   totalPages: 0,
-  currentPage: 0,
+  currentPage: 1,
   pageSize: 20,
   filters: initialFilters,
   stats: null,
@@ -59,7 +59,7 @@ export const useMcpLogsStore = create<McpLogsStore>((set, get) => ({
 
   // Actions
   setFilters: (filters: McpRequestLogFilters) => {
-    set({ filters, currentPage: 0 }); // Reset to first page when filters change
+    set({ filters, currentPage: 1 }); // Reset to first page when filters change
     get().fetchLogs();
   },
 
@@ -69,7 +69,7 @@ export const useMcpLogsStore = create<McpLogsStore>((set, get) => ({
   },
 
   setPageSize: (size: number) => {
-    set({ pageSize: size, currentPage: 0 }); // Reset to first page when page size changes
+    set({ pageSize: size, currentPage: 1 }); // Reset to first page when page size changes
     get().fetchLogs();
   },
 
@@ -172,7 +172,7 @@ export const useMcpLogsStore = create<McpLogsStore>((set, get) => ({
   },
 
   resetFilters: () => {
-    set({ filters: initialFilters, currentPage: 0 });
+    set({ filters: initialFilters, currentPage: 1 });
     get().fetchLogs();
   },
 }));

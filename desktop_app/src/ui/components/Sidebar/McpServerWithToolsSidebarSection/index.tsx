@@ -100,13 +100,13 @@ export default function McpServerWithToolsSidebarSection(_props: McpServerWithTo
                     <SidebarMenuItem>
                       <CollapsibleTrigger className="w-full">
                         <div className="flex items-center justify-between gap-2 px-2 py-1.5 bg-muted/50 rounded-md cursor-pointer hover:bg-muted/70 transition-colors w-full">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                             <ToolServerIcon
                               toolServerName={serverName}
                               widthHeightClassName="w-4 h-4"
                               textClassName="text-[10px]"
                             />
-                            <span className="text-sm font-medium capitalize">{serverName}</span>
+                            <span className="text-sm font-medium capitalize truncate">{serverName}</span>
                           </div>
                           {isExpanded ? (
                             <ChevronDown className="h-3 w-3 text-muted-foreground" />
@@ -135,9 +135,9 @@ export default function McpServerWithToolsSidebarSection(_props: McpServerWithTo
                                   className="justify-between text-sm w-full cursor-pointer"
                                   onClick={() => addSelectedTool(tool)}
                                 >
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
                                     <div className="w-2 h-2 bg-green-500 rounded-full" />
-                                    <span>{formatToolName(name)}</span>
+                                    <span className="truncate">{formatToolName(name)}</span>
                                   </div>
                                   <ChevronRight className="h-3 w-3 text-muted-foreground" />
                                 </SidebarMenuButton>

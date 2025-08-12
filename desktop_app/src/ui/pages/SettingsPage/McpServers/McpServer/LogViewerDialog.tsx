@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 
 import { Button } from '@ui/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@ui/components/ui/dialog';
-import { ScrollArea } from '@ui/components/ui/scroll-area';
 import { getMcpServerLogs } from '@ui/lib/clients/archestra/api/gen';
 
 interface LogViewerDialogProps {
@@ -41,7 +40,7 @@ export default function LogViewerDialog({ open, onOpenChange, mcpServerId, mcpSe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-[1200px] w-[90vw] max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Terminal className="h-5 w-5" />
@@ -56,13 +55,15 @@ export default function LogViewerDialog({ open, onOpenChange, mcpServerId, mcpSe
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 rounded-md border bg-black/90 p-4">
-          {error ? (
-            <div className="text-red-400 font-mono text-sm">Error: {error}</div>
-          ) : (
-            <pre className="font-mono text-sm text-green-400 whitespace-pre-wrap">{logs}</pre>
-          )}
-        </ScrollArea>
+        <div className="flex-1 rounded-md border bg-black/90 overflow-auto">
+          <div className="p-4 min-w-max">
+            {error ? (
+              <div className="text-red-400 font-mono text-sm">Error: {error}</div>
+            ) : (
+              <pre className="font-mono text-sm text-green-400 whitespace-pre">{logs}</pre>
+            )}
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
