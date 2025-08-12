@@ -1,8 +1,7 @@
 import type { RawReplyDefaultExpression } from 'fastify';
 import fs from 'fs';
-import path from 'path';
 import type { Duplex } from 'stream';
-import { Agent, upgrade } from 'undici';
+import { Agent, request, upgrade } from 'undici';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
@@ -16,6 +15,7 @@ import {
 import config from '@backend/config';
 import type { McpServer, McpServerConfig, McpServerUserConfigValues } from '@backend/models/mcpServer';
 import log from '@backend/utils/logger';
+import { getMcpServerLogPath } from '@backend/utils/paths';
 
 export const PodmanContainerStateSchema = z.enum([
   'not_created',
@@ -71,19 +71,6 @@ export default class PodmanContainer {
   private mcpSocketConnecting: boolean = false;
   private pendingRequests: Map<string, (response: any) => void> = new Map();
 
-  /*
-   * TODO: Use app.getPath('logs') from Electron to get proper logs directory
-   *
-   * Currently we're hardcoding to ~/Desktop/archestra/logs/<container-name>.log because:
-   * - This code runs in the backend Node.js process, not the Electron main process
-   * - app.getPath() is only available in the Electron main process
-   * - We need to either:
-   *   1. Pass the logs path from the main process when starting the backend server
-   *   2. Use IPC to request the path from the main process
-   *   3. Use an environment variable set by the main process
-   *
-   * For now, using a hardcoded path for simplicity during development.
-   */
   logFilePath: string;
   private logStream: fs.WriteStream | null = null;
   private isStreamingLogs = false;
@@ -108,26 +95,12 @@ export default class PodmanContainer {
     this.statusMessage = 'Container not yet created';
     this.statusError = null;
 
-    // Set up log file path
-    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-    const logsDir = path.join(homeDir, 'Desktop', 'archestra', 'logs');
-    this.logFilePath = path.join(logsDir, `${this.containerName}.log`);
-
-    // Ensure logs directory exists
-    this.ensureLogDirectoryExists(logsDir);
+    // Set up log file path using the proper app data directory
+    this.logFilePath = getMcpServerLogPath(this.containerName);
   }
 
   private static prettifyServerNameIntoContainerName = (serverName: string) =>
     `archestra-ai-${serverName.replace(/ /g, '-').toLowerCase()}-mcp-server`;
-
-  private ensureLogDirectoryExists(logsDir: string) {
-    try {
-      fs.mkdirSync(logsDir, { recursive: true });
-      log.info(`Ensured log directory exists: ${logsDir}`);
-    } catch (error) {
-      log.error(`Failed to create log directory: ${logsDir}`, error);
-    }
-  }
 
   private async startLoggingToFile() {
     try {
@@ -165,26 +138,82 @@ export default class PodmanContainer {
       // Start logging to file
       await this.startLoggingToFile();
 
-      // Stream logs from container
-      const logsResponse = await containerLogsLibpod({
-        path: {
-          name: this.containerName,
-        },
-        query: {
-          follow: true, // Stream logs
-          stdout: true, // Include stdout
-          stderr: true, // Include stderr
-          timestamps: true, // Include timestamps
-          tail: 'all', // Get all logs
-        },
+      // Create an agent for the unix socket
+      const agent = new Agent({
+        connect: { socketPath: this.socketPath },
       });
 
-      // TODO: Handle the streaming response
-      // The actual implementation will depend on how the libpod client handles streaming
+      // Use undici.request() for streaming logs
+      const { body } = await request(
+        `http://localhost/v5.0.0/libpod/containers/${this.containerName}/logs?follow=true&stdout=true&stderr=true&timestamps=true&tail=all`,
+        {
+          method: 'GET',
+          dispatcher: agent,
+        }
+      );
+
+      if (!body) {
+        throw new Error('No response body for logs');
+      }
+
+      // Process the streaming logs
+      let buffer = Buffer.alloc(0);
+
+      body.on('data', (chunk: Buffer) => {
+        buffer = Buffer.concat([buffer, chunk]);
+
+        // Process multiplexed stream format (same as attach)
+        while (buffer.length >= 8) {
+          // Read the 8-byte header
+          const streamType = buffer[0]; // 0=stdin, 1=stdout, 2=stderr
+          const payloadSize = buffer.readUInt32BE(4);
+
+          // Check if we have the full payload
+          if (buffer.length < 8 + payloadSize) {
+            break; // Wait for more data
+          }
+
+          // Extract the payload
+          const payload = buffer.slice(8, 8 + payloadSize);
+          buffer = buffer.slice(8 + payloadSize);
+
+          // Convert payload to string
+          const text = payload.toString('utf-8');
+
+          // Write to log file
+          if (this.logStream && text.trim()) {
+            this.logStream.write(text);
+            if (!text.endsWith('\n')) {
+              this.logStream.write('\n');
+            }
+          }
+
+          // Also log to console for debugging
+          if (streamType === 1) {
+            log.debug(`[${this.containerName} stdout]: ${text.trim()}`);
+          } else if (streamType === 2) {
+            log.debug(`[${this.containerName} stderr]: ${text.trim()}`);
+          }
+        }
+      });
+
+      body.on('error', (err: Error) => {
+        log.error(`Error streaming logs for ${this.containerName}:`, err);
+        this.isStreamingLogs = false;
+        this.stopLoggingToFile();
+      });
+
+      body.on('end', () => {
+        log.info(`Log streaming ended for ${this.containerName}`);
+        this.isStreamingLogs = false;
+        this.stopLoggingToFile();
+      });
+
       log.info(`Container logs streaming started for ${this.containerName}`);
     } catch (error) {
       log.error(`Failed to start streaming logs:`, error);
       this.isStreamingLogs = false;
+      this.stopLoggingToFile();
     }
   }
 

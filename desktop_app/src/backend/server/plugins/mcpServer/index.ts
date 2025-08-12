@@ -1,6 +1,8 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
+import McpRequestLog from '@backend/models/mcpRequestLog';
 import McpServerModel, {
   McpServerContainerLogsSchema,
   McpServerInstallSchema,
@@ -124,14 +126,31 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         params: z.object({
           id: z.string(),
         }),
-        body: z.any(),
+        body: z
+          .object({
+            jsonrpc: z.string().optional(),
+            id: z.union([z.string(), z.number()]).optional(),
+            method: z.string().optional(),
+            params: z.any().optional(),
+            sessionId: z.string().optional(),
+            mcpSessionId: z.string().optional(),
+          })
+          .passthrough(),
       },
     },
-    async ({ params: { id }, body }, reply) => {
-      const mcpServer = await McpServerModel.getById(id);
-      if (!mcpServer) {
+    async ({ params: { id }, body, headers }, reply) => {
+      const mcpServers = await McpServerModel.getById(id);
+      if (!mcpServers || mcpServers.length === 0) {
         return reply.code(404).send({ error: 'MCP server not found' });
       }
+      const mcpServer = mcpServers[0];
+
+      // Create MCP request log entry
+      const requestId = uuidv4();
+      const startTime = Date.now();
+      let responseBody: string | null = null;
+      let statusCode = 200;
+      let errorMessage: string | null = null;
 
       try {
         fastify.log.info(`Proxying request to MCP server ${id}:`, JSON.stringify(body));
@@ -142,6 +161,31 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         if (!containerExists) {
           // Container not ready yet, return 404 so UI can retry
           fastify.log.info(`Container ${id} not ready yet, returning 404`);
+          statusCode = 404;
+          errorMessage = 'MCP server container not ready yet';
+
+          // Log the failed request
+          await McpRequestLog.create({
+            requestId,
+            sessionId: body.sessionId || null,
+            mcpSessionId: body.mcpSessionId || null,
+            serverName: mcpServer.name || id,
+            clientInfo: {
+              userAgent: headers['user-agent'],
+              clientName: 'Archestra Desktop App',
+              clientVersion: '0.0.1',
+              clientPlatform: process.platform,
+            },
+            method: body.method || null,
+            requestHeaders: headers as Record<string, string>,
+            requestBody: JSON.stringify(body),
+            responseBody: JSON.stringify({ error: errorMessage, retry: true }),
+            responseHeaders: {},
+            statusCode,
+            errorMessage,
+            durationMs: Date.now() - startTime,
+          });
+
           return reply.code(404).send({
             error: 'MCP server container not ready yet',
             retry: true,
@@ -157,17 +201,90 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
           'Cache-Control': 'no-cache',
         });
 
+        // Create a custom writable stream to capture the response
+        const responseChunks: Buffer[] = [];
+        const originalWrite = reply.raw.write.bind(reply.raw);
+        const originalEnd = reply.raw.end.bind(reply.raw);
+
+        reply.raw.write = function (chunk: any, encoding?: any) {
+          if (chunk) {
+            responseChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          }
+          return originalWrite(chunk, encoding);
+        };
+
+        reply.raw.end = function (chunk?: any, encoding?: any) {
+          if (chunk) {
+            responseChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          }
+          responseBody = Buffer.concat(responseChunks).toString('utf-8');
+
+          // Log the successful request
+          McpRequestLog.create({
+            requestId,
+            sessionId: body.sessionId || null,
+            mcpSessionId: body.mcpSessionId || null,
+            serverName: mcpServer.name || id,
+            clientInfo: {
+              userAgent: headers['user-agent'],
+              clientName: 'Archestra Desktop App',
+              clientVersion: '0.0.1',
+              clientPlatform: process.platform,
+            },
+            method: body.method || null,
+            requestHeaders: headers as Record<string, string>,
+            requestBody: JSON.stringify(body),
+            responseBody,
+            responseHeaders: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache',
+            },
+            statusCode,
+            errorMessage: null,
+            durationMs: Date.now() - startTime,
+          }).catch((err) => {
+            fastify.log.error('Failed to create MCP request log:', err);
+          });
+
+          return originalEnd(chunk, encoding);
+        };
+
         // Stream the request to the container!
         await McpServerSandboxManager.streamToMcpServerContainer(id, body, reply.raw);
 
         // Return undefined when hijacking to prevent Fastify from sending response
         return;
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : 'No stack trace';
 
-        fastify.log.error(`Error proxying to MCP server ${id}: ${errorMessage}`);
+        statusCode = 500;
+        errorMessage = errorMsg;
+
+        fastify.log.error(`Error proxying to MCP server ${id}: ${errorMsg}`);
         fastify.log.error(`Error stack trace: ${errorStack}`);
+
+        // Log the failed request
+        await McpRequestLog.create({
+          requestId,
+          sessionId: body.sessionId || null,
+          mcpSessionId: body.mcpSessionId || null,
+          serverName: mcpServer.name || id,
+          clientInfo: {
+            userAgent: headers['user-agent'],
+            clientName: 'Archestra Desktop App',
+            clientVersion: '0.0.1',
+            clientPlatform: process.platform,
+          },
+          method: body.method || null,
+          requestHeaders: headers as Record<string, string>,
+          requestBody: JSON.stringify(body),
+          responseBody: JSON.stringify({ error: errorMsg }),
+          responseHeaders: {},
+          statusCode,
+          errorMessage,
+          durationMs: Date.now() - startTime,
+        });
 
         // If we haven't sent yet, we can still send error response
         if (!reply.sent) {
@@ -207,10 +324,11 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       },
     },
     async ({ params: { id }, query: { lines } }, reply) => {
-      const mcpServer = await McpServerModel.getById(id);
-      if (!mcpServer) {
+      const mcpServers = await McpServerModel.getById(id);
+      if (!mcpServers || mcpServers.length === 0) {
         return reply.code(404).send({ error: 'MCP server not found' });
       }
+      const mcpServer = mcpServers[0];
 
       try {
         const logs = await McpServerSandboxManager.getMcpServerLogs(id, lines);

@@ -1,30 +1,10 @@
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import log from '@backend/utils/logger';
-
-/**
- * Get platform-specific application data directory
- * - macOS: ~/Library/Application Support/archestra
- * - Windows: %APPDATA%/archestra
- * - Linux: ~/.config/archestra
- */
-function getAppDataPath(): string {
-  const platform = process.platform;
-  const homeDir = os.homedir();
-
-  switch (platform) {
-    case 'darwin':
-      return path.join(homeDir, 'Library', 'Application Support', 'archestra');
-    case 'win32':
-      return path.join(process.env.APPDATA || homeDir, 'archestra');
-    default: // linux and others
-      return path.join(homeDir, '.config', 'archestra');
-  }
-}
+import { getAppDataPath } from '@backend/utils/paths';
 
 const appDataPath = getAppDataPath();
 const DATABASE_NAME = 'archestra.db';
