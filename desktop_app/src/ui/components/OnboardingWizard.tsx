@@ -131,13 +131,12 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
                   )}
                   <Button onClick={handleNext} className="min-w-[120px] relative" disabled={!isButtonEnabled}>
                     <span className="flex items-center">
-                      {currentStep === OnboardingStep.GetStarted ? 'Get Started' : 'Next'}
-                      {currentStep < OnboardingStep.GetStarted &&
-                        (!isButtonEnabled ? (
-                          <span className="inline-block w-4 h-4 ml-1 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 ml-1" />
-                        ))}
+                      Next
+                      {!isButtonEnabled ? (
+                        <span className="inline-block w-4 h-4 ml-1 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      )}
                     </span>
                   </Button>
                 </div>
@@ -210,13 +209,12 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
                   )}
                   <Button onClick={handleNext} className="min-w-[120px] relative" disabled={!isButtonEnabled}>
                     <span className="flex items-center">
-                      {currentStep === OnboardingStep.GetStarted ? 'Get Started' : 'Next'}
-                      {currentStep < OnboardingStep.GetStarted &&
-                        (!isButtonEnabled ? (
-                          <span className="inline-block w-4 h-4 ml-1 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 ml-1" />
-                        ))}
+                      Next
+                      {!isButtonEnabled ? (
+                        <span className="inline-block w-4 h-4 ml-1 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      )}
                     </span>
                   </Button>
                 </div>
@@ -259,13 +257,12 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
                   )}
                   <Button onClick={handleNext} className="min-w-[120px] relative" disabled={!isButtonEnabled}>
                     <span className="flex items-center">
-                      {currentStep === OnboardingStep.GetStarted ? 'Get Started' : 'Next'}
-                      {currentStep < OnboardingStep.GetStarted &&
-                        (!isButtonEnabled ? (
-                          <span className="inline-block w-4 h-4 ml-1 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 ml-1" />
-                        ))}
+                      Next
+                      {!isButtonEnabled ? (
+                        <span className="inline-block w-4 h-4 ml-1 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      )}
                     </span>
                   </Button>
                 </div>
@@ -314,13 +311,10 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
                   )}
                   <Button onClick={handleNext} className="min-w-[120px] relative" disabled={!isButtonEnabled}>
                     <span className="flex items-center">
-                      {currentStep === OnboardingStep.GetStarted ? 'Get Started' : 'Next'}
-                      {currentStep < OnboardingStep.GetStarted &&
-                        (!isButtonEnabled ? (
-                          <span className="inline-block w-4 h-4 ml-1 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 ml-1" />
-                        ))}
+                      Get Started
+                      {!isButtonEnabled && (
+                        <span className="inline-block w-4 h-4 ml-1 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                      )}
                     </span>
                   </Button>
                 </div>
