@@ -118,22 +118,36 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Loading states with spinner animations
   - Error display with detailed messages
 - **Logging and Debugging**:
-  - **Container Logs**: Persistent MCP server log files stored in `~/Library/Application Support/archestra/logs/mcp-servers/<container-name>.log`
+  - **Container Logs**: Persistent MCP server log files stored in `~/Library/Application Support/archestra/logs/<container-name>.log`
     - Real-time streaming from container stdout/stderr to log files
-    - Automatic log rotation with session timestamps
-    - UI dialog for viewing container logs (accessible via note icon in MCP server settings)
-    - API endpoint: `GET /mcp_proxy/:id/logs` for retrieving recent logs
+    - Multiplexed stream processing handles Podman's 8-byte header format
+    - Session markers with timestamps for each container start
+    - Append mode preserves historical logs across container restarts
+    - UI dialog for viewing container logs (accessible via FileText icon in MCP server settings)
+    - Terminal-style log viewer with black background and green monospace text
+    - Manual refresh functionality with loading states
+    - API endpoint: `GET /mcp_proxy/:id/logs?lines=100` for retrieving recent logs
+    - `getRecentLogs()` method in PodmanContainer for programmatic access
   - **Request Logging**: Comprehensive MCP request/response tracking in database
+    - Unique UUID for each request with timing metrics
     - Captures method, headers, body, status codes, duration, and errors
+    - Client information tracking (user agent, platform, version)
+    - Session correlation with MCP session IDs
     - Advanced filtering by server, method, status, date range
     - Analytics dashboard with statistics (total requests, success rate, avg duration)
     - Automatic cleanup of logs older than 7 days (configurable)
-    - API endpoints: `/api/mcp_request_log` for retrieval and management
+    - API endpoints:
+      - `GET /api/mcp_request_log` - Paginated log retrieval with filtering
+      - `GET /api/mcp_request_log/:id` - Individual log entry access
+      - `GET /api/mcp_request_log/stats` - Analytics and statistics
+      - `DELETE /api/mcp_request_log` - Log cleanup endpoint
   - **Centralized Path Management**: Shared paths utility (`src/backend/utils/paths.ts`)
-    - `USER_DATA_DIRECTORY`: Application data storage
-    - `LOGS_DIRECTORY`: Log file storage
+    - `USER_DATA_DIRECTORY`: Application data storage (from `ARCHESTRA_USER_DATA_PATH`)
+    - `LOGS_DIRECTORY`: Log file storage (from `ARCHESTRA_LOGS_PATH`)
     - `DATABASE_PATH`: SQLite database location
+    - `PODMAN_REGISTRY_AUTH_FILE_PATH`: Podman authentication file
     - Environment variables set by main process for backend access
+    - Fallback to `/tmp` for codegen scenarios when env vars not set
 - **Security Features**:
   - Non-root container execution (uid: 1000, gid: 1000)
   - Process isolation per MCP server
@@ -205,7 +219,7 @@ Key tables (snake_case naming):
 
 - Database file: `~/Library/Application Support/archestra/archestra.db`
 - Logs directory: `~/Library/Application Support/archestra/logs/`
-  - MCP server logs: `~/Library/Application Support/archestra/logs/mcp-servers/<container-name>.log`
+  - MCP server logs: `~/Library/Application Support/archestra/logs/<container-name>.log`
 - Binary resources: `desktop_app/resources/bin/` (platform-specific)
 - Code signing configured for macOS notarization
 - ASAR packaging enabled for production builds
