@@ -201,13 +201,7 @@ class McpServerSandboxManager {
     }
 
     try {
-      // Remove the container
       await container.removeContainer();
-
-      // Clean up log files
-      await container.cleanupLogFiles();
-
-      // Remove from our tracking map
       this.mcpServerIdToPodmanContainerMap.delete(mcpServerId);
 
       log.info(`Successfully removed container and cleaned up resources for MCP server ${mcpServerId}`);

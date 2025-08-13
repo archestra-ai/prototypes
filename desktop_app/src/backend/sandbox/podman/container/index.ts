@@ -849,6 +849,9 @@ export default class PodmanContainer {
         },
       });
 
+      // Clean up log files related to this container
+      await this.cleanupLogFiles();
+
       this.state = 'not_created';
       log.info(`Container ${this.containerName} removed successfully`);
     } catch (error) {
