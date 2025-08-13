@@ -282,7 +282,7 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
                   We're working hard on Archestra, but bugs may still happen. Please let us know about them on GitHub!
                 </p>
                 <div className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg mt-6">
-                  <p className="text-sm font-medium text-center mb-3">
+                  <p className="text-sm font-medium text-center">
                     We collect anonymous statistics and error traces. If you disagree with sharing, please wait for the
                     production version to be ready!
                   </p>
