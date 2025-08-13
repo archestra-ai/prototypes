@@ -27,7 +27,7 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-full h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-[1200px] w-[90vw] max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />

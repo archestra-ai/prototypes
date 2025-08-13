@@ -1,20 +1,10 @@
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import fs from 'node:fs';
 import path from 'node:path';
 
+import config from '@backend/config';
 import log from '@backend/utils/logger';
-import { getAppDataPath } from '@backend/utils/paths';
-
-const appDataPath = getAppDataPath();
-const DATABASE_NAME = 'archestra.db';
-const DATABASE_PATH = path.join(appDataPath, DATABASE_NAME);
-
-// Ensure the directory exists before creating the database
-// This prevents SQLite errors on first run
-if (!fs.existsSync(appDataPath)) {
-  fs.mkdirSync(appDataPath, { recursive: true });
-}
+import { DATABASE_PATH } from '@backend/utils/paths';
 
 const db = drizzle({
   connection: DATABASE_PATH,
@@ -26,12 +16,14 @@ export async function runDatabaseMigrations() {
     log.info('Running database migrations...');
     log.info('Database path:', DATABASE_PATH);
 
-    // In development, migrations are in src folder
-    // In production, they should be bundled with the app
-    const isDev = process.env.NODE_ENV === 'development';
-
+    /**
+     * TODO: is this actually true?👇
+     *
+     * In development, migrations are in src folder
+     * In production, they should be bundled with the app
+     */
     let migrationsFolder: string;
-    if (isDev) {
+    if (config.debug) {
       // Development: Use absolute path from project root
       migrationsFolder = path.join(process.cwd(), 'src/backend/database/migrations');
     } else {

@@ -1,5 +1,6 @@
 import type { RawReplyDefaultExpression } from 'fastify';
 import fs from 'fs';
+import path from 'node:path';
 import type { Duplex } from 'stream';
 import { Agent, request, upgrade } from 'undici';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,7 +8,6 @@ import { z } from 'zod';
 
 import {
   containerCreateLibpod,
-  containerLogsLibpod,
   containerStartLibpod,
   containerStopLibpod,
   containerWaitLibpod,
@@ -15,7 +15,7 @@ import {
 import config from '@backend/config';
 import type { McpServer, McpServerConfig, McpServerUserConfigValues } from '@backend/models/mcpServer';
 import log from '@backend/utils/logger';
-import { getMcpServerLogPath } from '@backend/utils/paths';
+import { LOGS_DIRECTORY } from '@backend/utils/paths';
 
 export const PodmanContainerStateSchema = z.enum([
   'not_created',
@@ -95,8 +95,7 @@ export default class PodmanContainer {
     this.statusMessage = 'Container not yet created';
     this.statusError = null;
 
-    // Set up log file path using the proper app data directory
-    this.logFilePath = getMcpServerLogPath(this.containerName);
+    this.logFilePath = path.join(LOGS_DIRECTORY, `${this.containerName}.log`);
   }
 
   /**
@@ -144,17 +143,19 @@ export default class PodmanContainer {
       // Start logging to file
       await this.startLoggingToFile();
 
-      // Create an agent for the unix socket
-      const agent = new Agent({
-        connect: { socketPath: this.socketPath },
-      });
-
-      // Use undici.request() for streaming logs
+      /**
+       * Use undici.request() for streaming logs
+       *
+       * TODO: don't hardcode the path here
+       */
       const { body } = await request(
         `http://localhost/v5.0.0/libpod/containers/${this.containerName}/logs?follow=true&stdout=true&stderr=true&timestamps=true&tail=all`,
         {
           method: 'GET',
-          dispatcher: agent,
+          // Create an agent for the unix socket
+          dispatcher: new Agent({
+            connect: { socketPath: this.socketPath },
+          }),
         }
       );
 
@@ -194,7 +195,11 @@ export default class PodmanContainer {
             }
           }
 
-          // Also log to console for debugging
+          /**
+           * Also log to console for debugging
+           *
+           * QUESTION: do we also need to log to the console or is file based logs enough?
+           */
           if (streamType === 1) {
             log.debug(`[${this.containerName} stdout]: ${text.trim()}`);
           } else if (streamType === 2) {

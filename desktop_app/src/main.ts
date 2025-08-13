@@ -6,7 +6,6 @@ import { ChildProcess, fork } from 'node:child_process';
 import path from 'node:path';
 import { updateElectronApp } from 'update-electron-app';
 
-import { runDatabaseMigrations } from '@backend/database';
 import log from '@backend/utils/logger';
 
 import config from './config';
@@ -104,15 +103,32 @@ async function startBackendServer(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  // Fork creates a new Node.js process that can communicate with the parent
-  // pass --transpileOnly (disable type checking) to increase startup speed
-  // https://github.com/fastify/fastify/discussions/3795#discussioncomment-4690921
+  /**
+   * Fork creates a new Node.js process that can communicate with the parent
+   * pass --transpileOnly (disable type checking) to increase startup speed
+   *
+   * https://github.com/fastify/fastify/discussions/3795#discussioncomment-4690921
+   */
   serverProcess = fork(serverPath, ['--transpileOnly'], {
     env: {
       ...process.env,
       // CRITICAL: This flag tells Electron to run this process as pure Node.js
       // Without it, the process would run as an Electron process and fail to load native modules
       ELECTRON_RUN_AS_NODE: '1',
+      /**
+       * NOTE: we are passing these paths in here because electron's app object is not available in
+       * forked processes..
+       *
+       * According to https://www.electronjs.org/docs/latest/api/app#appgetpathname
+       *
+       * userData - The directory for storing your app's configuration files, which by default is the appData directory
+       * appended with your app's name. By convention files storing user data should be written to this directory, and
+       * it is not recommended to write large files here because some environments may backup this directory to cloud
+       * storage.
+       * logs - Directory for your app's log folder.
+       */
+      ARCHESTRA_USER_DATA_PATH: app.getPath('userData'),
+      ARCHESTRA_LOGS_PATH: app.getPath('logs'),
     },
     silent: false, // Allow console output from child process for debugging
   });
@@ -133,9 +149,7 @@ async function startBackendServer(): Promise<void> {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', async () => {
-  await runDatabaseMigrations();
-
-  if (process.env.NODE_ENV === 'development') {
+  if (config.debug) {
     const serverPath = path.resolve(__dirname, '.vite/build/server-process.js');
 
     chokidar.watch(serverPath).on('change', async () => {
