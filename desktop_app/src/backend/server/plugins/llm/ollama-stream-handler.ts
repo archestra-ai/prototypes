@@ -12,6 +12,16 @@ interface StreamRequestBody {
   provider?: string;
 }
 
+// Helper function to escape content for JSON
+function escapeJsonString(str: string): string {
+  return str
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t');
+}
+
 export async function handleOllamaStream(
   fastify: any,
   request: FastifyRequest<{ Body: StreamRequestBody }>,
@@ -115,6 +125,7 @@ export async function handleOllamaStream(
   let accumulatedToolArgs: { [key: string]: string } = {};
   let hasStartedText = false;
   let isProcessingToolCall = false;
+  let accumulatedThinkContent = '';
 
   try {
     // Start streaming
@@ -170,7 +181,7 @@ export async function handleOllamaStream(
 
             // Send the arguments as delta if present
             if (argsString) {
-              const escapedArgs = argsString.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+              const escapedArgs = escapeJsonString(argsString);
               reply.raw.write(
                 `data: {"type":"tool-input-delta","toolCallId":"${toolCallId}","inputTextDelta":"${escapedArgs}"}\n\n`
               );
@@ -186,12 +197,13 @@ export async function handleOllamaStream(
           } else if (toolCall.function?.arguments && currentToolCalls.length > 0) {
             // Continuation of arguments for the last tool call
             const lastToolCall = currentToolCalls[currentToolCalls.length - 1];
-            accumulatedToolArgs[lastToolCall.toolCallId] += toolCall.function.arguments;
+            const argsString =
+              typeof toolCall.function.arguments === 'string'
+                ? toolCall.function.arguments
+                : JSON.stringify(toolCall.function.arguments);
+            accumulatedToolArgs[lastToolCall.toolCallId] += argsString;
 
-            const escapedArgs = toolCall.function.arguments
-              .replace(/\\/g, '\\\\')
-              .replace(/"/g, '\\"')
-              .replace(/\n/g, '\\n');
+            const escapedArgs = escapeJsonString(argsString);
             reply.raw.write(
               `data: {"type":"tool-input-delta","toolCallId":"${lastToolCall.toolCallId}","inputTextDelta":"${escapedArgs}"}\n\n`
             );
@@ -208,17 +220,17 @@ export async function handleOllamaStream(
           isFirstChunk = false;
         }
 
-        fullContent += chunk.message.content;
+        const content = chunk.message.content;
+        fullContent += content;
 
-        // Escape the content properly for JSON
-        const escapedContent = chunk.message.content
-          .replace(/\\/g, '\\\\')
-          .replace(/"/g, '\\"')
-          .replace(/\n/g, '\\n')
-          .replace(/\r/g, '\\r')
-          .replace(/\t/g, '\\t');
+        // Keep track of think content for later processing if needed
+        if (content.includes('<think>') || content.includes('</think>')) {
+          accumulatedThinkContent += content;
+        }
 
-        // Send text delta with id
+        // Send the content as-is (including think blocks)
+        // The frontend will parse and display them appropriately
+        const escapedContent = escapeJsonString(content);
         reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedContent}"}\n\n`);
       }
 
@@ -259,12 +271,7 @@ export async function handleOllamaStream(
 
                 // Send tool result as formatted text message
                 const toolResultMessage = `\n\n**Tool ${toolCall.toolName} executed successfully:**\n\`\`\`json\n${formattedOutput}\n\`\`\``;
-                const escapedToolResult = toolResultMessage
-                  .replace(/\\/g, '\\\\')
-                  .replace(/"/g, '\\"')
-                  .replace(/\n/g, '\\n')
-                  .replace(/\r/g, '\\r')
-                  .replace(/\t/g, '\\t');
+                const escapedToolResult = escapeJsonString(toolResultMessage);
 
                 // Send as text delta to be compatible with Vercel AI SDK
                 reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedToolResult}"}\n\n`);
@@ -275,34 +282,19 @@ export async function handleOllamaStream(
                 // Send tool error as text message
                 const errorMsg = toolError instanceof Error ? toolError.message : 'Tool execution failed';
                 const errorMessage = `\n\nTool ${toolCall.toolName} failed: ${errorMsg}`;
-                const escapedError = errorMessage
-                  .replace(/\\/g, '\\\\')
-                  .replace(/"/g, '\\"')
-                  .replace(/\n/g, '\\n')
-                  .replace(/\r/g, '\\r')
-                  .replace(/\t/g, '\\t');
+                const escapedError = escapeJsonString(errorMessage);
                 reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedError}"}\n\n`);
               }
             } else {
               // Tool not found - send as text message
               const notFoundMessage = `\n\nTool ${toolCall.toolName} not found`;
-              const escapedNotFound = notFoundMessage
-                .replace(/\\/g, '\\\\')
-                .replace(/"/g, '\\"')
-                .replace(/\n/g, '\\n')
-                .replace(/\r/g, '\\r')
-                .replace(/\t/g, '\\t');
+              const escapedNotFound = escapeJsonString(notFoundMessage);
               reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedNotFound}"}\n\n`);
             }
           } catch (parseError) {
             // Failed to parse arguments - send as text message
             const parseErrorMessage = `\n\nTool ${toolCall.toolCallId} failed: Invalid tool arguments`;
-            const escapedParseError = parseErrorMessage
-              .replace(/\\/g, '\\\\')
-              .replace(/"/g, '\\"')
-              .replace(/\n/g, '\\n')
-              .replace(/\r/g, '\\r')
-              .replace(/\t/g, '\\t');
+            const escapedParseError = escapeJsonString(parseErrorMessage);
             reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedParseError}"}\n\n`);
           }
         }
@@ -383,12 +375,7 @@ export async function handleOllamaStream(
     } else {
       // If already hijacked, try to send error in SSE format
       try {
-        const escapedErrorMessage = errorMessage
-          .replace(/\\/g, '\\\\')
-          .replace(/"/g, '\\"')
-          .replace(/\n/g, '\\n')
-          .replace(/\r/g, '\\r')
-          .replace(/\t/g, '\\t');
+        const escapedErrorMessage = escapeJsonString(errorMessage);
         reply.raw.write(`data: {"type":"error","errorText":"${escapedErrorMessage}"}\n\n`);
         reply.raw.end();
       } catch (writeError) {
