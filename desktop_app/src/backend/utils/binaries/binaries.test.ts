@@ -190,7 +190,7 @@ describe('binaries utilities', () => {
 
         const { getBinaryExecPath } = await import('./');
         const binaryPath = getBinaryExecPath('ollama-v0.11.4');
-        expect(binaryPath).toMatch(/ollama-v0\.9\.6\.exe$/);
+        expect(binaryPath).toMatch(/ollama-v0\.11\.4\.exe$/);
       });
 
       it('should not add .exe extension on non-Windows platforms', async () => {
