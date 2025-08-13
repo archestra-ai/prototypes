@@ -118,11 +118,22 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Loading states with spinner animations
   - Error display with detailed messages
 - **Logging and Debugging**:
-  - Persistent MCP server log files stored in app data directory
-  - Real-time log streaming from container stdout/stderr
-  - UI dialog for viewing container logs (accessible via note icon)
-  - MCP request/response logging for debugging API calls
-  - Centralized log path management via shared paths utility
+  - **Container Logs**: Persistent MCP server log files stored in `~/Library/Application Support/archestra/logs/mcp-servers/<container-name>.log`
+    - Real-time streaming from container stdout/stderr to log files
+    - Automatic log rotation with session timestamps
+    - UI dialog for viewing container logs (accessible via note icon in MCP server settings)
+    - API endpoint: `GET /mcp_proxy/:id/logs` for retrieving recent logs
+  - **Request Logging**: Comprehensive MCP request/response tracking in database
+    - Captures method, headers, body, status codes, duration, and errors
+    - Advanced filtering by server, method, status, date range
+    - Analytics dashboard with statistics (total requests, success rate, avg duration)
+    - Automatic cleanup of logs older than 7 days (configurable)
+    - API endpoints: `/api/mcp_request_log` for retrieval and management
+  - **Centralized Path Management**: Shared paths utility (`src/backend/utils/paths.ts`)
+    - `USER_DATA_DIRECTORY`: Application data storage
+    - `LOGS_DIRECTORY`: Log file storage
+    - `DATABASE_PATH`: SQLite database location
+    - Environment variables set by main process for backend access
 - **Security Features**:
   - Non-root container execution (uid: 1000, gid: 1000)
   - Process isolation per MCP server
@@ -157,6 +168,9 @@ Key tables (snake_case naming):
 - `cloud_providers`: LLM provider configurations
 - `mcp_servers`: Installed MCP servers
 - `mcp_request_logs`: MCP activity logging
+  - Tracks all MCP API requests and responses
+  - Includes timing, status codes, headers, and payloads
+  - Links to sessions and servers for comprehensive debugging
 - `external_mcp_clients`: External MCP client configurations
 
 ### API Patterns
