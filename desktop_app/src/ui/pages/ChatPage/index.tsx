@@ -31,7 +31,7 @@ export default function ChatPage(_props: ChatPageProps) {
   availableCloudProviderModelsRef.current = availableCloudProviderModels;
 
   const transport = useMemo(() => {
-    const apiEndpoint = `${config.archestra.chatStreamBaseUrl}/openai/stream`;
+    const apiEndpoint = `${config.archestra.chatStreamBaseUrl}/stream`;
 
     return new DefaultChatTransport({
       api: apiEndpoint,

@@ -67,7 +67,7 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
   });
   // Based on this doc: https://ai-sdk.dev/docs/ai-sdk-core/generating-text
   fastify.post<{ Body: StreamRequestBody }>(
-    '/api/llm/openai/stream',
+    '/api/llm/stream',
     {
       schema: {
         operationId: 'streamLlmResponse',
