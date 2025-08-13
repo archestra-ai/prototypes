@@ -114,12 +114,22 @@ export default class PodmanContainer {
       // Create rotating file stream for log file
       const { mcpServerLogMaxSize, mcpServerLogMaxFiles } = config.logging;
 
-      this.logStream = createStream(path.basename(this.logFilePath), {
-        path: path.dirname(this.logFilePath),
-        size: mcpServerLogMaxSize, // e.g., '5M'
-        maxFiles: mcpServerLogMaxFiles, // Keep only N rotated files
-        compress: false, // Don't compress rotated files
-      });
+      const logBasename = path.basename(this.logFilePath);
+      this.logStream = createStream(
+        (time, index) => {
+          // Custom filename generator to create numeric suffixes
+          // index undefined = main file (no suffix)
+          // index > 0 = rotated files with numeric suffix
+          if (!index) return logBasename;
+          return `${logBasename}.${index}`;
+        },
+        {
+          path: path.dirname(this.logFilePath),
+          size: mcpServerLogMaxSize, // e.g., '5M'
+          maxFiles: mcpServerLogMaxFiles, // Keep only N rotated files
+          compress: false, // Don't compress rotated files
+        }
+      );
 
       this.logStream.write(`\n=== Container started at ${new Date().toISOString()} ===\n`);
       log.info(
@@ -880,7 +890,7 @@ export default class PodmanContainer {
       // Find all log files for this container (including rotated ones)
       const containerLogFiles = files.filter((file) => {
         // Match the base log file and any rotated versions
-        // rotating-file-stream creates files like: filename.1, filename.2, etc.
+        // rotating-file-stream creates files like: filename.log.1, filename.log.2, etc.
         return file === logBasename || file.startsWith(`${logBasename}.`);
       });
 
