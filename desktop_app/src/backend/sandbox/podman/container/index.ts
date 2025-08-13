@@ -112,18 +112,19 @@ export default class PodmanContainer {
   private async startLoggingToFile() {
     try {
       // Create rotating file stream for log file
-      const maxSize = config.logging.mcpServerLogMaxSize;
-      const maxFiles = config.logging.mcpServerLogMaxFiles;
+      const { mcpServerLogMaxSize, mcpServerLogMaxFiles } = config.logging;
 
       this.logStream = createStream(path.basename(this.logFilePath), {
         path: path.dirname(this.logFilePath),
-        size: maxSize, // e.g., '5M'
-        maxFiles: maxFiles, // Keep only N rotated files
+        size: mcpServerLogMaxSize, // e.g., '5M'
+        maxFiles: mcpServerLogMaxFiles, // Keep only N rotated files
         compress: false, // Don't compress rotated files
       });
 
       this.logStream.write(`\n=== Container started at ${new Date().toISOString()} ===\n`);
-      log.info(`Started logging to: ${this.logFilePath} (rotation: ${maxSize}, max files: ${maxFiles})`);
+      log.info(
+        `Started logging to: ${this.logFilePath} (rotation: ${mcpServerLogMaxSize}, max files: ${mcpServerLogMaxFiles})`
+      );
     } catch (error) {
       log.error(`Failed to create log file stream:`, error);
     }

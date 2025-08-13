@@ -325,10 +325,10 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
     },
     async ({ params: { id }, query: { lines } }, reply) => {
       const mcpServers = await McpServerModel.getById(id);
+
       if (!mcpServers || mcpServers.length === 0) {
         return reply.code(404).send({ error: 'MCP server not found' });
       }
-      const mcpServer = mcpServers[0];
 
       try {
         const logs = await McpServerSandboxManager.getMcpServerLogs(id, lines);
