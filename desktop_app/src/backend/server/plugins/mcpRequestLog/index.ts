@@ -13,8 +13,8 @@ export const McpRequestLogFiltersWithPaginationSchema = McpRequestLogFiltersSche
   /**
    * See https://github.com/colinhacks/zod/discussions/330#discussioncomment-7679874
    */
-  page: z.preprocess((x) => (x ? x : undefined), z.coerce.number().int().min(1).default(1).optional()),
-  pageSize: z.preprocess((x) => (x ? x : undefined), z.coerce.number().int().min(1).max(100).default(50).optional()),
+  page: z.preprocess((x) => (x ? x : undefined), z.coerce.number().int().min(1).default(1)).optional(),
+  pageSize: z.preprocess((x) => (x ? x : undefined), z.coerce.number().int().min(1).max(100).default(50)).optional(),
 });
 
 /**

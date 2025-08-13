@@ -1731,8 +1731,9 @@
           {
             "schema": {
               "default": 1,
-              "type": "number",
-              "minimum": 1
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
             },
             "in": "query",
             "name": "page",
@@ -1741,7 +1742,7 @@
           {
             "schema": {
               "default": 50,
-              "type": "number",
+              "type": "integer",
               "minimum": 1,
               "maximum": 100
             },
