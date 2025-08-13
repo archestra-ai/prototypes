@@ -1,10 +1,13 @@
 import { create } from 'zustand';
 
-import { isOnboardingCompleted, markOnboardingCompleted } from '@ui/lib/clients/archestra/api/gen';
+import { getUser, updateUser } from '@ui/lib/clients/archestra/api/gen';
 
 interface User {
-  hasCompletedOnboarding: boolean;
-  collectTelemetryData: boolean;
+  id: number;
+  hasCompletedOnboarding: number;
+  collectTelemetryData: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface UserStore {
@@ -24,15 +27,8 @@ export const useUserStore = create<UserStore>((set, get) => ({
   fetchUser: async () => {
     set({ loading: true });
     try {
-      const { data } = await isOnboardingCompleted();
-      // For now, we only get the completed status from the API
-      // In the future, we'll need to expand the API to return full user data
-      set({
-        user: {
-          hasCompletedOnboarding: data.completed,
-          collectTelemetryData: false, // Default to false until we can fetch from API
-        },
-      });
+      const { data } = await getUser();
+      set({ user: data });
     } finally {
       set({ loading: false });
     }
@@ -40,33 +36,29 @@ export const useUserStore = create<UserStore>((set, get) => ({
 
   checkIfOnboardingIsComplete: () => {
     const { user } = get();
-    return user?.hasCompletedOnboarding ?? false;
+    return user?.hasCompletedOnboarding === 1;
   },
 
   markOnboardingCompleted: async (collectTelemetryData = false) => {
-    await markOnboardingCompleted();
-    // Update local state
-    set((state) => ({
-      user: {
-        ...state.user,
-        hasCompletedOnboarding: true,
-        collectTelemetryData,
-      } as User,
-    }));
+    const { data } = await updateUser({
+      body: {
+        hasCompletedOnboarding: 1,
+        collectTelemetryData: collectTelemetryData ? 1 : 0,
+      },
+    });
+    set({ user: data });
   },
 
   toggleTelemetryCollectionStatus: async () => {
     const { user } = get();
     if (!user) return;
 
-    // TODO: Implement API endpoint to update telemetry collection status
-    // For now, just update local state
-    set((state) => ({
-      user: {
-        ...state.user!,
-        collectTelemetryData: !state.user!.collectTelemetryData,
+    const { data } = await updateUser({
+      body: {
+        collectTelemetryData: user.collectTelemetryData === 1 ? 0 : 1,
       },
-    }));
+    });
+    set({ user: data });
   },
 }));
 

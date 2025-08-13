@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 
 import db from '@backend/database';
 import { userTable } from '@backend/database/schema/user';
@@ -50,6 +51,42 @@ export default class UserModel {
       log.info('Onboarding marked as completed');
     } catch (error) {
       log.error('Failed to mark onboarding as completed:', error);
+      throw error;
+    }
+  }
+
+  static async getUser() {
+    try {
+      await this.ensureUserExists();
+      const result = await db.select().from(userTable).limit(1);
+      if (result.length === 0) {
+        throw new Error('No user found');
+      }
+      return result[0];
+    } catch (error) {
+      log.error('Failed to get user:', error);
+      throw error;
+    }
+  }
+
+  static async updateUser(updates: { hasCompletedOnboarding?: number; collectTelemetryData?: number }) {
+    try {
+      await this.ensureUserExists();
+      const existingRecord = await db.select().from(userTable).limit(1);
+
+      const updatedRecord = await db
+        .update(userTable)
+        .set({
+          ...updates,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(userTable.id, existingRecord[0].id))
+        .returning();
+
+      log.info('User updated successfully');
+      return updatedRecord[0];
+    } catch (error) {
+      log.error('Failed to update user:', error);
       throw error;
     }
   }

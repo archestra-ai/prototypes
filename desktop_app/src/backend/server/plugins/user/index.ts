@@ -1,39 +1,51 @@
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
+import { SelectUserSchema } from '@backend/database/schema/user';
 import UserModel from '@backend/models/user';
 
 const userRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
-    '/api/onboarding/status',
+    '/api/user',
     {
       schema: {
-        operationId: 'isOnboardingCompleted',
-        description: 'Check if the onboarding process has been completed',
+        operationId: 'getUser',
+        description: 'Get the current user',
         tags: ['User'],
         response: {
-          200: z.object({ completed: z.boolean() }),
+          200: SelectUserSchema,
         },
       },
     },
     async (_request, _reply) => {
-      const completed = await UserModel.isOnboardingCompleted();
-      return { completed };
+      const user = await UserModel.getUser();
+      return user;
     }
   );
 
-  fastify.post(
-    '/api/onboarding/complete',
+  fastify.patch(
+    '/api/user',
     {
       schema: {
-        operationId: 'markOnboardingCompleted',
-        description: 'Mark the onboarding process as completed',
+        operationId: 'updateUser',
+        description: 'Update user settings',
         tags: ['User'],
+        body: z.object({
+          hasCompletedOnboarding: z.number().min(0).max(1).optional(),
+          collectTelemetryData: z.number().min(0).max(1).optional(),
+        }),
+        response: {
+          200: SelectUserSchema,
+        },
       },
     },
-    async (_request, _reply) => {
-      await UserModel.markOnboardingCompleted();
-      return { success: true };
+    async (request, _reply) => {
+      const updates = request.body as {
+        hasCompletedOnboarding?: number;
+        collectTelemetryData?: number;
+      };
+      const user = await UserModel.updateUser(updates);
+      return user;
     }
   );
 };

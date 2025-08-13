@@ -812,37 +812,52 @@ export type GetMcpServerLogsResponses = {
 
 export type GetMcpServerLogsResponse = GetMcpServerLogsResponses[keyof GetMcpServerLogsResponses];
 
-export type IsOnboardingCompletedData = {
+export type GetUserData = {
   body?: never;
   path?: never;
   query?: never;
-  url: '/api/onboarding/status';
+  url: '/api/user';
 };
 
-export type IsOnboardingCompletedResponses = {
+export type GetUserResponses = {
   /**
    * Default Response
    */
   200: {
-    completed: boolean;
+    id: number;
+    hasCompletedOnboarding: number;
+    collectTelemetryData: number;
+    createdAt: string;
+    updatedAt: string;
   };
 };
 
-export type IsOnboardingCompletedResponse = IsOnboardingCompletedResponses[keyof IsOnboardingCompletedResponses];
+export type GetUserResponse = GetUserResponses[keyof GetUserResponses];
 
-export type MarkOnboardingCompletedData = {
-  body?: never;
+export type UpdateUserData = {
+  body?: {
+    hasCompletedOnboarding?: number;
+    collectTelemetryData?: number;
+  };
   path?: never;
   query?: never;
-  url: '/api/onboarding/complete';
+  url: '/api/user';
 };
 
-export type MarkOnboardingCompletedResponses = {
+export type UpdateUserResponses = {
   /**
    * Default Response
    */
-  200: unknown;
+  200: {
+    id: number;
+    hasCompletedOnboarding: number;
+    collectTelemetryData: number;
+    createdAt: string;
+    updatedAt: string;
+  };
 };
+
+export type UpdateUserResponse = UpdateUserResponses[keyof UpdateUserResponses];
 
 export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});

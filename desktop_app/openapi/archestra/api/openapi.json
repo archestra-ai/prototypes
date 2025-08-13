@@ -2213,11 +2213,11 @@
         }
       }
     },
-    "/api/onboarding/status": {
+    "/api/user": {
       "get": {
-        "operationId": "isOnboardingCompleted",
+        "operationId": "getUser",
         "tags": ["User"],
-        "description": "Check if the onboarding process has been completed",
+        "description": "Get the current user",
         "responses": {
           "200": {
             "description": "Default Response",
@@ -2226,27 +2226,96 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "completed": {
-                      "type": "boolean"
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "hasCompletedOnboarding": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "collectTelemetryData": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
                     }
                   },
-                  "required": ["completed"],
+                  "required": ["id", "hasCompletedOnboarding", "collectTelemetryData", "createdAt", "updatedAt"],
                   "additionalProperties": false
                 }
               }
             }
           }
         }
-      }
-    },
-    "/api/onboarding/complete": {
-      "post": {
-        "operationId": "markOnboardingCompleted",
+      },
+      "patch": {
+        "operationId": "updateUser",
         "tags": ["User"],
-        "description": "Mark the onboarding process as completed",
+        "description": "Update user settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hasCompletedOnboarding": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "collectTelemetryData": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "hasCompletedOnboarding": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "collectTelemetryData": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["id", "hasCompletedOnboarding", "collectTelemetryData", "createdAt", "updatedAt"],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }

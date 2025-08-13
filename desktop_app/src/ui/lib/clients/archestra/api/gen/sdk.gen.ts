@@ -42,13 +42,11 @@ import type {
   GetMcpServersResponses,
   GetSupportedExternalMcpClientsData,
   GetSupportedExternalMcpClientsResponses,
+  GetUserData,
+  GetUserResponses,
   InstallMcpServerData,
   InstallMcpServerErrors,
   InstallMcpServerResponses,
-  IsOnboardingCompletedData,
-  IsOnboardingCompletedResponses,
-  MarkOnboardingCompletedData,
-  MarkOnboardingCompletedResponses,
   StartMcpServerOauthData,
   StartMcpServerOauthResponses,
   UninstallMcpServerData,
@@ -56,6 +54,8 @@ import type {
   UpdateChatData,
   UpdateChatErrors,
   UpdateChatResponses,
+  UpdateUserData,
+  UpdateUserResponses,
 } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = ClientOptions<
@@ -360,25 +360,25 @@ export const getMcpServerLogs = <ThrowOnError extends boolean = false>(
 };
 
 /**
- * Check if the onboarding process has been completed
+ * Get the current user
  */
-export const isOnboardingCompleted = <ThrowOnError extends boolean = false>(
-  options?: Options<IsOnboardingCompletedData, ThrowOnError>
-) => {
-  return (options?.client ?? _heyApiClient).get<IsOnboardingCompletedResponses, unknown, ThrowOnError>({
-    url: '/api/onboarding/status',
+export const getUser = <ThrowOnError extends boolean = false>(options?: Options<GetUserData, ThrowOnError>) => {
+  return (options?.client ?? _heyApiClient).get<GetUserResponses, unknown, ThrowOnError>({
+    url: '/api/user',
     ...options,
   });
 };
 
 /**
- * Mark the onboarding process as completed
+ * Update user settings
  */
-export const markOnboardingCompleted = <ThrowOnError extends boolean = false>(
-  options?: Options<MarkOnboardingCompletedData, ThrowOnError>
-) => {
-  return (options?.client ?? _heyApiClient).post<MarkOnboardingCompletedResponses, unknown, ThrowOnError>({
-    url: '/api/onboarding/complete',
+export const updateUser = <ThrowOnError extends boolean = false>(options?: Options<UpdateUserData, ThrowOnError>) => {
+  return (options?.client ?? _heyApiClient).patch<UpdateUserResponses, unknown, ThrowOnError>({
+    url: '/api/user',
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
   });
 };
