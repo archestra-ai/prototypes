@@ -37,4 +37,8 @@ export default {
       baseUrl: 'http://d/v5.0.0',
     },
   },
+  logging: {
+    mcpServerLogMaxSize: process.env.MCP_SERVER_LOG_MAX_SIZE || '5M', // Size before rotation (e.g., '5M', '100K', '1G')
+    mcpServerLogMaxFiles: parseInt(process.env.MCP_SERVER_LOG_MAX_FILES || '2', 10), // Number of rotated files to keep
+  },
 };

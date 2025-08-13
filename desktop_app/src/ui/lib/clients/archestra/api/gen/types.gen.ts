@@ -149,7 +149,6 @@ export type McpServerInput = {
 export type McpServerContainerLogsInput = {
   logs: string;
   containerName: string;
-  logFilePath: string;
 };
 
 export type SandboxStatusSummary = {
@@ -301,7 +300,6 @@ export type McpServer = {
 export type McpServerContainerLogs = {
   logs: string;
   containerName: string;
-  logFilePath: string;
 };
 
 export type GetChatsData = {

@@ -14,12 +14,6 @@ import ExternalMcpClientModel from '@backend/models/externalMcpClient';
 import McpServerSandboxManager from '@backend/sandbox';
 import log from '@backend/utils/logger';
 
-export const McpServerContainerLogsSchema = z.object({
-  logs: z.string(),
-  containerName: z.string(),
-  logFilePath: z.string(),
-});
-
 export const McpServerInstallSchema = z.object({
   id: z.string().optional(),
   displayName: z
@@ -35,8 +29,6 @@ export const McpServerInstallSchema = z.object({
   serverConfig: McpServerConfigSchema,
   userConfigValues: McpServerUserConfigValuesSchema.optional(),
 });
-
-export type McpServerContainerLogs = z.infer<typeof McpServerContainerLogsSchema>;
 
 export default class McpServerModel {
   static async create(data: typeof mcpServersTable.$inferInsert) {
@@ -124,8 +116,8 @@ export default class McpServerModel {
   static async uninstallMcpServer(id: (typeof mcpServersTable.$inferSelect)['id']) {
     await db.delete(mcpServersTable).where(eq(mcpServersTable.id, id));
 
-    // Stop the server in the sandbox
-    await McpServerSandboxManager.stopServer(id);
+    // Remove the container and clean up its resources
+    await McpServerSandboxManager.removeContainer(id);
 
     // Sync all connected external MCP clients after uninstalling
     await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();
