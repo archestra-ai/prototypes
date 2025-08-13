@@ -2,9 +2,8 @@ import { ChevronRight, Rocket, Shield, Sparkles, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@ui/components/ui/button';
-import { Checkbox } from '@ui/components/ui/checkbox';
 import { Dialog, DialogContent } from '@ui/components/ui/dialog';
-import { useUserStore } from '@ui/stores/user-store';
+import { useUserStore } from '@ui/stores';
 
 enum OnboardingStep {
   Welcome = 0,
@@ -20,16 +19,10 @@ interface OnboardingWizardProps {
 export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(OnboardingStep.Welcome);
-  const [isLoading, setIsLoading] = useState(true);
   const [_countdown, setCountdown] = useState(5);
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
-  const [collectTelemetryData, setCollectTelemetryData] = useState(false);
 
-  const { user, fetchUser, markOnboardingCompleted } = useUserStore();
-
-  useEffect(() => {
-    checkOnboardingStatus();
-  }, []);
+  const { user, markOnboardingCompleted } = useUserStore();
 
   useEffect(() => {
     if (user && !user.hasCompletedOnboarding) {
@@ -60,19 +53,9 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
     return () => clearInterval(timer);
   }, [currentStep]);
 
-  const checkOnboardingStatus = async () => {
-    try {
-      await fetchUser();
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const completeOnboarding = async () => {
     try {
-      await markOnboardingCompleted(collectTelemetryData);
+      await markOnboardingCompleted();
       setIsOpen(false);
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
@@ -303,19 +286,6 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
                     We collect anonymous statistics and error traces. If you disagree with sharing, please wait for the
                     production version to be ready!
                   </p>
-                  <div className="flex items-center justify-center space-x-2">
-                    <Checkbox
-                      id="telemetry"
-                      checked={collectTelemetryData}
-                      onCheckedChange={(checked) => setCollectTelemetryData(checked as boolean)}
-                    />
-                    <label
-                      htmlFor="telemetry"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      Opt-in to collection of anonymized telemetry data to help improve app
-                    </label>
-                  </div>
                 </div>
                 <div className="flex space-x-2 mt-8">
                   {currentStep > OnboardingStep.Welcome && (
@@ -338,10 +308,6 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
         );
     }
   };
-
-  if (isLoading) {
-    return null;
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>

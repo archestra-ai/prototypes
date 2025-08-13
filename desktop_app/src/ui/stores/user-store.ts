@@ -1,23 +1,14 @@
 import { create } from 'zustand';
 
-import { getUser, updateUser } from '@ui/lib/clients/archestra/api/gen';
-
-interface User {
-  id: number;
-  hasCompletedOnboarding: number;
-  collectTelemetryData: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import { type User, getUser, updateUser } from '@ui/lib/clients/archestra/api/gen';
 
 interface UserStore {
   user: User | null;
   loading: boolean;
 
   fetchUser: () => Promise<void>;
-  checkIfOnboardingIsComplete: () => boolean;
-  markOnboardingCompleted: (collectTelemetryData?: boolean) => Promise<void>;
-  toggleTelemetryCollectionStatus: () => Promise<void>;
+  markOnboardingCompleted: () => Promise<void>;
+  toggleTelemetryCollectionStatus: (collectTelemetryData: boolean) => Promise<void>;
 }
 
 export const useUserStore = create<UserStore>((set, get) => ({
@@ -34,33 +25,21 @@ export const useUserStore = create<UserStore>((set, get) => ({
     }
   },
 
-  checkIfOnboardingIsComplete: () => {
-    const { user } = get();
-    return user?.hasCompletedOnboarding === 1;
-  },
-
-  markOnboardingCompleted: async (collectTelemetryData = false) => {
-    const { data } = await updateUser({
-      body: {
-        hasCompletedOnboarding: 1,
-        collectTelemetryData: collectTelemetryData ? 1 : 0,
-      },
-    });
+  markOnboardingCompleted: async () => {
+    const { data } = await updateUser({ body: { hasCompletedOnboarding: true } });
     set({ user: data });
   },
 
-  toggleTelemetryCollectionStatus: async () => {
+  toggleTelemetryCollectionStatus: async (collectTelemetryData: boolean) => {
     const { user } = get();
     if (!user) return;
 
-    const { data } = await updateUser({
-      body: {
-        collectTelemetryData: user.collectTelemetryData === 1 ? 0 : 1,
-      },
-    });
+    const { data } = await updateUser({ body: { collectTelemetryData } });
     set({ user: data });
   },
 }));
 
-// Fetch user data on store initialization
+/**
+ * Fetch user data on store initialization
+ */
 useUserStore.getState().fetchUser();

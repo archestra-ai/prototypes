@@ -151,6 +151,14 @@ export type McpServerContainerLogsInput = {
   containerName: string;
 };
 
+export type UserInput = {
+  id: number;
+  hasCompletedOnboarding: boolean;
+  collectTelemetryData: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type SandboxStatusSummary = {
   status: 'not_installed' | 'initializing' | 'running' | 'error' | 'stopping' | 'stopped';
   runtime: {
@@ -300,6 +308,14 @@ export type McpServer = {
 export type McpServerContainerLogs = {
   logs: string;
   containerName: string;
+};
+
+export type User = {
+  id: number;
+  hasCompletedOnboarding: boolean;
+  collectTelemetryData: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type GetChatsData = {
@@ -823,21 +839,15 @@ export type GetUserResponses = {
   /**
    * Default Response
    */
-  200: {
-    id: number;
-    hasCompletedOnboarding: number;
-    collectTelemetryData: number;
-    createdAt: string;
-    updatedAt: string;
-  };
+  200: User;
 };
 
 export type GetUserResponse = GetUserResponses[keyof GetUserResponses];
 
 export type UpdateUserData = {
   body?: {
-    hasCompletedOnboarding?: number;
-    collectTelemetryData?: number;
+    hasCompletedOnboarding?: boolean;
+    collectTelemetryData?: boolean;
   };
   path?: never;
   query?: never;
@@ -848,13 +858,7 @@ export type UpdateUserResponses = {
   /**
    * Default Response
    */
-  200: {
-    id: number;
-    hasCompletedOnboarding: number;
-    collectTelemetryData: number;
-    createdAt: string;
-    updatedAt: string;
-  };
+  200: User;
 };
 
 export type UpdateUserResponse = UpdateUserResponses[keyof UpdateUserResponses];

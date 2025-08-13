@@ -1,8 +1,13 @@
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { SelectUserSchema } from '@backend/database/schema/user';
-import UserModel from '@backend/models/user';
+import UserModel, { PatchUserSchema, SelectUserSchema as UserSchema } from '@backend/models/user';
+
+/**
+ * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
+ * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
+ */
+z.globalRegistry.add(UserSchema, { id: 'User' });
 
 const userRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
@@ -13,13 +18,12 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
         description: 'Get the current user',
         tags: ['User'],
         response: {
-          200: SelectUserSchema,
+          200: UserSchema,
         },
       },
     },
     async (_request, _reply) => {
-      const user = await UserModel.getUser();
-      return user;
+      return await UserModel.getUser();
     }
   );
 
@@ -30,22 +34,14 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
         operationId: 'updateUser',
         description: 'Update user settings',
         tags: ['User'],
-        body: z.object({
-          hasCompletedOnboarding: z.number().min(0).max(1).optional(),
-          collectTelemetryData: z.number().min(0).max(1).optional(),
-        }),
+        body: PatchUserSchema,
         response: {
-          200: SelectUserSchema,
+          200: UserSchema,
         },
       },
     },
-    async (request, _reply) => {
-      const updates = request.body as {
-        hasCompletedOnboarding?: number;
-        collectTelemetryData?: number;
-      };
-      const user = await UserModel.updateUser(updates);
-      return user;
+    async ({ body }, _reply) => {
+      return await UserModel.patchUser(body);
     }
   );
 };

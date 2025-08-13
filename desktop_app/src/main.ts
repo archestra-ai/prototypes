@@ -21,6 +21,9 @@ if (started) {
  */
 Sentry.init({
   dsn: config.sentry.dsn,
+  /**
+   * TODO: pull from User.collectTelemetryData..
+   */
 });
 
 /**

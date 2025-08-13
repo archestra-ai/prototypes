@@ -601,6 +601,29 @@
         },
         "required": ["logs", "containerName"]
       },
+      "UserInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "hasCompletedOnboarding": {
+            "type": "boolean"
+          },
+          "collectTelemetryData": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "hasCompletedOnboarding", "collectTelemetryData", "createdAt", "updatedAt"]
+      },
       "SandboxStatusSummary": {
         "type": "object",
         "properties": {
@@ -1210,6 +1233,30 @@
           }
         },
         "required": ["logs", "containerName"],
+        "additionalProperties": false
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "hasCompletedOnboarding": {
+            "type": "boolean"
+          },
+          "collectTelemetryData": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "hasCompletedOnboarding", "collectTelemetryData", "createdAt", "updatedAt"],
         "additionalProperties": false
       }
     }
@@ -2224,32 +2271,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "hasCompletedOnboarding": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "collectTelemetryData": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "createdAt": {
-                      "type": "string"
-                    },
-                    "updatedAt": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["id", "hasCompletedOnboarding", "collectTelemetryData", "createdAt", "updatedAt"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/User"
                 }
               }
             }
@@ -2267,14 +2289,10 @@
                 "type": "object",
                 "properties": {
                   "hasCompletedOnboarding": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
+                    "type": "boolean"
                   },
                   "collectTelemetryData": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
+                    "type": "boolean"
                   }
                 }
               }
@@ -2287,32 +2305,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "hasCompletedOnboarding": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "collectTelemetryData": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "createdAt": {
-                      "type": "string"
-                    },
-                    "updatedAt": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["id", "hasCompletedOnboarding", "collectTelemetryData", "createdAt", "updatedAt"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/User"
                 }
               }
             }

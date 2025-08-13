@@ -4,8 +4,8 @@ import { createSelectSchema } from 'drizzle-zod';
 
 export const userTable = sqliteTable('user', {
   id: int().primaryKey({ autoIncrement: true }),
-  hasCompletedOnboarding: int().notNull().default(0), // 0 = false, 1 = true
-  collectTelemetryData: int().notNull().default(0), // 0 = false, 1 = true
+  hasCompletedOnboarding: int({ mode: 'boolean' }).notNull().default(false),
+  collectTelemetryData: int({ mode: 'boolean' }).notNull().default(true),
   createdAt: text()
     .notNull()
     .default(sql`(current_timestamp)`),
