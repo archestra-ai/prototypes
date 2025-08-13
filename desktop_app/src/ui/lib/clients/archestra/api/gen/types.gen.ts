@@ -6,11 +6,6 @@ export type SandboxStatusSummaryInput = {
     startupPercentage: number;
     startupMessage: string | null;
     startupError: string | null;
-    baseImage: {
-      pullPercentage: number;
-      pullMessage: string | null;
-      pullError: string | null;
-    };
   };
   containers: {
     [key: string]: PodmanContainerStatusSummaryInput;
@@ -147,7 +142,7 @@ export type McpServerInput = {
   };
   userConfigValues: {
     [key: string]: string | number | boolean | Array<string>;
-  };
+  } | null;
   createdAt: string;
 };
 
@@ -163,11 +158,6 @@ export type SandboxStatusSummary = {
     startupPercentage: number;
     startupMessage: string | null;
     startupError: string | null;
-    baseImage: {
-      pullPercentage: number;
-      pullMessage: string | null;
-      pullError: string | null;
-    };
   };
   containers: {
     [key: string]: PodmanContainerStatusSummary;
@@ -304,7 +294,7 @@ export type McpServer = {
   };
   userConfigValues: {
     [key: string]: string | number | boolean | Array<string>;
-  };
+  } | null;
   createdAt: string;
 };
 
@@ -823,6 +813,38 @@ export type GetMcpServerLogsResponses = {
 };
 
 export type GetMcpServerLogsResponse = GetMcpServerLogsResponses[keyof GetMcpServerLogsResponses];
+
+export type IsOnboardingCompletedData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/onboarding/status';
+};
+
+export type IsOnboardingCompletedResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    completed: boolean;
+  };
+};
+
+export type IsOnboardingCompletedResponse = IsOnboardingCompletedResponses[keyof IsOnboardingCompletedResponses];
+
+export type MarkOnboardingCompletedData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/onboarding/complete';
+};
+
+export type MarkOnboardingCompletedResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
 
 export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});

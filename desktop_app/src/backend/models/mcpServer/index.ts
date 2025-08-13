@@ -22,7 +22,16 @@ export const McpServerContainerLogsSchema = z.object({
 
 export const McpServerInstallSchema = z.object({
   id: z.string().optional(),
-  displayName: z.string(),
+  displayName: z
+    .string()
+    /**
+     * NOTE: they're certain naming restrictions/conventions that we should follow here
+     * (this is because the name specified here ends up getting used as (part of) the MCP server's container name)
+     *
+     * See:
+     * https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
+     */
+    .regex(/^[A-Za-z0-9-\s]{1,63}$/, 'Name can only contain letters, numbers, spaces, and dashes (-)'),
   serverConfig: McpServerConfigSchema,
   userConfigValues: McpServerUserConfigValuesSchema.optional(),
 });

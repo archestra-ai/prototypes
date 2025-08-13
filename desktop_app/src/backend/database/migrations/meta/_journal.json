@@ -8,6 +8,13 @@
       "when": 1754602315107,
       "tag": "0000_numerous_plazm",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1755007096801,
+      "tag": "0001_fuzzy_legion",
+      "breakpoints": true
     }
   ]
 }

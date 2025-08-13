@@ -72,6 +72,7 @@
     "jsdom": "^26.1.0",
     "lint-staged": "^16.1.2",
     "prettier": "3.6.2",
+    "sharp": "^0.34.3",
     "tailwindcss": "^4.1.11",
     "tsx": "^4.20.3",
     "typescript": "~5.9.2",

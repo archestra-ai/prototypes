@@ -3,9 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 
-import PodmanImage, { PodmanImageStatusSummarySchema } from '@backend/sandbox/podman/image';
+import PodmanImage from '@backend/sandbox/podman/image';
 import { getBinariesDirectory, getBinaryExecPath } from '@backend/utils/binaries';
 import log from '@backend/utils/logger';
+
+import { parsePodmanMachineInstallationProgress } from './utils';
 
 export const PodmanRuntimeStatusSummarySchema = z.object({
   /**
@@ -20,7 +22,6 @@ export const PodmanRuntimeStatusSummarySchema = z.object({
    * startupError is a string that gives a human-readable description of the error that occurred during the startup process (if one has)
    */
   startupError: z.string().nullable(),
-  baseImage: PodmanImageStatusSummarySchema,
 });
 
 type PodmanRuntimeStatusSummary = z.infer<typeof PodmanRuntimeStatusSummarySchema>;
@@ -103,17 +104,25 @@ export default class PodmanRuntime {
   private baseImage: PodmanImage;
 
   /**
-   * NOTE: see here as to why we need to bundle, and configure, `gvproxy`, alongside `podman`:
+   * NOTE: see here as to why we need to bundle, and configure, `gvproxy` + `vfkit`, alongside `podman`:
    * https://podman-desktop.io/docs/troubleshooting/troubleshooting-podman-on-macos#unable-to-set-custom-binary-path-for-podman-on-macos
    * https://github.com/containers/podman/issues/11960#issuecomment-953672023
    *
-   * NOTE: `gvproxy` MUST be named explicitly `gvproxy`. It cannot have the version appended to it, this is because
-   * `podman` internally is looking specifically for that binary naming convention. As of this writing, the version
-   * of `gvproxy` that we are using is [`v0.8.6`](https://github.com/containers/gvisor-tap-vsock/releases/tag/v0.8.6)
+   * Basically, when you install podman via the "pkginstaller" (https://github.com/containers/podman/blob/v5.5.2/contrib/pkginstaller/README.md?plain=1#L14)
+   * it comes with `gvproxy` and `vfkit` binaries "baked in". We need to do a bit more configuration here to
+   * tell the podman binary where to find these "helper" binaries.
+   *
+   * NOTE: `gvproxy` and `vfkit` MUST be named explicitly `gvproxy` and `vfkit` respectively.
+   *
+   * It cannot have the version appended to it, this is because `podman` internally is looking specifically for that
+   * binary naming convention. As of this writing, the versions we are using are:
+   * - `gvproxy` is [`v0.8.6`](https://github.com/containers/gvisor-tap-vsock/releases/tag/v0.8.6) -- podman v5.5.2 comes with this version (see https://github.com/containers/podman/blob/v5.5.2/go.mod#L18)
+   * - `vfkit` is [`v0.6.0`](https://github.com/crc-org/vfkit/releases/tag/v0.6.0) -- podman v5.5.2 comes with this version (see https://github.com/containers/podman/blob/v5.5.2/go.mod#L26)
+   *   - NOTE: in the releases of `vfkit` they have `vfkit` + `vfkit-unsigned` (we are using `vfkit`.. honestly not sure of the difference?)
    *
    * See also `CONTAINERS_HELPER_BINARY_DIR` env var which is being passed into our podman commands below.
    */
-  private gvproxyBinaryDirectory = getBinariesDirectory();
+  private helperBinariesDirectory = getBinariesDirectory();
 
   constructor(onMachineInstallationSuccess: () => void, onMachineInstallationError: (error: Error) => void) {
     this.baseImage = new PodmanImage();
@@ -144,9 +153,9 @@ export default class PodmanRuntime {
     }
   }
 
-  async pullBaseImageOnMachineInstallationSuccess() {
+  async pullBaseImageOnMachineInstallationSuccess(machineSocketPath: string) {
     try {
-      await this.baseImage.pullBaseImage();
+      await this.baseImage.pullBaseImage(machineSocketPath);
     } catch (error) {
       throw error; // Re-throw to be handled by caller
     }
@@ -168,7 +177,7 @@ export default class PodmanRuntime {
          * https://github.com/containers/podman/blob/0c4c9e4fbc0cf9cdcdcb5ea1683a2ffeddb03e77/hack/bats#L131
          * https://docs.podman.io/en/stable/markdown/podman.1.html#environment-variables
          */
-        CONTAINERS_HELPER_BINARY_DIR: this.gvproxyBinaryDirectory,
+        CONTAINERS_HELPER_BINARY_DIR: this.helperBinariesDirectory,
 
         /**
          * Basically we don't want the podman machine to use the user's docker config (if one exists)
@@ -319,8 +328,8 @@ export default class PodmanRuntime {
    *
    * ==============================
    * --now = Start machine now
-
-  */
+   *
+   */
   private initArchestraMachine() {
     this.machineStartupPercentage = 0;
     this.machineStartupMessage = 'Initializing podman machine...';
@@ -332,25 +341,10 @@ export default class PodmanRuntime {
         onStdout: {
           callback: (data) => {
             const output = typeof data === 'string' ? data : JSON.stringify(data);
+            const { percentage, message } = parsePodmanMachineInstallationProgress(output);
 
-            // Parse extraction progress
-            const extractionMatch = output.match(
-              /Extracting compressed file:.*\[([=\s>]+)\]\s*(\d+\.?\d*)MiB\s*\/\s*(\d+\.?\d*)MiB/
-            );
-            if (extractionMatch) {
-              const current = parseFloat(extractionMatch[2]);
-              const total = parseFloat(extractionMatch[3]);
-              const percentage = Math.round((current / total) * 100);
-
-              this.machineStartupPercentage = percentage;
-              this.machineStartupMessage = `Extracting podman machine image: ${current}MiB / ${total}MiB`;
-            } else if (output.includes('Machine init complete')) {
-              this.machineStartupPercentage = 90;
-              this.machineStartupMessage = 'Machine initialization complete';
-            } else if (output.includes('started successfully')) {
-              this.machineStartupPercentage = 100;
-              this.machineStartupMessage = 'Podman machine started successfully';
-            }
+            this.machineStartupPercentage = percentage;
+            this.machineStartupMessage = message;
           },
         },
         onExit: (code, signal) => {
@@ -494,12 +488,28 @@ export default class PodmanRuntime {
     });
   }
 
+  /**
+   * the startup progress is a function of the startup progress of the podman machine and the base image pull
+   *
+   * If the podman machine is still starting up then we show messages/errors related to that process, otherwise
+   * if the machine is done starting up, we show messages/errors related to the base image pull
+   */
   get statusSummary(): PodmanRuntimeStatusSummary {
+    let startupMessage: string;
+    let startupError: string | null;
+
+    if (this.machineStartupPercentage < 100) {
+      startupMessage = this.machineStartupMessage;
+      startupError = this.machineStartupError;
+    } else {
+      startupMessage = this.baseImage.statusSummary.pullMessage;
+      startupError = this.baseImage.statusSummary.pullError;
+    }
+
     return {
-      startupPercentage: this.machineStartupPercentage,
-      startupMessage: this.machineStartupMessage,
-      startupError: this.machineStartupError,
-      baseImage: this.baseImage.statusSummary,
+      startupPercentage: (this.machineStartupPercentage + this.baseImage.statusSummary.pullPercentage) / 2,
+      startupMessage,
+      startupError,
     };
   }
 }

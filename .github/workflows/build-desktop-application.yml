@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       dry_run:
-        description: Whether to run the build in dry run mode
+        description: Whether to run publish in dry run mode or not (i.e. don't actually upload the build to GitHub)
         type: boolean
         required: false
         default: false
@@ -78,6 +78,10 @@ jobs:
 
       # See https://brunoscheufler.com/blog/2023-11-12-setting-up-hosted-macos-github-actions-workflows-for-electron-builds
       # was super helpful for getting macOS signing working on GitHub Actions
+      #
+      # See also:
+      # https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications
+      # https://help.apple.com/xcode/mac/current/#/dev154b28f09
       - name: Install Apple codesigning certificate
         if: matrix.os == 'macos'
         env:
@@ -100,10 +104,30 @@ jobs:
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
-      - name: Build desktop application
+      - name: Build desktop application (macOS)
+        if: matrix.os == 'macos'
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm run publish ${{ inputs.dry_run && '--dry-run' }}
+          # TODO: the following DEBUG env var can be removed once we're done debugging Apple's "notary service"
+          # taking foreverrrrrrrrrrrrrr
+          #
+          # https://github.com/electron/notarize/issues/197#issuecomment-2153484132
+          #
+          # NOTE: once we remove this, we can also just combine the below Build step into this one....
+          DEBUG: electron-notarize*
+        run: pnpm run publish${{ inputs.dry_run && ' --dry-run' || '' }}
+
+      - name: Build desktop application (Windows/Linux)
+        if: matrix.os != 'macos'
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: pnpm run publish${{ inputs.dry_run && ' --dry-run' || '' }}}
+
+      # https://brunoscheufler.com/blog/2023-11-12-setting-up-hosted-macos-github-actions-workflows-for-electron-builds
+      - name: Clean up keychain
+        if: ${{ always() && matrix.os == 'macos' }}
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
