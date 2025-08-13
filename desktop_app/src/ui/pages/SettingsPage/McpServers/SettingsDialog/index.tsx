@@ -14,7 +14,6 @@ import {
 import { Input } from '@ui/components/ui/input';
 import { Label } from '@ui/components/ui/label';
 import { Textarea } from '@ui/components/ui/textarea';
-import { installMcpServer } from '@ui/lib/clients/archestra/api/gen';
 import { useMcpServersStore } from '@ui/stores';
 
 interface SettingsDialogProps {
@@ -39,7 +38,17 @@ interface SettingsDialogProps {
  * https://github.com/archestra-ai/website/blob/fd34cd6400031011a94562785691547fbf152059/app/src/schemas.ts#L106
  */
 const FormSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  name: z
+    .string()
+    .min(1, 'Name is required')
+    /**
+     * NOTE: they're certain naming restrictions/conventions that we should follow here
+     * (this is because the name specified here ends up getting used as (part of) the MCP server's container name)
+     *
+     * See:
+     * https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
+     */
+    .regex(/^[A-Za-z0-9-\s]{1,63}$/, 'Name can only contain letters, numbers, spaces, and dashes (-)'),
   command: z.string().min(1, 'Command is required'),
   args: z.string(),
   env: z.string(),
@@ -48,82 +57,85 @@ const FormSchema = z.object({
 type FormData = z.infer<typeof FormSchema>;
 
 const defaultFormData: FormData = {
-  name: 'My Cool Custom MCP Server',
-  command: 'node',
-  args: '/path/to/server.js --verbose',
-  env: 'API_KEY=your-key\nPORT=3000',
+  name: '',
+  command: '',
+  args: '',
+  env: '',
 };
 
 export default function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const { loadInstalledMcpServers } = useMcpServersStore();
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Form state
   const [formData, setFormData] = useState<FormData>(defaultFormData);
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+
+  const { installMcpServer, installingMcpServerId, errorInstallingMcpServer } = useMcpServersStore();
+
+  const isSubmitting = installingMcpServerId !== null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
 
-    try {
-      // Validate form data
-      const validated = FormSchema.parse(formData);
+    // Clear previous errors
+    setFormErrors({});
 
-      // Parse args and env
-      const args = validated.args
-        .split('\n')
-        .map((arg) => arg.trim())
-        .filter((arg) => arg.length > 0);
+    // Validate form data
+    const result = FormSchema.safeParse(formData);
 
-      const envPairs = validated.env
-        .split('\n')
-        .map((pair) => pair.trim())
-        .filter((pair) => pair.length > 0)
-        .map((pair) => {
-          const [key, value] = pair.split('=');
-          return { key: key?.trim(), value: value?.trim() };
-        });
-
-      // Validate env pairs
-      for (const { key, value } of envPairs) {
-        if (!key || !value) {
-          throw new Error('Invalid environment variable format. Use KEY=value format.');
+    if (!result.success) {
+      // Extract field-specific errors
+      const errors: Partial<Record<keyof FormData, string>> = {};
+      result.error.issues.forEach((issue) => {
+        if (issue.path.length > 0) {
+          const field = issue.path[0] as keyof FormData;
+          if (!errors[field]) {
+            errors[field] = issue.message;
+          }
         }
-      }
+      });
+      setFormErrors(errors);
+      return;
+    }
 
-      const env = Object.fromEntries(envPairs.map(({ key, value }) => [key, value]));
+    const validated = result.data;
 
-      // Submit to API
-      const { error } = await installMcpServer({
-        body: {
-          displayName: validated.name,
-          serverConfig: {
-            command: validated.command,
-            args,
-            env,
-          },
-        },
+    // Parse args and env
+    const args = validated.args
+      .split('\n')
+      .map((arg) => arg.trim())
+      .filter((arg) => arg.length > 0);
+
+    const envPairs = validated.env
+      .split('\n')
+      .map((pair) => pair.trim())
+      .filter((pair) => pair.length > 0)
+      .map((pair) => {
+        const [key, value] = pair.split('=');
+        return { key: key?.trim(), value: value?.trim() };
       });
 
-      if (error) {
-        setError(`There was an error installing the MCP server: ${error}`);
-      } else {
-        // Refresh the list and close dialog
-        await loadInstalledMcpServers();
-        onOpenChange(false);
-        setFormData(defaultFormData);
-      }
-    } catch (err) {
-      if (err instanceof z.ZodError || err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Failed to install MCP server');
-      }
-    } finally {
-      setIsSubmitting(false);
+    // Validate env pairs
+    const invalidEnvPairs = envPairs.filter(({ key, value }) => !key || !value);
+    if (invalidEnvPairs.length > 0) {
+      setFormErrors({ env: 'Invalid format. Each line must be KEY=value' });
+      return;
+    }
+
+    try {
+      await installMcpServer(false, {
+        displayName: validated.name,
+        serverConfig: {
+          command: validated.command,
+          args,
+          env: Object.fromEntries(envPairs.map(({ key, value }) => [key, value])),
+        },
+        userConfigValues: {},
+      });
+
+      onOpenChange(false);
+      setFormData(defaultFormData);
+      setFormErrors({});
+    } catch (error) {
+      // Error is already set in the store by installMcpServer, so we just need to prevent crash
+      console.error('Failed to install MCP server:', error);
     }
   };
 
@@ -133,10 +145,27 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
         ...prev,
         [field]: e.target.value,
       }));
+      // Clear error for this field when user starts typing
+      if (formErrors[field]) {
+        setFormErrors((prev) => ({
+          ...prev,
+          [field]: undefined,
+        }));
+      }
     };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(newOpen) => {
+        if (!newOpen) {
+          // Clear form data and errors when closing
+          setFormData(defaultFormData);
+          setFormErrors({});
+        }
+        onOpenChange(newOpen);
+      }}
+    >
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -153,12 +182,17 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
             <Label htmlFor="name">Name</Label>
             <Input
               id="name"
-              placeholder="my-custom-server"
+              placeholder="My Cool Custom MCP Server"
               value={formData.name}
               onChange={handleInputChange('name')}
               disabled={isSubmitting}
+              className={formErrors.name ? 'border-destructive' : ''}
             />
-            <p className="text-xs text-muted-foreground">A unique name to identify this server</p>
+            {formErrors.name ? (
+              <p className="text-xs text-destructive">{formErrors.name}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">A unique name to identify this server</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -169,8 +203,13 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
               value={formData.command}
               onChange={handleInputChange('command')}
               disabled={isSubmitting}
+              className={formErrors.command ? 'border-destructive' : ''}
             />
-            <p className="text-xs text-muted-foreground">The executable command to run</p>
+            {formErrors.command ? (
+              <p className="text-xs text-destructive">{formErrors.command}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">The executable command to run</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -182,8 +221,13 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
               onChange={handleInputChange('args')}
               disabled={isSubmitting}
               rows={3}
+              className={formErrors.args ? 'border-destructive' : ''}
             />
-            <p className="text-xs text-muted-foreground">Command line arguments, one per line</p>
+            {formErrors.args ? (
+              <p className="text-xs text-destructive">{formErrors.args}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Command line arguments, one per line</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -195,14 +239,28 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
               onChange={handleInputChange('env')}
               disabled={isSubmitting}
               rows={3}
+              className={formErrors.env ? 'border-destructive' : ''}
             />
-            <p className="text-xs text-muted-foreground">Environment variables in KEY=value format, one per line</p>
+            {formErrors.env ? (
+              <p className="text-xs text-destructive">{formErrors.env}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Environment variables in KEY=value format, one per line</p>
+            )}
           </div>
 
-          {error && <div className="text-sm text-destructive">{error}</div>}
+          {errorInstallingMcpServer && <div className="text-sm text-destructive">{errorInstallingMcpServer}</div>}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setFormData(defaultFormData);
+                setFormErrors({});
+                onOpenChange(false);
+              }}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>

@@ -1,16 +1,37 @@
+import * as Sentry from '@sentry/electron/main';
 import chokidar from 'chokidar';
 import { BrowserWindow, app } from 'electron';
 import started from 'electron-squirrel-startup';
 import { ChildProcess, fork } from 'node:child_process';
 import path from 'node:path';
+import { updateElectronApp } from 'update-electron-app';
 
 import { runDatabaseMigrations } from '@backend/database';
 import log from '@backend/utils/logger';
+
+import config from './config';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
 }
+
+/**
+ * Configure Sentry for error monitoring, logs, session replay, and tracing
+ * https://docs.sentry.io/platforms/javascript/guides/electron/#configure
+ */
+Sentry.init({
+  dsn: config.sentry.dsn,
+});
+
+/**
+ * Enable automatic updates
+ * https://github.com/electron/update-electron-app?tab=readme-ov-file#usage
+ */
+updateElectronApp({
+  repo: `${config.build.github.owner}/${config.build.github.repoName}`,
+  updateInterval: config.build.updateInterval,
+});
 
 let serverProcess: ChildProcess | null = null;
 

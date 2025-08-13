@@ -2,27 +2,6 @@
 import type { Client, Options as ClientOptions, TDataShape } from './client';
 import { client as _heyApiClient } from './client.gen';
 import type {
-  ArtifactAddLibpodData,
-  ArtifactAddLibpodErrors,
-  ArtifactAddLibpodResponses,
-  ArtifactDeleteLibpodData,
-  ArtifactDeleteLibpodErrors,
-  ArtifactDeleteLibpodResponses,
-  ArtifactExtractLibpodData,
-  ArtifactExtractLibpodErrors,
-  ArtifactExtractLibpodResponses,
-  ArtifactInspectLibpodData,
-  ArtifactInspectLibpodErrors,
-  ArtifactInspectLibpodResponses,
-  ArtifactListLibpodData,
-  ArtifactListLibpodErrors,
-  ArtifactListLibpodResponses,
-  ArtifactPullLibpodData,
-  ArtifactPullLibpodErrors,
-  ArtifactPullLibpodResponses,
-  ArtifactPushLibpodData,
-  ArtifactPushLibpodErrors,
-  ArtifactPushLibpodResponses,
   ContainerArchiveData,
   ContainerArchiveErrors,
   ContainerArchiveLibpodData,
@@ -520,12 +499,6 @@ import type {
   VolumeExistsLibpodData,
   VolumeExistsLibpodErrors,
   VolumeExistsLibpodResponses,
-  VolumeExportLibpodData,
-  VolumeExportLibpodErrors,
-  VolumeExportLibpodResponses,
-  VolumeImportLibpodData,
-  VolumeImportLibpodErrors,
-  VolumeImportLibpodResponses,
   VolumeInspectData,
   VolumeInspectErrors,
   VolumeInspectLibpodData,
@@ -1136,120 +1109,6 @@ export const systemInfo = <ThrowOnError extends boolean = false>(options?: Optio
 export const systemPing = <ThrowOnError extends boolean = false>(options?: Options<SystemPingData, ThrowOnError>) => {
   return (options?.client ?? _heyApiClient).get<SystemPingResponses, SystemPingErrors, ThrowOnError>({
     url: '/libpod/_ping',
-    ...options,
-  });
-};
-
-/**
- * Remove Artifact
- * Delete an Artifact from local storage
- */
-export const artifactDeleteLibpod = <ThrowOnError extends boolean = false>(
-  options: Options<ArtifactDeleteLibpodData, ThrowOnError>
-) => {
-  return (options.client ?? _heyApiClient).delete<
-    ArtifactDeleteLibpodResponses,
-    ArtifactDeleteLibpodErrors,
-    ThrowOnError
-  >({
-    url: '/libpod/artifacts/{name}',
-    ...options,
-  });
-};
-
-/**
- * Extract an OCI artifact to a local path
- * Extract the blobs of an OCI artifact to a local file or directory
- */
-export const artifactExtractLibpod = <ThrowOnError extends boolean = false>(
-  options: Options<ArtifactExtractLibpodData, ThrowOnError>
-) => {
-  return (options.client ?? _heyApiClient).get<
-    ArtifactExtractLibpodResponses,
-    ArtifactExtractLibpodErrors,
-    ThrowOnError
-  >({
-    url: '/libpod/artifacts/{name}/extract',
-    ...options,
-  });
-};
-
-/**
- * Inspect an artifact
- * Obtain low-level information about an artifact
- */
-export const artifactInspectLibpod = <ThrowOnError extends boolean = false>(
-  options: Options<ArtifactInspectLibpodData, ThrowOnError>
-) => {
-  return (options.client ?? _heyApiClient).get<
-    ArtifactInspectLibpodResponses,
-    ArtifactInspectLibpodErrors,
-    ThrowOnError
-  >({
-    url: '/libpod/artifacts/{name}/json',
-    ...options,
-  });
-};
-
-/**
- * Push an OCI artifact
- * Push an OCI artifact from local storage to an image registry.
- */
-export const artifactPushLibpod = <ThrowOnError extends boolean = false>(
-  options: Options<ArtifactPushLibpodData, ThrowOnError>
-) => {
-  return (options.client ?? _heyApiClient).post<ArtifactPushLibpodResponses, ArtifactPushLibpodErrors, ThrowOnError>({
-    url: '/libpod/artifacts/{name}/push',
-    ...options,
-  });
-};
-
-/**
- * Add an OCI artifact to the local store
- * Add an OCI artifact to the local store from the local filesystem
- */
-export const artifactAddLibpod = <ThrowOnError extends boolean = false>(
-  options: Options<ArtifactAddLibpodData, ThrowOnError>
-) => {
-  return (options.client ?? _heyApiClient).post<ArtifactAddLibpodResponses, ArtifactAddLibpodErrors, ThrowOnError>({
-    bodySerializer: null,
-    querySerializer: {
-      array: {
-        explode: false,
-        style: 'form',
-      },
-    },
-    url: '/libpod/artifacts/add',
-    ...options,
-    headers: {
-      'Content-Type': 'application/octet-stream',
-      ...options.headers,
-    },
-  });
-};
-
-/**
- * List artifacts
- * Returns a list of artifacts on the server.
- */
-export const artifactListLibpod = <ThrowOnError extends boolean = false>(
-  options?: Options<ArtifactListLibpodData, ThrowOnError>
-) => {
-  return (options?.client ?? _heyApiClient).get<ArtifactListLibpodResponses, ArtifactListLibpodErrors, ThrowOnError>({
-    url: '/libpod/artifacts/json',
-    ...options,
-  });
-};
-
-/**
- * Pull an OCI artifact
- * Pulls an artifact from a registry and stores it locally.
- */
-export const artifactPullLibpod = <ThrowOnError extends boolean = false>(
-  options: Options<ArtifactPullLibpodData, ThrowOnError>
-) => {
-  return (options.client ?? _heyApiClient).post<ArtifactPullLibpodResponses, ArtifactPullLibpodErrors, ThrowOnError>({
-    url: '/libpod/artifacts/pull',
     ...options,
   });
 };
@@ -3072,34 +2931,6 @@ export const volumeExistsLibpod = <ThrowOnError extends boolean = false>(
   return (options.client ?? _heyApiClient).get<VolumeExistsLibpodResponses, VolumeExistsLibpodErrors, ThrowOnError>({
     url: '/libpod/volumes/{name}/exists',
     ...options,
-  });
-};
-
-/**
- * Export a volume
- */
-export const volumeExportLibpod = <ThrowOnError extends boolean = false>(
-  options: Options<VolumeExportLibpodData, ThrowOnError>
-) => {
-  return (options.client ?? _heyApiClient).get<VolumeExportLibpodResponses, VolumeExportLibpodErrors, ThrowOnError>({
-    url: '/libpod/volumes/{name}/export',
-    ...options,
-  });
-};
-
-/**
- * Populate a volume by importing provided tar
- */
-export const volumeImportLibpod = <ThrowOnError extends boolean = false>(
-  options: Options<VolumeImportLibpodData, ThrowOnError>
-) => {
-  return (options.client ?? _heyApiClient).post<VolumeImportLibpodResponses, VolumeImportLibpodErrors, ThrowOnError>({
-    url: '/libpod/volumes/{name}/import',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
   });
 };
 

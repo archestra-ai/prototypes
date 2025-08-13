@@ -52,7 +52,7 @@ export const mcpServersTable = sqliteTable('mcp_servers', {
  */
 export const McpServerSchema = createSelectSchema(mcpServersTable).extend({
   serverConfig: McpServerConfigSchema,
-  userConfigValues: McpServerUserConfigValuesSchema,
+  userConfigValues: McpServerUserConfigValuesSchema.nullable(),
 });
 
 export type McpServer = z.infer<typeof McpServerSchema>;
