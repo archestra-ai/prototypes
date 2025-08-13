@@ -1,32 +1,32 @@
 import { eq } from 'drizzle-orm';
 
 import db from '@backend/database';
-import { organizationTable } from '@backend/database/schema/organization';
+import { userTable } from '@backend/database/schema/user';
 import log from '@backend/utils/logger';
 
-export default class OrganizationModel {
-  static async ensureOrganizationExists(): Promise<void> {
+export default class UserModel {
+  static async ensureUserExists(): Promise<void> {
     try {
-      const result = await db.select().from(organizationTable).limit(1);
+      const result = await db.select().from(userTable).limit(1);
 
       if (result.length === 0) {
-        // No record exists, create the default organization
-        await db.insert(organizationTable).values({
+        // No record exists, create the default user
+        await db.insert(userTable).values({
           hasCompletedOnboarding: 0,
           collectTelemetryData: 0,
         });
-        log.info('Created default organization record');
+        log.info('Created default user record');
       }
     } catch (error) {
-      log.error('Failed to ensure organization exists:', error);
+      log.error('Failed to ensure user exists:', error);
       throw error;
     }
   }
 
   static async isOnboardingCompleted(): Promise<boolean> {
     try {
-      await this.ensureOrganizationExists();
-      const result = await db.select().from(organizationTable).limit(1);
+      await this.ensureUserExists();
+      const result = await db.select().from(userTable).limit(1);
       return result[0].hasCompletedOnboarding === 1;
     } catch (error) {
       log.error('Failed to check onboarding status:', error);
@@ -36,16 +36,16 @@ export default class OrganizationModel {
 
   static async markOnboardingCompleted(): Promise<void> {
     try {
-      await this.ensureOrganizationExists();
-      const existingRecord = await db.select().from(organizationTable).limit(1);
+      await this.ensureUserExists();
+      const existingRecord = await db.select().from(userTable).limit(1);
 
       await db
-        .update(organizationTable)
+        .update(userTable)
         .set({
           hasCompletedOnboarding: 1,
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(organizationTable.id, existingRecord[0].id));
+        .where(eq(userTable.id, existingRecord[0].id));
 
       log.info('Onboarding marked as completed');
     } catch (error) {

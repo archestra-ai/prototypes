@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@ui/components/ui/button';
 import { Checkbox } from '@ui/components/ui/checkbox';
 import { Dialog, DialogContent } from '@ui/components/ui/dialog';
-import { useOrganizationStore } from '@ui/stores/organization-store';
+import { useUserStore } from '@ui/stores/user-store';
 
 enum OnboardingStep {
   Welcome = 0,
@@ -25,17 +25,17 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [collectTelemetryData, setCollectTelemetryData] = useState(false);
 
-  const { organization, fetchOrganization, markOnboardingCompleted } = useOrganizationStore();
+  const { user, fetchUser, markOnboardingCompleted } = useUserStore();
 
   useEffect(() => {
     checkOnboardingStatus();
   }, []);
 
   useEffect(() => {
-    if (organization && !organization.hasCompletedOnboarding) {
+    if (user && !user.hasCompletedOnboarding) {
       setIsOpen(true);
     }
-  }, [organization]);
+  }, [user]);
 
   useEffect(() => {
     onOpenChange?.(isOpen);
@@ -62,9 +62,9 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
 
   const checkOnboardingStatus = async () => {
     try {
-      await fetchOrganization();
+      await fetchUser();
     } catch (error) {
-      console.error('Failed to fetch organization:', error);
+      console.error('Failed to fetch user:', error);
     } finally {
       setIsLoading(false);
     }

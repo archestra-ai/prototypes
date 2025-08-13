@@ -169,13 +169,13 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Process isolation per MCP server
   - stdin/stdout communication only (no exposed ports)
   - Minimal base image with only essential dependencies
-- **Organization Management**:
-  - Centralized organization settings and preferences
+- **User Management**:
+  - Centralized user settings and preferences
   - Onboarding flow tracking with `has_completed_onboarding` field
   - Telemetry opt-in functionality with `collect_telemetry_data` field
-  - Automatic organization record creation on application startup
+  - Automatic user record creation on application startup
   - API endpoints: `/api/onboarding/status` and `/api/onboarding/complete` (maintained for backward compatibility)
-  - Zustand store for frontend state management (`organization-store.ts`)
+  - Zustand store for frontend state management (`user-store.ts`)
 
 ### Directory Structure
 
@@ -209,10 +209,10 @@ Key tables (snake_case naming):
   - Includes timing, status codes, headers, and payloads
   - Links to sessions and servers for comprehensive debugging
 - `external_mcp_clients`: External MCP client configurations
-- `organization`: Application organization settings
+- `user`: Application user settings
   - `has_completed_onboarding`: Tracks onboarding completion status
   - `collect_telemetry_data`: Stores telemetry opt-in preferences
-  - Auto-created on application startup via `ensureOrganizationExists()`
+  - Auto-created on application startup via `ensureUserExists()`
 
 ### API Patterns
 

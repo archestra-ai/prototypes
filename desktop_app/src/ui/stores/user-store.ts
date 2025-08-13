@@ -2,33 +2,33 @@ import { create } from 'zustand';
 
 import { isOnboardingCompleted, markOnboardingCompleted } from '@ui/lib/clients/archestra/api/gen';
 
-interface Organization {
+interface User {
   hasCompletedOnboarding: boolean;
   collectTelemetryData: boolean;
 }
 
-interface OrganizationStore {
-  organization: Organization | null;
+interface UserStore {
+  user: User | null;
   loading: boolean;
 
-  fetchOrganization: () => Promise<void>;
+  fetchUser: () => Promise<void>;
   checkIfOnboardingIsComplete: () => boolean;
   markOnboardingCompleted: (collectTelemetryData?: boolean) => Promise<void>;
   toggleTelemetryCollectionStatus: () => Promise<void>;
 }
 
-export const useOrganizationStore = create<OrganizationStore>((set, get) => ({
-  organization: null,
+export const useUserStore = create<UserStore>((set, get) => ({
+  user: null,
   loading: false,
 
-  fetchOrganization: async () => {
+  fetchUser: async () => {
     set({ loading: true });
     try {
       const { data } = await isOnboardingCompleted();
       // For now, we only get the completed status from the API
-      // In the future, we'll need to expand the API to return full organization data
+      // In the future, we'll need to expand the API to return full user data
       set({
-        organization: {
+        user: {
           hasCompletedOnboarding: data.completed,
           collectTelemetryData: false, // Default to false until we can fetch from API
         },
@@ -39,36 +39,36 @@ export const useOrganizationStore = create<OrganizationStore>((set, get) => ({
   },
 
   checkIfOnboardingIsComplete: () => {
-    const { organization } = get();
-    return organization?.hasCompletedOnboarding ?? false;
+    const { user } = get();
+    return user?.hasCompletedOnboarding ?? false;
   },
 
   markOnboardingCompleted: async (collectTelemetryData = false) => {
     await markOnboardingCompleted();
     // Update local state
     set((state) => ({
-      organization: {
-        ...state.organization,
+      user: {
+        ...state.user,
         hasCompletedOnboarding: true,
         collectTelemetryData,
-      } as Organization,
+      } as User,
     }));
   },
 
   toggleTelemetryCollectionStatus: async () => {
-    const { organization } = get();
-    if (!organization) return;
+    const { user } = get();
+    if (!user) return;
 
     // TODO: Implement API endpoint to update telemetry collection status
     // For now, just update local state
     set((state) => ({
-      organization: {
-        ...state.organization!,
-        collectTelemetryData: !state.organization!.collectTelemetryData,
+      user: {
+        ...state.user!,
+        collectTelemetryData: !state.user!.collectTelemetryData,
       },
     }));
   },
 }));
 
-// Fetch organization data on store initialization
-useOrganizationStore.getState().fetchOrganization();
+// Fetch user data on store initialization
+useUserStore.getState().fetchUser();
