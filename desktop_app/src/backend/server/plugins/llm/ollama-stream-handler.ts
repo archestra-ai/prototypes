@@ -236,18 +236,18 @@ export async function handleOllamaStream(
 
       // Check if this is the end of a tool call
       if (chunk.done && currentToolCalls.length > 0) {
-        // Start text if not already started (for tool-only responses)
-        if (!hasStartedText) {
-          reply.raw.write(`data: {"type":"text-start","id":"${messageId}"}\n\n`);
-          hasStartedText = true;
-        }
-
         // Parse and execute tool calls
         for (const toolCall of currentToolCalls) {
           try {
             // Parse the accumulated arguments
             const args = JSON.parse(accumulatedToolArgs[toolCall.toolCallId] || '{}');
             toolCall.args = args;
+
+            // Send tool-input-available event
+            const escapedArgs = escapeJsonString(JSON.stringify(args));
+            reply.raw.write(
+              `data: {"type":"tool-input-available","toolCallId":"${toolCall.toolCallId}","toolName":"${toolCall.toolName}","input":${escapedArgs}}\n\n`
+            );
 
             // Execute the tool
             if (mcpTools && mcpTools[toolCall.toolName]) {
@@ -269,33 +269,35 @@ export async function handleOllamaStream(
                   formattedOutput = JSON.stringify(result, null, 2);
                 }
 
-                // Send tool result as formatted text message
-                const toolResultMessage = `\n\n**Tool ${toolCall.toolName} executed successfully:**\n\`\`\`json\n${formattedOutput}\n\`\`\``;
-                const escapedToolResult = escapeJsonString(toolResultMessage);
-
-                // Send as text delta to be compatible with Vercel AI SDK
-                reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedToolResult}"}\n\n`);
+                // Send tool output available event
+                const escapedOutput = escapeJsonString(JSON.stringify(result));
+                reply.raw.write(
+                  `data: {"type":"tool-output-available","toolCallId":"${toolCall.toolCallId}","output":${escapedOutput}}\n\n`
+                );
               } catch (toolError) {
                 // Store error in tool call
                 toolCall.error = toolError instanceof Error ? toolError.message : 'Tool execution failed';
 
-                // Send tool error as text message
+                // Send tool error event
                 const errorMsg = toolError instanceof Error ? toolError.message : 'Tool execution failed';
-                const errorMessage = `\n\nTool ${toolCall.toolName} failed: ${errorMsg}`;
-                const escapedError = escapeJsonString(errorMessage);
-                reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedError}"}\n\n`);
+                const escapedError = escapeJsonString(errorMsg);
+                reply.raw.write(
+                  `data: {"type":"tool-output-error","toolCallId":"${toolCall.toolCallId}","errorText":"${escapedError}"}\n\n`
+                );
               }
             } else {
-              // Tool not found - send as text message
-              const notFoundMessage = `\n\nTool ${toolCall.toolName} not found`;
-              const escapedNotFound = escapeJsonString(notFoundMessage);
-              reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedNotFound}"}\n\n`);
+              // Tool not found - send error event
+              const escapedError = escapeJsonString(`Tool ${toolCall.toolName} not found`);
+              reply.raw.write(
+                `data: {"type":"tool-output-error","toolCallId":"${toolCall.toolCallId}","errorText":"${escapedError}"}\n\n`
+              );
             }
           } catch (parseError) {
-            // Failed to parse arguments - send as text message
-            const parseErrorMessage = `\n\nTool ${toolCall.toolCallId} failed: Invalid tool arguments`;
-            const escapedParseError = escapeJsonString(parseErrorMessage);
-            reply.raw.write(`data: {"type":"text-delta","id":"${messageId}","delta":"${escapedParseError}"}\n\n`);
+            // Failed to parse arguments - send error event
+            const escapedError = escapeJsonString('Invalid tool arguments');
+            reply.raw.write(
+              `data: {"type":"tool-output-error","toolCallId":"${toolCall.toolCallId}","errorText":"${escapedError}"}\n\n`
+            );
           }
         }
       }
