@@ -1,6 +1,7 @@
 import type { RawReplyDefaultExpression } from 'fastify';
 import fs from 'fs';
 import path from 'node:path';
+import { createStream } from 'rotating-file-stream';
 import type { Duplex } from 'stream';
 import { Agent, request, upgrade } from 'undici';
 import { v4 as uuidv4 } from 'uuid';
@@ -8,6 +9,7 @@ import { z } from 'zod';
 
 import {
   containerCreateLibpod,
+  containerDeleteLibpod,
   containerStartLibpod,
   containerStopLibpod,
   containerWaitLibpod,
@@ -72,7 +74,7 @@ export default class PodmanContainer {
   private pendingRequests: Map<string, (response: any) => void> = new Map();
 
   logFilePath: string;
-  private logStream: fs.WriteStream | null = null;
+  private logStream: NodeJS.WritableStream | null = null;
   private isStreamingLogs = false;
 
   constructor({ name, serverConfig, userConfigValues }: McpServer, socketPath: string) {
@@ -109,10 +111,19 @@ export default class PodmanContainer {
 
   private async startLoggingToFile() {
     try {
-      // Create write stream for log file (append mode)
-      this.logStream = fs.createWriteStream(this.logFilePath, { flags: 'a' });
+      // Create rotating file stream for log file
+      const maxSize = config.logging.mcpServerLogMaxSize;
+      const maxFiles = config.logging.mcpServerLogMaxFiles;
+
+      this.logStream = createStream(path.basename(this.logFilePath), {
+        path: path.dirname(this.logFilePath),
+        size: maxSize, // e.g., '5M'
+        maxFiles: maxFiles, // Keep only N rotated files
+        compress: false, // Don't compress rotated files
+      });
+
       this.logStream.write(`\n=== Container started at ${new Date().toISOString()} ===\n`);
-      log.info(`Started logging to: ${this.logFilePath}`);
+      log.info(`Started logging to: ${this.logFilePath} (rotation: ${maxSize}, max files: ${maxFiles})`);
     } catch (error) {
       log.error(`Failed to create log file stream:`, error);
     }
@@ -763,5 +774,78 @@ export default class PodmanContainer {
       message: this.statusMessage,
       error: this.statusError,
     };
+  }
+
+  /**
+   * Remove the container from Podman
+   */
+  async removeContainer() {
+    try {
+      log.info(`Removing container: ${this.containerName}`);
+
+      // Stop the container first if it's running
+      if (this.state === 'running') {
+        await this.stopContainer();
+      }
+
+      // Remove the container using libpod API
+      await containerDeleteLibpod({
+        path: {
+          name: this.containerName,
+        },
+        query: {
+          force: true, // Force removal even if running
+          v: true, // Remove volumes associated with the container
+        },
+      });
+
+      this.state = 'not_created';
+      log.info(`Container ${this.containerName} removed successfully`);
+    } catch (error) {
+      log.error(`Failed to remove container ${this.containerName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clean up log files for this container
+   */
+  async cleanupLogFiles() {
+    try {
+      log.info(`Cleaning up log files for container: ${this.containerName}`);
+
+      // Stop logging if still active
+      this.stopLoggingToFile();
+
+      // Get the log directory
+      const logDir = path.dirname(this.logFilePath);
+      const logBasename = path.basename(this.logFilePath);
+
+      // Read all files in the log directory
+      const files = await fs.promises.readdir(logDir);
+
+      // Find all log files for this container (including rotated ones)
+      const containerLogFiles = files.filter((file) => {
+        // Match the base log file and any rotated versions
+        // rotating-file-stream creates files like: filename.1, filename.2, etc.
+        return file === logBasename || file.startsWith(`${logBasename}.`);
+      });
+
+      // Delete each log file
+      for (const file of containerLogFiles) {
+        const filePath = path.join(logDir, file);
+        try {
+          await fs.promises.unlink(filePath);
+          log.info(`Deleted log file: ${filePath}`);
+        } catch (error) {
+          log.error(`Failed to delete log file ${filePath}:`, error);
+        }
+      }
+
+      log.info(`Cleaned up ${containerLogFiles.length} log file(s) for container ${this.containerName}`);
+    } catch (error) {
+      log.error(`Failed to cleanup log files for ${this.containerName}:`, error);
+      // Don't throw here - log cleanup failure shouldn't prevent container removal
+    }
   }
 }

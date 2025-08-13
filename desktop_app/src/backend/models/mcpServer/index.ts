@@ -124,8 +124,8 @@ export default class McpServerModel {
   static async uninstallMcpServer(id: (typeof mcpServersTable.$inferSelect)['id']) {
     await db.delete(mcpServersTable).where(eq(mcpServersTable.id, id));
 
-    // Stop the server in the sandbox
-    await McpServerSandboxManager.stopServer(id);
+    // Remove the container and clean up its resources
+    await McpServerSandboxManager.removeContainer(id);
 
     // Sync all connected external MCP clients after uninstalling
     await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();

@@ -188,6 +188,35 @@ class McpServerSandboxManager {
     };
   }
 
+  /**
+   * Remove a container and clean up its resources
+   */
+  async removeContainer(mcpServerId: string) {
+    log.info(`Removing container for MCP server: ${mcpServerId}`);
+
+    const container = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
+    if (!container) {
+      log.warn(`No container found for MCP server ${mcpServerId}`);
+      return;
+    }
+
+    try {
+      // Remove the container
+      await container.removeContainer();
+
+      // Clean up log files
+      await container.cleanupLogFiles();
+
+      // Remove from our tracking map
+      this.mcpServerIdToPodmanContainerMap.delete(mcpServerId);
+
+      log.info(`Successfully removed container and cleaned up resources for MCP server ${mcpServerId}`);
+    } catch (error) {
+      log.error(`Failed to remove container for MCP server ${mcpServerId}:`, error);
+      throw error;
+    }
+  }
+
   get statusSummary(): SandboxStatusSummary {
     return {
       status: this.status,
