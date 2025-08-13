@@ -3,12 +3,15 @@
  * See here:
  * https://github.com/nodejs/undici?tab=readme-ov-file#undici-module
  */
-import { Agent, fetch, setGlobalDispatcher } from 'undici';
+import { Agent, fetch } from 'undici';
 
 import config from '@backend/config';
 import log from '@backend/utils/logger';
 
 import type { CreateClientConfig } from './gen/client.gen';
+
+// Store the Podman-specific agent locally instead of globally
+let podmanAgent: Agent | null = null;
 
 /**
  * Update the socket path used by the libpod client.
@@ -18,7 +21,8 @@ import type { CreateClientConfig } from './gen/client.gen';
  */
 export function setSocketPath(socketPath: string): void {
   log.info(`Setting libpod socket path to: ${socketPath}`);
-  setGlobalDispatcher(new Agent({ connect: { socketPath } }));
+  // Create a Podman-specific agent instead of setting it globally
+  podmanAgent = new Agent({ connect: { socketPath } });
 }
 
 export const createClientConfig: CreateClientConfig = (clientConfig) => ({
@@ -39,6 +43,11 @@ export const createClientConfig: CreateClientConfig = (clientConfig) => ({
     // Add duplex option when body is present (required for streams)
     if (request.body) {
       options.duplex = 'half';
+    }
+
+    // Use the Podman-specific dispatcher for this request only
+    if (podmanAgent) {
+      options.dispatcher = podmanAgent;
     }
 
     return fetch(url, options) as unknown as Promise<Response>;
