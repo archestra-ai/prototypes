@@ -14,93 +14,115 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
     return null;
   }
 
+  // Process parts in order to maintain sequence
+  const orderedElements: React.ReactNode[] = [];
   let accumulatedText = '';
-  const completeThinkBlocks: string[] = [];
-  let incompleteThinkBlock: string | null = null;
-  let remainingText = '';
+  let currentThinkBlock: string | null = null;
+  let isInThinkBlock = false;
 
-  // Process all text parts to extract think blocks
-  const allText = message.parts
-    .filter((part) => part.type === 'text')
-    .map((part) => (part as TextUIPart).text)
-    .join('');
-
-  // Parse think blocks from the accumulated text
-  let currentPos = 0;
-  let textBeforeThink = '';
-
-  while (currentPos < allText.length) {
-    const thinkStartIndex = allText.indexOf('<think>', currentPos);
-
-    if (thinkStartIndex === -1) {
-      // No more think blocks
-      remainingText += allText.substring(currentPos);
-      break;
-    }
-
-    // Add text before think block
-    textBeforeThink += allText.substring(currentPos, thinkStartIndex);
-
-    // Look for the end of think block
-    const thinkEndIndex = allText.indexOf('</think>', thinkStartIndex);
-
-    if (thinkEndIndex === -1) {
-      // Incomplete think block (still streaming)
-      incompleteThinkBlock = allText.substring(thinkStartIndex + 7); // Skip '<think>'
-      remainingText = textBeforeThink;
-      break;
-    } else {
-      // Complete think block
-      const thinkContent = allText.substring(thinkStartIndex + 7, thinkEndIndex);
-      completeThinkBlocks.push(thinkContent);
-      currentPos = thinkEndIndex + 8; // Skip '</think>'
-    }
-  }
-
-  // If no incomplete think block and we processed everything
-  if (!incompleteThinkBlock && currentPos < allText.length) {
-    remainingText = textBeforeThink + allText.substring(currentPos);
-  } else if (!incompleteThinkBlock) {
-    remainingText = textBeforeThink;
-  }
-
-  // Process other parts (tools)
-  const toolParts = message.parts.filter((part) => part.type === 'dynamic-tool');
-
-  return (
-    <div className="relative space-y-2">
-      {/* Render complete think blocks */}
-      {completeThinkBlocks.map((thinkContent, index) => (
-        <ThinkBlock key={`think-complete-${index}`} content={thinkContent} isStreaming={false} />
-      ))}
-
-      {/* Render incomplete think block if streaming */}
-      {incompleteThinkBlock && <ThinkBlock key="think-streaming" content={incompleteThinkBlock} isStreaming={true} />}
-
-      {/* Render remaining text */}
-      {remainingText.trim() && <AIResponse key="text-content">{remainingText.trim()}</AIResponse>}
-
-      {/* Render tool invocations */}
-      {toolParts.map((part, index) => {
-        const tool = part as DynamicToolUIPart;
-        return (
-          <ToolInvocation
-            key={tool.toolCallId || `tool-${index}`}
-            toolName={tool.toolName}
-            args={'input' in tool ? tool.input : {}}
-            result={'output' in tool ? tool.output : undefined}
-            state={
-              tool.state === 'output-available'
-                ? ToolCallStatus.Completed
-                : tool.state === 'output-error'
-                  ? ToolCallStatus.Error
-                  : tool.state === 'input-streaming'
-                    ? ToolCallStatus.Pending
-                    : ToolCallStatus.Pending
+  message.parts.forEach((part, index) => {
+    if (part.type === 'text') {
+      const textPart = part as TextUIPart;
+      const text = textPart.text;
+      
+      // Process text character by character to handle think blocks
+      let i = 0;
+      while (i < text.length) {
+        if (!isInThinkBlock) {
+          // Look for <think> tag
+          const thinkStart = text.indexOf('<think>', i);
+          if (thinkStart !== -1) {
+            // Add any text before think block
+            const beforeThink = text.substring(i, thinkStart);
+            accumulatedText += beforeThink;
+            
+            // Start think block
+            isInThinkBlock = true;
+            currentThinkBlock = '';
+            i = thinkStart + 7; // Skip '<think>'
+          } else {
+            // No think block, add remaining text
+            accumulatedText += text.substring(i);
+            break;
+          }
+        } else {
+          // We're in a think block, look for </think>
+          const thinkEnd = text.indexOf('</think>', i);
+          if (thinkEnd !== -1) {
+            // Complete think block
+            currentThinkBlock += text.substring(i, thinkEnd);
+            
+            // Flush accumulated text if any
+            if (accumulatedText.trim()) {
+              orderedElements.push(
+                <AIResponse key={`text-${orderedElements.length}`}>{accumulatedText.trim()}</AIResponse>
+              );
+              accumulatedText = '';
             }
-          />
+            
+            // Add think block
+            orderedElements.push(
+              <ThinkBlock key={`think-${orderedElements.length}`} content={currentThinkBlock} isStreaming={false} />
+            );
+            
+            isInThinkBlock = false;
+            currentThinkBlock = null;
+            i = thinkEnd + 8; // Skip '</think>'
+          } else {
+            // Still in think block
+            currentThinkBlock += text.substring(i);
+            break;
+          }
+        }
+      }
+    } else if (part.type === 'dynamic-tool') {
+      // Flush any accumulated text before tool
+      if (accumulatedText.trim()) {
+        orderedElements.push(
+          <AIResponse key={`text-${orderedElements.length}`}>{accumulatedText.trim()}</AIResponse>
         );
-      })}
-    </div>
-  );
+        accumulatedText = '';
+      }
+      
+      // Add tool invocation
+      const tool = part as DynamicToolUIPart;
+      orderedElements.push(
+        <ToolInvocation
+          key={tool.toolCallId || `tool-${orderedElements.length}`}
+          toolName={tool.toolName}
+          args={'input' in tool ? tool.input : {}}
+          result={'output' in tool ? tool.output : undefined}
+          state={
+            tool.state === 'output-available'
+              ? ToolCallStatus.Completed
+              : tool.state === 'output-error'
+                ? ToolCallStatus.Error
+                : tool.state === 'input-streaming'
+                  ? ToolCallStatus.Pending
+                  : ToolCallStatus.Pending
+          }
+        />
+      );
+    }
+  });
+
+  // Handle any remaining content
+  if (isInThinkBlock && currentThinkBlock !== null) {
+    // Incomplete think block (still streaming)
+    if (accumulatedText.trim()) {
+      orderedElements.push(
+        <AIResponse key={`text-${orderedElements.length}`}>{accumulatedText.trim()}</AIResponse>
+      );
+    }
+    orderedElements.push(
+      <ThinkBlock key={`think-streaming`} content={currentThinkBlock} isStreaming={true} />
+    );
+  } else if (accumulatedText.trim()) {
+    // Remaining text
+    orderedElements.push(
+      <AIResponse key={`text-final`}>{accumulatedText.trim()}</AIResponse>
+    );
+  }
+
+  return <div className="relative space-y-2">{orderedElements}</div>;
 }
