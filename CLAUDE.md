@@ -249,6 +249,13 @@ Key tables (snake_case naming):
 - **Build Desktop Application**: Multi-platform builds
 - **Release Please**: Automated versioning and changelog
 - **Claude Integration**: AI-powered PR reviews
+  - **User-Scoped Authentication**: Each authorized user has their own Claude OAuth token
+  - **Workflow Structure**:
+    - `claude-code.yml` and `claude-pull-requests.yml`: Reusable workflow templates
+    - `user-scoped-claude-code.yml` and `user-scoped-claude-pull-requests.yml`: User-specific orchestrators
+  - **Authorized Users**: Currently configured for `joeyorlando`, `Matvey-Kuk`, and `iskhakov`
+  - **Compliance**: Ensures adherence to Anthropic's single-account OAuth token policy
+  - **Adding New Users**: Add repository secret `USERNAME_CLAUDE_CODE_OAUTH_TOKEN` and update user-scoped workflows
 
 ### Development Notes
 
