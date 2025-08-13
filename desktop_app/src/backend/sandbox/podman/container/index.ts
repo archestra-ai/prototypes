@@ -210,13 +210,14 @@ export default class PodmanContainer {
           /**
            * Also log to console for debugging
            *
-           * QUESTION: do we also need to log to the console or is file based logs enough?
+           * NOTE: let's not double output to console for right now.. this can get very verbose + spam
+           * logs when developing (+ also, we're already logging to the file, which can be viewed in the UI as well)
            */
-          if (streamType === 1) {
-            log.debug(`[${this.containerName} stdout]: ${text.trim()}`);
-          } else if (streamType === 2) {
-            log.debug(`[${this.containerName} stderr]: ${text.trim()}`);
-          }
+          // if (streamType === 1) {
+          //   log.debug(`[${this.containerName} stdout]: ${text.trim()}`);
+          // } else if (streamType === 2) {
+          //   log.debug(`[${this.containerName} stderr]: ${text.trim()}`);
+          // }
         }
       });
 
@@ -272,16 +273,64 @@ export default class PodmanContainer {
    */
   async getRecentLogs(lines: number = 100): Promise<string> {
     try {
-      if (!fs.existsSync(this.logFilePath)) {
+      // Get the log directory and basename
+      const logDir = path.dirname(this.logFilePath);
+      const logBasename = path.basename(this.logFilePath);
+
+      // Check if log directory exists
+      if (!fs.existsSync(logDir)) {
         return `No logs available yet for ${this.containerName}`;
       }
 
-      // Read the log file
-      const logContent = await fs.promises.readFile(this.logFilePath, 'utf-8');
-      const logLines = logContent.split('\n');
+      // Read all files in the log directory
+      const files = await fs.promises.readdir(logDir);
+
+      // Find all log files for this container (including rotated ones)
+      const containerLogFiles = files.filter((file) => {
+        // Match the base log file and any rotated versions
+        // rotating-file-stream creates files like: filename.log.1, filename.log.2, etc.
+        return file === logBasename || file.startsWith(`${logBasename}.`);
+      });
+
+      // Sort files to read in the correct order
+      // Main log file first (most recent), then rotated files in reverse order
+      containerLogFiles.sort((a, b) => {
+        if (a === logBasename) return -1;
+        if (b === logBasename) return 1;
+
+        // Extract numbers from rotated files
+        const aNum = parseInt(a.substring(logBasename.length + 1));
+        const bNum = parseInt(b.substring(logBasename.length + 1));
+
+        // Lower numbers are more recent
+        return aNum - bNum;
+      });
+
+      // Collect lines from all files until we have enough
+      let allLines: string[] = [];
+
+      for (const file of containerLogFiles) {
+        const filePath = path.join(logDir, file);
+
+        try {
+          const content = await fs.promises.readFile(filePath, 'utf-8');
+          const fileLines = content.split('\n').filter((line) => line.trim() !== '');
+
+          // Add lines to the beginning since we're reading from newest to oldest
+          allLines = fileLines.concat(allLines);
+
+          // If we have enough lines, we can stop reading older files
+          if (allLines.length >= lines) {
+            break;
+          }
+        } catch (error) {
+          log.error(`Failed to read log file ${filePath}:`, error);
+          // Continue with other files if one fails
+        }
+      }
 
       // Return the last N lines
-      return logLines.slice(-lines).join('\n');
+      return allLines.slice(-lines).join('\n');
     } catch (error) {
       log.error(`Failed to read logs:`, error);
       return `Error reading logs: ${error instanceof Error ? error.message : 'Unknown error'}`;

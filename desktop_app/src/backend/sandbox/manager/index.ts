@@ -147,7 +147,7 @@ class McpServerSandboxManager {
 
   checkContainerExists(mcpServerId: string): boolean {
     log.info(`Checking if container exists for MCP server ${mcpServerId}...`);
-    log.info(`Available MCP servers:`, Array.from(this.mcpServerIdToPodmanContainerMap.keys()));
+    log.info(`Available MCP servers: ${Array.from(this.mcpServerIdToPodmanContainerMap.keys())}`);
     log.info(`Total containers in map: ${this.mcpServerIdToPodmanContainerMap.size}`);
 
     const exists = this.mcpServerIdToPodmanContainerMap.has(mcpServerId);
@@ -161,7 +161,7 @@ class McpServerSandboxManager {
     responseStream: RawReplyDefaultExpression
   ): Promise<void> {
     log.info(`Looking for MCP server ${mcpServerId} in map...`);
-    log.info(`Available MCP servers:`, Array.from(this.mcpServerIdToPodmanContainerMap.keys()));
+    log.info(`Available MCP servers: ${Array.from(this.mcpServerIdToPodmanContainerMap.keys())}`);
 
     const podmanContainer = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
     if (!podmanContainer) {

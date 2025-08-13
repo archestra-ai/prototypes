@@ -27,7 +27,6 @@ class WebSocketService {
       });
 
       this.ws.addEventListener('open', () => {
-        console.log('WebSocket connected');
         resolve();
       });
 
@@ -47,9 +46,7 @@ class WebSocketService {
         }
       });
 
-      this.ws.addEventListener('close', () => {
-        console.log('WebSocket disconnected');
-      });
+      this.ws.addEventListener('close', () => {});
     });
 
     return this.connectionPromise;
