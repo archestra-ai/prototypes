@@ -597,12 +597,9 @@
           },
           "containerName": {
             "type": "string"
-          },
-          "logFilePath": {
-            "type": "string"
           }
         },
-        "required": ["logs", "containerName", "logFilePath"]
+        "required": ["logs", "containerName"]
       },
       "SandboxStatusSummary": {
         "type": "object",
@@ -1210,12 +1207,9 @@
           },
           "containerName": {
             "type": "string"
-          },
-          "logFilePath": {
-            "type": "string"
           }
         },
-        "required": ["logs", "containerName", "logFilePath"],
+        "required": ["logs", "containerName"],
         "additionalProperties": false
       }
     }
