@@ -61,7 +61,7 @@ class McpServerSandboxManager {
 
       // Now pull the base image with the correct socket configured
       log.info('Pulling base image...');
-      await this.podmanRuntime.pullBaseImageOnMachineInstallationSuccess();
+      await this.podmanRuntime.pullBaseImageOnMachineInstallationSuccess(socketPath);
       log.info('Base image pulled successfully');
     } catch (error) {
       log.error('Failed during podman setup:', error);
@@ -75,8 +75,6 @@ class McpServerSandboxManager {
 
     // Start all servers in parallel
     const startPromises = installedMcpServers.map(async (mcpServer) => {
-      const { id: serverId } = mcpServer;
-
       try {
         await this.startServer(mcpServer);
       } catch (error) {
@@ -149,7 +147,7 @@ class McpServerSandboxManager {
 
   checkContainerExists(mcpServerId: string): boolean {
     log.info(`Checking if container exists for MCP server ${mcpServerId}...`);
-    log.info(`Available MCP servers:`, Array.from(this.mcpServerIdToPodmanContainerMap.keys()));
+    log.info(`Available MCP servers: ${Array.from(this.mcpServerIdToPodmanContainerMap.keys())}`);
     log.info(`Total containers in map: ${this.mcpServerIdToPodmanContainerMap.size}`);
 
     const exists = this.mcpServerIdToPodmanContainerMap.has(mcpServerId);
@@ -163,7 +161,7 @@ class McpServerSandboxManager {
     responseStream: RawReplyDefaultExpression
   ): Promise<void> {
     log.info(`Looking for MCP server ${mcpServerId} in map...`);
-    log.info(`Available MCP servers:`, Array.from(this.mcpServerIdToPodmanContainerMap.keys()));
+    log.info(`Available MCP servers: ${Array.from(this.mcpServerIdToPodmanContainerMap.keys())}`);
 
     const podmanContainer = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
     if (!podmanContainer) {

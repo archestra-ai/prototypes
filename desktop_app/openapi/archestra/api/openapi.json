@@ -42,42 +42,9 @@
                     "enum": [null]
                   }
                 ]
-              },
-              "baseImage": {
-                "type": "object",
-                "properties": {
-                  "pullPercentage": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 100
-                  },
-                  "pullMessage": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "nullable": true,
-                        "enum": [null]
-                      }
-                    ]
-                  },
-                  "pullError": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "nullable": true,
-                        "enum": [null]
-                      }
-                    ]
-                  }
-                },
-                "required": ["pullPercentage", "pullMessage", "pullError"]
               }
             },
-            "required": ["startupPercentage", "startupMessage", "startupError", "baseImage"]
+            "required": ["startupPercentage", "startupMessage", "startupError"]
           },
           "containers": {
             "type": "object",
@@ -587,26 +554,34 @@
             "additionalProperties": false
           },
           "userConfigValues": {
-            "type": "object",
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
                 }
-              ]
-            }
+              },
+              {
+                "nullable": true,
+                "enum": [null]
+              }
+            ]
           },
           "createdAt": {
             "type": "string"
@@ -665,43 +640,9 @@
                     "enum": [null]
                   }
                 ]
-              },
-              "baseImage": {
-                "type": "object",
-                "properties": {
-                  "pullPercentage": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 100
-                  },
-                  "pullMessage": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "nullable": true,
-                        "enum": [null]
-                      }
-                    ]
-                  },
-                  "pullError": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "nullable": true,
-                        "enum": [null]
-                      }
-                    ]
-                  }
-                },
-                "required": ["pullPercentage", "pullMessage", "pullError"],
-                "additionalProperties": false
               }
             },
-            "required": ["startupPercentage", "startupMessage", "startupError", "baseImage"],
+            "required": ["startupPercentage", "startupMessage", "startupError"],
             "additionalProperties": false
           },
           "containers": {
@@ -1225,26 +1166,34 @@
             "additionalProperties": false
           },
           "userConfigValues": {
-            "type": "object",
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
                 }
-              ]
-            }
+              },
+              {
+                "nullable": true,
+                "enum": [null]
+              }
+            ]
           },
           "createdAt": {
             "type": "string"
@@ -1782,8 +1731,9 @@
           {
             "schema": {
               "default": 1,
-              "type": "number",
-              "minimum": 1
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
             },
             "in": "query",
             "name": "page",
@@ -1792,7 +1742,7 @@
           {
             "schema": {
               "default": 50,
-              "type": "number",
+              "type": "integer",
               "minimum": 1,
               "maximum": 100
             },
@@ -2034,7 +1984,8 @@
                     "type": "string"
                   },
                   "displayName": {
-                    "type": "string"
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9-\\s]{1,63}$"
                   },
                   "serverConfig": {
                     "type": "object",
@@ -2264,6 +2215,44 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/onboarding/status": {
+      "get": {
+        "operationId": "isOnboardingCompleted",
+        "tags": ["Onboarding"],
+        "description": "Check if the onboarding process has been completed",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "completed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["completed"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/onboarding/complete": {
+      "post": {
+        "operationId": "markOnboardingCompleted",
+        "tags": ["Onboarding"],
+        "description": "Mark the onboarding process as completed",
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }

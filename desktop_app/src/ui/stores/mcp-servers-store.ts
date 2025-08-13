@@ -212,24 +212,24 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
        * rather than directly "installing" the MCP server
        */
       if (requiresOAuth) {
-        try {
-          // Start OAuth flow
-          const { data } = await startMcpServerOauth({
-            body: { catalogName: id },
-          });
+        // Start OAuth flow
+        const { data } = await startMcpServerOauth({
+          body: { catalogName: id },
+        });
 
-          if (data) {
-            // For OAuth connectors, the backend will handle the installation after successful auth
-            alert(`OAuth setup started for ${name}. Please complete the authentication in your browser.`);
-          }
-        } catch (error) {
-          set({ errorInstallingMcpServer: error as string });
+        if (data) {
+          // For OAuth connectors, the backend will handle the installation after successful auth
+          alert(`OAuth setup started for ${name}. Please complete the authentication in your browser.`);
         }
       } else {
-        await installMcpServer({ body: installData });
+        const { data: newlyInstalledMcpServer, error } = await installMcpServer({ body: installData });
 
-        // Refresh the MCP servers list
-        await useMcpServersStore.getState().loadInstalledMcpServers();
+        if (error) {
+          set({ errorInstallingMcpServer: error.error || 'Unknown error installing MCP server' });
+          return;
+        }
+
+        get().addMcpServerToInstalledMcpServers(newlyInstalledMcpServer);
       }
     } catch (error) {
       set({ errorInstallingMcpServer: error as string });

@@ -1,13 +1,13 @@
 import type { RawReplyDefaultExpression } from 'fastify';
 import fs from 'fs';
-import path from 'path';
-import { Agent, upgrade } from 'undici';
+import path from 'node:path';
+import type { Duplex } from 'stream';
+import { Agent, request, upgrade } from 'undici';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
 import {
   containerCreateLibpod,
-  containerLogsLibpod,
   containerStartLibpod,
   containerStopLibpod,
   containerWaitLibpod,
@@ -15,6 +15,7 @@ import {
 import config from '@backend/config';
 import type { McpServer, McpServerConfig, McpServerUserConfigValues } from '@backend/models/mcpServer';
 import log from '@backend/utils/logger';
+import { LOGS_DIRECTORY } from '@backend/utils/paths';
 
 export const PodmanContainerStateSchema = z.enum([
   'not_created',
@@ -66,23 +67,10 @@ export default class PodmanContainer {
   private socketPath: string | null = null;
 
   // Connection pooling for MCP server communication
-  private mcpSocket = null;
+  private mcpSocket: Duplex | null = null;
   private mcpSocketConnecting: boolean = false;
   private pendingRequests: Map<string, (response: any) => void> = new Map();
 
-  /*
-   * TODO: Use app.getPath('logs') from Electron to get proper logs directory
-   *
-   * Currently we're hardcoding to ~/Desktop/archestra/logs/<container-name>.log because:
-   * - This code runs in the backend Node.js process, not the Electron main process
-   * - app.getPath() is only available in the Electron main process
-   * - We need to either:
-   *   1. Pass the logs path from the main process when starting the backend server
-   *   2. Use IPC to request the path from the main process
-   *   3. Use an environment variable set by the main process
-   *
-   * For now, using a hardcoded path for simplicity during development.
-   */
   logFilePath: string;
   private logStream: fs.WriteStream | null = null;
   private isStreamingLogs = false;
@@ -107,26 +95,17 @@ export default class PodmanContainer {
     this.statusMessage = 'Container not yet created';
     this.statusError = null;
 
-    // Set up log file path
-    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-    const logsDir = path.join(homeDir, 'Desktop', 'archestra', 'logs');
-    this.logFilePath = path.join(logsDir, `${this.containerName}.log`);
-
-    // Ensure logs directory exists
-    this.ensureLogDirectoryExists(logsDir);
+    this.logFilePath = path.join(LOGS_DIRECTORY, `${this.containerName}.log`);
   }
 
+  /**
+   * NOTE: they're certain naming restrictions/conventions that we should follow here
+   *
+   * See:
+   * https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
+   */
   private static prettifyServerNameIntoContainerName = (serverName: string) =>
     `archestra-ai-${serverName.replace(/ /g, '-').toLowerCase()}-mcp-server`;
-
-  private ensureLogDirectoryExists(logsDir: string) {
-    try {
-      fs.mkdirSync(logsDir, { recursive: true });
-      log.info(`Ensured log directory exists: ${logsDir}`);
-    } catch (error) {
-      log.error(`Failed to create log directory: ${logsDir}`, error);
-    }
-  }
 
   private async startLoggingToFile() {
     try {
@@ -164,26 +143,89 @@ export default class PodmanContainer {
       // Start logging to file
       await this.startLoggingToFile();
 
-      // Stream logs from container
-      const logsResponse = await containerLogsLibpod({
-        path: {
-          name: this.containerName,
-        },
-        query: {
-          follow: true, // Stream logs
-          stdout: true, // Include stdout
-          stderr: true, // Include stderr
-          timestamps: true, // Include timestamps
-          tail: 'all', // Get all logs
-        },
+      /**
+       * Use undici.request() for streaming logs
+       *
+       * TODO: don't hardcode the path here
+       */
+      const { body } = await request(
+        `http://localhost/v5.0.0/libpod/containers/${this.containerName}/logs?follow=true&stdout=true&stderr=true&timestamps=true&tail=all`,
+        {
+          method: 'GET',
+          // Create an agent for the unix socket
+          dispatcher: new Agent({
+            connect: { socketPath: this.socketPath },
+          }),
+        }
+      );
+
+      if (!body) {
+        throw new Error('No response body for logs');
+      }
+
+      // Process the streaming logs
+      let buffer = Buffer.alloc(0);
+
+      body.on('data', (chunk: Buffer) => {
+        buffer = Buffer.concat([buffer, chunk]);
+
+        // Process multiplexed stream format (same as attach)
+        while (buffer.length >= 8) {
+          // Read the 8-byte header
+          const streamType = buffer[0]; // 0=stdin, 1=stdout, 2=stderr
+          const payloadSize = buffer.readUInt32BE(4);
+
+          // Check if we have the full payload
+          if (buffer.length < 8 + payloadSize) {
+            break; // Wait for more data
+          }
+
+          // Extract the payload
+          const payload = buffer.slice(8, 8 + payloadSize);
+          buffer = buffer.slice(8 + payloadSize);
+
+          // Convert payload to string
+          const text = payload.toString('utf-8');
+
+          // Write to log file
+          if (this.logStream && text.trim()) {
+            this.logStream.write(text);
+            if (!text.endsWith('\n')) {
+              this.logStream.write('\n');
+            }
+          }
+
+          /**
+           * Also log to console for debugging
+           *
+           * NOTE: let's not double output to console for right now.. this can get very verbose + spam
+           * logs when developing (+ also, we're already logging to the file, which can be viewed in the UI as well)
+           */
+          // if (streamType === 1) {
+          //   log.debug(`[${this.containerName} stdout]: ${text.trim()}`);
+          // } else if (streamType === 2) {
+          //   log.debug(`[${this.containerName} stderr]: ${text.trim()}`);
+          // }
+        }
       });
 
-      // TODO: Handle the streaming response
-      // The actual implementation will depend on how the libpod client handles streaming
+      body.on('error', (err: Error) => {
+        log.error(`Error streaming logs for ${this.containerName}:`, err);
+        this.isStreamingLogs = false;
+        this.stopLoggingToFile();
+      });
+
+      body.on('end', () => {
+        log.info(`Log streaming ended for ${this.containerName}`);
+        this.isStreamingLogs = false;
+        this.stopLoggingToFile();
+      });
+
       log.info(`Container logs streaming started for ${this.containerName}`);
     } catch (error) {
       log.error(`Failed to start streaming logs:`, error);
       this.isStreamingLogs = false;
+      this.stopLoggingToFile();
     }
   }
 
@@ -198,6 +240,20 @@ export default class PodmanContainer {
     log.info(`Stopping log streaming for ${this.containerName}`);
     this.isStreamingLogs = false;
     this.stopLoggingToFile();
+  }
+
+  private setContainerAsRunning() {
+    this.state = 'running';
+    this.startupPercentage = 100;
+    this.statusMessage = 'Container is running';
+    this.statusError = null;
+  }
+
+  private setContainerAsError(error: string) {
+    this.state = 'error';
+    this.startupPercentage = 0;
+    this.statusMessage = null;
+    this.statusError = error;
   }
 
   /**
@@ -272,9 +328,7 @@ export default class PodmanContainer {
         log.info(`MCP server container ${this.containerName} is already running.`);
 
         // Update state
-        this.state = 'running';
-        this.startupPercentage = 100;
-        this.statusMessage = 'Container is already running';
+        this.setContainerAsRunning();
 
         // Start streaming logs even if container was already running
         await this.startStreamingLogs();
@@ -289,8 +343,11 @@ export default class PodmanContainer {
 
         // Wait for container to be healthy before considering it ready
         await this.waitForHealthy();
+
         // Start streaming logs for newly started container
         await this.startStreamingLogs();
+
+        this.setContainerAsRunning();
         return;
       }
     } catch (error) {
@@ -301,10 +358,7 @@ export default class PodmanContainer {
         this.statusMessage = 'Container does not exist, creating new container';
       } else {
         log.error(`Error starting MCP server container ${this.containerName}`, error);
-        this.state = 'error';
-        this.startupPercentage = 0;
-        this.statusMessage = null;
-        this.statusError = error instanceof Error ? error.message : 'Failed to start container';
+        this.setContainerAsError(error instanceof Error ? error.message : 'Failed to start container');
         throw error;
       }
     }
@@ -372,17 +426,10 @@ export default class PodmanContainer {
 
       await this.startStreamingLogs();
 
-      // Final state
-      this.state = 'running';
-      this.startupPercentage = 100;
-      this.statusMessage = 'Container is running and healthy';
-      this.statusError = null;
+      this.setContainerAsRunning();
     } catch (error) {
       log.error(`Error creating MCP server container ${this.containerName}`, error);
-      this.state = 'error';
-      this.startupPercentage = 0;
-      this.statusMessage = null;
-      this.statusError = error instanceof Error ? error.message : 'Failed to create container';
+      this.setContainerAsError(error instanceof Error ? error.message : 'Failed to create container');
       throw error;
     }
   }
@@ -463,15 +510,13 @@ export default class PodmanContainer {
         this.statusMessage = 'Container not found';
       } else {
         log.error(`Error stopping MCP server container ${this.containerName}`, response);
-        this.state = 'error';
-        this.statusError = `Unexpected status: ${status}`;
+        this.setContainerAsError(`Unexpected status: ${status}`);
       }
 
       this.startupPercentage = 0;
     } catch (error) {
       log.error(`Error stopping MCP server container ${this.containerName}`, error);
-      this.state = 'error';
-      this.statusError = error instanceof Error ? error.message : 'Failed to stop container';
+      this.setContainerAsError(error instanceof Error ? error.message : 'Failed to stop container');
       throw error;
     }
   }
@@ -479,7 +524,7 @@ export default class PodmanContainer {
   /**
    * Get or create a persistent socket connection to the MCP server container
    */
-  private async getOrCreateMcpSocket() {
+  private async getOrCreateMcpSocket(): Promise<Duplex> {
     // If we already have a socket, return it
     if (this.mcpSocket && !this.mcpSocket.destroyed) {
       return this.mcpSocket;

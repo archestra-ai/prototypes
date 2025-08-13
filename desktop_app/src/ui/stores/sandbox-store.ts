@@ -27,11 +27,6 @@ export const useSandboxStore = create<SandboxStore>((set, _get) => ({
       startupPercentage: 0,
       startupMessage: null,
       startupError: null,
-      baseImage: {
-        pullPercentage: 0,
-        pullMessage: null,
-        pullError: null,
-      },
     },
   },
 

@@ -1,9 +1,13 @@
 {
-  "bootstrap-sha": "526d27aa0bd5e618de4b2f7e8c49d0b35c50b2dd",
+  "bootstrap-sha": "009e5e5962569dda27846733a0f9a3b3c889a439",
   "changelog-path": "CHANGELOG.md",
   "changelog-type": "default",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
+  "pull-request-footer": "",
+  "include-v-in-tag": true,
+  "prerelease": true,
+  "prerelease-type": "alpha",
   "changelog-sections": [
     {
       "section": "Features",
@@ -48,17 +52,18 @@
     {
       "section": "Tests",
       "type": "test",
-      "hidden": false
+      "hidden": true
     },
     {
       "section": "Miscellaneous Chores",
       "type": "chore",
-      "hidden": false
+      "hidden": true
     }
   ],
   "packages": {
     "desktop_app": {
       "component": "desktop_app",
+      "include-component-in-tag": false,
       "release-type": "node"
     },
     "mcp_server_docker_image": {

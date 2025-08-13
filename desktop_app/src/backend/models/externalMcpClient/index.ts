@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import fs from 'fs/promises';
 import path from 'path';
 
+import config from '@backend/config';
 import db from '@backend/database';
 import {
   ExternalMcpClientNameSchema,
@@ -12,7 +13,7 @@ import McpServerModel from '@backend/models/mcpServer';
 
 export default class ExternalMcpClient {
   static ARCHESTRA_MCP_SERVER_KEY = 'archestra.ai';
-  static ARCHESTRA_SERVER_BASE_URL = 'http://localhost:54587';
+  static ARCHESTRA_SERVER_BASE_URL = `http://${config.server.http.host}:${config.server.http.port}`;
   static INSTALLED_MCP_SERVER_KEY_SUFFIX = '(archestra.ai)';
 
   /**
@@ -136,7 +137,7 @@ export default class ExternalMcpClient {
     for (const server of installedMcpServers) {
       const serverKey = `${server.name} ${this.INSTALLED_MCP_SERVER_KEY_SUFFIX}`;
       const serverConfig = {
-        url: `${this.ARCHESTRA_SERVER_BASE_URL}/proxy/${server.name}`,
+        url: `${this.ARCHESTRA_SERVER_BASE_URL}/mcp_proxy/${server.name}`,
       };
 
       if (!config.mcpServers[serverKey]) {

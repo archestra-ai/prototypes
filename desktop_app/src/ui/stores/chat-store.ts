@@ -49,26 +49,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ isLoadingChats: true });
     try {
       const { data } = await getChats();
-      console.log('Initializing chats...');
-      console.log(data);
-      if (data) {
+      if (data.length > 0) {
         const initializedChats = data.map(initializeChat);
         set({
           chats: initializedChats,
           currentChatSessionId: initializedChats.length > 0 ? initializedChats[0].sessionId : null,
-          isLoadingChats: false,
         });
       } else {
-        // No chats found, create a new one
-        const newChat = await get().createNewChat();
-        set({
-          chats: [newChat],
-          currentChatSessionId: newChat.sessionId,
-          isLoadingChats: false,
-        });
+        /**
+         * No chats found, create a new one.. there should never be a case where no chat exists..
+         */
+        await get().createNewChat();
       }
     } catch (error) {
       console.error('Failed to load chats:', error);
+    } finally {
       set({ isLoadingChats: false });
     }
   },
@@ -140,13 +135,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       await deleteChat({ path: { id: currentChat.id.toString() } });
-      set((state) => {
-        const newChats = state.chats.filter((chat) => chat.id !== currentChat.id);
-        return {
-          chats: newChats,
-          currentChatSessionId: newChats.length > 0 ? newChats[0].sessionId : null,
-        };
-      });
+
+      const { chats } = get();
+      const newChats = chats.filter((chat) => chat.id !== currentChat.id);
+
+      if (newChats.length === 0) {
+        /**
+         * Remove the deleted chat from the state and then create a new one
+         *
+         * there should never be a case where no chat exists..
+         */
+        set({ chats: [], currentChatSessionId: null });
+
+        await get().createNewChat();
+      } else {
+        set({ chats: newChats, currentChatSessionId: newChats[0].sessionId });
+      }
     } catch (error) {
       console.error('Failed to delete chat:', error);
     }
