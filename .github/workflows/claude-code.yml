@@ -1,28 +1,18 @@
 name: Claude Code
 
 on:
-  issue_comment:
-    types: [created]
-  pull_request_review_comment:
-    types: [created]
-  issues:
-    types: [opened, assigned]
-  pull_request_review:
-    types: [submitted]
+  workflow_call:
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
 
 jobs:
-  claude:
-    # NOTE! This workflow will only run if the pull request was opened by the following users.
-    # If you'd like to be able to tap into this workflow, you'll need to add your username here +
-    # add the necessary GitHub Actions secret (see further down below)
-    #
-    # See here for more details:
-    # https://github.com/anthropics/claude-code-action/issues/4#issuecomment-3046770474
+  claude-code:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.login == 'joeyorlando') ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && github.event.comment.user.login == 'joeyorlando') ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && github.event.review.user.login == 'joeyorlando') ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && github.event.issue.user.login == 'joeyorlando')
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -45,9 +35,8 @@ jobs:
         uses: anthropics/claude-code-action@e26577a930883943cf9d90885cd1e8da510078dd # beta tag
         with:
           # Dynamically set the secret based on the user who triggered the workflow
-          #
           # use their oauth token, since otherwise Anthropic will ban accounts for abuse :(
-          claude_code_oauth_token: ${{ secrets.joeyorlando_CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
           # This is an optional setting that allows Claude to read CI results on PRs
           # See https://github.com/anthropics/claude-code-action?tab=readme-ov-file#additional-permissions-for-cicd-integration

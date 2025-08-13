@@ -1,32 +1,16 @@
 name: Claude Pull Requests
 
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-    branches-ignore:
-      - release-please--branches--main
-
-concurrency:
-  # Cancel any running workflow for the same branch when new commits are pushed.
-  # We group both by ref_name (available when CI is triggered by a push to a branch/tag)
-  # and head_ref (available when CI is triggered by a PR).
-  group: "claude-pull-requests-${{ github.ref_name }}-${{ github.head_ref }}"
-  cancel-in-progress: true
+  workflow_call:
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
 
 jobs:
   claude-pull-requests:
     name: Claude Pull Requests
     runs-on: ubuntu-latest
-    # NOTE! This workflow will only run if the pull request was opened by the following users.
-    # If you'd like to be able to tap into this workflow, you'll need to add your username here +
-    # add the necessary GitHub Actions secret (see further down below)
-    #
-    # See here for more details:
-    # https://github.com/anthropics/claude-code-action/issues/4#issuecomment-3046770474
     if: |
-      github.event.pull_request.user.login == 'joeyorlando' &&
       !contains(github.event.pull_request.title, '[WIP]')
     permissions:
       contents: write
@@ -44,7 +28,9 @@ jobs:
       - name: Run Claude Code
         uses: anthropics/claude-code-action@e26577a930883943cf9d90885cd1e8da510078dd # beta tag
         with:
-          claude_code_oauth_token: ${{ secrets[format('{0}_CLAUDE_CODE_OAUTH_TOKEN', github.event.pull_request.user.login)] }}
+          # Dynamically set the secret based on the user who triggered the workflow
+          # use their oauth token, since otherwise Anthropic will ban accounts for abuse :(
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
           # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
           use_sticky_comment: true
