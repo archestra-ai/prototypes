@@ -403,7 +403,13 @@ const ollamaLLMRoutes: FastifyPluginAsync = async (fastify) => {
         } else {
           // If already hijacked, try to send error in SSE format
           try {
-            reply.raw.write(`data: {"type":"error","errorText":"${errorMessage}"}\n\n`);
+            const escapedErrorMessage = errorMessage
+              .replace(/\\/g, '\\\\')
+              .replace(/"/g, '\\"')
+              .replace(/\n/g, '\\n')
+              .replace(/\r/g, '\\r')
+              .replace(/\t/g, '\\t');
+            reply.raw.write(`data: {"type":"error","errorText":"${escapedErrorMessage}"}\n\n`);
             reply.raw.end();
           } catch (writeError) {
             // If writing fails, just log it
