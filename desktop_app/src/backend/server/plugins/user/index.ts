@@ -44,6 +44,47 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
       return await UserModel.patchUser(body);
     }
   );
+
+  // Backward compatibility endpoints
+  fastify.get(
+    '/api/onboarding/status',
+    {
+      schema: {
+        operationId: 'getOnboardingStatus',
+        description: 'Get onboarding status (backward compatibility)',
+        tags: ['Onboarding'],
+        response: {
+          200: z.object({
+            hasCompletedOnboarding: z.boolean(),
+          }),
+        },
+      },
+    },
+    async (_request, _reply) => {
+      const user = await UserModel.getUser();
+      return { hasCompletedOnboarding: user.hasCompletedOnboarding };
+    }
+  );
+
+  fastify.post(
+    '/api/onboarding/complete',
+    {
+      schema: {
+        operationId: 'completeOnboarding',
+        description: 'Complete onboarding (backward compatibility)',
+        tags: ['Onboarding'],
+        response: {
+          200: z.object({
+            hasCompletedOnboarding: z.boolean(),
+          }),
+        },
+      },
+    },
+    async (_request, _reply) => {
+      const user = await UserModel.patchUser({ hasCompletedOnboarding: true });
+      return { hasCompletedOnboarding: user.hasCompletedOnboarding };
+    }
+  );
 };
 
 export default userRoutes;
