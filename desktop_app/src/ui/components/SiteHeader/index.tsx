@@ -30,14 +30,29 @@ export function SiteHeader({ activeView, activeSubView }: SiteHeaderProps) {
 
   return (
     <header className="bg-background sticky top-0 z-50 flex w-full items-center border-b">
-      <div className="flex h-[var(--header-height)] w-full items-center gap-2 px-4 pl-[80px]" data-tauri-drag-region>
-        <Button className="h-8 w-8 cursor-pointer" variant="ghost" size="icon" onClick={toggleSidebar}>
+      <div
+        className="flex h-[var(--header-height)] w-full items-center gap-2 px-4 pl-[80px]"
+        // @ts-expect-error - WebkitAppRegion is not a valid property
+        style={{ WebkitAppRegion: 'drag' }}
+      >
+        <Button
+          className="h-8 w-8 cursor-pointer"
+          variant="ghost"
+          size="icon"
+          onClick={toggleSidebar}
+          // @ts-expect-error - WebkitAppRegion is not a valid property
+          style={{ WebkitAppRegion: 'no-drag' }}
+        >
           <SidebarIcon />
         </Button>
         <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumbs breadcrumbs={breadcrumbs} isAnimatedTitle={activeView === NavigationViewKey.Chat} />
+        {/* @ts-expect-error - WebkitAppRegion is not a valid property */}
+        <div style={{ WebkitAppRegion: 'no-drag' }}>
+          <Breadcrumbs breadcrumbs={breadcrumbs} isAnimatedTitle={activeView === NavigationViewKey.Chat} />
+        </div>
       </div>
-      <div className="flex items-center gap-2 mr-4">
+      {/* @ts-expect-error - WebkitAppRegion is not a valid property */}
+      <div className="flex items-center gap-2 mr-4" style={{ WebkitAppRegion: 'no-drag' }}>
         <ThemeToggler />
       </div>
     </header>

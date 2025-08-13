@@ -41,8 +41,12 @@ const createWindow = () => {
     height: 800,
     resizable: true,
     movable: true,
-    titleBarStyle: 'hidden',
-    trafficLightPosition: { x: 16, y: 17 },
+    titleBarStyle: 'hiddenInset',
+    titleBarOverlay: {
+      color: '#00000000',
+      symbolColor: '#ffffff',
+      height: 36,
+    },
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
