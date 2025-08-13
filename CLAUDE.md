@@ -219,6 +219,9 @@ Key tables (snake_case naming):
 - **REST API**: Fastify server on port 2024
 - **WebSocket**: Real-time communication for streaming responses
 - **IPC**: Electron IPC for main-renderer communication
+  - External link handling: Use `window.electronAPI.openExternal(url)` to open URLs in the default browser
+  - Implementation: IPC handler in main process (`ipcMain.handle('open-external')`) uses `shell.openExternal`
+  - Security: URLs should be validated or hardcoded; user input should not be passed directly
 - **Generated Clients**: TypeScript clients from OpenAPI specs in `openapi/`
 
 ### MCP Server Management

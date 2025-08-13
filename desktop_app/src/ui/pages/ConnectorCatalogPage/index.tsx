@@ -7,6 +7,7 @@ import { ArchestraMcpServerManifest } from '@ui/lib/clients/archestra/catalog/ge
 import { useConnectorCatalogStore, useMcpServersStore } from '@ui/stores';
 import { type McpServerUserConfigValues } from '@ui/types';
 
+import AlphaDisclaimerMessage from './AlphaDisclaimerMessage';
 import McpServer from './McpServer';
 import McpServerInstallDialog from './McpServerInstallDialog';
 
@@ -77,6 +78,8 @@ export default function ConnectorCatalogPage(_props: ConnectorCatalogPageProps) 
             Browse and install Model Context Protocol servers to extend your AI capabilities
           </p>
         </div>
+
+        <AlphaDisclaimerMessage />
 
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">

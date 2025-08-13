@@ -15,13 +15,15 @@
 
 ## ⚠️ Early Development Notice
 
-**Archestra is in very early development.** We're currently crafting the first version of the application, and it's not yet ready for general download. Engineers are welcome to build and try the app, but please do so at your own risk. Expect bugs, breaking changes, and incomplete features as we work towards our first stable release.
+**Archestra is in very early development**, and it's not yet ready for general download.
 
 **Want to get notified when we launch?** Drop your email at [archestra.ai](https://www.archestra.ai/) to be the first to know when Archestra is ready.
 
 ## 🚀 Overview
 
 Archestra is an enterprise-grade platform that enables non-technical users to safely leverage AI agents and MCP (Model Context Protocol) servers. Built as a privacy-focused desktop application, Archestra provides a secure runtime environment for AI interactions with sandboxing, resource controls, and prompt injection prevention.
+
+![Archestra Screenshot](desktop_app/public/images/screenshot.png)
 
 ### Key Features
 

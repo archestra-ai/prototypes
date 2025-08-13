@@ -1,6 +1,6 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import config from '@ui/config';
 import { useChatStore, useCloudProvidersStore, useOllamaStore } from '@ui/stores';
@@ -21,25 +21,38 @@ export default function ChatPage(_props: ChatPageProps) {
   const currentChatSessionId = currentChat?.sessionId || '';
   const currentChatMessages = currentChat?.messages || [];
 
-  // Create transport that changes based on model selection
-  const transport = useMemo(() => {
-    // Check if it's a cloud model
-    const isCloudModel = availableCloudProviderModels.some((m) => m.id === selectedModel);
+  // We use useRef because prepareSendMessagesRequest captures values when created.
+  // Without ref, switching models/providers wouldn't work - it would always use the old values.
+  // The refs let us always get the current selected model and provider values.
+  const selectedModelRef = useRef(selectedModel);
+  selectedModelRef.current = selectedModel;
 
-    /**
-     * TODO: update this to work with ALL cloud providers..
-     * Use OpenAI endpoint for cloud models, Ollama for local
-     */
-    const apiEndpoint = `${config.archestra.chatStreamBaseUrl}/${isCloudModel ? 'openai' : 'ollama'}/stream`;
+  const availableCloudProviderModelsRef = useRef(availableCloudProviderModels);
+  availableCloudProviderModelsRef.current = availableCloudProviderModels;
+
+  const transport = useMemo(() => {
+    const apiEndpoint = `${config.archestra.chatStreamBaseUrl}/stream`;
 
     return new DefaultChatTransport({
       api: apiEndpoint,
-      body: {
-        model: selectedModel || 'llama3.1:8b',
-        sessionId: currentChatSessionId,
+      prepareSendMessagesRequest: ({ id, messages }) => {
+        const currentModel = selectedModelRef.current;
+        const currentCloudProviderModels = availableCloudProviderModelsRef.current;
+
+        const cloudModel = currentCloudProviderModels.find((m) => m.id === currentModel);
+        const provider = cloudModel ? cloudModel.provider : 'ollama';
+
+        return {
+          body: {
+            messages,
+            model: currentModel || 'llama3.1:8b',
+            sessionId: id || currentChatSessionId,
+            provider: provider,
+          },
+        };
       },
     });
-  }, [selectedModel, currentChatSessionId, availableCloudProviderModels]);
+  }, [currentChatSessionId]);
 
   const { sendMessage, messages, setMessages, stop, status, error } = useChat({
     id: currentChatSessionId || 'temp-id', // use the provided chat ID or a temp ID

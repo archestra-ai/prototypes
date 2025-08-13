@@ -41,18 +41,19 @@ jobs:
           - platform: macos-latest
             os: macos
             arch: x64
-          - platform: windows-11-arm
-            os: windows
-            arch: arm64
-          - platform: windows-latest
-            os: windows
-            arch: x64
-          - platform: ubuntu-latest
-            os: linux
-            arch: x64
-          - platform: ubuntu-24.04-arm
-            os: linux
-            arch: arm64
+          # NOTE: uncomment these out when we're ready to produce build artifacts for Windows and Linux
+          # - platform: windows-11-arm
+          #   os: windows
+          #   arch: arm64
+          # - platform: windows-latest
+          #   os: windows
+          #   arch: x64
+          # - platform: ubuntu-latest
+          #   os: linux
+          #   arch: x64
+          # - platform: ubuntu-24.04-arm
+          #   os: linux
+          #   arch: arm64
     permissions:
       # publisher requires write permissions to the repo's contents to create new releases
       # https://www.electronforge.io/config/publishers/github#authentication
@@ -104,26 +105,12 @@ jobs:
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
-      - name: Build desktop application (macOS)
-        if: matrix.os == 'macos'
+      - name: Build desktop application
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # TODO: the following DEBUG env var can be removed once we're done debugging Apple's "notary service"
-          # taking foreverrrrrrrrrrrrrr
-          #
-          # https://github.com/electron/notarize/issues/197#issuecomment-2153484132
-          #
-          # NOTE: once we remove this, we can also just combine the below Build step into this one....
-          DEBUG: electron-notarize*
-        run: pnpm run publish${{ inputs.dry_run && ' --dry-run' || '' }}
-
-      - name: Build desktop application (Windows/Linux)
-        if: matrix.os != 'macos'
-        env:
-          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: pnpm run publish${{ inputs.dry_run && ' --dry-run' || '' }}
 
       # https://brunoscheufler.com/blog/2023-11-12-setting-up-hosted-macos-github-actions-workflows-for-electron-builds
