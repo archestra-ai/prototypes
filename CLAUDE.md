@@ -123,18 +123,26 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - **Automatic Log Rotation**: Using `rotating-file-stream` library
       - Configurable max file size (default: 5MB, env var: `MCP_SERVER_LOG_MAX_SIZE`)
       - Configurable max files to keep (default: 2, env var: `MCP_SERVER_LOG_MAX_FILES`)
-      - Rotated files named: `<container-name>.log.1`, `<container-name>.log.2`, etc.
+      - Rotated files use numeric suffixes: `<container-name>.log`, `<container-name>.log.1`, `<container-name>.log.2`, etc.
+      - Custom filename generator ensures consistent numeric suffix pattern
       - No compression applied for easier access to rotated logs
     - Real-time streaming from container stdout/stderr to log files
     - Multiplexed stream processing handles Podman's 8-byte header format
     - Session markers with timestamps for each container start
     - Append mode preserves historical logs across container restarts
+    - **Enhanced Log Reading**: `getRecentLogs()` reads from all rotated files
+      - Automatically finds and sorts all log files (main + rotated)
+      - Reads files in chronological order (newest first)
+      - Efficiently collects requested number of lines across multiple files
+      - Graceful error handling for missing or inaccessible files
     - **Cleanup on Uninstall**: Complete removal of all log files (including rotated versions)
+      - Pattern-based file matching to find all related log files
+      - Safe cleanup with individual file error handling
+      - Integrated with container removal process
     - UI dialog for viewing container logs (accessible via FileText icon in MCP server settings)
     - Terminal-style log viewer with black background and green monospace text
     - Manual refresh functionality with loading states
-    - API endpoint: `GET /mcp_proxy/:id/logs?lines=100` for retrieving recent logs
-    - `getRecentLogs()` method in PodmanContainer for programmatic access
+    - API endpoint: `GET /mcp_proxy/:id/logs?lines=100` for retrieving recent logs from all rotated files
     - `cleanupLogFiles()` method for removing all log files when uninstalling servers
   - **Request Logging**: Comprehensive MCP request/response tracking in database
     - Unique UUID for each request with timing metrics
