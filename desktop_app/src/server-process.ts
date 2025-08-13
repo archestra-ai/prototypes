@@ -15,6 +15,7 @@
  */
 import { runDatabaseMigrations } from '@backend/database';
 import OllamaServer from '@backend/llms/ollama/server';
+import OrganizationModel from '@backend/models/organization';
 import McpServerSandboxManager from '@backend/sandbox';
 import { startFastifyServer, stopFastifyServer } from '@backend/server';
 import log from '@backend/utils/logger';
@@ -22,6 +23,7 @@ import WebSocketServer from '@backend/websocket';
 
 const startup = async () => {
   await runDatabaseMigrations();
+  await OrganizationModel.ensureOrganizationExists();
 
   McpServerSandboxManager.onSandboxStartupSuccess = () => {
     log.info('Sandbox startup successful');

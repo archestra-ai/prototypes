@@ -1,23 +1,23 @@
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import OnboardingModel from '@backend/models/onboarding';
+import OrganizationModel from '@backend/models/organization';
 
-const onboardingRoutes: FastifyPluginAsync = async (fastify) => {
+const organizationRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/api/onboarding/status',
     {
       schema: {
         operationId: 'isOnboardingCompleted',
         description: 'Check if the onboarding process has been completed',
-        tags: ['Onboarding'],
+        tags: ['Organization'],
         response: {
           200: z.object({ completed: z.boolean() }),
         },
       },
     },
     async (_request, _reply) => {
-      const completed = await OnboardingModel.isOnboardingCompleted();
+      const completed = await OrganizationModel.isOnboardingCompleted();
       return { completed };
     }
   );
@@ -28,14 +28,14 @@ const onboardingRoutes: FastifyPluginAsync = async (fastify) => {
       schema: {
         operationId: 'markOnboardingCompleted',
         description: 'Mark the onboarding process as completed',
-        tags: ['Onboarding'],
+        tags: ['Organization'],
       },
     },
     async (_request, _reply) => {
-      await OnboardingModel.markOnboardingCompleted();
+      await OrganizationModel.markOnboardingCompleted();
       return { success: true };
     }
   );
 };
 
-export default onboardingRoutes;
+export default organizationRoutes;

@@ -2222,7 +2222,7 @@
     "/api/onboarding/status": {
       "get": {
         "operationId": "isOnboardingCompleted",
-        "tags": ["Onboarding"],
+        "tags": ["Organization"],
         "description": "Check if the onboarding process has been completed",
         "responses": {
           "200": {
@@ -2248,7 +2248,7 @@
     "/api/onboarding/complete": {
       "post": {
         "operationId": "markOnboardingCompleted",
-        "tags": ["Onboarding"],
+        "tags": ["Organization"],
         "description": "Mark the onboarding process as completed",
         "responses": {
           "200": {

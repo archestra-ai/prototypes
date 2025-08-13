@@ -2,8 +2,9 @@ import { ChevronRight, Rocket, Shield, Sparkles, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@ui/components/ui/button';
+import { Checkbox } from '@ui/components/ui/checkbox';
 import { Dialog, DialogContent } from '@ui/components/ui/dialog';
-import { isOnboardingCompleted, markOnboardingCompleted } from '@ui/lib/clients/archestra/api/gen/sdk.gen';
+import { useOrganizationStore } from '@ui/stores/organization-store';
 
 enum OnboardingStep {
   Welcome = 0,
@@ -22,10 +23,19 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
   const [isLoading, setIsLoading] = useState(true);
   const [_countdown, setCountdown] = useState(5);
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
+  const [collectTelemetryData, setCollectTelemetryData] = useState(false);
+
+  const { organization, fetchOrganization, markOnboardingCompleted } = useOrganizationStore();
 
   useEffect(() => {
     checkOnboardingStatus();
   }, []);
+
+  useEffect(() => {
+    if (organization && !organization.hasCompletedOnboarding) {
+      setIsOpen(true);
+    }
+  }, [organization]);
 
   useEffect(() => {
     onOpenChange?.(isOpen);
@@ -52,12 +62,9 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
 
   const checkOnboardingStatus = async () => {
     try {
-      const { data } = await isOnboardingCompleted();
-      if (!data.completed) {
-        setIsOpen(true);
-      }
+      await fetchOrganization();
     } catch (error) {
-      console.error('Failed to check onboarding status:', error);
+      console.error('Failed to fetch organization:', error);
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +72,7 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
 
   const completeOnboarding = async () => {
     try {
-      await markOnboardingCompleted();
+      await markOnboardingCompleted(collectTelemetryData);
       setIsOpen(false);
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
@@ -292,10 +299,23 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
                   We're working hard on Archestra, but bugs may still happen. Please let us know about them on GitHub!
                 </p>
                 <div className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg mt-6">
-                  <p className="text-sm font-medium text-center">
+                  <p className="text-sm font-medium text-center mb-3">
                     We collect anonymous statistics and error traces. If you disagree with sharing, please wait for the
                     production version to be ready!
                   </p>
+                  <div className="flex items-center justify-center space-x-2">
+                    <Checkbox
+                      id="telemetry"
+                      checked={collectTelemetryData}
+                      onCheckedChange={(checked) => setCollectTelemetryData(checked as boolean)}
+                    />
+                    <label
+                      htmlFor="telemetry"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      Opt-in to collection of anonymized telemetry data to help improve app
+                    </label>
+                  </div>
                 </div>
                 <div className="flex space-x-2 mt-8">
                   {currentStep > OnboardingStep.Welcome && (

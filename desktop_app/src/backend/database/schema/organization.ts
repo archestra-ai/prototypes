@@ -2,10 +2,10 @@ import { sql } from 'drizzle-orm';
 import { int, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { createSelectSchema } from 'drizzle-zod';
 
-export const onboardingTable = sqliteTable('onboarding', {
+export const organizationTable = sqliteTable('organization', {
   id: int().primaryKey({ autoIncrement: true }),
-  completed: int().notNull().default(0), // 0 = false, 1 = true
-  completedAt: text(),
+  hasCompletedOnboarding: int().notNull().default(0), // 0 = false, 1 = true
+  collectTelemetryData: int().notNull().default(0), // 0 = false, 1 = true
   createdAt: text()
     .notNull()
     .default(sql`(current_timestamp)`),
@@ -14,4 +14,4 @@ export const onboardingTable = sqliteTable('onboarding', {
     .default(sql`(current_timestamp)`),
 });
 
-export const SelectOnboardingSchema = createSelectSchema(onboardingTable);
+export const SelectOrganizationSchema = createSelectSchema(organizationTable);
