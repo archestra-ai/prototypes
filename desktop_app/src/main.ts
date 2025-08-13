@@ -21,6 +21,9 @@ if (started) {
  */
 Sentry.init({
   dsn: config.sentry.dsn,
+  /**
+   * TODO: use `Organization.collect_telemetry_data` to enable/disable anonymized telemetry collection
+   */
 });
 
 /**
