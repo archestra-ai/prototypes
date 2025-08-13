@@ -209,13 +209,14 @@ export default class PodmanContainer {
           /**
            * Also log to console for debugging
            *
-           * QUESTION: do we also need to log to the console or is file based logs enough?
+           * NOTE: let's not double output to console for right now.. this can get very verbose + spam
+           * logs when developing (+ also, we're already logging to the file, which can be viewed in the UI as well)
            */
-          if (streamType === 1) {
-            log.debug(`[${this.containerName} stdout]: ${text.trim()}`);
-          } else if (streamType === 2) {
-            log.debug(`[${this.containerName} stderr]: ${text.trim()}`);
-          }
+          // if (streamType === 1) {
+          //   log.debug(`[${this.containerName} stdout]: ${text.trim()}`);
+          // } else if (streamType === 2) {
+          //   log.debug(`[${this.containerName} stderr]: ${text.trim()}`);
+          // }
         }
       });
 
