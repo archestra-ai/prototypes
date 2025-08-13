@@ -73,9 +73,7 @@ export default class PodmanContainer {
   private mcpSocketConnecting: boolean = false;
   private pendingRequests: Map<string, (response: any) => void> = new Map();
 
-  logFilePath: string;
   private logStream: NodeJS.WritableStream | null = null;
-  private isStreamingLogs = false;
 
   constructor({ name, serverConfig, userConfigValues }: McpServer, socketPath: string) {
     this.containerName = PodmanContainer.prettifyServerNameIntoContainerName(name);
@@ -96,8 +94,6 @@ export default class PodmanContainer {
     this.startupPercentage = 0;
     this.statusMessage = 'Container not yet created';
     this.statusError = null;
-
-    this.logFilePath = path.join(LOGS_DIRECTORY, `${this.containerName}.log`);
   }
 
   /**
@@ -114,51 +110,63 @@ export default class PodmanContainer {
       // Create rotating file stream for log file
       const { mcpServerLogMaxSize, mcpServerLogMaxFiles } = config.logging;
 
-      const logBasename = path.basename(this.logFilePath);
       this.logStream = createStream(
-        (time, index) => {
-          // Custom filename generator to create numeric suffixes
-          // index undefined = main file (no suffix)
-          // index > 0 = rotated files with numeric suffix
-          if (!index) return logBasename;
-          return `${logBasename}.${index}`;
+        (_time, index) => {
+          // Custom filename generator to create numeric suffixes;
+          return `${this.containerName}-${(index || 0) + 1}.log`;
         },
         {
-          path: path.dirname(this.logFilePath),
-          size: mcpServerLogMaxSize, // e.g., '5M'
-          maxFiles: mcpServerLogMaxFiles, // Keep only N rotated files
-          compress: false, // Don't compress rotated files
+          path: LOGS_DIRECTORY,
+          /**
+           * Rotate files when they reach this size, e.g. '5M'
+           */
+          size: mcpServerLogMaxSize,
+          /**
+           * Keep only N rotated files
+           */
+          maxFiles: mcpServerLogMaxFiles,
+          /**
+           * Don't compress rotated files
+           */
+          compress: false,
+          /**
+           * See https://github.com/iccicci/rotating-file-stream?tab=readme-ov-file#history
+           * (and comment above `getLogHistoryFileName` for more info)
+           */
+          history: this.getLogHistoryFileName(),
         }
       );
 
       this.logStream.write(`\n=== Container started at ${new Date().toISOString()} ===\n`);
       log.info(
-        `Started logging to: ${this.logFilePath} (rotation: ${mcpServerLogMaxSize}, max files: ${mcpServerLogMaxFiles})`
+        `Started logging to: ${LOGS_DIRECTORY} (rotation: ${mcpServerLogMaxSize}, max files: ${mcpServerLogMaxFiles})`
       );
     } catch (error) {
       log.error(`Failed to create log file stream:`, error);
     }
   }
 
-  private stopLoggingToFile() {
+  /**
+   * Stop streaming container logs
+   */
+  private stopStreamingLogs() {
     if (this.logStream) {
       this.logStream.write(`\n=== Container stopped at ${new Date().toISOString()} ===\n`);
       this.logStream.end();
       this.logStream = null;
-      log.info(`Stopped logging to file`);
+      log.info(`Stopped streaming logs`);
     }
   }
 
   /**
-   * Start streaming container logs to both console and file
+   * Start streaming container logs
    */
   async startStreamingLogs() {
-    if (this.isStreamingLogs) {
+    if (this.logStream !== null) {
       log.info(`Already streaming logs for ${this.containerName}`);
       return;
     }
 
-    this.isStreamingLogs = true;
     log.info(`Starting to stream logs for ${this.containerName}`);
 
     try {
@@ -233,35 +241,19 @@ export default class PodmanContainer {
 
       body.on('error', (err: Error) => {
         log.error(`Error streaming logs for ${this.containerName}:`, err);
-        this.isStreamingLogs = false;
-        this.stopLoggingToFile();
+        this.stopStreamingLogs();
       });
 
       body.on('end', () => {
         log.info(`Log streaming ended for ${this.containerName}`);
-        this.isStreamingLogs = false;
-        this.stopLoggingToFile();
+        this.stopStreamingLogs();
       });
 
       log.info(`Container logs streaming started for ${this.containerName}`);
     } catch (error) {
       log.error(`Failed to start streaming logs:`, error);
-      this.isStreamingLogs = false;
-      this.stopLoggingToFile();
+      this.stopStreamingLogs();
     }
-  }
-
-  /**
-   * Stop streaming container logs
-   */
-  stopStreamingLogs() {
-    if (!this.isStreamingLogs) {
-      return;
-    }
-
-    log.info(`Stopping log streaming for ${this.containerName}`);
-    this.isStreamingLogs = false;
-    this.stopLoggingToFile();
   }
 
   private setContainerAsRunning() {
@@ -279,48 +271,66 @@ export default class PodmanContainer {
   }
 
   /**
+   * See https://github.com/iccicci/rotating-file-stream?tab=readme-ov-file#history
+   * for more information on this history file and why rotating-file-stream creates it
+   *
+   * We give it an explicit name so that it doesn't get mixed up with other files in the log directory
+   */
+  private getLogHistoryFileName(): string {
+    return `${this.containerName}-log-history.txt`;
+  }
+
+  private getContainerLogFilesInSortedOrder(): string[] {
+    /**
+     * Check if log directory exists
+     */
+    if (!fs.existsSync(LOGS_DIRECTORY)) {
+      return [];
+    }
+
+    /**
+     * Read all files in the log directory
+     */
+    const files = fs.readdirSync(LOGS_DIRECTORY);
+
+    /**
+     * Filter files to only include those for this container
+     */
+    const containerLogFiles = files.filter((file) => file.includes(this.containerName) && file.endsWith('.log'));
+
+    /**
+     * Sort files such that they'd be read in the correct order (desc order)
+     *
+     * Files are named as such (see `startLoggingToFile` function):
+     * `${this.containerName}-${index + 1}.log`
+     */
+    return containerLogFiles.sort((a, b) => {
+      const aNum = parseInt(a.substring(this.containerName.length + 1));
+      const bNum = parseInt(b.substring(this.containerName.length + 1));
+      return bNum - aNum;
+    });
+  }
+
+  /**
    * Get recent logs from the log file
    */
   async getRecentLogs(lines: number = 100): Promise<string> {
     try {
-      // Get the log directory and basename
-      const logDir = path.dirname(this.logFilePath);
-      const logBasename = path.basename(this.logFilePath);
+      const sortedContainerLogFiles = this.getContainerLogFilesInSortedOrder();
 
-      // Check if log directory exists
-      if (!fs.existsSync(logDir)) {
+      if (sortedContainerLogFiles.length === 0) {
         return `No logs available yet for ${this.containerName}`;
       }
-
-      // Read all files in the log directory
-      const files = await fs.promises.readdir(logDir);
-
-      // Find all log files for this container (including rotated ones)
-      const containerLogFiles = files.filter((file) => {
-        // Match the base log file and any rotated versions
-        // rotating-file-stream creates files like: filename.log.1, filename.log.2, etc.
-        return file === logBasename || file.startsWith(`${logBasename}.`);
-      });
-
-      // Sort files to read in the correct order
-      // Main log file first (most recent), then rotated files in reverse order
-      containerLogFiles.sort((a, b) => {
-        if (a === logBasename) return -1;
-        if (b === logBasename) return 1;
-
-        // Extract numbers from rotated files
-        const aNum = parseInt(a.substring(logBasename.length + 1));
-        const bNum = parseInt(b.substring(logBasename.length + 1));
-
-        // Lower numbers are more recent
-        return aNum - bNum;
-      });
 
       // Collect lines from all files until we have enough
       let allLines: string[] = [];
 
-      for (const file of containerLogFiles) {
-        const filePath = path.join(logDir, file);
+      log.info(
+        `Getting recent logs for container ${this.containerName}.. found ${sortedContainerLogFiles.length} files`
+      );
+
+      for (const file of sortedContainerLogFiles) {
+        const filePath = path.join(LOGS_DIRECTORY, file);
 
         try {
           const content = await fs.promises.readFile(filePath, 'utf-8');
@@ -490,7 +500,7 @@ export default class PodmanContainer {
 
       await this.waitForHealthy();
 
-      // Start streaming logs to file and console
+      // Start streaming logs
       this.startupPercentage = 90;
       this.statusMessage = 'Container healthy, starting log streaming';
 
@@ -878,31 +888,29 @@ export default class PodmanContainer {
       log.info(`Cleaning up log files for container: ${this.containerName}`);
 
       // Stop logging if still active
-      this.stopLoggingToFile();
+      this.stopStreamingLogs();
 
-      // Get the log directory
-      const logDir = path.dirname(this.logFilePath);
-      const logBasename = path.basename(this.logFilePath);
-
-      // Read all files in the log directory
-      const files = await fs.promises.readdir(logDir);
-
-      // Find all log files for this container (including rotated ones)
-      const containerLogFiles = files.filter((file) => {
-        // Match the base log file and any rotated versions
-        // rotating-file-stream creates files like: filename.log.1, filename.log.2, etc.
-        return file === logBasename || file.startsWith(`${logBasename}.`);
-      });
+      const containerLogFiles = this.getContainerLogFilesInSortedOrder();
 
       // Delete each log file
       for (const file of containerLogFiles) {
-        const filePath = path.join(logDir, file);
+        const filePath = path.join(LOGS_DIRECTORY, file);
         try {
           await fs.promises.unlink(filePath);
           log.info(`Deleted log file: ${filePath}`);
         } catch (error) {
           log.error(`Failed to delete log file ${filePath}:`, error);
         }
+      }
+
+      // Cleanup the "log history" file
+      const logHistoryFileName = this.getLogHistoryFileName();
+      const logHistoryFilePath = path.join(LOGS_DIRECTORY, logHistoryFileName);
+      try {
+        await fs.promises.unlink(logHistoryFilePath);
+        log.info(`Deleted log history file: ${logHistoryFilePath}`);
+      } catch (error) {
+        log.error(`Failed to delete log history file ${logHistoryFilePath}:`, error);
       }
 
       log.info(`Cleaned up ${containerLogFiles.length} log file(s) for container ${this.containerName}`);

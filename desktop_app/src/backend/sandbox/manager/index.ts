@@ -2,7 +2,7 @@ import type { RawReplyDefaultExpression } from 'fastify';
 import { z } from 'zod';
 
 import { setSocketPath } from '@backend/clients/libpod/client';
-import McpServerModel, { type McpServer, type McpServerContainerLogs } from '@backend/models/mcpServer';
+import McpServerModel, { type McpServer } from '@backend/models/mcpServer';
 import PodmanContainer, { PodmanContainerStatusSummarySchema } from '@backend/sandbox/podman/container';
 import PodmanRuntime, { PodmanRuntimeStatusSummarySchema } from '@backend/sandbox/podman/runtime';
 import log from '@backend/utils/logger';
@@ -15,6 +15,11 @@ export const SandboxStatusSummarySchema = z.object({
   containers: z.record(z.string().describe('The MCP server ID'), PodmanContainerStatusSummarySchema),
 });
 
+export const McpServerContainerLogsSchema = z.object({
+  logs: z.string(),
+  containerName: z.string(),
+});
+
 /**
  * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
  * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
@@ -24,6 +29,7 @@ z.globalRegistry.add(PodmanContainerStatusSummarySchema, { id: 'PodmanContainerS
 
 type SandboxStatus = z.infer<typeof SandboxStatusSchema>;
 export type SandboxStatusSummary = z.infer<typeof SandboxStatusSummarySchema>;
+type McpServerContainerLogs = z.infer<typeof McpServerContainerLogsSchema>;
 
 class McpServerSandboxManager {
   private podmanRuntime: InstanceType<typeof PodmanRuntime>;
@@ -184,7 +190,6 @@ class McpServerSandboxManager {
     return {
       logs: await podmanContainer.getRecentLogs(lines),
       containerName: podmanContainer.containerName,
-      logFilePath: podmanContainer.logFilePath,
     };
   }
 

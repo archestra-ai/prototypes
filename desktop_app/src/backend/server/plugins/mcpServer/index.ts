@@ -3,12 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
 import McpRequestLog from '@backend/models/mcpRequestLog';
-import McpServerModel, {
-  McpServerContainerLogsSchema,
-  McpServerInstallSchema,
-  McpServerSchema,
-} from '@backend/models/mcpServer';
-import McpServerSandboxManager from '@backend/sandbox';
+import McpServerModel, { McpServerInstallSchema, McpServerSchema } from '@backend/models/mcpServer';
+import McpServerSandboxManager, { McpServerContainerLogsSchema } from '@backend/sandbox/manager';
 import { ErrorResponseSchema } from '@backend/schemas';
 import log from '@backend/utils/logger';
 
