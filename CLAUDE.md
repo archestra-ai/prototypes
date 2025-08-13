@@ -118,16 +118,24 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Loading states with spinner animations
   - Error display with detailed messages
 - **Logging and Debugging**:
-  - **Container Logs**: Persistent MCP server log files stored in `~/Library/Application Support/archestra/logs/<container-name>.log`
+  - **Container Logs**: Persistent MCP server log files with automatic rotation
+    - Log files stored in `~/Library/Application Support/archestra/logs/<container-name>.log`
+    - **Automatic Log Rotation**: Using `rotating-file-stream` library
+      - Configurable max file size (default: 5MB, env var: `MCP_SERVER_LOG_MAX_SIZE`)
+      - Configurable max files to keep (default: 2, env var: `MCP_SERVER_LOG_MAX_FILES`)
+      - Rotated files named: `<container-name>.log.1`, `<container-name>.log.2`, etc.
+      - No compression applied for easier access to rotated logs
     - Real-time streaming from container stdout/stderr to log files
     - Multiplexed stream processing handles Podman's 8-byte header format
     - Session markers with timestamps for each container start
     - Append mode preserves historical logs across container restarts
+    - **Cleanup on Uninstall**: Complete removal of all log files (including rotated versions)
     - UI dialog for viewing container logs (accessible via FileText icon in MCP server settings)
     - Terminal-style log viewer with black background and green monospace text
     - Manual refresh functionality with loading states
     - API endpoint: `GET /mcp_proxy/:id/logs?lines=100` for retrieving recent logs
     - `getRecentLogs()` method in PodmanContainer for programmatic access
+    - `cleanupLogFiles()` method for removing all log files when uninstalling servers
   - **Request Logging**: Comprehensive MCP request/response tracking in database
     - Unique UUID for each request with timing metrics
     - Captures method, headers, body, status codes, duration, and errors
