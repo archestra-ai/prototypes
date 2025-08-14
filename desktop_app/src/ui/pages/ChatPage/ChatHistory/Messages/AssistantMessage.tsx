@@ -39,7 +39,7 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
             // Start think block
             isInThinkBlock = true;
             currentThinkBlock = '';
-            i = thinkStart + 7; // Skip '<think>'
+            i = thinkStart + THINK_TAG_LENGTH; // Skip '<think>'
           } else {
             // No think block, add remaining text
             accumulatedText += text.substring(i);
