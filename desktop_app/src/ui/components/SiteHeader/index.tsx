@@ -4,6 +4,7 @@ import { ThemeToggler } from '@ui/components/ThemeToggler';
 import { Button } from '@ui/components/ui/button';
 import { Separator } from '@ui/components/ui/separator';
 import { useSidebar } from '@ui/components/ui/sidebar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ui/components/ui/tooltip';
 import config from '@ui/config';
 import { useChatStore, useNavigationStore } from '@ui/stores';
 import { NavigationSubViewKey, NavigationViewKey } from '@ui/types';
@@ -46,20 +47,28 @@ export function SiteHeader({ activeView, activeSubView }: SiteHeaderProps) {
         >
           <SidebarIcon />
         </Button>
-        <Button
-          className="h-8 w-8 cursor-pointer"
-          variant="ghost"
-          size="icon"
-          onClick={async () => {
-            await createNewChat();
-            setActiveView(NavigationViewKey.Chat);
-          }}
-          title="New Chat"
-          // @ts-expect-error - WebkitAppRegion is not a valid property
-          style={{ WebkitAppRegion: 'no-drag' }}
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                className="h-8 w-8 cursor-pointer"
+                variant="ghost"
+                size="icon"
+                onClick={async () => {
+                  await createNewChat();
+                  setActiveView(NavigationViewKey.Chat);
+                }}
+                // @ts-expect-error - WebkitAppRegion is not a valid property
+                style={{ WebkitAppRegion: 'no-drag' }}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>New Chat</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <Separator orientation="vertical" className="mr-2 h-4" />
         {/* @ts-expect-error - WebkitAppRegion is not a valid property */}
         <div style={{ WebkitAppRegion: 'no-drag' }}>
