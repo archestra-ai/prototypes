@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { Button } from '@ui/components/ui/button';
 import { Dialog, DialogContent } from '@ui/components/ui/dialog';
-import { isOnboardingCompleted, markOnboardingCompleted } from '@ui/lib/clients/archestra/api/gen/sdk.gen';
+import { useUserStore } from '@ui/stores';
 
 enum OnboardingStep {
   Welcome = 0,
@@ -19,13 +19,16 @@ interface OnboardingWizardProps {
 export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(OnboardingStep.Welcome);
-  const [isLoading, setIsLoading] = useState(true);
   const [_countdown, setCountdown] = useState(5);
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
 
+  const { user, markOnboardingCompleted } = useUserStore();
+
   useEffect(() => {
-    checkOnboardingStatus();
-  }, []);
+    if (user && !user.hasCompletedOnboarding) {
+      setIsOpen(true);
+    }
+  }, [user]);
 
   useEffect(() => {
     onOpenChange?.(isOpen);
@@ -49,19 +52,6 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
 
     return () => clearInterval(timer);
   }, [currentStep]);
-
-  const checkOnboardingStatus = async () => {
-    try {
-      const { data } = await isOnboardingCompleted();
-      if (!data.completed) {
-        setIsOpen(true);
-      }
-    } catch (error) {
-      console.error('Failed to check onboarding status:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const completeOnboarding = async () => {
     try {
@@ -318,10 +308,6 @@ export default function OnboardingWizard({ onOpenChange }: OnboardingWizardProps
         );
     }
   };
-
-  if (isLoading) {
-    return null;
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>

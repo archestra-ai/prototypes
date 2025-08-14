@@ -151,6 +151,14 @@ export type McpServerContainerLogsInput = {
   containerName: string;
 };
 
+export type UserInput = {
+  id: number;
+  hasCompletedOnboarding: boolean;
+  collectTelemetryData: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type SandboxStatusSummary = {
   status: 'not_installed' | 'initializing' | 'running' | 'error' | 'stopping' | 'stopped';
   runtime: {
@@ -300,6 +308,14 @@ export type McpServer = {
 export type McpServerContainerLogs = {
   logs: string;
   containerName: string;
+};
+
+export type User = {
+  id: number;
+  hasCompletedOnboarding: boolean;
+  collectTelemetryData: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type GetChatsData = {
@@ -812,37 +828,40 @@ export type GetMcpServerLogsResponses = {
 
 export type GetMcpServerLogsResponse = GetMcpServerLogsResponses[keyof GetMcpServerLogsResponses];
 
-export type IsOnboardingCompletedData = {
+export type GetUserData = {
   body?: never;
   path?: never;
   query?: never;
-  url: '/api/onboarding/status';
+  url: '/api/user';
 };
 
-export type IsOnboardingCompletedResponses = {
+export type GetUserResponses = {
   /**
    * Default Response
    */
-  200: {
-    completed: boolean;
+  200: User;
+};
+
+export type GetUserResponse = GetUserResponses[keyof GetUserResponses];
+
+export type UpdateUserData = {
+  body?: {
+    hasCompletedOnboarding?: boolean;
+    collectTelemetryData?: boolean;
   };
-};
-
-export type IsOnboardingCompletedResponse = IsOnboardingCompletedResponses[keyof IsOnboardingCompletedResponses];
-
-export type MarkOnboardingCompletedData = {
-  body?: never;
   path?: never;
   query?: never;
-  url: '/api/onboarding/complete';
+  url: '/api/user';
 };
 
-export type MarkOnboardingCompletedResponses = {
+export type UpdateUserResponses = {
   /**
    * Default Response
    */
-  200: unknown;
+  200: User;
 };
+
+export type UpdateUserResponse = UpdateUserResponses[keyof UpdateUserResponses];
 
 export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {});

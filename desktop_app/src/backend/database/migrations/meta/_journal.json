@@ -15,6 +15,13 @@
       "when": 1755007096801,
       "tag": "0001_fuzzy_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1755115039727,
+      "tag": "0002_neat_khan",
+      "breakpoints": true
     }
   ]
 }
