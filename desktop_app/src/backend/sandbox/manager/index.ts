@@ -1,3 +1,5 @@
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { experimental_createMCPClient } from 'ai';
 import type { RawReplyDefaultExpression } from 'fastify';
 import { z } from 'zod';
 
@@ -34,6 +36,8 @@ type McpServerContainerLogs = z.infer<typeof McpServerContainerLogsSchema>;
 class McpServerSandboxManager {
   private podmanRuntime: InstanceType<typeof PodmanRuntime>;
   private mcpServerIdToPodmanContainerMap: Map<string, PodmanContainer> = new Map();
+  private mcpClients: Map<string, any> = new Map();
+  private availableTools: Map<string, Record<string, any>> = new Map();
 
   private status: SandboxStatus = 'not_installed';
 
@@ -120,6 +124,28 @@ class McpServerSandboxManager {
 
     this.mcpServerIdToPodmanContainerMap.set(id, container);
     log.info(`Registered container for MCP server ${id} in map`);
+
+    // Connect MCP client after container is ready
+    await this.connectMcpClient(id);
+  }
+
+  private async connectMcpClient(serverId: string) {
+    try {
+      // Wait a bit for container to be fully ready
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const transport = new StreamableHTTPClientTransport(new URL(`http://localhost:2024/mcp_proxy/${serverId}`));
+      const client = await experimental_createMCPClient({ transport: transport as any });
+      this.mcpClients.set(serverId, client);
+
+      // Fetch and cache tools
+      const tools = await client.tools();
+      this.availableTools.set(serverId, tools);
+
+      log.info(`Connected MCP client for ${serverId}, found ${Object.keys(tools).length} tools`);
+    } catch (error) {
+      log.error(`Failed to connect MCP client for ${serverId}:`, error);
+    }
   }
 
   async stopServer(mcpServerId: string) {
@@ -128,6 +154,14 @@ class McpServerSandboxManager {
     if (container) {
       await container.stopContainer();
       this.mcpServerIdToPodmanContainerMap.delete(mcpServerId);
+    }
+
+    // Clean up MCP client
+    const client = this.mcpClients.get(mcpServerId);
+    if (client) {
+      await client.close();
+      this.mcpClients.delete(mcpServerId);
+      this.availableTools.delete(mcpServerId);
     }
   }
 
@@ -227,6 +261,43 @@ class McpServerSandboxManager {
         ])
       ),
     };
+  }
+
+  // Get all available tools with execute functions
+  getAllTools(): Record<string, any> {
+    const allTools: Record<string, any> = {};
+
+    for (const [serverId, serverTools] of this.availableTools) {
+      for (const [toolName, tool] of Object.entries(serverTools)) {
+        const toolId = `${serverId}:${toolName}`;
+        allTools[toolId] = {
+          ...tool,
+          execute: async (params: any, options: any) => {
+            const client = this.mcpClients.get(serverId);
+            if (!client) {
+              throw new Error(`MCP server ${serverId} not connected`);
+            }
+            return await client.callTool({ name: toolName, arguments: params });
+          },
+        };
+      }
+    }
+
+    return allTools;
+  }
+
+  // Get specific tools by IDs
+  getToolsById(toolIds: string[]): Record<string, any> {
+    const allTools = this.getAllTools();
+    const selected: Record<string, any> = {};
+
+    for (const toolId of toolIds) {
+      if (allTools[toolId]) {
+        selected[toolId] = allTools[toolId];
+      }
+    }
+
+    return selected;
   }
 }
 
