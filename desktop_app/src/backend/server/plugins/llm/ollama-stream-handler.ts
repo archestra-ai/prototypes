@@ -204,6 +204,8 @@ export async function handleOllamaStream(
 
         // Only start text stream if we have non-whitespace content
         if (!hasStartedText && content.trim()) {
+          // Send start-step event before text
+          reply.raw.write(`data: {"type":"start-step"}\n\n`);
           reply.raw.write(`data: {"type":"text-start","id":"${messageId}"}\n\n`);
           hasStartedText = true;
           isFirstChunk = false;
@@ -230,12 +232,17 @@ export async function handleOllamaStream(
         // If we were outputting text, close it before executing tool calls
         if (hasStartedText) {
           reply.raw.write(`data: {"type":"text-end","id":"${messageId}"}\n\n`);
+          // Send finish-step event after text
+          reply.raw.write(`data: {"type":"finish-step"}\n\n`);
           hasStartedText = false;
         }
 
         // Now send tool events and execute tool calls
         for (const toolCall of currentToolCalls) {
           try {
+            // Send start-step event before tool events
+            reply.raw.write(`data: {"type":"start-step"}\n\n`);
+
             // Send tool-input-start event
             reply.raw.write(
               `data: {"type":"tool-input-start","toolCallId":"${toolCall.toolCallId}","toolName":"${toolCall.toolName}"}\n\n`
@@ -281,6 +288,9 @@ export async function handleOllamaStream(
                 reply.raw.write(
                   `data: {"type":"tool-output-available","toolCallId":"${toolCall.toolCallId}","output":${JSON.stringify(result)}}\n\n`
                 );
+
+                // Send finish-step event after tool output
+                reply.raw.write(`data: {"type":"finish-step"}\n\n`);
               } catch (toolError) {
                 // Store error in tool call
                 toolCall.error = toolError instanceof Error ? toolError.message : 'Tool execution failed';
@@ -291,6 +301,9 @@ export async function handleOllamaStream(
                 reply.raw.write(
                   `data: {"type":"tool-output-error","toolCallId":"${toolCall.toolCallId}","errorText":"${escapedError}"}\n\n`
                 );
+
+                // Send finish-step event after tool error
+                reply.raw.write(`data: {"type":"finish-step"}\n\n`);
               }
             } else {
               // Tool not found - send error event
@@ -298,6 +311,9 @@ export async function handleOllamaStream(
               reply.raw.write(
                 `data: {"type":"tool-output-error","toolCallId":"${toolCall.toolCallId}","errorText":"${escapedError}"}\n\n`
               );
+
+              // Send finish-step event after tool error
+              reply.raw.write(`data: {"type":"finish-step"}\n\n`);
             }
           } catch (parseError) {
             // Failed to parse arguments - send error event
@@ -305,6 +321,9 @@ export async function handleOllamaStream(
             reply.raw.write(
               `data: {"type":"tool-output-error","toolCallId":"${toolCall.toolCallId}","errorText":"${escapedError}"}\n\n`
             );
+
+            // Send finish-step event after parse error
+            reply.raw.write(`data: {"type":"finish-step"}\n\n`);
           }
         }
       }
@@ -313,6 +332,8 @@ export async function handleOllamaStream(
     // Send text-end if we started text and haven't closed it yet
     if (hasStartedText) {
       reply.raw.write(`data: {"type":"text-end","id":"${messageId}"}\n\n`);
+      // Send finish-step event after text
+      reply.raw.write(`data: {"type":"finish-step"}\n\n`);
     }
 
     // Save messages before finishing
