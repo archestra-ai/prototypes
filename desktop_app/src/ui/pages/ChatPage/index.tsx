@@ -1,11 +1,7 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { ChevronDown, ChevronRight, Settings2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { ToolSelector } from '@ui/components/ToolSelector';
-import { Button } from '@ui/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/components/ui/collapsible';
 import config from '@ui/config';
 import { useChatStore, useCloudProvidersStore, useOllamaStore } from '@ui/stores';
 
@@ -16,11 +12,10 @@ import SystemPrompt from './SystemPrompt';
 interface ChatPageProps {}
 
 export default function ChatPage(_props: ChatPageProps) {
-  const { getCurrentChat, selectedTools, setSelectedTools } = useChatStore();
+  const { getCurrentChat, selectedTools } = useChatStore();
   const { selectedModel } = useOllamaStore();
   const { availableCloudProviderModels } = useCloudProvidersStore();
   const [localInput, setLocalInput] = useState('');
-  const [isToolsOpen, setIsToolsOpen] = useState(false);
 
   const currentChat = getCurrentChat();
   const currentChatSessionId = currentChat?.sessionId || '';
@@ -123,45 +118,6 @@ export default function ChatPage(_props: ChatPageProps) {
     <div className="flex flex-col h-full gap-2 max-w-full overflow-hidden">
       <div className="flex-1 min-h-0 overflow-hidden max-w-full">
         <ChatHistory messages={messages} />
-      </div>
-
-      {/* Tool Selector Collapsible Panel */}
-      <div className="flex-shrink-0 px-4">
-        <Collapsible open={isToolsOpen} onOpenChange={setIsToolsOpen}>
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-between text-muted-foreground hover:text-foreground"
-            >
-              <div className="flex items-center gap-2">
-                <Settings2 className="h-4 w-4" />
-                <span>Tool Selection</span>
-                {selectedTools.length > 0 && (
-                  <span className="ml-2 px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full">
-                    {selectedTools.length} selected
-                  </span>
-                )}
-              </div>
-              {isToolsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2">
-            <ToolSelector onToolsChange={setSelectedTools} selectedTools={selectedTools} />
-            {selectedTools.length > 0 && (
-              <div className="mt-2 flex justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedTools([])}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Clear selection
-                </Button>
-              </div>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
       </div>
 
       <SystemPrompt />
