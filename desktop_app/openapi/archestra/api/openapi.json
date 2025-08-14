@@ -601,6 +601,35 @@
         },
         "required": ["logs", "containerName"]
       },
+      "AvailableToolInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Tool ID in format serverId:toolName",
+            "type": "string"
+          },
+          "name": {
+            "description": "Tool name",
+            "type": "string"
+          },
+          "description": {
+            "description": "Tool description",
+            "type": "string"
+          },
+          "inputSchema": {
+            "description": "Tool input schema"
+          },
+          "mcpServerId": {
+            "description": "MCP server ID",
+            "type": "string"
+          },
+          "mcpServerName": {
+            "description": "MCP server name",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name", "mcpServerId", "mcpServerName"]
+      },
       "SandboxStatusSummary": {
         "type": "object",
         "properties": {
@@ -1210,6 +1239,36 @@
           }
         },
         "required": ["logs", "containerName"],
+        "additionalProperties": false
+      },
+      "AvailableTool": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Tool ID in format serverId:toolName",
+            "type": "string"
+          },
+          "name": {
+            "description": "Tool name",
+            "type": "string"
+          },
+          "description": {
+            "description": "Tool description",
+            "type": "string"
+          },
+          "inputSchema": {
+            "description": "Tool input schema"
+          },
+          "mcpServerId": {
+            "description": "MCP server ID",
+            "type": "string"
+          },
+          "mcpServerName": {
+            "description": "MCP server name",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name", "mcpServerId", "mcpServerName"],
         "additionalProperties": false
       }
     }
@@ -2206,6 +2265,28 @@
                   },
                   "required": ["error"],
                   "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp_server/tools": {
+      "get": {
+        "operationId": "getAvailableTools",
+        "tags": ["MCP Server"],
+        "description": "Get all available tools from connected MCP servers",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AvailableTool"
+                  }
                 }
               }
             }

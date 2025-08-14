@@ -19,6 +19,8 @@ import type {
   DisconnectExternalMcpClientResponses,
   GetAvailableCloudProvidersData,
   GetAvailableCloudProvidersResponses,
+  GetAvailableToolsData,
+  GetAvailableToolsResponses,
   GetChatByIdData,
   GetChatByIdErrors,
   GetChatByIdResponses,
@@ -355,6 +357,18 @@ export const getMcpServerLogs = <ThrowOnError extends boolean = false>(
 ) => {
   return (options.client ?? _heyApiClient).get<GetMcpServerLogsResponses, GetMcpServerLogsErrors, ThrowOnError>({
     url: '/mcp_proxy/{id}/logs',
+    ...options,
+  });
+};
+
+/**
+ * Get all available tools from connected MCP servers
+ */
+export const getAvailableTools = <ThrowOnError extends boolean = false>(
+  options?: Options<GetAvailableToolsData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).get<GetAvailableToolsResponses, unknown, ThrowOnError>({
+    url: '/api/mcp_server/tools',
     ...options,
   });
 };
