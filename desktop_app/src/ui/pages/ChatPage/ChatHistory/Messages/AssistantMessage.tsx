@@ -5,6 +5,9 @@ import ToolInvocation from '@ui/components/ToolInvocation';
 import { AIResponse } from '@ui/components/kibo/ai-response';
 import { ToolCallStatus } from '@ui/types';
 
+const THINK_TAG_LENGTH = '<think>'.length;
+const THINK_END_TAG_LENGTH = '</think>'.length;
+
 interface AssistantMessageProps {
   message: UIMessage;
 }
