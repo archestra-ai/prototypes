@@ -10,7 +10,7 @@ import log from '@backend/utils/logger';
 
 // Schema for available tools
 const AvailableToolSchema = z.object({
-  id: z.string().describe('Tool ID in format serverId:toolName'),
+  id: z.string().describe('Tool ID in format sanitizedServerId__sanitizedToolName'),
   name: z.string().describe('Tool name'),
   description: z.string().optional().describe('Tool description'),
   inputSchema: z.any().optional().describe('Tool input schema'),

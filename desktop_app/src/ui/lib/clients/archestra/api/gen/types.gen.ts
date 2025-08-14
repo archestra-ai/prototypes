@@ -153,7 +153,7 @@ export type McpServerContainerLogsInput = {
 
 export type AvailableToolInput = {
   /**
-   * Tool ID in format serverId:toolName
+   * Tool ID in format sanitizedServerId__sanitizedToolName
    */
   id: string;
   /**
@@ -339,7 +339,7 @@ export type McpServerContainerLogs = {
 
 export type AvailableTool = {
   /**
-   * Tool ID in format serverId:toolName
+   * Tool ID in format sanitizedServerId__sanitizedToolName
    */
   id: string;
   /**
