@@ -67,7 +67,7 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
             
             isInThinkBlock = false;
             currentThinkBlock = null;
-            i = thinkEnd + 8; // Skip '</think>'
+            i = thinkEnd + THINK_END_TAG_LENGTH; // Skip '</think>'
           } else {
             // Still in think block
             currentThinkBlock += text.substring(i);
