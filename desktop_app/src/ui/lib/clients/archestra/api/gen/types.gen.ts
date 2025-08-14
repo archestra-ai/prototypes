@@ -12,7 +12,6 @@ export type SandboxStatusSummaryInput = {
   };
 };
 
-
 export type PodmanContainerStatusSummaryInput = {
   startupPercentage: number;
   state:
@@ -177,6 +176,8 @@ export type AvailableToolInput = {
    * MCP server name
    */
   mcpServerName: string;
+};
+
 export type UserInput = {
   id: number;
   hasCompletedOnboarding: boolean;
@@ -360,6 +361,9 @@ export type AvailableTool = {
   /**
    * MCP server name
    */
+  mcpServerName: string;
+};
+
 export type User = {
   id: number;
   hasCompletedOnboarding: boolean;
@@ -878,6 +882,23 @@ export type GetMcpServerLogsResponses = {
 
 export type GetMcpServerLogsResponse = GetMcpServerLogsResponses[keyof GetMcpServerLogsResponses];
 
+export type GetAvailableToolsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/mcp_server/tools';
+};
+
+export type GetAvailableToolsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<AvailableTool>;
+};
+
+export type GetAvailableToolsResponse = GetAvailableToolsResponses[keyof GetAvailableToolsResponses];
+
+export type GetUserData = {
   body?: never;
   path?: never;
   query?: never;

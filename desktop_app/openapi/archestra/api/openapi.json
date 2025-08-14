@@ -628,6 +628,8 @@
             "type": "string"
           }
         },
+        "required": ["id", "name", "mcpServerId", "mcpServerName"]
+      },
       "UserInput": {
         "type": "object",
         "properties": {
@@ -649,7 +651,7 @@
             "type": "string"
           }
         },
-        "required": ["id", "name", "mcpServerId", "mcpServerName", "hasCompletedOnboarding", "collectTelemetryData", "createdAt", "updatedAt"]
+        "required": ["id", "hasCompletedOnboarding", "collectTelemetryData", "createdAt", "updatedAt"]
       },
       "SandboxStatusSummary": {
         "type": "object",
@@ -1289,6 +1291,31 @@
             "type": "string"
           }
         },
+        "required": ["id", "name", "mcpServerId", "mcpServerName"],
+        "additionalProperties": false
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "hasCompletedOnboarding": {
+            "type": "boolean"
+          },
+          "collectTelemetryData": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "hasCompletedOnboarding", "collectTelemetryData", "createdAt", "updatedAt"],
         "additionalProperties": false
       }
     }
@@ -2314,7 +2341,6 @@
         }
       }
     },
-    "/api/onboarding/status": {
     "/api/user": {
       "get": {
         "operationId": "getUser",

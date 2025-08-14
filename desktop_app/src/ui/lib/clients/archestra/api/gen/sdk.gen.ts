@@ -361,6 +361,21 @@ export const getMcpServerLogs = <ThrowOnError extends boolean = false>(
   });
 };
 
+/**
+ * Get all available tools from connected MCP servers
+ */
+export const getAvailableTools = <ThrowOnError extends boolean = false>(
+  options?: Options<GetAvailableToolsData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).get<GetAvailableToolsResponses, unknown, ThrowOnError>({
+    url: '/api/mcp_server/tools',
+    ...options,
+  });
+};
+
+/**
+ * Get the current user
+ */
 export const getUser = <ThrowOnError extends boolean = false>(options?: Options<GetUserData, ThrowOnError>) => {
   return (options?.client ?? _heyApiClient).get<GetUserResponses, unknown, ThrowOnError>({
     url: '/api/user',
