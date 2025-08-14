@@ -181,6 +181,24 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - `GET /api/onboarding/status` - Returns onboarding completion status
     - `POST /api/onboarding/complete` - Marks onboarding as complete
   - Zustand store for frontend state management (`user-store.ts`)
+- **MCP Tool Analysis**:
+  - Automatic analysis of MCP tools using local Ollama models
+  - Determines tool characteristics: read/write operations, idempotency, reversibility
+  - Batch processing (5 tools at a time) to avoid overwhelming the LLM
+  - Conservative defaults on analysis failures (assumes write, non-idempotent, non-reversible)
+  - Real-time WebSocket broadcasting of analysis results
+  - Asynchronous processing to avoid blocking MCP responses
+- **Ollama Integration**:
+  - `OllamaClient`: Complete client for Ollama API operations
+    - Generate completions with streaming support
+    - Pull models with progress tracking
+    - List available models
+    - Generate chat titles using Ollama models
+  - `OllamaServer`: Manages local Ollama server lifecycle
+    - Automatic server startup and shutdown
+    - Required models auto-download: `llama-guard3:1b` (guard) and `phi3:3.8b` (classification)
+    - Process management with graceful shutdown
+  - Configuration in `config.ts` with port 54589
 
 ### Directory Structure
 
@@ -190,8 +208,10 @@ desktop_app/src/
 │   ├── clients/        # API clients (Podman integration)
 │   ├── database/       # SQLite schema and migrations
 │   ├── llms/          # LLM integrations and Ollama management
+│   │   └── ollama/    # Ollama client and server management
 │   ├── mcpServer/     # MCP server implementation
 │   ├── models/        # Data models
+│   │   └── tools/     # MCP tool analysis and management
 │   ├── sandbox/       # Container sandboxing logic
 │   ├── server/        # Fastify server and plugins
 │   └── utils/         # Utility functions (paths, binaries, etc.)
@@ -207,12 +227,18 @@ desktop_app/src/
 Key tables (snake_case naming):
 
 - `chats`, `messages`: Conversation storage
+  - Automatic chat title generation after 4 messages using Ollama
 - `cloud_providers`: LLM provider configurations
 - `mcp_servers`: Installed MCP servers
 - `mcp_request_logs`: MCP activity logging
   - Tracks all MCP API requests and responses
   - Includes timing, status codes, headers, and payloads
   - Links to sessions and servers for comprehensive debugging
+- `tools`: MCP tool metadata and analysis results
+  - Stores tool name, description, input schema
+  - Analysis results: is_read, is_write, idempotent, reversible
+  - Foreign key to mcp_servers with cascade delete
+  - Unique index on (mcp_server_id, name) to prevent duplicates
 - `external_mcp_clients`: External MCP client configurations
 - `user`: Application user settings
   - `has_completed_onboarding`: Tracks onboarding completion status
@@ -223,11 +249,22 @@ Key tables (snake_case naming):
 
 - **REST API**: Fastify server on port 2024
 - **WebSocket**: Real-time communication for streaming responses
+  - Message types: `chat-title-updated`, `sandbox-status-update`, `tools-analyzed`
+  - Type-safe messaging with Zod schemas
 - **IPC**: Electron IPC for main-renderer communication
   - External link handling: Use `window.electronAPI.openExternal(url)` to open URLs in the default browser
   - Implementation: IPC handler in main process (`ipcMain.handle('open-external')`) uses `shell.openExternal`
   - Security: URLs should be validated or hardcoded; user input should not be passed directly
 - **Generated Clients**: TypeScript clients from OpenAPI specs in `openapi/`
+
+### UI Features
+
+- **Think Block Processing**: Enhanced message rendering for AI responses
+  - Extracts and renders `<think>...</think>` blocks separately
+  - Supports streaming think blocks with real-time updates
+  - Maintains proper message part sequencing
+  - Defined constants: `THINK_TAG_LENGTH` (7) and `THINK_END_TAG_LENGTH` (8)
+- **Tool Invocation Display**: Visual representation of MCP tool calls with status tracking
 
 ### MCP Server Management
 
@@ -235,6 +272,8 @@ Key tables (snake_case naming):
 - Python servers use virtual environments
 - Node.js servers use local node_modules
 - Container-based execution with Podman
+- Automatic tool analysis on `tools/list` responses
+- Tool metadata and analysis results persisted in database
 
 ### Testing Patterns
 
