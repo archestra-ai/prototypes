@@ -17,7 +17,7 @@
 
 **Archestra is in very early development**, and it's not yet ready for general download.
 
-**Want to get notified when we launch?** Drop your email at [archestra.ai](https://www.archestra.ai/) to be the first to know when Archestra is ready.
+**Want to get notified when we launch?** Drop your email at [Archestra.AI](https://www.archestra.ai/) to be the first to know when Archestra is ready.
 
 ## 🚀 Overview
 
