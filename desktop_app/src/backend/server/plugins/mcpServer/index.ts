@@ -367,16 +367,21 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       const servers = await McpServerModel.getAll();
 
       const toolList = Object.entries(tools).map(([id, tool]) => {
-        const [mcpServerId, ...toolNameParts] = id.split(':');
-        const toolName = toolNameParts.join(':'); // Handle tool names that might contain ':'
-        const server = servers.find((s) => s.id === mcpServerId);
+        // Tool IDs are now in format: sanitizedServerId__sanitizedToolName
+        const parts = id.split('__');
+        const sanitizedServerId = parts[0];
+        const sanitizedToolName = parts.slice(1).join('__'); // Handle tool names that might contain '__'
+
+        // Find the actual server by checking all servers
+        // Since server IDs are sanitized, we need to find the match
+        const server = servers.find((s) => s.id.replace(/[^a-zA-Z0-9_-]/g, '_') === sanitizedServerId);
 
         return {
           id,
-          name: toolName || tool.name || id,
+          name: tool.name || sanitizedToolName || id,
           description: tool.description,
           inputSchema: tool.inputSchema,
-          mcpServerId,
+          mcpServerId: server?.id || sanitizedServerId,
           mcpServerName: server?.name || 'Unknown',
         };
       });

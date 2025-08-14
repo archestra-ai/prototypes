@@ -4,6 +4,7 @@ import type { RawReplyDefaultExpression } from 'fastify';
 import { z } from 'zod';
 
 import { setSocketPath } from '@backend/clients/libpod/client';
+import config from '@backend/config';
 import McpServerModel, { type McpServer } from '@backend/models/mcpServer';
 import PodmanContainer, { PodmanContainerStatusSummarySchema } from '@backend/sandbox/podman/container';
 import PodmanRuntime, { PodmanRuntimeStatusSummarySchema } from '@backend/sandbox/podman/runtime';
@@ -134,7 +135,21 @@ class McpServerSandboxManager {
       // Wait a bit for container to be fully ready
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      const transport = new StreamableHTTPClientTransport(new URL(`http://localhost:2024/mcp_proxy/${serverId}`));
+      const { host, port } = config.server.http;
+      const url = `http://${host}:${port}/mcp_proxy/${serverId}`;
+      log.info(`Attempting to connect MCP client to ${url}`);
+
+      // First check if the server is reachable
+      try {
+        const testResponse = await fetch(`http://${host}:${port}/api/mcp_server/sandbox_status`);
+        log.info(`Server health check response status: ${testResponse.status}`);
+      } catch (testError) {
+        log.error(`Server is not reachable at http://${host}:${port}:`, testError);
+        // Don't proceed if server is not reachable
+        return;
+      }
+
+      const transport = new StreamableHTTPClientTransport(new URL(url));
       const client = await experimental_createMCPClient({ transport: transport as any });
       this.mcpClients.set(serverId, client);
 
@@ -269,7 +284,12 @@ class McpServerSandboxManager {
 
     for (const [serverId, serverTools] of this.availableTools) {
       for (const [toolName, tool] of Object.entries(serverTools)) {
-        const toolId = `${serverId}:${toolName}`;
+        // Create tool ID that's compatible with OpenAI's naming requirements
+        // Replace non-alphanumeric characters with underscores, use double underscore as separator
+        const sanitizedServerId = serverId.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const sanitizedToolName = toolName.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const toolId = `${sanitizedServerId}__${sanitizedToolName}`;
+
         allTools[toolId] = {
           ...tool,
           execute: async (params: any, options: any) => {
