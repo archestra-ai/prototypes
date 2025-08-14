@@ -159,12 +159,18 @@ export default class ChatModel {
     // Clear existing messages for this chat to avoid duplicates
     await db.delete(messagesTable).where(eq(messagesTable.chatId, chat.id));
 
-    // Save each message (message is already a UIMessage)
-    for (const message of messages) {
+    // Save each message with an explicit timestamp to preserve order
+    const now = Date.now();
+    for (let i = 0; i < messages.length; i++) {
+      const message = messages[i];
+      // Add a small offset to each message timestamp to preserve order
+      const timestamp = new Date(now + i).toISOString();
+
       await db.insert(messagesTable).values({
         chatId: chat.id,
         role: message.role,
         content: message, // Store the entire UIMessage
+        createdAt: timestamp, // Explicit timestamp with order preservation
       });
     }
   }
