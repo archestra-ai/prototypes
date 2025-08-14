@@ -1,11 +1,11 @@
-import { SidebarIcon } from 'lucide-react';
+import { Plus, SidebarIcon } from 'lucide-react';
 
 import { ThemeToggler } from '@ui/components/ThemeToggler';
 import { Button } from '@ui/components/ui/button';
 import { Separator } from '@ui/components/ui/separator';
 import { useSidebar } from '@ui/components/ui/sidebar';
 import config from '@ui/config';
-import { useChatStore } from '@ui/stores';
+import { useChatStore, useNavigationStore } from '@ui/stores';
 import { NavigationSubViewKey, NavigationViewKey } from '@ui/types';
 
 import { Breadcrumbs } from './Breadcrumbs';
@@ -17,7 +17,8 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ activeView, activeSubView }: SiteHeaderProps) {
   const { toggleSidebar } = useSidebar();
-  const { getCurrentChatTitle } = useChatStore();
+  const { getCurrentChatTitle, createNewChat } = useChatStore();
+  const { setActiveView } = useNavigationStore();
 
   let breadcrumbs: string[] = [];
   if (activeView === NavigationViewKey.Chat) {
@@ -44,6 +45,20 @@ export function SiteHeader({ activeView, activeSubView }: SiteHeaderProps) {
           style={{ WebkitAppRegion: 'no-drag' }}
         >
           <SidebarIcon />
+        </Button>
+        <Button
+          className="h-8 w-8 cursor-pointer"
+          variant="ghost"
+          size="icon"
+          onClick={async () => {
+            await createNewChat();
+            setActiveView(NavigationViewKey.Chat);
+          }}
+          title="New Chat"
+          // @ts-expect-error - WebkitAppRegion is not a valid property
+          style={{ WebkitAppRegion: 'no-drag' }}
+        >
+          <Plus className="h-4 w-4" />
         </Button>
         <Separator orientation="vertical" className="mr-2 h-4" />
         {/* @ts-expect-error - WebkitAppRegion is not a valid property */}
