@@ -628,7 +628,28 @@
             "type": "string"
           }
         },
-        "required": ["id", "name", "mcpServerId", "mcpServerName"]
+      "UserInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "hasCompletedOnboarding": {
+            "type": "boolean"
+          },
+          "collectTelemetryData": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "name", "mcpServerId", "mcpServerName", "hasCompletedOnboarding", "collectTelemetryData", "createdAt", "updatedAt"]
       },
       "SandboxStatusSummary": {
         "type": "object",
@@ -1268,7 +1289,6 @@
             "type": "string"
           }
         },
-        "required": ["id", "name", "mcpServerId", "mcpServerName"],
         "additionalProperties": false
       }
     }
@@ -2295,39 +2315,55 @@
       }
     },
     "/api/onboarding/status": {
+    "/api/user": {
       "get": {
-        "operationId": "isOnboardingCompleted",
-        "tags": ["Onboarding"],
-        "description": "Check if the onboarding process has been completed",
+        "operationId": "getUser",
+        "tags": ["User"],
+        "description": "Get the current user",
         "responses": {
           "200": {
             "description": "Default Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "completed": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": ["completed"],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/User"
                 }
               }
             }
           }
         }
-      }
-    },
-    "/api/onboarding/complete": {
-      "post": {
-        "operationId": "markOnboardingCompleted",
-        "tags": ["Onboarding"],
-        "description": "Mark the onboarding process as completed",
+      },
+      "patch": {
+        "operationId": "updateUser",
+        "tags": ["User"],
+        "description": "Update user settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hasCompletedOnboarding": {
+                    "type": "boolean"
+                  },
+                  "collectTelemetryData": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
           }
         }
       }

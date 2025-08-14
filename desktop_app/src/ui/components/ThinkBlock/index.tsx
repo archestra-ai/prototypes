@@ -18,7 +18,7 @@ export default function ThinkBlock({ content, className, isStreaming = false }: 
     if (!isStreaming && isExpanded) {
       setIsExpanded(false);
     }
-  }, [isStreaming]);
+  }, [isStreaming, isExpanded]);
 
   return (
     <div className={cn('rounded-lg border border-muted-foreground/20 bg-muted/50', className)}>

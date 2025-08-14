@@ -9,6 +9,9 @@ interface AssistantMessageProps {
   message: UIMessage;
 }
 
+const THINK_TAG_LENGTH = '<think>'.length
+const THINK_END_TAG_LENGTH = '</think>'.length
+
 export default function AssistantMessage({ message }: AssistantMessageProps) {
   if (!message.parts) {
     return null;
@@ -39,7 +42,7 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
             // Start think block
             isInThinkBlock = true;
             currentThinkBlock = '';
-            i = thinkStart + 7; // Skip '<think>'
+            i = thinkStart + THINK_TAG_LENGTH; // Skip '<think>'
           } else {
             // No think block, add remaining text
             accumulatedText += text.substring(i);
@@ -67,7 +70,7 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
             
             isInThinkBlock = false;
             currentThinkBlock = null;
-            i = thinkEnd + 8; // Skip '</think>'
+            i = thinkEnd + THINK_END_TAG_LENGTH; // Skip '</think>'
           } else {
             // Still in think block
             currentThinkBlock += text.substring(i);

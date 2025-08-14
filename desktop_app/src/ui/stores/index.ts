@@ -11,3 +11,4 @@ export { useSandboxStore } from './sandbox-store';
 export { useSecurityTestStore } from './security-test-store';
 export { useThemeStore } from './theme-store';
 export { useToolsStore } from './tools-store';
+export { useUserStore } from './user-store';

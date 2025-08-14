@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/electron/main';
 import chokidar from 'chokidar';
-import { BrowserWindow, app } from 'electron';
+import { BrowserWindow, app, ipcMain, shell } from 'electron';
 import started from 'electron-squirrel-startup';
 import { ChildProcess, fork } from 'node:child_process';
 import path from 'node:path';
@@ -21,6 +21,9 @@ if (started) {
  */
 Sentry.init({
   dsn: config.sentry.dsn,
+  /**
+   * TODO: pull from User.collectTelemetryData..
+   */
 });
 
 /**
@@ -148,6 +151,11 @@ async function startBackendServer(): Promise<void> {
     serverProcess = null;
   });
 }
+
+// Set up IPC handler for opening external links
+ipcMain.handle('open-external', async (_event, url: string) => {
+  await shell.openExternal(url);
+});
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

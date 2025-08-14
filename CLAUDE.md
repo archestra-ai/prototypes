@@ -169,6 +169,18 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Process isolation per MCP server
   - stdin/stdout communication only (no exposed ports)
   - Minimal base image with only essential dependencies
+- **User Management**:
+  - Centralized user settings and preferences
+  - Onboarding flow tracking with `has_completed_onboarding` field
+  - Telemetry opt-in functionality with `collect_telemetry_data` field
+  - Automatic user record creation on application startup via `ensureUserExists()`
+  - Primary API endpoints:
+    - `GET /api/user` - Returns complete user object
+    - `PATCH /api/user` - Allows partial updates (hasCompletedOnboarding, collectTelemetryData, etc.)
+  - Legacy API endpoints (maintained for backward compatibility):
+    - `GET /api/onboarding/status` - Returns onboarding completion status
+    - `POST /api/onboarding/complete` - Marks onboarding as complete
+  - Zustand store for frontend state management (`user-store.ts`)
 
 ### Directory Structure
 
@@ -202,6 +214,10 @@ Key tables (snake_case naming):
   - Includes timing, status codes, headers, and payloads
   - Links to sessions and servers for comprehensive debugging
 - `external_mcp_clients`: External MCP client configurations
+- `user`: Application user settings
+  - `has_completed_onboarding`: Tracks onboarding completion status
+  - `collect_telemetry_data`: Stores telemetry opt-in preferences
+  - Auto-created on application startup via `ensureUserExists()`
 
 ### API Patterns
 
@@ -210,6 +226,9 @@ Key tables (snake_case naming):
 - **IPC**: Electron IPC for main-renderer communication
 - **OpenAPI Schema Generation**: The project uses `@fastify/swagger` to automatically generate OpenAPI specifications from Fastify route schemas
 - **TypeScript Client Generation**: Uses `@hey-api/openapi-ts` to generate fully-typed TypeScript clients from OpenAPI specs
+  - External link handling: Use `window.electronAPI.openExternal(url)` to open URLs in the default browser
+  - Implementation: IPC handler in main process (`ipcMain.handle('open-external')`) uses `shell.openExternal`
+  - Security: URLs should be validated or hardcoded; user input should not be passed directly
 - **Generated Clients**: TypeScript clients from OpenAPI specs in `openapi/`
   - Run `pnpm codegen:archestra:api` to regenerate API spec and TypeScript client after adding/modifying endpoints
   - Generated clients are located in `desktop_app/src/ui/lib/clients/archestra/api/gen/`
@@ -235,6 +254,13 @@ Key tables (snake_case naming):
 - **Build Desktop Application**: Multi-platform builds
 - **Release Please**: Automated versioning and changelog
 - **Claude Integration**: AI-powered PR reviews
+  - **User-Scoped Authentication**: Each authorized user has their own Claude OAuth token
+  - **Workflow Structure**:
+    - `claude-code.yml` and `claude-pull-requests.yml`: Reusable workflow templates
+    - `user-scoped-claude-code.yml` and `user-scoped-claude-pull-requests.yml`: User-specific orchestrators
+  - **Authorized Users**: Currently configured for `joeyorlando`, `Matvey-Kuk`, and `iskhakov`
+  - **Compliance**: Ensures adherence to Anthropic's single-account OAuth token policy
+  - **Adding New Users**: Add repository secret `USERNAME_CLAUDE_CODE_OAUTH_TOKEN` and update user-scoped workflows
 
 ### Development Notes
 
