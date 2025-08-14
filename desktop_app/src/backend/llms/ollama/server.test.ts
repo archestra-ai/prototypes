@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 
 // Import the default instance after mocks are set up
-import OllamaServerInstance from '.';
+import OllamaServerInstance from './server';
 
 vi.mock('child_process');
 vi.mock('net');

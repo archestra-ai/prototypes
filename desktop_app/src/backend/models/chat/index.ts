@@ -8,7 +8,9 @@ import {
   SelectMessagesSchema as DatabaseMessageRepresentationSchema,
   messagesTable,
 } from '@backend/database/schema/messages';
+import { OllamaClient } from '@backend/llms/ollama/client';
 import log from '@backend/utils/logger';
+import WebSocketService from '@backend/websocket';
 
 const TransformedMessageSchema = DatabaseMessageRepresentationSchema.extend({
   /**
@@ -172,6 +174,63 @@ export default class ChatModel {
         content: message, // Store the entire UIMessage
         createdAt: timestamp, // Explicit timestamp with order preservation
       });
+    }
+
+    // Check if we should generate a title (when chat reaches 4 messages and doesn't have a title)
+    if (messages.length === 4 && !chat.title) {
+      this.generateAndUpdateTitle(chat.id, messages);
+    }
+  }
+
+  /**
+   * Generate and update chat title asynchronously
+   */
+  private static async generateAndUpdateTitle(chatId: number, messages: UIMessage[]): Promise<void> {
+    try {
+      const ollamaClient = new OllamaClient();
+
+      // Extract message content for title generation
+      const messageContents = messages
+        .map((msg) => {
+          // Extract text content from parts array
+          let textContent = '';
+          if (msg.parts) {
+            textContent = msg.parts
+              .filter((part) => part.type === 'text')
+              .map((part) => (part as any).text)
+              .join('');
+          }
+
+          if (textContent && msg.role === 'user') {
+            return `User: ${textContent}`;
+          } else if (textContent && msg.role === 'assistant') {
+            return `Assistant: ${textContent}`;
+          }
+          return null;
+        })
+        .filter(Boolean) as string[];
+
+      // Generate title
+      const title = await ollamaClient.generateChatTitle(messageContents);
+
+      // Update chat with generated title
+      const updatedChat = await this.updateChat(chatId, { title });
+
+      if (updatedChat) {
+        // Broadcast the title update via WebSocket
+        WebSocketService.broadcast({
+          type: 'chat-title-updated',
+          payload: {
+            chatId,
+            title,
+          },
+        });
+
+        log.info(`Generated and updated title for chat ${chatId}: ${title}`);
+      }
+    } catch (error) {
+      log.error(`Failed to generate title for chat ${chatId}:`, error);
+      // Don't throw - title generation is not critical
     }
   }
 }

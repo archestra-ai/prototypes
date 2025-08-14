@@ -4,9 +4,12 @@ import { z } from 'zod';
 
 import McpRequestLog from '@backend/models/mcpRequestLog';
 import McpServerModel, { McpServerInstallSchema, McpServerSchema } from '@backend/models/mcpServer';
+import ToolModel from '@backend/models/tools';
+import { ToolAnalysis } from '@backend/models/tools/analysis';
 import McpServerSandboxManager, { McpServerContainerLogsSchema } from '@backend/sandbox/manager';
 import { ErrorResponseSchema } from '@backend/schemas';
 import log from '@backend/utils/logger';
+import WebSocketService from '@backend/websocket';
 
 /**
  * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
@@ -214,6 +217,58 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
             responseChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
           }
           responseBody = Buffer.concat(responseChunks).toString('utf-8');
+
+          // Check if this is a tools/list response and analyze the tools
+          if (body.method === 'tools/list' && responseBody) {
+            try {
+              const response = JSON.parse(responseBody);
+              if (response.result && response.result.tools) {
+                // Analyze the tools asynchronously
+                const toolAnalysis = new ToolAnalysis();
+                toolAnalysis
+                  .analyze(response.result.tools)
+                  .then(async (analysisResults) => {
+                    try {
+                      // Prepare tools for database
+                      const toolsToUpsert = response.result.tools.map((tool: any) => ({
+                        name: tool.name,
+                        metadata: {
+                          name: tool.name,
+                          description: tool.description,
+                          inputSchema: tool.inputSchema,
+                        },
+                        analysis: analysisResults[tool.name],
+                      }));
+
+                      // Upsert tools in database
+                      const upsertedTools = await ToolModel.upsertTools(id, toolsToUpsert);
+
+                      // Broadcast tool analysis results via WebSocket
+                      WebSocketService.broadcast({
+                        type: 'tools-analyzed' as any,
+                        payload: {
+                          mcpServerId: id,
+                          tools: upsertedTools.map((tool) => ({
+                            name: tool.name,
+                            metadata: tool.metadata,
+                            analysis: tool.analysis,
+                          })),
+                        },
+                      });
+
+                      log.info(`Analyzed ${upsertedTools.length} tools for MCP server ${id}`);
+                    } catch (error) {
+                      log.error(`Failed to save tool analysis for MCP server ${id}:`, error);
+                    }
+                  })
+                  .catch((error) => {
+                    log.error(`Failed to analyze tools for MCP server ${id}:`, error);
+                  });
+              }
+            } catch (error) {
+              log.error('Failed to parse tools/list response:', error);
+            }
+          }
 
           // Log the successful request
           McpRequestLog.create({
