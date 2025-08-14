@@ -2,12 +2,12 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createDeepSeek } from '@ai-sdk/deepseek';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI, openai } from '@ai-sdk/openai';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { convertToModelMessages, experimental_createMCPClient, stepCountIs, streamText } from 'ai';
+import { convertToModelMessages, stepCountIs, streamText } from 'ai';
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
 import Chat from '@backend/models/chat';
 import CloudProviderModel from '@backend/models/cloudProvider';
+import McpServerSandboxManager from '@backend/sandbox/manager';
 
 import { handleOllamaStream } from './ollama-stream-handler';
 
@@ -16,55 +16,12 @@ interface StreamRequestBody {
   messages: Array<any>;
   sessionId?: string;
   provider?: string;
-}
-
-const MCP_SERVER_URL = process.env.MCP_SERVER_URL || 'http://localhost:3001';
-
-// MCP client using Vercel AI SDK
-let mcpClient: any = null;
-export let mcpTools: any = null;
-
-// Initialize MCP connection using Vercel AI SDK
-export async function initMCP() {
-  try {
-    const transport = new StreamableHTTPClientTransport(new URL(MCP_SERVER_URL + '/mcp'));
-
-    /**
-     * TODO: fix type error here...
-     */
-    mcpClient = await experimental_createMCPClient({
-      transport: transport as any, // Will be replaced by real MCP integration
-    });
-
-    // Get available tools from MCP server
-    mcpTools = await mcpClient.tools();
-
-    return true;
-  } catch (error: any) {
-    mcpClient = null;
-    mcpTools = null;
-    return false;
-  }
+  requestedTools?: string[]; // Tool IDs requested by frontend
+  toolChoice?: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string };
 }
 
 const llmRoutes: FastifyPluginAsync = async (fastify) => {
-  // Initialize MCP on startup
-  const mcpConnected = await initMCP();
-
-  // Add test endpoint for MCP status
-  fastify.get('/api/mcp/test', async (request, reply) => {
-    return reply.send({
-      connected: mcpConnected,
-      serverUrl: MCP_SERVER_URL,
-      toolCount: mcpTools ? Object.keys(mcpTools).length : 0,
-      tools: mcpTools
-        ? Object.entries(mcpTools).map(([name, tool]) => ({
-            name,
-            description: (tool as any).description,
-          }))
-        : [],
-    });
-  });
+  // Note: MCP connections are now managed by McpServerSandboxManager
   // Based on this doc: https://ai-sdk.dev/docs/ai-sdk-core/generating-text
   fastify.post<{ Body: StreamRequestBody }>(
     '/api/llm/stream',
@@ -76,12 +33,20 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request: FastifyRequest<{ Body: StreamRequestBody }>, reply: FastifyReply) => {
-      const { messages, sessionId, model = 'gpt-4o', provider } = request.body;
+      const { messages, sessionId, model = 'gpt-4o', provider, requestedTools, toolChoice } = request.body;
 
       try {
+        // Get tools from sandbox manager
+        let tools = {};
+        if (requestedTools && requestedTools.length > 0) {
+          tools = McpServerSandboxManager.getToolsById(requestedTools);
+        } else {
+          tools = McpServerSandboxManager.getAllTools();
+        }
+
         // Handle Ollama provider separately
         if (provider === 'ollama') {
-          return handleOllamaStream(fastify, request, reply, mcpTools);
+          return handleOllamaStream(fastify, request, reply, tools);
         }
         // Check if it's a cloud provider model
         const providerConfig = await CloudProviderModel.getProviderConfigForModel(model);
@@ -124,14 +89,12 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
           modelInstance = openai(model);
         }
 
-        // Use MCP tools directly from Vercel AI SDK
-        const tools = mcpTools || {};
-
         // Create the stream with the appropriate model
         const streamConfig = {
           model: modelInstance,
           messages: convertToModelMessages(messages),
           tools: Object.keys(tools).length > 0 ? tools : undefined,
+          toolChoice: toolChoice || 'auto',
           maxSteps: 5, // Allow multiple tool calls
           stopWhen: stepCountIs(5),
           // experimental_transform: smoothStream({
@@ -163,17 +126,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
   );
-
-  // Cleanup MCP client on server shutdown
-  fastify.addHook('onClose', async () => {
-    if (mcpClient) {
-      try {
-        await mcpClient.close();
-      } catch (error) {
-        // Silent cleanup
-      }
-    }
-  });
 };
 
 export default llmRoutes;
