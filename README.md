@@ -1,3 +1,5 @@
+[![MSeeP.ai Security Assessment Badge](https://mseep.net/pr/archestra-ai-archestra-badge.png)](https://mseep.ai/app/archestra-ai-archestra)
+
 <div align="center">  
   
   # Archestra
