@@ -181,6 +181,17 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - `GET /api/onboarding/status` - Returns onboarding completion status
     - `POST /api/onboarding/complete` - Marks onboarding as complete
   - Zustand store for frontend state management (`user-store.ts`)
+- **Tool Selection**:
+  - Browse and select specific MCP tools for chat conversations
+  - Tool discovery via `GET /api/mcp_server/tools` endpoint
+  - Real-time tool list updates every 5 seconds as servers connect/disconnect
+  - Tools organized by MCP server for better UX
+  - Selected tools displayed as pills in chat interface
+  - Chat store management with `selectedTools` and `toolChoice` state
+  - Selective tool execution - LLM only uses selected tools instead of all available
+  - Tool caching in `McpServerSandboxManager` after connecting to servers
+  - Unique tool identification format: `{serverId}:{toolName}`
+  - Dynamic tool rendering in assistant messages with execution states
 
 ### Directory Structure
 
@@ -224,10 +235,15 @@ Key tables (snake_case naming):
 - **REST API**: Fastify server on port 2024
 - **WebSocket**: Real-time communication for streaming responses
 - **IPC**: Electron IPC for main-renderer communication
+- **OpenAPI Schema Generation**: The project uses `@fastify/swagger` to automatically generate OpenAPI specifications from Fastify route schemas
+- **TypeScript Client Generation**: Uses `@hey-api/openapi-ts` to generate fully-typed TypeScript clients from OpenAPI specs
   - External link handling: Use `window.electronAPI.openExternal(url)` to open URLs in the default browser
   - Implementation: IPC handler in main process (`ipcMain.handle('open-external')`) uses `shell.openExternal`
   - Security: URLs should be validated or hardcoded; user input should not be passed directly
 - **Generated Clients**: TypeScript clients from OpenAPI specs in `openapi/`
+  - Run `pnpm codegen:archestra:api` to regenerate API spec and TypeScript client after adding/modifying endpoints
+  - Generated clients are located in `desktop_app/src/ui/lib/clients/archestra/api/gen/`
+  - All Zod schemas should be registered in the global registry for OpenAPI component generation using `z.globalRegistry.add(Schema, { id: 'SchemaName' })`
 
 ### MCP Server Management
 

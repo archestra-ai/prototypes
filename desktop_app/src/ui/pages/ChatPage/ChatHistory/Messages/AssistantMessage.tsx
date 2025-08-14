@@ -9,6 +9,9 @@ interface AssistantMessageProps {
   message: UIMessage;
 }
 
+const THINK_TAG_LENGTH = '<think>'.length;
+const THINK_END_TAG_LENGTH = '</think>'.length;
+
 export default function AssistantMessage({ message }: AssistantMessageProps) {
   if (!message.parts) {
     return null;
@@ -24,7 +27,7 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
     if (part.type === 'text') {
       const textPart = part as TextUIPart;
       const text = textPart.text;
-      
+
       // Process text character by character to handle think blocks
       let i = 0;
       while (i < text.length) {
@@ -35,7 +38,7 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
             // Add any text before think block
             const beforeThink = text.substring(i, thinkStart);
             accumulatedText += beforeThink;
-            
+
             // Start think block
             isInThinkBlock = true;
             currentThinkBlock = '';
@@ -51,7 +54,7 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
           if (thinkEnd !== -1) {
             // Complete think block
             currentThinkBlock += text.substring(i, thinkEnd);
-            
+
             // Flush accumulated text if any
             if (accumulatedText.trim()) {
               orderedElements.push(
@@ -59,12 +62,12 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
               );
               accumulatedText = '';
             }
-            
+
             // Add think block
             orderedElements.push(
               <ThinkBlock key={`think-${orderedElements.length}`} content={currentThinkBlock} isStreaming={false} />
             );
-            
+
             isInThinkBlock = false;
             currentThinkBlock = null;
             i = thinkEnd + THINK_END_TAG_LENGTH; // Skip '</think>'
@@ -78,12 +81,10 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
     } else if (part.type === 'dynamic-tool') {
       // Flush any accumulated text before tool
       if (accumulatedText.trim()) {
-        orderedElements.push(
-          <AIResponse key={`text-${orderedElements.length}`}>{accumulatedText.trim()}</AIResponse>
-        );
+        orderedElements.push(<AIResponse key={`text-${orderedElements.length}`}>{accumulatedText.trim()}</AIResponse>);
         accumulatedText = '';
       }
-      
+
       // Add tool invocation
       const tool = part as DynamicToolUIPart;
       orderedElements.push(
@@ -110,18 +111,12 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
   if (isInThinkBlock && currentThinkBlock !== null) {
     // Incomplete think block (still streaming)
     if (accumulatedText.trim()) {
-      orderedElements.push(
-        <AIResponse key={`text-${orderedElements.length}`}>{accumulatedText.trim()}</AIResponse>
-      );
+      orderedElements.push(<AIResponse key={`text-${orderedElements.length}`}>{accumulatedText.trim()}</AIResponse>);
     }
-    orderedElements.push(
-      <ThinkBlock key={`think-streaming`} content={currentThinkBlock} isStreaming={true} />
-    );
+    orderedElements.push(<ThinkBlock key={`think-streaming`} content={currentThinkBlock} isStreaming={true} />);
   } else if (accumulatedText.trim()) {
     // Remaining text
-    orderedElements.push(
-      <AIResponse key={`text-final`}>{accumulatedText.trim()}</AIResponse>
-    );
+    orderedElements.push(<AIResponse key={`text-final`}>{accumulatedText.trim()}</AIResponse>);
   }
 
   return <div className="relative space-y-2">{orderedElements}</div>;

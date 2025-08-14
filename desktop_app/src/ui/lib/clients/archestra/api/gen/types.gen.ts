@@ -151,6 +151,33 @@ export type McpServerContainerLogsInput = {
   containerName: string;
 };
 
+export type AvailableToolInput = {
+  /**
+   * Tool ID in format sanitizedServerId__sanitizedToolName
+   */
+  id: string;
+  /**
+   * Tool name
+   */
+  name: string;
+  /**
+   * Tool description
+   */
+  description?: string;
+  /**
+   * Tool input schema
+   */
+  inputSchema?: unknown;
+  /**
+   * MCP server ID
+   */
+  mcpServerId: string;
+  /**
+   * MCP server name
+   */
+  mcpServerName: string;
+};
+
 export type UserInput = {
   id: number;
   hasCompletedOnboarding: boolean;
@@ -308,6 +335,33 @@ export type McpServer = {
 export type McpServerContainerLogs = {
   logs: string;
   containerName: string;
+};
+
+export type AvailableTool = {
+  /**
+   * Tool ID in format sanitizedServerId__sanitizedToolName
+   */
+  id: string;
+  /**
+   * Tool name
+   */
+  name: string;
+  /**
+   * Tool description
+   */
+  description?: string;
+  /**
+   * Tool input schema
+   */
+  inputSchema?: unknown;
+  /**
+   * MCP server ID
+   */
+  mcpServerId: string;
+  /**
+   * MCP server name
+   */
+  mcpServerName: string;
 };
 
 export type User = {
@@ -827,6 +881,22 @@ export type GetMcpServerLogsResponses = {
 };
 
 export type GetMcpServerLogsResponse = GetMcpServerLogsResponses[keyof GetMcpServerLogsResponses];
+
+export type GetAvailableToolsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/mcp_server/tools';
+};
+
+export type GetAvailableToolsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<AvailableTool>;
+};
+
+export type GetAvailableToolsResponse = GetAvailableToolsResponses[keyof GetAvailableToolsResponses];
 
 export type GetUserData = {
   body?: never;

@@ -8,12 +8,23 @@ import McpServerSandboxManager, { McpServerContainerLogsSchema } from '@backend/
 import { ErrorResponseSchema } from '@backend/schemas';
 import log from '@backend/utils/logger';
 
+// Schema for available tools
+const AvailableToolSchema = z.object({
+  id: z.string().describe('Tool ID in format sanitizedServerId__sanitizedToolName'),
+  name: z.string().describe('Tool name'),
+  description: z.string().optional().describe('Tool description'),
+  inputSchema: z.any().optional().describe('Tool input schema'),
+  mcpServerId: z.string().describe('MCP server ID'),
+  mcpServerName: z.string().describe('MCP server name'),
+});
+
 /**
  * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
  * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
  */
 z.globalRegistry.add(McpServerSchema, { id: 'McpServer' });
 z.globalRegistry.add(McpServerContainerLogsSchema, { id: 'McpServerContainerLogs' });
+z.globalRegistry.add(AvailableToolSchema, { id: 'AvailableTool' });
 
 const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
@@ -335,6 +346,47 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
           error: error instanceof Error ? error.message : 'Failed to get logs',
         });
       }
+    }
+  );
+
+  // Get all available tools from connected MCP servers
+  fastify.get(
+    '/api/mcp_server/tools',
+    {
+      schema: {
+        operationId: 'getAvailableTools',
+        description: 'Get all available tools from connected MCP servers',
+        tags: ['MCP Server'],
+        response: {
+          200: z.array(AvailableToolSchema),
+        },
+      },
+    },
+    async (request, reply) => {
+      const tools = McpServerSandboxManager.getAllTools();
+      const servers = await McpServerModel.getAll();
+
+      const toolList = Object.entries(tools).map(([id, tool]) => {
+        // Tool IDs are now in format: sanitizedServerId__sanitizedToolName
+        const parts = id.split('__');
+        const sanitizedServerId = parts[0];
+        const sanitizedToolName = parts.slice(1).join('__'); // Handle tool names that might contain '__'
+
+        // Find the actual server by checking all servers
+        // Since server IDs are sanitized, we need to find the match
+        const server = servers.find((s) => s.id.replace(/[^a-zA-Z0-9_-]/g, '_') === sanitizedServerId);
+
+        return {
+          id,
+          name: tool.name || sanitizedToolName || id,
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+          mcpServerId: server?.id || sanitizedServerId,
+          mcpServerName: server?.name || 'Unknown',
+        };
+      });
+
+      return reply.send(toolList);
     }
   );
 };

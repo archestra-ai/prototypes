@@ -674,22 +674,29 @@ export default class PodmanContainer {
           // Process stdout (stream type 1)
           if (streamType === 1) {
             const text = payload.toString('utf-8').trim();
-            if (text && text.startsWith('{')) {
-              try {
-                const parsed = JSON.parse(text);
-                log.debug(`Received MCP message:`, { id: parsed.id, method: parsed.method });
+            if (text) {
+              // MCP messages can be newline-delimited JSON
+              const lines = text.split('\n').filter((line) => line.trim());
 
-                // Handle responses with IDs
-                if (parsed.id !== undefined && this.pendingRequests.has(parsed.id.toString())) {
-                  const callback = this.pendingRequests.get(parsed.id.toString());
-                  this.pendingRequests.delete(parsed.id.toString());
-                  callback?.(parsed);
-                } else if (parsed.method) {
-                  // This is a notification - we might need to handle these differently
-                  log.debug(`MCP notification: ${parsed.method}`);
+              for (const line of lines) {
+                if (line.startsWith('{')) {
+                  try {
+                    const parsed = JSON.parse(line);
+                    log.debug(`Received MCP message:`, { id: parsed.id, method: parsed.method });
+
+                    // Handle responses with IDs
+                    if (parsed.id !== undefined && this.pendingRequests.has(parsed.id.toString())) {
+                      const callback = this.pendingRequests.get(parsed.id.toString());
+                      this.pendingRequests.delete(parsed.id.toString());
+                      callback?.(parsed);
+                    } else if (parsed.method) {
+                      // This is a notification - we might need to handle these differently
+                      log.debug(`MCP notification: ${parsed.method}`);
+                    }
+                  } catch (e) {
+                    log.error(`Failed to parse MCP message: ${line.substring(0, 200)}...`);
+                  }
                 }
-              } catch (e) {
-                log.error(`Failed to parse MCP message: ${text}`);
               }
             }
           } else if (streamType === 2) {
@@ -816,7 +823,7 @@ export default class PodmanContainer {
       // Clean up pending request if it's still there
       this.pendingRequests.delete(requestId);
 
-      // Send response back to client
+      // Send response back to client (response is already a parsed object)
       const responseJson = JSON.stringify(response);
       log.info(`Sending response back to client: ${responseJson.substring(0, 100)}...`);
       responseStream.write(responseJson);

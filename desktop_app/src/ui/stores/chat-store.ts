@@ -10,6 +10,9 @@ interface ChatState {
   chats: ChatWithMessages[];
   currentChatSessionId: string | null;
   isLoadingChats: boolean;
+  // Tool selection state
+  selectedTools: string[]; // Tool IDs selected for current chat
+  toolChoice: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string };
 }
 
 interface ChatActions {
@@ -22,6 +25,9 @@ interface ChatActions {
   deleteCurrentChat: () => Promise<void>;
   updateChatTitle: (chatId: number, title: string) => Promise<void>;
   initializeStore: () => Promise<void>;
+  // Tool selection actions
+  setSelectedTools: (tools: string[]) => void;
+  setToolChoice: (choice: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string }) => void;
 }
 
 type ChatStore = ChatState & ChatActions;
@@ -43,6 +49,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   chats: [],
   currentChatSessionId: null,
   isLoadingChats: false,
+  selectedTools: [],
+  toolChoice: 'auto',
 
   // Actions
   loadChats: async () => {
@@ -179,6 +187,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     } catch (error) {
       console.error('Failed to establish WebSocket connection:', error);
     }
+  },
+
+  // Tool selection actions
+  setSelectedTools: (tools: string[]) => {
+    set({ selectedTools: tools });
+  },
+
+  setToolChoice: (choice: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string }) => {
+    set({ toolChoice: choice });
   },
 }));
 

@@ -1,7 +1,10 @@
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { experimental_createMCPClient } from 'ai';
 import type { RawReplyDefaultExpression } from 'fastify';
 import { z } from 'zod';
 
 import { setSocketPath } from '@backend/clients/libpod/client';
+import config from '@backend/config';
 import McpServerModel, { type McpServer } from '@backend/models/mcpServer';
 import PodmanContainer, { PodmanContainerStatusSummarySchema } from '@backend/sandbox/podman/container';
 import PodmanRuntime, { PodmanRuntimeStatusSummarySchema } from '@backend/sandbox/podman/runtime';
@@ -34,6 +37,8 @@ type McpServerContainerLogs = z.infer<typeof McpServerContainerLogsSchema>;
 class McpServerSandboxManager {
   private podmanRuntime: InstanceType<typeof PodmanRuntime>;
   private mcpServerIdToPodmanContainerMap: Map<string, PodmanContainer> = new Map();
+  private mcpClients: Map<string, any> = new Map();
+  private availableTools: Map<string, Record<string, any>> = new Map();
 
   private status: SandboxStatus = 'not_installed';
 
@@ -120,6 +125,42 @@ class McpServerSandboxManager {
 
     this.mcpServerIdToPodmanContainerMap.set(id, container);
     log.info(`Registered container for MCP server ${id} in map`);
+
+    // Connect MCP client after container is ready
+    await this.connectMcpClient(id);
+  }
+
+  private async connectMcpClient(serverId: string) {
+    try {
+      // Wait a bit for container to be fully ready
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const { host, port } = config.server.http;
+      const url = `http://${host}:${port}/mcp_proxy/${serverId}`;
+      log.info(`Attempting to connect MCP client to ${url}`);
+
+      // First check if the server is reachable
+      try {
+        const testResponse = await fetch(`http://${host}:${port}/api/mcp_server/sandbox_status`);
+        log.info(`Server health check response status: ${testResponse.status}`);
+      } catch (testError) {
+        log.error(`Server is not reachable at http://${host}:${port}:`, testError);
+        // Don't proceed if server is not reachable
+        return;
+      }
+
+      const transport = new StreamableHTTPClientTransport(new URL(url));
+      const client = await experimental_createMCPClient({ transport: transport as any });
+      this.mcpClients.set(serverId, client);
+
+      // Fetch and cache tools
+      const tools = await client.tools();
+      this.availableTools.set(serverId, tools);
+
+      log.info(`Connected MCP client for ${serverId}, found ${Object.keys(tools).length} tools`);
+    } catch (error) {
+      log.error(`Failed to connect MCP client for ${serverId}:`, error);
+    }
   }
 
   async stopServer(mcpServerId: string) {
@@ -128,6 +169,14 @@ class McpServerSandboxManager {
     if (container) {
       await container.stopContainer();
       this.mcpServerIdToPodmanContainerMap.delete(mcpServerId);
+    }
+
+    // Clean up MCP client
+    const client = this.mcpClients.get(mcpServerId);
+    if (client) {
+      await client.close();
+      this.mcpClients.delete(mcpServerId);
+      this.availableTools.delete(mcpServerId);
     }
   }
 
@@ -227,6 +276,48 @@ class McpServerSandboxManager {
         ])
       ),
     };
+  }
+
+  // Get all available tools with execute functions
+  getAllTools(): Record<string, any> {
+    const allTools: Record<string, any> = {};
+
+    for (const [serverId, serverTools] of this.availableTools) {
+      for (const [toolName, tool] of Object.entries(serverTools)) {
+        // Create tool ID that's compatible with OpenAI's naming requirements
+        // Replace non-alphanumeric characters with underscores, use double underscore as separator
+        const sanitizedServerId = serverId.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const sanitizedToolName = toolName.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const toolId = `${sanitizedServerId}__${sanitizedToolName}`;
+
+        allTools[toolId] = {
+          ...tool,
+          execute: async (params: any, options: any) => {
+            const client = this.mcpClients.get(serverId);
+            if (!client) {
+              throw new Error(`MCP server ${serverId} not connected`);
+            }
+            return await client.callTool({ name: toolName, arguments: params });
+          },
+        };
+      }
+    }
+
+    return allTools;
+  }
+
+  // Get specific tools by IDs
+  getToolsById(toolIds: string[]): Record<string, any> {
+    const allTools = this.getAllTools();
+    const selected: Record<string, any> = {};
+
+    for (const toolId of toolIds) {
+      if (allTools[toolId]) {
+        selected[toolId] = allTools[toolId];
+      }
+    }
+
+    return selected;
   }
 }
 
