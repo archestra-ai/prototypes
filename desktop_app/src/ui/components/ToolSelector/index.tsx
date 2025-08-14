@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { getAvailableTools } from '@ui/lib/clients/archestra/api/gen';
+import type { AvailableTool } from '@ui/lib/clients/archestra/api/gen';
 
 import { Checkbox } from '../ui/checkbox';
 import { ScrollArea } from '../ui/scroll-area';
@@ -12,16 +12,29 @@ interface ToolSelectorProps {
 }
 
 export const ToolSelector = ({ onToolsChange, selectedTools: initialSelectedTools = [] }: ToolSelectorProps) => {
-  const { data: availableTools = [], isLoading } = useQuery({
-    queryKey: ['availableTools'],
-    queryFn: async () => {
-      const response = await getAvailableTools();
-      return response.data || [];
-    },
-    refetchInterval: 5000, // Poll for updates as servers connect/disconnect
-  });
-
+  const [availableTools, setAvailableTools] = useState<AvailableTool[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedTools, setSelectedTools] = useState<string[]>(initialSelectedTools);
+
+  useEffect(() => {
+    const fetchTools = async () => {
+      try {
+        setIsLoading(true);
+        const response = await getAvailableTools();
+        setAvailableTools((response.data as AvailableTool[]) || []);
+      } catch (error) {
+        console.error('Failed to fetch tools:', error);
+        setAvailableTools([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTools();
+    // Poll for updates as servers connect/disconnect
+    const interval = setInterval(fetchTools, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleToggle = (toolId: string, checked: boolean) => {
     const newSelection = checked ? [...selectedTools, toolId] : selectedTools.filter((id) => id !== toolId);
@@ -32,7 +45,7 @@ export const ToolSelector = ({ onToolsChange, selectedTools: initialSelectedTool
 
   // Group tools by server
   const toolsByServer = availableTools.reduce(
-    (acc, tool) => {
+    (acc: Record<string, AvailableTool[]>, tool: AvailableTool) => {
       const serverName = tool.mcpServerName || 'Unknown';
       if (!acc[serverName]) {
         acc[serverName] = [];
@@ -40,7 +53,7 @@ export const ToolSelector = ({ onToolsChange, selectedTools: initialSelectedTool
       acc[serverName].push(tool);
       return acc;
     },
-    {} as Record<string, typeof availableTools>
+    {} as Record<string, AvailableTool[]>
   );
 
   if (isLoading) {

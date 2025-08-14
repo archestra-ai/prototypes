@@ -90,11 +90,10 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         // Create the stream with the appropriate model
-        const streamConfig = {
+        const hasTools = Object.keys(tools).length > 0;
+        const streamConfig: any = {
           model: modelInstance,
           messages: convertToModelMessages(messages),
-          tools: Object.keys(tools).length > 0 ? tools : undefined,
-          toolChoice: toolChoice || 'auto',
           maxSteps: 5, // Allow multiple tool calls
           stopWhen: stepCountIs(5),
           // experimental_transform: smoothStream({
@@ -104,6 +103,12 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
           // onError({ error }) {
           // },
         };
+
+        // Only add tools and toolChoice if tools are available
+        if (hasTools) {
+          streamConfig.tools = tools;
+          streamConfig.toolChoice = toolChoice || 'auto';
+        }
 
         const result = streamText(streamConfig);
 
