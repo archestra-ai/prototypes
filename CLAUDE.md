@@ -208,7 +208,12 @@ Key tables (snake_case naming):
 - **REST API**: Fastify server on port 2024
 - **WebSocket**: Real-time communication for streaming responses
 - **IPC**: Electron IPC for main-renderer communication
+- **OpenAPI Schema Generation**: The project uses `@fastify/swagger` to automatically generate OpenAPI specifications from Fastify route schemas
+- **TypeScript Client Generation**: Uses `@hey-api/openapi-ts` to generate fully-typed TypeScript clients from OpenAPI specs
 - **Generated Clients**: TypeScript clients from OpenAPI specs in `openapi/`
+  - Run `pnpm codegen:archestra:api` to regenerate API spec and TypeScript client after adding/modifying endpoints
+  - Generated clients are located in `desktop_app/src/ui/lib/clients/archestra/api/gen/`
+  - All Zod schemas should be registered in the global registry for OpenAPI component generation using `z.globalRegistry.add(Schema, { id: 'SchemaName' })`
 
 ### MCP Server Management
 
