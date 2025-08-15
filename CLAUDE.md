@@ -192,6 +192,15 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Tool caching in `McpServerSandboxManager` after connecting to servers
   - Unique tool identification format: `{serverId}:{toolName}`
   - Dynamic tool rendering in assistant messages with execution states
+- **Ollama Integration**:
+  - Bundled Ollama v0.11.4 binaries for all platforms (macOS arm64/x86_64, Windows x86_64)
+  - Self-contained Ollama server management with automatic lifecycle control
+  - Local Ollama server runs on configurable port (via `config.ollama.server.port`)
+  - Process isolation with graceful shutdown (SIGTERM) and force kill (SIGKILL) after 5s timeout
+  - Environment variable configuration: `OLLAMA_HOST`, `OLLAMA_ORIGINS`, `OLLAMA_DEBUG`
+  - Supports gpt-oss models through v0.11.4 features
+  - Platform-specific binary paths resolved via `getBinaryExecPath('ollama-v0.11.4')`
+  - Comprehensive error handling for spawn failures and ENOENT errors
 
 ### Directory Structure
 
