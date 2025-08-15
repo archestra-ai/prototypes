@@ -239,6 +239,7 @@ describe('handleOllamaStream', () => {
         type: 'tool-input-start',
         toolCallId: expect.any(String),
         toolName: 'echo',
+        dynamic: true,
       });
       expect(events[3]).toMatchObject({
         type: 'tool-input-delta',
@@ -250,6 +251,7 @@ describe('handleOllamaStream', () => {
         toolCallId: expect.any(String),
         toolName: 'echo',
         input: { message: 'Hello' },
+        dynamic: true,
       });
       expect(events[5]).toMatchObject({
         type: 'tool-output-available',
@@ -258,6 +260,7 @@ describe('handleOllamaStream', () => {
           content: [{ type: 'text', text: 'Echo: Hello' }],
           isError: false,
         },
+        dynamic: true,
       });
       expect(events[6]).toEqual({ type: 'finish-step' });
       expect(events[7]).toEqual({ type: 'finish' });
@@ -299,18 +302,18 @@ describe('handleOllamaStream', () => {
 
       // First tool call - wrapped in step events
       expect(events[1]).toEqual({ type: 'start-step' });
-      expect(events[2]).toMatchObject({ type: 'tool-input-start', toolName: 'echo' });
+      expect(events[2]).toMatchObject({ type: 'tool-input-start', toolName: 'echo', dynamic: true });
       expect(events[3]).toMatchObject({ type: 'tool-input-delta', inputTextDelta: '{"message":"First"}' });
-      expect(events[4]).toMatchObject({ type: 'tool-input-available', input: { message: 'First' } });
-      expect(events[5]).toMatchObject({ type: 'tool-output-available' });
+      expect(events[4]).toMatchObject({ type: 'tool-input-available', input: { message: 'First' }, dynamic: true });
+      expect(events[5]).toMatchObject({ type: 'tool-output-available', dynamic: true });
       expect(events[6]).toEqual({ type: 'finish-step' });
 
       // Second tool call - wrapped in step events
       expect(events[7]).toEqual({ type: 'start-step' });
-      expect(events[8]).toMatchObject({ type: 'tool-input-start', toolName: 'echo' });
+      expect(events[8]).toMatchObject({ type: 'tool-input-start', toolName: 'echo', dynamic: true });
       expect(events[9]).toMatchObject({ type: 'tool-input-delta', inputTextDelta: '{"message":"Second"}' });
-      expect(events[10]).toMatchObject({ type: 'tool-input-available', input: { message: 'Second' } });
-      expect(events[11]).toMatchObject({ type: 'tool-output-available' });
+      expect(events[10]).toMatchObject({ type: 'tool-input-available', input: { message: 'Second' }, dynamic: true });
+      expect(events[11]).toMatchObject({ type: 'tool-output-available', dynamic: true });
       expect(events[12]).toEqual({ type: 'finish-step' });
 
       expect(events[13]).toEqual({ type: 'finish' });
@@ -354,10 +357,10 @@ describe('handleOllamaStream', () => {
       expect(events[5]).toMatchObject({ type: 'text-end' }); // Should come before finish-step
       expect(events[6]).toEqual({ type: 'finish-step' }); // Finish text step
       expect(events[7]).toEqual({ type: 'start-step' }); // Start tool step
-      expect(events[8]).toMatchObject({ type: 'tool-input-start', toolName: 'echo' });
+      expect(events[8]).toMatchObject({ type: 'tool-input-start', toolName: 'echo', dynamic: true });
       expect(events[9]).toMatchObject({ type: 'tool-input-delta' });
-      expect(events[10]).toMatchObject({ type: 'tool-input-available' });
-      expect(events[11]).toMatchObject({ type: 'tool-output-available' });
+      expect(events[10]).toMatchObject({ type: 'tool-input-available', dynamic: true });
+      expect(events[11]).toMatchObject({ type: 'tool-output-available', dynamic: true });
       expect(events[12]).toEqual({ type: 'finish-step' });
       expect(events[13]).toEqual({ type: 'finish' });
     });
@@ -402,10 +405,10 @@ describe('handleOllamaStream', () => {
       expect(events[7]).toMatchObject({ type: 'text-end' }); // Must come before finish-step
       expect(events[8]).toEqual({ type: 'finish-step' }); // Finish text step
       expect(events[9]).toEqual({ type: 'start-step' }); // Start tool step
-      expect(events[10]).toMatchObject({ type: 'tool-input-start' });
+      expect(events[10]).toMatchObject({ type: 'tool-input-start', dynamic: true });
       expect(events[11]).toMatchObject({ type: 'tool-input-delta' });
-      expect(events[12]).toMatchObject({ type: 'tool-input-available' });
-      expect(events[13]).toMatchObject({ type: 'tool-output-available' });
+      expect(events[12]).toMatchObject({ type: 'tool-input-available', dynamic: true });
+      expect(events[13]).toMatchObject({ type: 'tool-output-available', dynamic: true });
       expect(events[14]).toEqual({ type: 'finish-step' });
       expect(events[15]).toEqual({ type: 'finish' });
     });
@@ -449,8 +452,8 @@ describe('handleOllamaStream', () => {
       expect(events[7]).toEqual({ type: 'start-step' }); // Start tool step
       expect(events[8]).toMatchObject({ type: 'tool-input-start' });
       expect(events[9]).toMatchObject({ type: 'tool-input-delta' });
-      expect(events[10]).toMatchObject({ type: 'tool-input-available' });
-      expect(events[11]).toMatchObject({ type: 'tool-output-available' });
+      expect(events[10]).toMatchObject({ type: 'tool-input-available', dynamic: true });
+      expect(events[11]).toMatchObject({ type: 'tool-output-available', dynamic: true });
       expect(events[12]).toEqual({ type: 'finish-step' });
       expect(events[13]).toEqual({ type: 'finish' });
     });
@@ -488,9 +491,9 @@ describe('handleOllamaStream', () => {
 
       expect(events[0]).toEqual({ type: 'start' });
       expect(events[1]).toEqual({ type: 'start-step' });
-      expect(events[2]).toMatchObject({ type: 'tool-input-start' });
+      expect(events[2]).toMatchObject({ type: 'tool-input-start', dynamic: true });
       expect(events[3]).toMatchObject({ type: 'tool-input-delta' });
-      expect(events[4]).toMatchObject({ type: 'tool-input-available' });
+      expect(events[4]).toMatchObject({ type: 'tool-input-available', dynamic: true });
       expect(events[5]).toMatchObject({
         type: 'tool-output-error',
         toolCallId: expect.any(String),
@@ -528,7 +531,7 @@ describe('handleOllamaStream', () => {
 
       expect(events[0]).toEqual({ type: 'start' });
       expect(events[1]).toEqual({ type: 'start-step' });
-      expect(events[2]).toMatchObject({ type: 'tool-input-start' });
+      expect(events[2]).toMatchObject({ type: 'tool-input-start', dynamic: true });
       expect(events[3]).toMatchObject({ type: 'tool-input-delta' });
       expect(events[4]).toMatchObject({
         type: 'tool-output-error',
@@ -567,9 +570,9 @@ describe('handleOllamaStream', () => {
 
       expect(events[0]).toEqual({ type: 'start' });
       expect(events[1]).toEqual({ type: 'start-step' });
-      expect(events[2]).toMatchObject({ type: 'tool-input-start' });
+      expect(events[2]).toMatchObject({ type: 'tool-input-start', dynamic: true });
       expect(events[3]).toMatchObject({ type: 'tool-input-delta' });
-      expect(events[4]).toMatchObject({ type: 'tool-input-available' });
+      expect(events[4]).toMatchObject({ type: 'tool-input-available', dynamic: true });
       expect(events[5]).toMatchObject({
         type: 'tool-output-error',
         toolCallId: expect.any(String),

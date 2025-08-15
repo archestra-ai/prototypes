@@ -243,9 +243,9 @@ export async function handleOllamaStream(
             // Send start-step event before tool events
             reply.raw.write(`data: {"type":"start-step"}\n\n`);
 
-            // Send tool-input-start event
+            // Send tool-input-start event with dynamic flag
             reply.raw.write(
-              `data: {"type":"tool-input-start","toolCallId":"${toolCall.toolCallId}","toolName":"${toolCall.toolName}"}\n\n`
+              `data: {"type":"tool-input-start","toolCallId":"${toolCall.toolCallId}","toolName":"${toolCall.toolName}","dynamic":true}\n\n`
             );
 
             // Send tool-input-delta event with accumulated arguments
@@ -259,9 +259,9 @@ export async function handleOllamaStream(
             const args = JSON.parse(argsString);
             toolCall.args = args;
 
-            // Send tool-input-available event
+            // Send tool-input-available event with dynamic flag
             reply.raw.write(
-              `data: {"type":"tool-input-available","toolCallId":"${toolCall.toolCallId}","toolName":"${toolCall.toolName}","input":${JSON.stringify(args)}}\n\n`
+              `data: {"type":"tool-input-available","toolCallId":"${toolCall.toolCallId}","toolName":"${toolCall.toolName}","input":${JSON.stringify(args)},"dynamic":true}\n\n`
             );
 
             // Execute the tool
@@ -284,9 +284,9 @@ export async function handleOllamaStream(
                   formattedOutput = JSON.stringify(result, null, 2);
                 }
 
-                // Send tool output available event
+                // Send tool output available event with dynamic flag
                 reply.raw.write(
-                  `data: {"type":"tool-output-available","toolCallId":"${toolCall.toolCallId}","output":${JSON.stringify(result)}}\n\n`
+                  `data: {"type":"tool-output-available","toolCallId":"${toolCall.toolCallId}","output":${JSON.stringify(result)},"dynamic":true}\n\n`
                 );
 
                 // Send finish-step event after tool output

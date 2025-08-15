@@ -63,8 +63,9 @@ export default function ChatPage(_props: ChatPageProps) {
   const { sendMessage, messages, setMessages, stop, status, error } = useChat({
     id: currentChatSessionId || 'temp-id', // use the provided chat ID or a temp ID
     transport,
-    onFinish: (message) => {
+    onFinish: ({ message }) => {
       console.log('Message finished:', message);
+      console.log('Message parts:', message.parts);
     },
     onError: (error) => {
       console.error('Chat error:', error);
@@ -72,6 +73,19 @@ export default function ChatPage(_props: ChatPageProps) {
   });
 
   const isLoading = status === 'streaming';
+
+  // Debug: Log messages when they change during streaming
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'assistant' && lastMessage.parts) {
+        const toolParts = lastMessage.parts.filter((p) => p.type === 'dynamic-tool');
+        if (toolParts.length > 0) {
+          console.log('Tool parts in message:', toolParts);
+        }
+      }
+    }
+  }, [messages]);
 
   // Load messages from database when chat changes
   useEffect(() => {

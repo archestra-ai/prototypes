@@ -146,23 +146,18 @@ export default function McpServerWithToolsSidebarSection(_props: McpServerWithTo
                         const isSelected = selectedTools.includes(tool.id);
                         return (
                           <SidebarMenuItem key={tool.id}>
-                            <div className="w-full">
-                              <SidebarMenuButton
-                                size="sm"
-                                className="justify-between text-sm w-full cursor-pointer hover:bg-muted/50"
-                                onClick={() => handleToolToggle(tool.id, !isSelected)}
-                              >
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                  <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={(checked) => handleToolToggle(tool.id, checked as boolean)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="h-3 w-3"
-                                  />
-                                  <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" />
-                                  <span className="truncate">{formatToolName(tool.name || tool.id)}</span>
-                                </div>
-                              </SidebarMenuButton>
+                            <div
+                              className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-muted/50 rounded-md cursor-pointer w-full"
+                              onClick={() => handleToolToggle(tool.id, !isSelected)}
+                            >
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => handleToolToggle(tool.id, checked as boolean)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-3 w-3"
+                              />
+                              <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" />
+                              <span className="truncate flex-1">{formatToolName(tool.name || tool.id)}</span>
                             </div>
                           </SidebarMenuItem>
                         );
