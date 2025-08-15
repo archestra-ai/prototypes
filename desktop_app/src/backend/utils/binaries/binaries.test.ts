@@ -212,7 +212,7 @@ describe('binaries utilities', () => {
         setupMocks({ platform: 'linux', arch: 'x64', fileExists: false });
 
         const { getBinaryExecPath } = await import('./');
-        expect(() => getBinaryExecPath('ollama-v0.11.4')).toThrow(/Binary ollama-v0\.9\.6 not found at/);
+        expect(() => getBinaryExecPath('ollama-v0.11.4')).toThrow(/Binary ollama-v0\.11\.4 not found at/);
       });
 
       it('should include full path in error message', async () => {
