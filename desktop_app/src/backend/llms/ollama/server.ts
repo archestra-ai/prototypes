@@ -4,8 +4,6 @@ import config from '@backend/config';
 import { getBinaryExecPath } from '@backend/utils/binaries';
 import log from '@backend/utils/logger';
 
-import { OllamaClient } from './client';
-
 class OllamaServer {
   private serverProcess: ChildProcess | null = null;
   private port = config.ollama.server.port;
@@ -69,9 +67,6 @@ class OllamaServer {
       this.isRunning = true;
 
       log.info(`Ollama server started successfully on port ${this.port}`);
-
-      // Ensure required models are available
-      await this.ensureModelsAvailable();
     } catch (error) {
       log.error('Failed to start Ollama server:', error);
       throw error;
@@ -112,60 +107,6 @@ class OllamaServer {
         resolve();
       }
     });
-  }
-
-  /**
-   * Ensure that required models are available, downloading them if necessary
-   */
-  private async ensureModelsAvailable(): Promise<void> {
-    const client = new OllamaClient();
-    const requiredModels = config.ollama.requiredModels;
-
-    // Wait for server to be ready
-    await this.waitForServerReady(client);
-
-    try {
-      // Get list of installed models
-      const { models: installedModels } = await client.list();
-      const installedModelNames = installedModels.map((m) => m.name);
-
-      // Check each required model
-      for (const modelName of requiredModels) {
-        if (!installedModelNames.includes(modelName)) {
-          log.info(`Required model '${modelName}' not found. Downloading...`);
-          try {
-            await client.pull({ name: modelName, stream: true });
-            log.info(`Successfully downloaded model '${modelName}'`);
-          } catch (error) {
-            log.error(`Failed to download model '${modelName}':`, error);
-            // Continue with other models even if one fails
-          }
-        } else {
-          log.info(`Required model '${modelName}' is already available`);
-        }
-      }
-    } catch (error) {
-      log.error('Failed to ensure models are available:', error);
-      // Don't throw here - server should still work even if models aren't downloaded
-    }
-  }
-
-  /**
-   * Wait for the Ollama server to be ready to accept requests
-   */
-  private async waitForServerReady(client: OllamaClient, maxRetries = 30, retryDelay = 1000): Promise<void> {
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        await client.list();
-        log.info('Ollama server is ready');
-        return;
-      } catch (error) {
-        if (i < maxRetries - 1) {
-          await new Promise((resolve) => setTimeout(resolve, retryDelay));
-        }
-      }
-    }
-    throw new Error('Ollama server failed to become ready after maximum retries');
   }
 }
 

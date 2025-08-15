@@ -1,17 +1,10 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { z } from 'zod';
 
 import { ToolAnalysisResult, ToolAnalysisResultSchema } from '@backend/database/schema/tool';
-import { OllamaClient } from '@backend/llms/ollama/client';
+import { OllamaClient } from '@backend/llms/ollama';
 import log from '@backend/utils/logger';
 
 export class ToolAnalysis {
-  private ollamaClient: OllamaClient;
-
-  constructor() {
-    this.ollamaClient = new OllamaClient();
-  }
-
   /**
    * Analyze MCP tools to determine their characteristics
    */
@@ -67,7 +60,7 @@ Example:
 IMPORTANT: Respond with ONLY the JSON object, no explanation or markdown.`;
 
     try {
-      const response = await this.ollamaClient.generate({
+      const response = await OllamaClient.generate({
         model: 'phi3:3.8b',
         prompt,
         stream: false,

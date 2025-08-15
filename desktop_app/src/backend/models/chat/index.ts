@@ -8,7 +8,7 @@ import {
   SelectMessagesSchema as DatabaseMessageRepresentationSchema,
   messagesTable,
 } from '@backend/database/schema/messages';
-import { OllamaClient } from '@backend/llms/ollama/client';
+import { OllamaClient } from '@backend/llms/ollama';
 import log from '@backend/utils/logger';
 import WebSocketService from '@backend/websocket';
 
@@ -187,8 +187,6 @@ export default class ChatModel {
    */
   private static async generateAndUpdateTitle(chatId: number, messages: UIMessage[]): Promise<void> {
     try {
-      const ollamaClient = new OllamaClient();
-
       // Extract message content for title generation
       const messageContents = messages
         .map((msg) => {
@@ -211,7 +209,7 @@ export default class ChatModel {
         .filter(Boolean) as string[];
 
       // Generate title
-      const title = await ollamaClient.generateChatTitle(messageContents);
+      const title = await OllamaClient.generateChatTitle(messageContents);
 
       // Update chat with generated title
       const updatedChat = await this.updateChat(chatId, { title });

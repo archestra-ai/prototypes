@@ -74,7 +74,7 @@ type OllamaPullRequest = z.infer<typeof OllamaPullRequestSchema>;
 type OllamaPullResponse = z.infer<typeof OllamaPullResponseSchema>;
 type OllamaListResponse = z.infer<typeof OllamaListResponseSchema>;
 
-export class OllamaClient {
+class OllamaClient {
   private baseUrl: string;
 
   constructor(baseUrl?: string) {
@@ -212,4 +212,57 @@ The title should capture the main topic or theme of the conversation. Respond wi
       throw error;
     }
   }
+
+  /**
+   * Wait for the Ollama server to be ready to accept requests
+   */
+  private async waitForServerReady(maxRetries = 30, retryDelay = 1000): Promise<void> {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        await this.list();
+        log.info('Ollama server is ready');
+        return;
+      } catch (error) {
+        if (i < maxRetries - 1) {
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        }
+      }
+    }
+    throw new Error('Ollama server failed to become ready after maximum retries');
+  }
+
+  /**
+   * Ensure that required models are available, downloading them if necessary
+   */
+  async ensureModelsAvailable(): Promise<void> {
+    // Wait for server to be ready
+    await this.waitForServerReady();
+
+    try {
+      // Get list of installed models
+      const { models: installedModels } = await this.list();
+      const installedModelNames = installedModels.map((m) => m.name);
+
+      // Check each required model
+      for (const modelName of config.ollama.requiredModels) {
+        if (!installedModelNames.includes(modelName)) {
+          log.info(`Required model '${modelName}' not found. Downloading...`);
+          try {
+            await this.pull({ name: modelName, stream: false });
+            log.info(`Successfully downloaded model '${modelName}'`);
+          } catch (error) {
+            log.error(`Failed to download model '${modelName}':`, error);
+            // Continue with other models even if one fails
+          }
+        } else {
+          log.info(`Required model '${modelName}' is already available`);
+        }
+      }
+    } catch (error) {
+      log.error('Failed to ensure models are available:', error);
+      // Don't throw here - server should still work even if models aren't downloaded
+    }
+  }
 }
+
+export default new OllamaClient();
