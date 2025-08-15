@@ -37,27 +37,27 @@ export default function Sidebar({ children }: SidebarProps) {
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
+                  <ChatSidebarSection />
                   {config.navigation.map((item) => (
                     <React.Fragment key={item.key}>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          onClick={() => {
-                            setActiveView(item.key);
-                            // TODO: when we add more LLM providers, we need to add a proper sub-navigation here
-                            if (item.key === NavigationViewKey.LLMProviders) {
-                              setActiveSubView(NavigationSubViewKey.Ollama);
-                            }
-                          }}
-                          isActive={activeView === item.key}
-                          tooltip={item.title}
-                          className="cursor-pointer hover:bg-accent/50"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                      {item.key === NavigationViewKey.Chat && activeView === NavigationViewKey.Chat && (
-                        <ChatSidebarSection />
+                      {item.key !== NavigationViewKey.Chat && (
+                        <SidebarMenuItem>
+                          <SidebarMenuButton
+                            onClick={() => {
+                              setActiveView(item.key);
+                              // TODO: when we add more LLM providers, we need to add a proper sub-navigation here
+                              if (item.key === NavigationViewKey.LLMProviders) {
+                                setActiveSubView(NavigationSubViewKey.Ollama);
+                              }
+                            }}
+                            isActive={activeView === item.key}
+                            tooltip={item.title}
+                            className="cursor-pointer hover:bg-accent/50"
+                          >
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
                       )}
                       {item.key === NavigationViewKey.LLMProviders && activeView === NavigationViewKey.LLMProviders && (
                         <LLMProvidersSidebarSection />
