@@ -7,4 +7,4 @@ export type SupportedArchitecture = 'arm64' | 'x86_64';
  * For more details (and on which versions these correspond to) see comments in
  * `PodmanRuntime` (in `src/backend/sandbox/podman/runtime/index.ts`)
  */
-export type SupportedBinary = 'ollama-v0.9.6' | 'podman-remote-static-v5.5.2' | 'gvproxy' | 'vfkit';
+export type SupportedBinary = 'ollama-v0.11.4' | 'podman-remote-static-v5.5.2' | 'gvproxy' | 'vfkit';
