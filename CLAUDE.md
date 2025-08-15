@@ -192,6 +192,17 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Tool caching in `McpServerSandboxManager` after connecting to servers
   - Unique tool identification format: `{serverId}:{toolName}`
   - Dynamic tool rendering in assistant messages with execution states
+- **LLM Provider Support**:
+  - **Cloud Providers**: Anthropic, OpenAI, Google Gemini
+  - **Local Providers**: Ollama for running models locally
+  - **Ollama Integration**:
+    - Uses `ollama-ai-provider-v2` package for AI SDK compatibility
+    - No API key required for local operation
+    - Base URL constructed from `config.ollama.server.host + '/api'`
+    - Supported models: Llama 3.2, Llama 3.1, Mistral, Mixtral, CodeLlama, Phi3
+    - Special handling in `llm/index.ts` to bypass standard provider validation
+    - Provider type: `'ollama'` in the provider registry
+    - Known limitation: Some MCP tool calls may not work correctly
 
 ### Directory Structure
 
