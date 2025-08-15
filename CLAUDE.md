@@ -181,24 +181,17 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - `GET /api/onboarding/status` - Returns onboarding completion status
     - `POST /api/onboarding/complete` - Marks onboarding as complete
   - Zustand store for frontend state management (`user-store.ts`)
-- **MCP Tool Analysis**:
-  - Automatic analysis of MCP tools using local Ollama models
-  - Determines tool characteristics: read/write operations, idempotency, reversibility
-  - Batch processing (5 tools at a time) to avoid overwhelming the LLM
-  - Conservative defaults on analysis failures (assumes write, non-idempotent, non-reversible)
-  - Real-time WebSocket broadcasting of analysis results
-  - Asynchronous processing to avoid blocking MCP responses
-- **Ollama Integration**:
-  - `OllamaClient`: Complete client for Ollama API operations
-    - Generate completions with streaming support
-    - Pull models with progress tracking
-    - List available models
-    - Generate chat titles using Ollama models
-  - `OllamaServer`: Manages local Ollama server lifecycle
-    - Automatic server startup and shutdown
-    - Required models auto-download: `llama-guard3:1b` (guard) and `phi3:3.8b` (classification)
-    - Process management with graceful shutdown
-  - Configuration in `config.ts` with port 54589
+- **Tool Selection**:
+  - Browse and select specific MCP tools for chat conversations
+  - Tool discovery via `GET /api/mcp_server/tools` endpoint
+  - Real-time tool list updates every 5 seconds as servers connect/disconnect
+  - Tools organized by MCP server for better UX
+  - Selected tools displayed as pills in chat interface
+  - Chat store management with `selectedTools` and `toolChoice` state
+  - Selective tool execution - LLM only uses selected tools instead of all available
+  - Tool caching in `McpServerSandboxManager` after connecting to servers
+  - Unique tool identification format: `{serverId}:{toolName}`
+  - Dynamic tool rendering in assistant messages with execution states
 
 ### Directory Structure
 
@@ -208,10 +201,8 @@ desktop_app/src/
 │   ├── clients/        # API clients (Podman integration)
 │   ├── database/       # SQLite schema and migrations
 │   ├── llms/          # LLM integrations and Ollama management
-│   │   └── ollama/    # Ollama client and server management
 │   ├── mcpServer/     # MCP server implementation
 │   ├── models/        # Data models
-│   │   └── tools/     # MCP tool analysis and management
 │   ├── sandbox/       # Container sandboxing logic
 │   ├── server/        # Fastify server and plugins
 │   └── utils/         # Utility functions (paths, binaries, etc.)
@@ -227,18 +218,12 @@ desktop_app/src/
 Key tables (snake_case naming):
 
 - `chats`, `messages`: Conversation storage
-  - Automatic chat title generation after 4 messages using Ollama
 - `cloud_providers`: LLM provider configurations
 - `mcp_servers`: Installed MCP servers
 - `mcp_request_logs`: MCP activity logging
   - Tracks all MCP API requests and responses
   - Includes timing, status codes, headers, and payloads
   - Links to sessions and servers for comprehensive debugging
-- `tools`: MCP tool metadata and analysis results
-  - Stores tool name, description, input schema
-  - Analysis results: is_read, is_write, idempotent, reversible
-  - Foreign key to mcp_servers with cascade delete
-  - Unique index on (mcp_server_id, name) to prevent duplicates
 - `external_mcp_clients`: External MCP client configurations
 - `user`: Application user settings
   - `has_completed_onboarding`: Tracks onboarding completion status
@@ -249,8 +234,6 @@ Key tables (snake_case naming):
 
 - **REST API**: Fastify server on port 2024
 - **WebSocket**: Real-time communication for streaming responses
-  - Message types: `chat-title-updated`, `sandbox-status-update`, `tools-analyzed`
-  - Type-safe messaging with Zod schemas
 - **IPC**: Electron IPC for main-renderer communication
 - **OpenAPI Schema Generation**: The project uses `@fastify/swagger` to automatically generate OpenAPI specifications from Fastify route schemas
 - **TypeScript Client Generation**: Uses `@hey-api/openapi-ts` to generate fully-typed TypeScript clients from OpenAPI specs
@@ -262,23 +245,12 @@ Key tables (snake_case naming):
   - Generated clients are located in `desktop_app/src/ui/lib/clients/archestra/api/gen/`
   - All Zod schemas should be registered in the global registry for OpenAPI component generation using `z.globalRegistry.add(Schema, { id: 'SchemaName' })`
 
-### UI Features
-
-- **Think Block Processing**: Enhanced message rendering for AI responses
-  - Extracts and renders `<think>...</think>` blocks separately
-  - Supports streaming think blocks with real-time updates
-  - Maintains proper message part sequencing
-  - Defined constants: `THINK_TAG_LENGTH` (7) and `THINK_END_TAG_LENGTH` (8)
-- **Tool Invocation Display**: Visual representation of MCP tool calls with status tracking
-
 ### MCP Server Management
 
 - Servers installed to `~/Library/Application Support/archestra/mcp-servers/`
 - Python servers use virtual environments
 - Node.js servers use local node_modules
 - Container-based execution with Podman
-- Automatic tool analysis on `tools/list` responses
-- Tool metadata and analysis results persisted in database
 
 ### Testing Patterns
 
@@ -315,8 +287,8 @@ Key tables (snake_case naming):
 For macOS builds, the following environment variables are required:
 
 - `APPLE_ID`: Apple ID email associated with your developer account
-- `APPLE_PASSWORD`: App-specific password (generate at <https://support.apple.com/102654>)
-- `APPLE_TEAM_ID`: Apple Team ID from <https://developer.apple.com/account/#/membership>
+- `APPLE_PASSWORD`: App-specific password (generate at https://support.apple.com/102654)
+- `APPLE_TEAM_ID`: Apple Team ID from https://developer.apple.com/account/#/membership
 - `APPLE_CERTIFICATE_PASSWORD`: Password for the signing certificate
 
 The build process automatically handles certificate installation and keychain cleanup.
