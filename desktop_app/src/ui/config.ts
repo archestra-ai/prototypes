@@ -28,7 +28,7 @@ export default {
     chatStreamBaseUrl: `${BASE_URL_WITH_PROTOCOL}/api/llm`,
     ollamaProxyUrl: `${BASE_URL}/llm/ollama`,
     websocketUrl: `ws://${BASE_URL}/ws`,
-    catalogUrl: 'http://localhost:3000/mcp-catalog/api',
+    catalogUrl: 'https://www.archestra.ai/mcp-catalog/api',
   },
   chat: {
     defaultTitle: 'New Chat',
