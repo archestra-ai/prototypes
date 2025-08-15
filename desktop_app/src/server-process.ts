@@ -14,7 +14,7 @@
  * which main.ts spawns as a child process with ELECTRON_RUN_AS_NODE=1
  */
 import { runDatabaseMigrations } from '@backend/database';
-import OllamaServer from '@backend/llms/ollama/server';
+import { OllamaClient, OllamaServer } from '@backend/llms/ollama';
 import UserModel from '@backend/models/user';
 import McpServerSandboxManager from '@backend/sandbox';
 import { startFastifyServer, stopFastifyServer } from '@backend/server';
@@ -39,6 +39,12 @@ const startup = async () => {
   McpServerSandboxManager.start();
 
   await OllamaServer.startServer();
+
+  /**
+   * Ensure that ollama models that're required for various app functionality are available,
+   * downloading them if necessary
+   */
+  await OllamaClient.ensureModelsAvailable();
 };
 
 /**
