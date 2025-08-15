@@ -252,6 +252,30 @@ Key tables (snake_case naming):
 - Node.js servers use local node_modules
 - Container-based execution with Podman
 
+### Catalog App Support
+
+- **Template Variable Injection**: MCP server configurations support template variables in the format `${user_config.key}`
+- **Configuration Processing**: The `injectUserConfigValuesIntoServerConfig()` method in `PodmanContainer` replaces templates with user values
+- **Supported Fields**: Templates can be used in:
+  - Command: `command: '${user_config.custom_command}'`
+  - Arguments: `args: ['--port', '${user_config.port}']`
+  - Environment variables: `env: { API_KEY: '${user_config.api_key}' }`
+- **Value Types**:
+  - Strings, numbers, and booleans are converted to strings
+  - Arrays are joined with commas (e.g., `['a', 'b', 'c']` → `'a,b,c'`)
+  - Missing values leave the template unchanged with a warning logged
+- **Example Configuration**:
+  ```javascript
+  {
+    command: 'node',
+    args: ['server.js', '--token', '${user_config.slack_token}'],
+    env: {
+      SLACK_BOT_TOKEN: '${user_config.slack_bot_token}',
+      DEBUG: '${user_config.debug}'
+    }
+  }
+  ```
+
 ### Testing Patterns
 
 - **Vitest** for all tests
