@@ -74,6 +74,10 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
 - **State Management**: Zustand stores
 - **Build**: Vite with separate configs for each process
 - **Containerization**: Podman for sandboxing
+- **Theme System**: CSS custom properties with OKLCH color space
+  - Light/dark mode support via `.dark` class
+  - Comprehensive design tokens for colors, typography, shadows, and spacing
+  - Theme configuration in `src/ui/index.css`
 
 ### Process Architecture
 
