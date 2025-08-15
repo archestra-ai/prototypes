@@ -63,29 +63,12 @@ export default function ChatPage(_props: ChatPageProps) {
   const { sendMessage, messages, setMessages, stop, status, error } = useChat({
     id: currentChatSessionId || 'temp-id', // use the provided chat ID or a temp ID
     transport,
-    onFinish: ({ message }) => {
-      console.log('Message finished:', message);
-      console.log('Message parts:', message.parts);
-    },
     onError: (error) => {
       console.error('Chat error:', error);
     },
   });
 
   const isLoading = status === 'streaming';
-
-  // Debug: Log messages when they change during streaming
-  useEffect(() => {
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.role === 'assistant' && lastMessage.parts) {
-        const toolParts = lastMessage.parts.filter((p) => p.type === 'dynamic-tool');
-        if (toolParts.length > 0) {
-          console.log('Tool parts in message:', toolParts);
-        }
-      }
-    }
-  }, [messages]);
 
   // Load messages from database when chat changes
   useEffect(() => {
@@ -98,18 +81,6 @@ export default function ChatPage(_props: ChatPageProps) {
     }
   }, [currentChatSessionId]); // Only depend on session ID to avoid infinite loop
 
-  // Log messages updates
-  useEffect(() => {
-    console.log('All messages in ChatPage:', messages);
-    console.log('Messages length:', messages.length);
-    console.log('isLoading:', isLoading);
-    console.log('error:', error);
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage) {
-      console.log('Last message:', lastMessage);
-    }
-  }, [messages, isLoading, error]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setLocalInput(e.target.value);
   };
@@ -117,7 +88,6 @@ export default function ChatPage(_props: ChatPageProps) {
   const handleSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
     if (localInput.trim()) {
-      console.log('Sending message:', localInput);
       sendMessage({ text: localInput });
       setLocalInput('');
     }

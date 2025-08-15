@@ -230,7 +230,6 @@ describe('handleOllamaStream', () => {
 
       await handleOllamaStream(mockFastify, mockRequest, mockReply, mockMcpTools);
 
-      console.log('Captured events for tool-only test:', capturedEvents);
       const events = parseEvents(capturedEvents);
 
       expect(events[0]).toEqual({ type: 'start' });
