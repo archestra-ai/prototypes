@@ -8,9 +8,3 @@ CREATE TABLE `tools` (
 	`updated_at` text DEFAULT (current_timestamp) NOT NULL,
 	FOREIGN KEY (`mcp_server_id`) REFERENCES `mcp_servers`(`id`) ON UPDATE no action ON DELETE cascade
 );
-
--- Create index for faster lookups by MCP server
-CREATE INDEX `tools_mcp_server_id_idx` ON `tools` (`mcp_server_id`);
-
--- Create unique index to prevent duplicate tools per server
-CREATE UNIQUE INDEX `tools_mcp_server_id_name_idx` ON `tools` (`mcp_server_id`, `name`);
