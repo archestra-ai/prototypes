@@ -2,7 +2,6 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { z } from 'zod';
 
 import config from '@backend/config';
-import { ToolAnalysisResultSchema, ToolMetadataSchema } from '@backend/database/schema/tool';
 import McpServerSandboxManager, { SandboxStatusSummarySchema } from '@backend/sandbox/manager';
 import log from '@backend/utils/logger';
 
@@ -11,21 +10,9 @@ const ChatTitleUpdatedPayloadSchema = z.object({
   title: z.string(),
 });
 
-const ToolsAnalyzedPayloadSchema = z.object({
-  mcpServerId: z.string(),
-  tools: z.array(
-    z.object({
-      name: z.string(),
-      metadata: ToolMetadataSchema,
-      analysis: ToolAnalysisResultSchema.nullable(),
-    })
-  ),
-});
-
 export const WebSocketMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('chat-title-updated'), payload: ChatTitleUpdatedPayloadSchema }),
   z.object({ type: z.literal('sandbox-status-update'), payload: SandboxStatusSummarySchema }),
-  z.object({ type: z.literal('tools-analyzed'), payload: ToolsAnalyzedPayloadSchema }),
 ]);
 
 // type ChatTitleUpdatedPayload = z.infer<typeof ChatTitleUpdatedPayloadSchema>;
