@@ -8,6 +8,7 @@ import {
   SelectMessagesSchema as DatabaseMessageRepresentationSchema,
   messagesTable,
 } from '@backend/database/schema/messages';
+import { OllamaClient } from '@backend/llms/ollama';
 import log from '@backend/utils/logger';
 
 const TransformedMessageSchema = DatabaseMessageRepresentationSchema.extend({
@@ -172,6 +173,64 @@ export default class ChatModel {
         content: message, // Store the entire UIMessage
         createdAt: timestamp, // Explicit timestamp with order preservation
       });
+    }
+
+    // Generate title after 4 messages if title is empty
+    if (messages.length >= 4 && !chat.title) {
+      // Don't await this - let it run in the background
+      this.generateTitleForChat(chat.id, sessionId, messages).catch((error) => {
+        log.error(`Failed to generate title for chat ${chat.id}:`, error);
+      });
+    }
+  }
+
+  private static async generateTitleForChat(chatId: number, sessionId: string, messages: UIMessage[]): Promise<void> {
+    try {
+      // Convert UIMessages to the format expected by OllamaClient
+      const chatMessages = messages
+        .slice(0, 4)
+        .map((msg) => {
+          let content = '';
+
+          // AI SDK v5 uses parts instead of content
+          if (msg.parts && Array.isArray(msg.parts)) {
+            content = msg.parts
+              .filter((part: any) => part.type === 'text')
+              .map((part: any) => part.text || '')
+              .join(' ');
+          }
+
+          // Skip empty messages
+          if (!content) {
+            return null;
+          }
+
+          return {
+            role: msg.role as 'system' | 'user' | 'assistant',
+            content,
+          };
+        })
+        .filter(Boolean) as Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+
+      const title = await OllamaClient.generateChatTitle(chatMessages);
+
+      // Update the chat with the generated title
+      await this.updateChat(chatId, { title });
+
+      // Broadcast the update via WebSocket
+      const websocketServer = (global as any).websocketServer;
+      if (websocketServer) {
+        websocketServer.broadcast({
+          type: 'chat-updated',
+          sessionId,
+          chatId,
+          title,
+        });
+      }
+
+      log.info(`Generated title for chat ${chatId}: ${title}`);
+    } catch (error) {
+      log.error(`Failed to generate title for chat ${chatId}:`, error);
     }
   }
 }

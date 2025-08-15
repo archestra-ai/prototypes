@@ -28,6 +28,7 @@ export default {
       host: `http://localhost:${OLLAMA_SERVER_PORT}`,
       port: OLLAMA_SERVER_PORT,
     },
+    requiredModels: ['llama-guard3:1b', 'phi3:3.8b'],
   },
   sandbox: {
     baseDockerImage:

@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 
 // Import the default instance after mocks are set up
-import OllamaServerInstance from '.';
+import OllamaServerInstance from './server';
 
 vi.mock('child_process');
 vi.mock('net');
@@ -18,6 +18,9 @@ function waitFor(ms: number) {
 }
 
 vi.stubEnv('HOME', '/mock/home');
+
+// Mock fetch for model checking
+global.fetch = vi.fn();
 
 // Mock spawn to return a mock process
 const mockProcess = {
@@ -81,6 +84,12 @@ describe('OllamaServer', () => {
 
   describe('startServer', () => {
     it('should start the server successfully with correct arguments', async () => {
+      // Mock successful model checks
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+      } as any);
+
       await server.startServer();
 
       expect(spawn).toHaveBeenCalledWith('/mock/path/ollama-v0.11.4', ['serve'], {
@@ -95,6 +104,12 @@ describe('OllamaServer', () => {
     });
 
     it('should not start if already running', async () => {
+      // Mock successful model checks
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+      } as any);
+
       await server.startServer();
 
       const initialCallCount = vi.mocked(spawn).mock.calls.length;
@@ -105,6 +120,12 @@ describe('OllamaServer', () => {
     });
 
     it('should capture stdout and stderr', async () => {
+      // Mock successful model checks
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+      } as any);
+
       await server.startServer();
 
       // Verify that listeners are attached
@@ -115,6 +136,12 @@ describe('OllamaServer', () => {
 
   describe('stopServer', () => {
     it('should stop the server gracefully', async () => {
+      // Mock successful model checks
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+      } as any);
+
       await server.startServer();
 
       // Setup the exit listener
@@ -139,6 +166,12 @@ describe('OllamaServer', () => {
     });
 
     it('should handle force kill after timeout', async () => {
+      // Mock successful model checks
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+      } as any);
+
       await server.startServer();
 
       // Setup the exit listener to not fire immediately
@@ -162,6 +195,12 @@ describe('OllamaServer', () => {
     }, 10000);
 
     it('should handle process exit with error code', async () => {
+      // Mock successful model checks
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+      } as any);
+
       await server.startServer();
 
       // Simulate process crash by calling the exit handler
@@ -198,6 +237,12 @@ describe('OllamaServer', () => {
     });
 
     it('should emit error events from process', async () => {
+      // Mock successful model checks
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        status: 200,
+      } as any);
+
       await server.startServer();
 
       // Verify error handler was attached

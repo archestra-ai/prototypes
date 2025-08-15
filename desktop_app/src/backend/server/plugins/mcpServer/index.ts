@@ -4,6 +4,8 @@ import { z } from 'zod';
 
 import McpRequestLog from '@backend/models/mcpRequestLog';
 import McpServerModel, { McpServerInstallSchema, McpServerSchema } from '@backend/models/mcpServer';
+import ToolModel from '@backend/models/tools';
+import ToolAnalysis from '@backend/models/tools/analysis';
 import McpServerSandboxManager, { McpServerContainerLogsSchema } from '@backend/sandbox/manager';
 import { ErrorResponseSchema } from '@backend/schemas';
 import log from '@backend/utils/logger';
@@ -237,6 +239,59 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
             responseChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
           }
           responseBody = Buffer.concat(responseChunks).toString('utf-8');
+
+          // If this was a tools/list request, analyze the tools asynchronously
+          if (body.method === 'tools/list' && responseBody) {
+            // Don't await this - let it run in the background
+            (async () => {
+              try {
+                const responseData = JSON.parse(responseBody);
+                if (responseData.result?.tools) {
+                  // Convert array of tools to object keyed by tool name
+                  const toolsObject: Record<string, any> = {};
+                  for (const tool of responseData.result.tools) {
+                    // Create a unique ID for the tool
+                    const sanitizedServerId = id.replace(/[^a-zA-Z0-9_-]/g, '_');
+                    const sanitizedToolName = tool.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+                    const toolId = `${sanitizedServerId}__${sanitizedToolName}`;
+                    toolsObject[toolId] = tool;
+
+                    // Save tool to database
+                    await ToolModel.upsert({
+                      id: toolId,
+                      name: tool.name,
+                      description: tool.description || undefined,
+                      inputSchema: tool.inputSchema ? JSON.stringify(tool.inputSchema) : undefined,
+                      mcpServerId: id,
+                    } as any);
+                  }
+
+                  // Analyze the tools
+                  const analysisResults = await ToolAnalysis.analyze(toolsObject);
+
+                  // Update tools with analysis results
+                  for (const [toolId, analysis] of Object.entries(analysisResults)) {
+                    await ToolModel.updateAnalysis(toolId, analysis);
+                  }
+
+                  // Broadcast tool analysis results via WebSocket
+                  const websocketServer = (fastify as any).websocketServer;
+                  if (websocketServer) {
+                    websocketServer.broadcast({
+                      type: 'tools-analyzed',
+                      mcpServerId: id,
+                      tools: Object.keys(toolsObject).map((toolId) => ({
+                        id: toolId,
+                        ...analysisResults[toolId],
+                      })),
+                    });
+                  }
+                }
+              } catch (error) {
+                log.error('Failed to analyze tools:', error);
+              }
+            })();
+          }
 
           // Log the successful request
           McpRequestLog.create({

@@ -67,8 +67,94 @@ class OllamaServer {
       this.isRunning = true;
 
       log.info(`Ollama server started successfully on port ${this.port}`);
+
+      // Ensure required models are available
+      await this.ensureModelsAvailable();
     } catch (error) {
       log.error('Failed to start Ollama server:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ensure required models are available
+   */
+  private async ensureModelsAvailable(): Promise<void> {
+    const requiredModels = config.ollama.requiredModels;
+
+    for (const model of requiredModels) {
+      log.info(`Checking if model ${model} is available...`);
+
+      try {
+        // Check if model exists by trying to get its info
+        const response = await fetch(`${config.ollama.server.host}/api/show`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: model }),
+        });
+
+        if (response.status === 404) {
+          // Model doesn't exist, need to pull it
+          log.info(`Model ${model} not found. Pulling...`);
+          await this.pullModel(model);
+        } else if (response.ok) {
+          log.info(`Model ${model} is already available`);
+        } else {
+          log.error(`Failed to check model ${model}: ${response.statusText}`);
+        }
+      } catch (error) {
+        log.error(`Error checking model ${model}:`, error);
+      }
+    }
+  }
+
+  /**
+   * Pull a model from Ollama
+   */
+  private async pullModel(modelName: string): Promise<void> {
+    try {
+      const response = await fetch(`${config.ollama.server.host}/api/pull`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: modelName, stream: true }),
+      });
+
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter((line) => line.trim());
+
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            if (data.status) {
+              log.info(`Pulling ${modelName}: ${data.status}`);
+            }
+            if (data.error) {
+              throw new Error(data.error);
+            }
+          } catch (e) {
+            // Ignore JSON parse errors for incomplete chunks
+          }
+        }
+      }
+
+      log.info(`Successfully pulled model ${modelName}`);
+    } catch (error) {
+      log.error(`Failed to pull model ${modelName}:`, error);
       throw error;
     }
   }
