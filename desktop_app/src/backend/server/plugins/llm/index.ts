@@ -4,12 +4,12 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI, openai } from '@ai-sdk/openai';
 import { convertToModelMessages, stepCountIs, streamText } from 'ai';
 import { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
+import { createOllama } from 'ollama-ai-provider-v2';
 
+import config from '@backend/config';
 import Chat from '@backend/models/chat';
 import CloudProviderModel from '@backend/models/cloudProvider';
 import McpServerSandboxManager from '@backend/sandbox/manager';
-
-import { handleOllamaStream } from './ollama-stream-handler';
 
 interface StreamRequestBody {
   model: string;
@@ -44,49 +44,70 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
           tools = McpServerSandboxManager.getAllTools();
         }
 
-        // Handle Ollama provider separately
-        if (provider === 'ollama') {
-          return handleOllamaStream(fastify, request, reply, tools);
-        }
-        // Check if it's a cloud provider model
-        const providerConfig = await CloudProviderModel.getProviderConfigForModel(model);
-
         let modelInstance;
-        if (providerConfig) {
-          // Check provider type and use appropriate client
-          if (providerConfig.provider.type === 'gemini') {
-            // Use Google Generative AI client for Gemini
-            const googleClient = createGoogleGenerativeAI({
-              apiKey: providerConfig.apiKey,
-              baseURL: providerConfig.provider.baseUrl,
-            });
-            modelInstance = googleClient(model);
-          } else if (providerConfig.provider.type === 'anthropic') {
-            // Use Anthropic client for Claude
-            const anthropicClient = createAnthropic({
-              apiKey: providerConfig.apiKey,
-              baseURL: providerConfig.provider.baseUrl,
-            });
-            modelInstance = anthropicClient(model);
-          } else if (providerConfig.provider.type === 'deepseek') {
-            const deepseekClient = createDeepSeek({
-              apiKey: providerConfig.apiKey,
-              baseURL: providerConfig.provider.baseUrl || 'https://api.deepseek.com/v1',
-              // headers: providerConfig.provider.headers,
-            });
-            modelInstance = deepseekClient(model);
-          } else {
-            // Use OpenAI-compatible client for other providers
-            const openaiClient = createOpenAI({
-              apiKey: providerConfig.apiKey,
-              baseURL: providerConfig.provider.baseUrl,
-              headers: providerConfig.provider.headers,
-            });
-            modelInstance = openaiClient(model);
-          }
+
+        // Check if Ollama provider is explicitly specified
+        if (provider === 'ollama') {
+          // Use Ollama directly without checking provider config
+          const baseUrl = config.ollama.server.host + '/api';
+          const ollamaClient = createOllama({
+            baseURL: baseUrl,
+          });
+          modelInstance = ollamaClient(model);
         } else {
-          // Default OpenAI client (for backward compatibility)
-          modelInstance = openai(model);
+          // Get provider configuration for the model
+          const providerConfig = await CloudProviderModel.getProviderConfigForModel(model);
+
+          if (providerConfig) {
+            // Create appropriate client based on provider type
+            switch (providerConfig.provider.type) {
+              case 'anthropic': {
+                const anthropicClient = createAnthropic({
+                  apiKey: providerConfig.apiKey,
+                  baseURL: providerConfig.provider.baseUrl,
+                });
+                modelInstance = anthropicClient(model);
+                break;
+              }
+              case 'openai': {
+                const openaiClient = createOpenAI({
+                  apiKey: providerConfig.apiKey,
+                  baseURL: providerConfig.provider.baseUrl,
+                  headers: providerConfig.provider.headers,
+                });
+                modelInstance = openaiClient(model);
+                break;
+              }
+              case 'deepseek': {
+                const deepseekClient = createDeepSeek({
+                  apiKey: providerConfig.apiKey,
+                  baseURL: providerConfig.provider.baseUrl || 'https://api.deepseek.com/v1',
+                });
+                modelInstance = deepseekClient(model);
+                break;
+              }
+              case 'gemini': {
+                const googleClient = createGoogleGenerativeAI({
+                  apiKey: providerConfig.apiKey,
+                  baseURL: providerConfig.provider.baseUrl,
+                });
+                modelInstance = googleClient(model);
+                break;
+              }
+              default: {
+                // Fallback to OpenAI-compatible client
+                const openaiClient = createOpenAI({
+                  apiKey: providerConfig.apiKey,
+                  baseURL: providerConfig.provider.baseUrl,
+                  headers: providerConfig.provider.headers,
+                });
+                modelInstance = openaiClient(model);
+              }
+            }
+          } else {
+            // Default OpenAI client for backward compatibility
+            modelInstance = openai(model);
+          }
         }
 
         // Create the stream with the appropriate model
