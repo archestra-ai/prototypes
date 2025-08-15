@@ -192,6 +192,18 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Tool caching in `McpServerSandboxManager` after connecting to servers
   - Unique tool identification format: `{serverId}:{toolName}`
   - Dynamic tool rendering in assistant messages with execution states
+- **Multi-Step Tool Calling (Ollama)**:
+  - Iterative tool calling with up to 5 sequential steps
+  - LLMs can call tools, analyze results, and make subsequent tool calls
+  - Real-time streaming with step-aware SSE events:
+    - `start-step` / `finish-step`: Step lifecycle tracking
+    - `tool-input-start` / `tool-input-delta` / `tool-input-available`: Tool argument streaming
+    - `tool-output-available` / `tool-output-error`: Tool execution results
+  - Conversation context preservation across steps
+  - Tool results integrated as context for subsequent iterations
+  - Error resilience - individual tool failures don't break the flow
+  - Comprehensive message accumulation across all steps
+  - Use cases: complex workflows, research tasks, multi-stage data processing
 
 ### Directory Structure
 
