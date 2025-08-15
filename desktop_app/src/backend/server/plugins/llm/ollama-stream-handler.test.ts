@@ -75,8 +75,9 @@ describe('handleOllamaStream', () => {
       send: vi.fn(),
     } as any;
 
-    // Mock MCP tools
+    // Mock MCP tools with proper structure
     mockMcpTools = {
+      // Standard MCP echo tool
       echo: {
         description: 'Echo the message',
         inputSchema: {
@@ -88,6 +89,98 @@ describe('handleOllamaStream', () => {
         },
         execute: vi.fn(async (args: any) => ({
           content: [{ type: 'text', text: `Echo: ${args.message}` }],
+          isError: false,
+        })),
+      },
+      // MCP tool for getting current time
+      mcp_server_time__getCurrentTime: {
+        description: 'Get the current time',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            timezone: { type: 'string', description: 'IANA timezone' },
+            format: { type: 'string', enum: ['12hr', '24hr'], default: '24hr' },
+          },
+        },
+        execute: vi.fn(async (args: any) => ({
+          content: [
+            {
+              type: 'text',
+              text: `Current time in ${args.timezone || 'UTC'}: ${new Date().toLocaleString()}`,
+            },
+          ],
+          isError: false,
+        })),
+      },
+      // MCP tool for file operations
+      mcp_server_fs__readFile: {
+        description: 'Read a file from the filesystem',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            path: { type: 'string', description: 'File path to read' },
+          },
+          required: ['path'],
+        },
+        execute: vi.fn(async (args: any) => {
+          if (args.path === '/etc/hosts') {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: '127.0.0.1 localhost\n::1 localhost',
+                },
+              ],
+              isError: false,
+            };
+          }
+          throw new Error(`File not found: ${args.path}`);
+        }),
+      },
+      // MCP tool for calculations
+      mcp_server_math__calculate: {
+        description: 'Perform mathematical calculations',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            expression: { type: 'string', description: 'Math expression to evaluate' },
+          },
+          required: ['expression'],
+        },
+        execute: vi.fn(async (args: any) => {
+          try {
+            // Simple eval for test purposes (don't use in production!)
+            const result = Function('"use strict"; return (' + args.expression + ')')();
+            return {
+              content: [{ type: 'text', text: `Result: ${result}` }],
+              isError: false,
+            };
+          } catch (error) {
+            return {
+              content: [{ type: 'text', text: `Error: Invalid expression` }],
+              isError: true,
+            };
+          }
+        }),
+      },
+      // MCP tool for web requests
+      mcp_server_fetch__get: {
+        description: 'Make HTTP GET request',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            url: { type: 'string', format: 'uri' },
+            headers: { type: 'object', additionalProperties: { type: 'string' } },
+          },
+          required: ['url'],
+        },
+        execute: vi.fn(async (args: any) => ({
+          content: [
+            {
+              type: 'text',
+              text: `GET ${args.url} returned: {"status": 200, "data": "test response"}`,
+            },
+          ],
           isError: false,
         })),
       },
@@ -600,6 +693,616 @@ describe('handleOllamaStream', () => {
         error: 'Failed to stream response',
         details: 'Stream failed',
       });
+    });
+  });
+
+  describe('Multi-step tool calling with MCP tools', () => {
+    it('should handle single MCP tool call and stop after one step', async () => {
+      let callCount = 0;
+
+      // First call returns MCP tool call for getting time
+      const firstStream = [
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_time__getCurrentTime',
+                  arguments: '{"timezone": "America/Los_Angeles", "format": "12hr"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      // Second call returns just text (no more tools)
+      const secondStream = [
+        { message: { content: "I've retrieved the current time for you in Los Angeles." } },
+        { done: true },
+      ];
+
+      const mockOllama = {
+        chat: vi.fn().mockImplementation(() => {
+          callCount++;
+          return callCount === 1 ? firstStream : secondStream;
+        }),
+      };
+      vi.mocked(Ollama).mockImplementation(() => mockOllama as any);
+
+      await handleOllamaStream(mockFastify, mockRequest, mockReply, mockMcpTools);
+
+      // Should have made 2 calls: one for tool, one for final response
+      expect(mockOllama.chat).toHaveBeenCalledTimes(2);
+
+      // MCP tool should have been executed once
+      expect(mockMcpTools['mcp_server_time__getCurrentTime'].execute).toHaveBeenCalledTimes(1);
+      expect(mockMcpTools['mcp_server_time__getCurrentTime'].execute).toHaveBeenCalledWith({
+        timezone: 'America/Los_Angeles',
+        format: '12hr',
+      });
+
+      // Check logging
+      expect(mockFastify.log.info).toHaveBeenCalledWith('Starting step 1 of max 5');
+      expect(mockFastify.log.info).toHaveBeenCalledWith('Starting step 2 of max 5');
+      expect(mockFastify.log.info).toHaveBeenCalledWith(expect.stringContaining('Step 2 completed, stopping'));
+    });
+
+    it('should handle multiple sequential MCP tool calls across steps', async () => {
+      let callCount = 0;
+
+      // Step 1: First MCP tool call - calculate something
+      const stream1 = [
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_math__calculate',
+                  arguments: '{"expression": "42 * 10"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      // Step 2: Second MCP tool call - fetch data
+      const stream2 = [
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_fetch__get',
+                  arguments: '{"url": "https://api.example.com/data"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      // Step 3: Third MCP tool call - read file
+      const stream3 = [
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_fs__readFile',
+                  arguments: '{"path": "/etc/hosts"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      // Step 4: Final response
+      const stream4 = [
+        { message: { content: "I've completed all the calculations, fetched the data, and read the file." } },
+        { done: true },
+      ];
+
+      const mockOllama = {
+        chat: vi.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) return stream1;
+          if (callCount === 2) return stream2;
+          if (callCount === 3) return stream3;
+          return stream4;
+        }),
+      };
+      vi.mocked(Ollama).mockImplementation(() => mockOllama as any);
+
+      await handleOllamaStream(mockFastify, mockRequest, mockReply, mockMcpTools);
+
+      // Should have made 4 calls
+      expect(mockOllama.chat).toHaveBeenCalledTimes(4);
+
+      // All MCP tools should have been executed
+      expect(mockMcpTools['mcp_server_math__calculate'].execute).toHaveBeenCalledWith({ expression: '42 * 10' });
+      expect(mockMcpTools['mcp_server_fetch__get'].execute).toHaveBeenCalledWith({
+        url: 'https://api.example.com/data',
+      });
+      expect(mockMcpTools['mcp_server_fs__readFile'].execute).toHaveBeenCalledWith({ path: '/etc/hosts' });
+
+      // Verify the conversation context was updated correctly
+      const secondCall = mockOllama.chat.mock.calls[1][0];
+      expect(secondCall.messages).toHaveLength(3); // Original + assistant + tool result
+
+      const thirdCall = mockOllama.chat.mock.calls[2][0];
+      expect(thirdCall.messages).toHaveLength(5); // Previous + assistant + tool result
+
+      const fourthCall = mockOllama.chat.mock.calls[3][0];
+      expect(fourthCall.messages).toHaveLength(7); // Previous + assistant + tool result
+    });
+
+    it('should stop at MAX_STEPS (5) even if MCP tools keep being called', async () => {
+      // Always return an MCP tool call
+      const infiniteStream = [
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_math__calculate',
+                  arguments: '{"expression": "1 + 1"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      const mockOllama = {
+        chat: vi.fn().mockResolvedValue(infiniteStream),
+      };
+      vi.mocked(Ollama).mockImplementation(() => mockOllama as any);
+
+      await handleOllamaStream(mockFastify, mockRequest, mockReply, mockMcpTools);
+
+      // Should stop at exactly 5 steps
+      expect(mockOllama.chat).toHaveBeenCalledTimes(5);
+      expect(mockMcpTools['mcp_server_math__calculate'].execute).toHaveBeenCalledTimes(5);
+
+      // Verify proper logging
+      for (let i = 1; i <= 5; i++) {
+        expect(mockFastify.log.info).toHaveBeenCalledWith(`Starting step ${i} of max 5`);
+      }
+
+      expect(mockFastify.log.info).toHaveBeenCalledWith(expect.stringContaining('Step 5 completed, stopping'));
+    });
+
+    it('should handle mixed content (text + MCP tools) across steps', async () => {
+      let callCount = 0;
+
+      // Step 1: Text + MCP tool call
+      const stream1 = [
+        { message: { content: 'Let me calculate that for you. ' } },
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_math__calculate',
+                  arguments: '{"expression": "6 * 7"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      // Step 2: Another calculation
+      const stream2 = [
+        { message: { content: 'Now let me verify with another calculation. ' } },
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_math__calculate',
+                  arguments: '{"expression": "42 / 6"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      // Step 3: Final text
+      const stream3 = [{ message: { content: 'The answer is 42, and when divided by 6 gives us 7.' } }, { done: true }];
+
+      const mockOllama = {
+        chat: vi.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) return stream1;
+          if (callCount === 2) return stream2;
+          return stream3;
+        }),
+      };
+      vi.mocked(Ollama).mockImplementation(() => mockOllama as any);
+
+      await handleOllamaStream(mockFastify, mockRequest, mockReply, mockMcpTools);
+
+      const events = parseEvents(capturedEvents);
+
+      // Verify mixed content in steps
+      expect(events.some((e) => e.type === 'text-delta' && e.delta?.includes('Let me calculate'))).toBe(true);
+      expect(events.some((e) => e.type === 'text-delta' && e.delta?.includes('verify with another calculation'))).toBe(
+        true
+      );
+      expect(events.some((e) => e.type === 'tool-input-start')).toBe(true);
+
+      // Verify final step has concluding text
+      expect(events.some((e) => e.type === 'text-delta' && e.delta?.includes('divided by 6 gives us 7'))).toBe(true);
+
+      // MCP tools should have been executed
+      expect(mockMcpTools['mcp_server_math__calculate'].execute).toHaveBeenCalledWith({ expression: '6 * 7' });
+      expect(mockMcpTools['mcp_server_math__calculate'].execute).toHaveBeenCalledWith({ expression: '42 / 6' });
+    });
+
+    it('should handle MCP tool errors and continue to next step', async () => {
+      // Override the readFile tool to fail
+      mockMcpTools['mcp_server_fs__readFile'].execute = vi
+        .fn()
+        .mockRejectedValue(new Error('Permission denied: /etc/passwd'));
+
+      let callCount = 0;
+
+      // Step 1: Failing MCP tool
+      const stream1 = [
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_fs__readFile',
+                  arguments: '{"path": "/etc/passwd"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      // Step 2: Working MCP tool
+      const stream2 = [
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_time__getCurrentTime',
+                  arguments: '{"timezone": "UTC"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      // Step 3: Final response
+      const stream3 = [
+        {
+          message: { content: "I couldn't read the file due to permissions, but I was able to get the current time." },
+        },
+        { done: true },
+      ];
+
+      const mockOllama = {
+        chat: vi.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) return stream1;
+          if (callCount === 2) return stream2;
+          return stream3;
+        }),
+      };
+      vi.mocked(Ollama).mockImplementation(() => mockOllama as any);
+
+      await handleOllamaStream(mockFastify, mockRequest, mockReply, mockMcpTools);
+
+      const events = parseEvents(capturedEvents);
+
+      // Should continue despite error
+      expect(mockOllama.chat).toHaveBeenCalledTimes(3);
+
+      // Error event should be sent
+      expect(events.some((e) => e.type === 'tool-output-error' && e.errorText?.includes('Permission denied'))).toBe(
+        true
+      );
+
+      // Working tool should still be executed
+      expect(mockMcpTools['mcp_server_time__getCurrentTime'].execute).toHaveBeenCalled();
+
+      // Final text should be sent
+      expect(events.some((e) => e.type === 'text-delta' && e.delta?.includes("couldn't read the file"))).toBe(true);
+    });
+
+    it('should properly save messages with all MCP tool calls from all steps', async () => {
+      const Chat = await import('@backend/models/chat');
+
+      let callCount = 0;
+
+      const stream1 = [
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_math__calculate',
+                  arguments: '{"expression": "100 / 5"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      const stream2 = [
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_fetch__get',
+                  arguments: '{"url": "https://api.example.com/result"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      const stream3 = [
+        { message: { content: "I've completed the calculation and fetched the data successfully." } },
+        { done: true },
+      ];
+
+      const mockOllama = {
+        chat: vi.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) return stream1;
+          if (callCount === 2) return stream2;
+          return stream3;
+        }),
+      };
+      vi.mocked(Ollama).mockImplementation(() => mockOllama as any);
+
+      await handleOllamaStream(mockFastify, mockRequest, mockReply, mockMcpTools);
+
+      // Verify saveMessages was called with correct structure
+      expect(Chat.default.saveMessages).toHaveBeenCalledWith(
+        'test-session',
+        expect.arrayContaining([
+          // Original user message
+          expect.objectContaining({ role: 'user' }),
+          // Final assistant message with all content and MCP tool calls
+          expect.objectContaining({
+            role: 'assistant',
+            parts: expect.arrayContaining([
+              expect.objectContaining({
+                type: 'text',
+                text: "I've completed the calculation and fetched the data successfully.",
+              }),
+              expect.objectContaining({
+                type: 'dynamic-tool',
+                toolName: 'mcp_server_math__calculate',
+              }),
+              expect.objectContaining({
+                type: 'dynamic-tool',
+                toolName: 'mcp_server_fetch__get',
+              }),
+            ]),
+          }),
+        ])
+      );
+    });
+
+    it('should handle complex MCP tool chaining scenario', async () => {
+      const Chat = await import('@backend/models/chat');
+
+      // Override some tools for this test
+      mockMcpTools['mcp_server_fs__writeFile'] = {
+        description: 'Write content to a file',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            path: { type: 'string' },
+            content: { type: 'string' },
+          },
+          required: ['path', 'content'],
+        },
+        execute: vi.fn(async (args: any) => ({
+          content: [{ type: 'text', text: `Written to ${args.path}` }],
+          isError: false,
+        })),
+      };
+
+      let callCount = 0;
+
+      // Step 1: Calculate something
+      const stream1 = [
+        { message: { content: 'I need to perform some calculations first. ' } },
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_math__calculate',
+                  arguments: '{"expression": "1024 * 1024"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      // Step 2: Fetch data based on calculation
+      const stream2 = [
+        { message: { content: 'Now fetching data based on the result. ' } },
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_fetch__get',
+                  arguments: '{"url": "https://api.example.com/data?size=1048576"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      // Step 3: Write results to file
+      const stream3 = [
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_fs__writeFile',
+                  arguments: '{"path": "/tmp/results.txt", "content": "Calculation: 1048576\\nData: fetched"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      // Step 4: Read back the file to verify
+      const stream4 = [
+        {
+          message: {
+            tool_calls: [
+              {
+                function: {
+                  name: 'mcp_server_fs__readFile',
+                  arguments: '{"path": "/etc/hosts"}',
+                },
+              },
+            ],
+          },
+        },
+        { done: true },
+      ];
+
+      // Step 5: Final summary
+      const stream5 = [
+        {
+          message: {
+            content:
+              'Task completed! I calculated 1MB in bytes (1048576), fetched the data, saved it to a file, and verified the system configuration.',
+          },
+        },
+        { done: true },
+      ];
+
+      const mockOllama = {
+        chat: vi.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) return stream1;
+          if (callCount === 2) return stream2;
+          if (callCount === 3) return stream3;
+          if (callCount === 4) return stream4;
+          return stream5;
+        }),
+      };
+      vi.mocked(Ollama).mockImplementation(() => mockOllama as any);
+
+      await handleOllamaStream(mockFastify, mockRequest, mockReply, mockMcpTools);
+
+      // Should have made exactly 5 calls (max steps)
+      expect(mockOllama.chat).toHaveBeenCalledTimes(5);
+
+      // Verify all tools were called with correct arguments
+      expect(mockMcpTools['mcp_server_math__calculate'].execute).toHaveBeenCalledWith({
+        expression: '1024 * 1024',
+      });
+      expect(mockMcpTools['mcp_server_fetch__get'].execute).toHaveBeenCalledWith({
+        url: 'https://api.example.com/data?size=1048576',
+      });
+      expect(mockMcpTools['mcp_server_fs__writeFile'].execute).toHaveBeenCalledWith({
+        path: '/tmp/results.txt',
+        content: 'Calculation: 1048576\nData: fetched',
+      });
+      expect(mockMcpTools['mcp_server_fs__readFile'].execute).toHaveBeenCalledWith({
+        path: '/etc/hosts',
+      });
+
+      // Verify conversation context grows correctly
+      const calls = mockOllama.chat.mock.calls;
+      expect(calls[0][0].messages).toHaveLength(1); // Initial user message
+      expect(calls[1][0].messages).toHaveLength(3); // + assistant + tool result
+      expect(calls[2][0].messages).toHaveLength(5); // + assistant + tool result
+      expect(calls[3][0].messages).toHaveLength(7); // + assistant + tool result
+      expect(calls[4][0].messages).toHaveLength(9); // + assistant + tool result
+
+      // Verify final saved message contains all tools and text
+      expect(Chat.default.saveMessages).toHaveBeenCalledWith(
+        'test-session',
+        expect.arrayContaining([
+          expect.objectContaining({
+            role: 'assistant',
+            parts: expect.arrayContaining([
+              // Final text
+              expect.objectContaining({
+                type: 'text',
+                text: expect.stringContaining('I need to perform some calculations first'),
+              }),
+              // All tool calls
+              expect.objectContaining({
+                type: 'dynamic-tool',
+                toolName: 'mcp_server_math__calculate',
+              }),
+              expect.objectContaining({
+                type: 'dynamic-tool',
+                toolName: 'mcp_server_fetch__get',
+              }),
+              expect.objectContaining({
+                type: 'dynamic-tool',
+                toolName: 'mcp_server_fs__writeFile',
+              }),
+              expect.objectContaining({
+                type: 'dynamic-tool',
+                toolName: 'mcp_server_fs__readFile',
+              }),
+            ]),
+          }),
+        ])
+      );
+
+      // Verify proper event sequencing
+      const events = parseEvents(capturedEvents);
+
+      // Should have multiple start-step/finish-step pairs
+      const startSteps = events.filter((e) => e.type === 'start-step');
+      const finishSteps = events.filter((e) => e.type === 'finish-step');
+      expect(startSteps.length).toBeGreaterThanOrEqual(8); // At least 8 step events
+      expect(finishSteps.length).toBe(startSteps.length); // Balanced pairs
+
+      // Verify text and tool events are properly interleaved
+      const textDeltas = events.filter((e) => e.type === 'text-delta');
+      const toolInputs = events.filter((e) => e.type === 'tool-input-start');
+      expect(textDeltas.length).toBeGreaterThan(0);
+      expect(toolInputs.length).toBe(4); // 4 tools executed
     });
   });
 
