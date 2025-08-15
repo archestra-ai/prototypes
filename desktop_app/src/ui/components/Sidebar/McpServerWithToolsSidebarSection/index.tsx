@@ -14,8 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@ui/components/ui/sidebar';
-import { getAvailableTools } from '@ui/lib/clients/archestra/api/gen';
-import type { AvailableTool } from '@ui/lib/clients/archestra/api/gen';
+import { useAvailableTools } from '@ui/hooks/useAvailableTools';
 import { formatToolName } from '@ui/lib/utils/tools';
 import { useChatStore, useNavigationStore } from '@ui/stores';
 import { NavigationViewKey } from '@ui/types';
@@ -25,58 +24,37 @@ interface McpServerWithToolsSidebarSectionProps {}
 export default function McpServerWithToolsSidebarSection(_props: McpServerWithToolsSidebarSectionProps) {
   const { selectedTools, setSelectedTools } = useChatStore();
   const { setActiveView } = useNavigationStore();
-  const [availableTools, setAvailableTools] = useState<AvailableTool[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { tools: availableTools, toolsByServer: allToolsByServer, isLoading } = useAvailableTools();
   const [toolSearchQuery, setToolSearchQuery] = useState('');
-
-  // State to track which servers are expanded
   const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
 
-  // Fetch tools periodically
+  // Initialize all servers as expanded on first load
   useEffect(() => {
-    const fetchTools = async () => {
-      try {
-        setIsLoading(true);
-        const response = await getAvailableTools();
-        const tools = (response.data as AvailableTool[]) || [];
-        setAvailableTools(tools);
-
-        // Initialize all servers as expanded on first fetch
-        const serverNames = new Set(tools.map((t) => t.mcpServerName || 'Unknown'));
-        setExpandedServers(serverNames);
-      } catch (error) {
-        console.error('Failed to fetch tools:', error);
-        setAvailableTools([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTools();
-    const interval = setInterval(fetchTools, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Filter tools based on search query
-  const filteredTools = availableTools.filter((tool) => {
-    if (!toolSearchQuery.trim()) return true;
-    const searchLower = toolSearchQuery.toLowerCase();
-    return (
-      tool.name?.toLowerCase().includes(searchLower) ||
-      tool.description?.toLowerCase().includes(searchLower) ||
-      tool.mcpServerName?.toLowerCase().includes(searchLower)
-    );
-  });
-
-  // Group tools by server
-  const toolsByServer = filteredTools.reduce((acc: Record<string, AvailableTool[]>, tool: AvailableTool) => {
-    const serverName = tool.mcpServerName || 'Unknown';
-    if (!acc[serverName]) {
-      acc[serverName] = [];
+    if (availableTools.length > 0 && expandedServers.size === 0) {
+      const serverNames = new Set(availableTools.map((t) => t.mcpServerName || 'Unknown'));
+      setExpandedServers(serverNames);
     }
-    acc[serverName].push(tool);
-    return acc;
-  }, {});
+  }, [availableTools, expandedServers.size]);
+
+  // Filter and group tools based on search query
+  const toolsByServer = availableTools
+    .filter((tool) => {
+      if (!toolSearchQuery.trim()) return true;
+      const searchLower = toolSearchQuery.toLowerCase();
+      return (
+        tool.name?.toLowerCase().includes(searchLower) ||
+        tool.description?.toLowerCase().includes(searchLower) ||
+        tool.mcpServerName?.toLowerCase().includes(searchLower)
+      );
+    })
+    .reduce((acc: Record<string, typeof availableTools>, tool) => {
+      const serverName = tool.mcpServerName || 'Unknown';
+      if (!acc[serverName]) {
+        acc[serverName] = [];
+      }
+      acc[serverName].push(tool);
+      return acc;
+    }, {});
 
   const hasTools = Object.keys(toolsByServer).length > 0;
   const toolSearchQueryIsEmpty = !toolSearchQuery.trim();

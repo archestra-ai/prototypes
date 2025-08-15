@@ -1,7 +1,7 @@
 'use client';
 
 import { FileText, X } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 
 import {
   AIInput,
@@ -18,8 +18,7 @@ import {
 } from '@ui/components/kibo/ai-input';
 import { Badge } from '@ui/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ui/components/ui/tooltip';
-import { getAvailableTools } from '@ui/lib/clients/archestra/api/gen';
-import type { AvailableTool } from '@ui/lib/clients/archestra/api/gen';
+import { useAvailableTools } from '@ui/hooks/useAvailableTools';
 import { cn } from '@ui/lib/utils/tailwind';
 import { formatToolName } from '@ui/lib/utils/tools';
 import { useChatStore, useCloudProvidersStore, useDeveloperModeStore, useOllamaStore } from '@ui/stores';
@@ -37,35 +36,11 @@ export default function ChatInput({ input, handleInputChange, handleSubmit, isLo
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const { installedModels, selectedModel, setSelectedModel } = useOllamaStore();
   const { availableCloudProviderModels } = useCloudProvidersStore();
-  const [availableToolsMap, setAvailableToolsMap] = useState<Record<string, AvailableTool>>({});
+  const { toolsMap: availableToolsMap } = useAvailableTools();
 
   // Use the selected model from Ollama store
   const currentModel = selectedModel || '';
   const handleModelChange = setSelectedModel;
-
-  // Fetch available tools to map IDs to tool info
-  useEffect(() => {
-    const fetchTools = async () => {
-      try {
-        const response = await getAvailableTools();
-        const tools = (response.data as AvailableTool[]) || [];
-        const toolsMap = tools.reduce(
-          (acc, tool) => {
-            acc[tool.id] = tool;
-            return acc;
-          },
-          {} as Record<string, AvailableTool>
-        );
-        setAvailableToolsMap(toolsMap);
-      } catch (error) {
-        console.error('Failed to fetch tools:', error);
-      }
-    };
-
-    fetchTools();
-    const interval = setInterval(fetchTools, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

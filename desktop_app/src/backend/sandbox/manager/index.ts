@@ -153,11 +153,11 @@ class McpServerSandboxManager {
       const client = await experimental_createMCPClient({ transport: transport as any });
       this.mcpClients.set(serverId, client);
 
-      // Fetch and cache tools
-      const tools = await client.tools();
-      this.availableTools.set(serverId, tools);
+      // Fetch and cache tools directly from the client
+      const clientTools = await client.tools();
+      this.availableTools.set(serverId, clientTools as any);
 
-      log.info(`Connected MCP client for ${serverId}, found ${Object.keys(tools).length} tools`);
+      log.info(`Connected MCP client for ${serverId}, found ${Object.keys(clientTools).length} tools`);
     } catch (error) {
       log.error(`Failed to connect MCP client for ${serverId}:`, error);
     }
@@ -290,16 +290,7 @@ class McpServerSandboxManager {
         const sanitizedToolName = toolName.replace(/[^a-zA-Z0-9_-]/g, '_');
         const toolId = `${sanitizedServerId}__${sanitizedToolName}`;
 
-        allTools[toolId] = {
-          ...tool,
-          execute: async (params: any, options: any) => {
-            const client = this.mcpClients.get(serverId);
-            if (!client) {
-              throw new Error(`MCP server ${serverId} not connected`);
-            }
-            return await client.callTool({ name: toolName, arguments: params });
-          },
-        };
+        allTools[toolId] = tool;
       }
     }
 
