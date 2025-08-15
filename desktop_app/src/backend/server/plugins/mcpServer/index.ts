@@ -390,7 +390,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
 
         return {
           id,
-          name: tool.name || sanitizedToolName || id,
+          name: sanitizedToolName || id,
           description: tool.description,
           inputSchema: cleanSchema(tool.inputSchema),
           mcpServerId: server?.id || sanitizedServerId,

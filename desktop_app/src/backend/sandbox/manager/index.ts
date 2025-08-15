@@ -1,5 +1,5 @@
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { experimental_createMCPClient } from 'ai';
+import { type experimental_MCPClient, experimental_createMCPClient } from 'ai';
 import type { RawReplyDefaultExpression } from 'fastify';
 import { z } from 'zod';
 
@@ -9,6 +9,9 @@ import McpServerModel, { type McpServer } from '@backend/models/mcpServer';
 import PodmanContainer, { PodmanContainerStatusSummarySchema } from '@backend/sandbox/podman/container';
 import PodmanRuntime, { PodmanRuntimeStatusSummarySchema } from '@backend/sandbox/podman/runtime';
 import log from '@backend/utils/logger';
+
+// Type for MCP tools returned by the client
+type McpTools = Awaited<ReturnType<experimental_MCPClient['tools']>>;
 
 export const SandboxStatusSchema = z.enum(['not_installed', 'initializing', 'running', 'error', 'stopping', 'stopped']);
 
@@ -37,8 +40,8 @@ type McpServerContainerLogs = z.infer<typeof McpServerContainerLogsSchema>;
 class McpServerSandboxManager {
   private podmanRuntime: InstanceType<typeof PodmanRuntime>;
   private mcpServerIdToPodmanContainerMap: Map<string, PodmanContainer> = new Map();
-  private mcpClients: Map<string, any> = new Map();
-  private availableTools: Map<string, Record<string, any>> = new Map();
+  private mcpClients: Map<string, experimental_MCPClient> = new Map();
+  private availableTools: Map<string, McpTools> = new Map();
 
   private status: SandboxStatus = 'not_installed';
 
@@ -155,7 +158,7 @@ class McpServerSandboxManager {
 
       // Fetch and cache tools directly from the client
       const clientTools = await client.tools();
-      this.availableTools.set(serverId, clientTools as any);
+      this.availableTools.set(serverId, clientTools);
 
       log.info(`Connected MCP client for ${serverId}, found ${Object.keys(clientTools).length} tools`);
     } catch (error) {
@@ -279,8 +282,8 @@ class McpServerSandboxManager {
   }
 
   // Get all available tools with execute functions
-  getAllTools(): Record<string, any> {
-    const allTools: Record<string, any> = {};
+  getAllTools(): McpTools {
+    const allTools: McpTools = {} as McpTools;
 
     for (const [serverId, serverTools] of this.availableTools) {
       for (const [toolName, tool] of Object.entries(serverTools)) {
@@ -298,9 +301,9 @@ class McpServerSandboxManager {
   }
 
   // Get specific tools by IDs
-  getToolsById(toolIds: string[]): Record<string, any> {
+  getToolsById(toolIds: string[]): Partial<McpTools> {
     const allTools = this.getAllTools();
-    const selected: Record<string, any> = {};
+    const selected: Partial<McpTools> = {};
 
     for (const toolId of toolIds) {
       if (allTools[toolId]) {
