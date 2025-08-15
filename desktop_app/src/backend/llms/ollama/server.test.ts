@@ -83,7 +83,7 @@ describe('OllamaServer', () => {
     it('should start the server successfully with correct arguments', async () => {
       await server.startServer();
 
-      expect(spawn).toHaveBeenCalledWith('/mock/path/ollama-v0.9.6', ['serve'], {
+      expect(spawn).toHaveBeenCalledWith('/mock/path/ollama-v0.11.4', ['serve'], {
         env: {
           HOME: '/mock/home',
           OLLAMA_HOST: 'localhost:54589',

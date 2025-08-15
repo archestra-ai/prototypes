@@ -1,4 +1,4 @@
-import { type TextUIPart, UIMessage } from 'ai';
+import { UIMessage } from 'ai';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ScrollArea } from '@ui/components/ui/scroll-area';
@@ -48,25 +48,6 @@ export default function ChatHistory({ messages }: ChatHistoryProps) {
   const scrollAreaRef = useRef<HTMLElement | null>(null);
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Debug messages
-  useEffect(() => {
-    console.log('ChatHistory received messages:', messages);
-    messages.forEach((msg, idx) => {
-      // UIMessage in ai SDK v5 uses parts array instead of content/toolInvocations
-      const textContent = msg.parts
-        ?.filter((part) => part.type === 'text')
-        .map((part) => (part as TextUIPart).text)
-        .join('');
-      const toolParts = msg.parts?.filter((part) => part.type === 'dynamic-tool');
-
-      console.log(`Message ${idx}:`, {
-        role: msg.role,
-        textContent,
-        toolParts,
-      });
-    });
-  }, [messages]);
 
   // Scroll to bottom when new messages are added or content changes
   const scrollToBottom = useCallback(() => {

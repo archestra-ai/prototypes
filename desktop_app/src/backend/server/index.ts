@@ -12,6 +12,7 @@ import mcpRequestLogRoutes from '@backend/server/plugins/mcpRequestLog';
 import mcpServerRoutes from '@backend/server/plugins/mcpServer';
 import ollamaRoutes from '@backend/server/plugins/ollama';
 import userRoutes from '@backend/server/plugins/user';
+import { electronLogStream } from '@backend/utils/fastify-logger-stream';
 import log from '@backend/utils/logger';
 
 let app: ReturnType<typeof fastify> | null = null;
@@ -20,10 +21,7 @@ export const startFastifyServer = async () => {
   app = fastify({
     logger: {
       level: config.logLevel,
-      serializers: {
-        req: (req) => ({ method: req.method, url: req.url }),
-        res: (res) => ({ statusCode: res.statusCode }),
-      },
+      stream: electronLogStream,
     },
   });
 

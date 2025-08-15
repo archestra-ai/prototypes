@@ -25,6 +25,11 @@ const startup = async () => {
   await runDatabaseMigrations();
   await UserModel.ensureUserExists();
 
+  // Start WebSocket and Fastify servers first so they're ready for MCP connections
+  WebSocketServer.start();
+  await startFastifyServer();
+
+  // Now start the sandbox manager which will connect MCP clients
   McpServerSandboxManager.onSandboxStartupSuccess = () => {
     log.info('Sandbox startup successful');
   };
@@ -32,9 +37,6 @@ const startup = async () => {
     log.error('Sandbox startup error:', error);
   };
   McpServerSandboxManager.start();
-
-  WebSocketServer.start();
-  await startFastifyServer();
 
   await OllamaServer.startServer();
 };

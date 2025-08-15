@@ -14,11 +14,12 @@ export default function ThinkBlock({ content, className, isStreaming = false }: 
   const [isExpanded, setIsExpanded] = useState(isStreaming);
 
   useEffect(() => {
-    // Auto-collapse when streaming ends
-    if (!isStreaming && isExpanded) {
-      setIsExpanded(false);
+    // Auto-expand when streaming starts
+    if (isStreaming) {
+      setIsExpanded(true);
     }
-  }, [isStreaming, isExpanded]);
+    // Don't auto-collapse when streaming ends - let user control it
+  }, [isStreaming]);
 
   return (
     <div className={cn('rounded-lg border border-muted-foreground/20 bg-muted/50', className)}>

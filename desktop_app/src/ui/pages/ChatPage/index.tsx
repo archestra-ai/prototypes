@@ -12,7 +12,7 @@ import SystemPrompt from './SystemPrompt';
 interface ChatPageProps {}
 
 export default function ChatPage(_props: ChatPageProps) {
-  const { getCurrentChat } = useChatStore();
+  const { getCurrentChat, selectedTools } = useChatStore();
   const { selectedModel } = useOllamaStore();
   const { availableCloudProviderModels } = useCloudProvidersStore();
   const [localInput, setLocalInput] = useState('');
@@ -30,6 +30,9 @@ export default function ChatPage(_props: ChatPageProps) {
   const availableCloudProviderModelsRef = useRef(availableCloudProviderModels);
   availableCloudProviderModelsRef.current = availableCloudProviderModels;
 
+  const selectedToolsRef = useRef(selectedTools);
+  selectedToolsRef.current = selectedTools;
+
   const transport = useMemo(() => {
     const apiEndpoint = `${config.archestra.chatStreamBaseUrl}/stream`;
 
@@ -38,6 +41,7 @@ export default function ChatPage(_props: ChatPageProps) {
       prepareSendMessagesRequest: ({ id, messages }) => {
         const currentModel = selectedModelRef.current;
         const currentCloudProviderModels = availableCloudProviderModelsRef.current;
+        const currentSelectedTools = selectedToolsRef.current;
 
         const cloudModel = currentCloudProviderModels.find((m) => m.id === currentModel);
         const provider = cloudModel ? cloudModel.provider : 'ollama';
@@ -48,6 +52,8 @@ export default function ChatPage(_props: ChatPageProps) {
             model: currentModel || 'llama3.1:8b',
             sessionId: id || currentChatSessionId,
             provider: provider,
+            requestedTools: currentSelectedTools.length > 0 ? currentSelectedTools : undefined,
+            toolChoice: currentSelectedTools.length > 0 ? 'auto' : undefined,
           },
         };
       },
@@ -57,9 +63,6 @@ export default function ChatPage(_props: ChatPageProps) {
   const { sendMessage, messages, setMessages, stop, status, error } = useChat({
     id: currentChatSessionId || 'temp-id', // use the provided chat ID or a temp ID
     transport,
-    onFinish: (message) => {
-      console.log('Message finished:', message);
-    },
     onError: (error) => {
       console.error('Chat error:', error);
     },
@@ -78,18 +81,6 @@ export default function ChatPage(_props: ChatPageProps) {
     }
   }, [currentChatSessionId]); // Only depend on session ID to avoid infinite loop
 
-  // Log messages updates
-  useEffect(() => {
-    console.log('All messages in ChatPage:', messages);
-    console.log('Messages length:', messages.length);
-    console.log('isLoading:', isLoading);
-    console.log('error:', error);
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage) {
-      console.log('Last message:', lastMessage);
-    }
-  }, [messages, isLoading, error]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setLocalInput(e.target.value);
   };
@@ -97,7 +88,6 @@ export default function ChatPage(_props: ChatPageProps) {
   const handleSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
     if (localInput.trim()) {
-      console.log('Sending message:', localInput);
       sendMessage({ text: localInput });
       setLocalInput('');
     }
@@ -113,6 +103,7 @@ export default function ChatPage(_props: ChatPageProps) {
       <div className="flex-1 min-h-0 overflow-hidden max-w-full">
         <ChatHistory messages={messages} />
       </div>
+
       <SystemPrompt />
       <div className="flex-shrink-0">
         <ChatInput

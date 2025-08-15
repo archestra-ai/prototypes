@@ -73,6 +73,16 @@ export default class PodmanContainer {
   private mcpSocketConnecting: boolean = false;
   private pendingRequests: Map<string, (response: any) => void> = new Map();
 
+  /**
+   * JSON accumulator to handle MCP messages that may be split across multiple data chunks.
+   * The MCP protocol uses newline-delimited JSON, but when reading from a socket stream,
+   * a single JSON message might be split across multiple 'data' events, or multiple
+   * JSON messages might arrive in a single chunk. This accumulator ensures we only
+   * try to parse complete JSON lines, preventing "Failed to parse MCP message" errors
+   * for large responses (like tool results with extensive text content).
+   */
+  private jsonAccumulator: string = '';
+
   private logStream: NodeJS.WritableStream | null = null;
 
   constructor({ name, serverConfig, userConfigValues }: McpServer, socketPath: string) {
@@ -617,6 +627,7 @@ export default class PodmanContainer {
     }
 
     this.mcpSocketConnecting = true;
+    this.jsonAccumulator = ''; // Reset accumulator for new connection
 
     try {
       log.info(`Creating new MCP socket connection to ${this.containerName}`);
@@ -673,23 +684,42 @@ export default class PodmanContainer {
 
           // Process stdout (stream type 1)
           if (streamType === 1) {
-            const text = payload.toString('utf-8').trim();
-            if (text && text.startsWith('{')) {
-              try {
-                const parsed = JSON.parse(text);
-                log.debug(`Received MCP message:`, { id: parsed.id, method: parsed.method });
+            const text = payload.toString('utf-8');
+            if (text) {
+              // Append new data to the accumulator. This handles cases where:
+              // 1. A JSON message is split across multiple socket data events
+              // 2. Multiple complete JSON messages arrive in a single chunk
+              // 3. Large tool responses (e.g., library documentation) exceed buffer sizes
+              this.jsonAccumulator += text;
 
-                // Handle responses with IDs
-                if (parsed.id !== undefined && this.pendingRequests.has(parsed.id.toString())) {
-                  const callback = this.pendingRequests.get(parsed.id.toString());
-                  this.pendingRequests.delete(parsed.id.toString());
-                  callback?.(parsed);
-                } else if (parsed.method) {
-                  // This is a notification - we might need to handle these differently
-                  log.debug(`MCP notification: ${parsed.method}`);
+              // Split by newlines to identify complete messages (MCP uses newline-delimited JSON)
+              const lines = this.jsonAccumulator.split('\n');
+
+              // The last element might be an incomplete JSON message, so keep it for next chunk
+              this.jsonAccumulator = lines.pop() || '';
+
+              // Process only complete lines (ones that ended with \n)
+              for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (trimmedLine && trimmedLine.startsWith('{')) {
+                  try {
+                    const parsed = JSON.parse(trimmedLine);
+                    log.debug(`Received MCP message:`, { id: parsed.id, method: parsed.method });
+
+                    // Handle responses with IDs
+                    if (parsed.id !== undefined && this.pendingRequests.has(parsed.id.toString())) {
+                      const callback = this.pendingRequests.get(parsed.id.toString());
+                      this.pendingRequests.delete(parsed.id.toString());
+                      callback?.(parsed);
+                    } else if (parsed.method) {
+                      // This is a notification - we might need to handle these differently
+                      log.debug(`MCP notification: ${parsed.method}`);
+                    }
+                  } catch (e) {
+                    log.error(`Failed to parse MCP message: ${trimmedLine.substring(0, 500)}`);
+                    log.error(`Parse error:`, e);
+                  }
                 }
-              } catch (e) {
-                log.error(`Failed to parse MCP message: ${text}`);
               }
             }
           } else if (streamType === 2) {
@@ -705,6 +735,7 @@ export default class PodmanContainer {
       socket.on('error', (err: Error) => {
         log.error('MCP socket error:', err);
         this.mcpSocket = null;
+        this.jsonAccumulator = ''; // Clear accumulator on error
         // Reject all pending requests
         for (const [id, callback] of this.pendingRequests) {
           callback({
@@ -722,6 +753,7 @@ export default class PodmanContainer {
       socket.on('close', () => {
         log.info('MCP socket closed');
         this.mcpSocket = null;
+        this.jsonAccumulator = ''; // Clear accumulator on close
         // Reject all pending requests
         for (const [id, callback] of this.pendingRequests) {
           callback({
@@ -816,7 +848,7 @@ export default class PodmanContainer {
       // Clean up pending request if it's still there
       this.pendingRequests.delete(requestId);
 
-      // Send response back to client
+      // Send response back to client (response is already a parsed object)
       const responseJson = JSON.stringify(response);
       log.info(`Sending response back to client: ${responseJson.substring(0, 100)}...`);
       responseStream.write(responseJson);
