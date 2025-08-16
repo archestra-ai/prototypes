@@ -11,38 +11,6 @@ import {
  */
 const CATALOG_PAGE_SIZE = 24;
 
-/**
- * TODO: This is temporary test data. Remove once catalog API returns user_config
- *
- * Right now user_config is in the returned objects, but we haven't yet actually populated
- * any data into user_config in our catalog objects
- */
-const TEST_USER_CONFIG: ArchestraMcpServerManifest['user_config'] = {
-  allowed_directories: {
-    type: 'directory',
-    title: 'Allowed Directories',
-    description: 'Directories the server can access',
-    multiple: true,
-    required: true,
-    default: ['${HOME}/Desktop'],
-  },
-  api_key: {
-    type: 'string',
-    title: 'API Key',
-    description: 'Your API key for authentication',
-    sensitive: true,
-    required: false,
-  },
-  max_file_size: {
-    type: 'number',
-    title: 'Maximum File Size (MB)',
-    description: 'Maximum file size to process',
-    default: 10,
-    min: 1,
-    max: 100,
-  },
-};
-
 interface ConnectorCatalogState {
   connectorCatalog: ArchestraMcpServerManifest[];
   loadingConnectorCatalog: boolean;
@@ -113,17 +81,8 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set, get)
       const { data } = await searchMcpServerCatalog({ query: params });
 
       if (data) {
-        /**
-         * NOTE: see the note above about TEST_USER_CONFIG
-         * remove this once we have real "user config" data
-         */
-        const serversWithUserConfig = (data.servers || []).map((server) => ({
-          ...server,
-          user_config: TEST_USER_CONFIG,
-        }));
-
         set({
-          connectorCatalog: append ? [...get().connectorCatalog, ...serversWithUserConfig] : serversWithUserConfig,
+          connectorCatalog: append ? [...get().connectorCatalog, ...(data.servers || [])] : data.servers || [],
           catalogHasMore: data.hasMore || false,
           catalogTotalCount: data.totalCount || 0,
           catalogOffset: append ? get().catalogOffset + CATALOG_PAGE_SIZE : CATALOG_PAGE_SIZE,

@@ -17,13 +17,12 @@ import { useNavigationStore } from '@ui/stores';
 import { NavigationSubViewKey, NavigationViewKey } from '@ui/types';
 
 import ChatSidebarSection from './ChatSidebarSection';
-import LLMProvidersSidebarSection from './LLMProvidersSidebarSection';
 import McpServerWithToolsSidebarSection from './McpServerWithToolsSidebarSection';
 
 interface SidebarProps extends React.PropsWithChildren {}
 
 export default function Sidebar({ children }: SidebarProps) {
-  const { activeView, activeSubView, setActiveView, setActiveSubView } = useNavigationStore();
+  const { activeView, activeSubView, setActiveView } = useNavigationStore();
 
   return (
     <SidebarProvider className="flex flex-col flex-1">
@@ -37,30 +36,22 @@ export default function Sidebar({ children }: SidebarProps) {
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
+                  <ChatSidebarSection />
                   {config.navigation.map((item) => (
                     <React.Fragment key={item.key}>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          onClick={() => {
-                            setActiveView(item.key);
-                            // TODO: when we add more LLM providers, we need to add a proper sub-navigation here
-                            if (item.key === NavigationViewKey.LLMProviders) {
-                              setActiveSubView(NavigationSubViewKey.Ollama);
-                            }
-                          }}
-                          isActive={activeView === item.key}
-                          tooltip={item.title}
-                          className="cursor-pointer hover:bg-accent/50"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                      {item.key === NavigationViewKey.Chat && activeView === NavigationViewKey.Chat && (
-                        <ChatSidebarSection />
-                      )}
-                      {item.key === NavigationViewKey.LLMProviders && activeView === NavigationViewKey.LLMProviders && (
-                        <LLMProvidersSidebarSection />
+                      {item.key !== NavigationViewKey.Chat && (
+                        <SidebarMenuItem>
+                          <SidebarMenuButton
+                            onClick={() => {
+                              setActiveView(item.key);
+                            }}
+                            isActive={activeView === item.key}
+                            className="cursor-pointer hover:bg-accent/50"
+                          >
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
                       )}
                     </React.Fragment>
                   ))}

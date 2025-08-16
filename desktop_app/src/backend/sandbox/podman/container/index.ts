@@ -367,17 +367,55 @@ export default class PodmanContainer {
     }
   }
 
-  // TODO: implement this
+  /**
+   * Replaces template variables in server config with actual user config values.
+   * Template variables follow the format: ${user_config.key}
+   *
+   * @param serverConfig - The server configuration containing potential template variables
+   * @param userConfigValues - The user-provided values to substitute
+   * @returns The server config with all template variables replaced
+   */
   private static injectUserConfigValuesIntoServerConfig = (
     serverConfig: McpServerConfig,
     userConfigValues: McpServerUserConfigValues
   ) => {
+    const replaceTemplateVariables = (str: string): string => {
+      if (!userConfigValues) return str;
+
+      // Replace all occurrences of ${user_config.key} with the actual value
+      return str.replace(/\$\{user_config\.([^}]+)\}/g, (match, key) => {
+        const value = userConfigValues[key];
+        if (value === undefined) {
+          log.warn(`Template variable ${match} not found in user config values`);
+          return match; // Return the original template if no value found
+        }
+        // Convert the value to string (handles string, number, boolean)
+        // For arrays, join them with commas
+        if (Array.isArray(value)) {
+          return value.join(',');
+        }
+        return String(value);
+      });
+    };
+
+    // Process command
+    const processedCommand = replaceTemplateVariables(serverConfig.command);
+
+    // Process args if they exist
+    const processedArgs = serverConfig.args?.map((arg) => replaceTemplateVariables(arg));
+
+    // Process environment variables if they exist
+    const processedEnv: Record<string, string> = {};
+    if (serverConfig.env) {
+      for (const [key, value] of Object.entries(serverConfig.env)) {
+        processedEnv[key] = replaceTemplateVariables(value);
+      }
+    }
+
     return {
-      command: serverConfig.command,
-      args: serverConfig.args,
-      env: {
-        ...serverConfig.env,
-      },
+      command: processedCommand,
+      args: processedArgs,
+      env: processedEnv,
     };
   };
 
