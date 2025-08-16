@@ -194,6 +194,25 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Tool caching in `McpServerSandboxManager` after connecting to servers
   - Unique tool identification format: `{serverId}:{toolName}`
   - Dynamic tool rendering in assistant messages with execution states
+- **OAuth Proxy Service**: Facilitates OAuth authentication flows for external services
+  - Express.js-based microservice running on configurable port (default 3000)
+  - Service-agnostic architecture with pluggable handlers (currently supports Gmail)
+  - OAuth 2.0 flow implementation with CSRF protection
+  - Deep link integration (`archestra-ai://`) for seamless return to desktop app
+  - In-memory state management with automatic expiration (10 minutes)
+  - Containerized deployment via Dockerfile
+  - Environment variables required:
+    - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` for Gmail integration
+    - `PORT` for server port configuration (optional, defaults to 3000)
+  - Static file serving for OAuth callback pages with user feedback
+  - Health check endpoint at `/health` for monitoring
+  - Service endpoints:
+    - `GET /auth/:service` - Initiates OAuth flow for specified service
+    - `GET /oauth-callback/:service` - Handles OAuth provider callbacks
+  - Security considerations:
+    - CSRF protection with random state tokens
+    - Automatic cleanup of expired states
+    - Error handling for invalid states and failed token exchanges
 
 ### Directory Structure
 
@@ -205,6 +224,7 @@ desktop_app/src/
 │   ├── llms/          # LLM integrations and Ollama management
 │   ├── mcpServer/     # MCP server implementation
 │   ├── models/        # Data models
+│   ├── oauth-proxy/   # OAuth proxy service for external auth flows
 │   ├── sandbox/       # Container sandboxing logic
 │   ├── server/        # Fastify server and plugins
 │   └── utils/         # Utility functions (paths, binaries, etc.)
