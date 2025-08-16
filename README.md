@@ -36,6 +36,8 @@ Archestra is an enterprise-grade platform that enables non-technical users to sa
 
 ## Developer Quickstart
 
+To build and start the local Electron application:
+
 ```bash
 # Clone the repository
 git clone https://github.com/archestra-ai/archestra.git
