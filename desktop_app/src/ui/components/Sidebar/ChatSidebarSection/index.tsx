@@ -3,7 +3,13 @@ import { useState } from 'react';
 
 import { DeleteChatConfirmation } from '@ui/components/DeleteChatConfirmation';
 import { EditableTitle } from '@ui/components/EditableTitle';
-import { SidebarMenuButton, SidebarMenuItem } from '@ui/components/ui/sidebar';
+import {
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+} from '@ui/components/ui/sidebar';
 import config from '@ui/config';
 import { useChatStore } from '@ui/stores';
 
@@ -19,18 +25,18 @@ export default function ChatSidebarSection(_props: ChatSidebarProps) {
   const hiddenChatsCount = Math.max(0, chats.length - VISIBLE_CHAT_COUNT);
 
   return (
-    <>
+    <SidebarMenuSub>
       {isLoadingChats ? (
-        <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
+        <SidebarMenuSubItem>
           <div className="flex items-center gap-2 px-2 py-1.5">
             <div className="h-3 w-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
             <span className="text-xs text-muted-foreground">Loading chats...</span>
           </div>
-        </SidebarMenuItem>
+        </SidebarMenuSubItem>
       ) : chats.length === 0 ? (
-        <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
+        <SidebarMenuSubItem>
           <div className="px-2 py-1.5 text-xs text-muted-foreground">No chats yet</div>
-        </SidebarMenuItem>
+        </SidebarMenuSubItem>
       ) : (
         <>
           {visibleChats.map((chat) => {
@@ -38,13 +44,12 @@ export default function ChatSidebarSection(_props: ChatSidebarProps) {
             const isCurrentChat = currentChatId === id;
 
             return (
-              <SidebarMenuItem key={id} className="group-data-[collapsible=icon]:hidden group/chat-item">
-                <div className="flex items-center">
-                  <SidebarMenuButton
+              <SidebarMenuSubItem key={id} className="group/chat-item">
+                <div className="flex items-center w-full">
+                  <SidebarMenuSubButton
                     onClick={() => selectChat(id)}
                     isActive={isCurrentChat}
-                    size="sm"
-                    className="cursor-pointer hover:bg-accent/50 text-sm flex-1 group/chat-button"
+                    className="cursor-pointer hover:bg-accent/50 flex-1 pr-1"
                   >
                     <EditableTitle
                       className="truncate"
@@ -52,26 +57,25 @@ export default function ChatSidebarSection(_props: ChatSidebarProps) {
                       onSave={(newTitle) => updateChatTitle(id, newTitle)}
                       isAnimated
                     />
-                  </SidebarMenuButton>
+                  </SidebarMenuSubButton>
                   <DeleteChatConfirmation onDelete={deleteCurrentChat} />
                 </div>
-              </SidebarMenuItem>
+              </SidebarMenuSubItem>
             );
           })}
           {hiddenChatsCount > 0 && (
-            <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-              <SidebarMenuButton
+            <SidebarMenuSubItem>
+              <SidebarMenuSubButton
                 onClick={() => setShowAllChats(!showAllChats)}
-                size="sm"
                 className="cursor-pointer hover:bg-accent/50 text-xs text-muted-foreground"
               >
                 {showAllChats ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                 <span>{showAllChats ? 'Show less' : `Show ${hiddenChatsCount} more`}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+              </SidebarMenuSubButton>
+            </SidebarMenuSubItem>
           )}
         </>
       )}
-    </>
+    </SidebarMenuSub>
   );
 }
