@@ -1,32 +1,43 @@
+import { useLocation, useNavigate } from '@tanstack/react-router';
 import { Plus, SidebarIcon } from 'lucide-react';
 
 import { ThemeToggler } from '@ui/components/ThemeToggler';
 import { Button } from '@ui/components/ui/button';
 import { Separator } from '@ui/components/ui/separator';
 import { useSidebar } from '@ui/components/ui/sidebar';
-import config from '@ui/config';
-import { useChatStore, useNavigationStore } from '@ui/stores';
-import { NavigationSubViewKey, NavigationViewKey } from '@ui/types';
+import { useChatStore } from '@ui/stores';
 
 import { Breadcrumbs } from './Breadcrumbs';
 
-interface SiteHeaderProps {
-  activeView: NavigationViewKey;
-  activeSubView: NavigationSubViewKey;
-}
-
-export function SiteHeader({ activeView, activeSubView }: SiteHeaderProps) {
+export function SiteHeader() {
   const { toggleSidebar } = useSidebar();
   const { getCurrentChatTitle, createNewChat } = useChatStore();
-  const { setActiveView } = useNavigationStore();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   let breadcrumbs: string[] = [];
-  if (activeView === NavigationViewKey.Chat) {
+  const path = location.pathname;
+
+  if (path.startsWith('/chat')) {
     breadcrumbs = ['Chat', getCurrentChatTitle()];
-  } else if (activeView === NavigationViewKey.LLMProviders) {
-    breadcrumbs = ['LLM Providers', activeSubView.charAt(0).toUpperCase() + activeSubView.slice(1)];
-  } else {
-    breadcrumbs = [config.navigation.find((item) => item.key === activeView)?.title || ''];
+  } else if (path.startsWith('/llm-providers')) {
+    breadcrumbs = ['LLM Providers'];
+    if (path.includes('/ollama')) {
+      breadcrumbs.push('Ollama');
+    } else if (path.includes('/cloud')) {
+      breadcrumbs.push('Cloud');
+    }
+  } else if (path.startsWith('/connectors')) {
+    breadcrumbs = ['Connectors'];
+  } else if (path.startsWith('/settings')) {
+    breadcrumbs = ['Settings'];
+    if (path.includes('/mcp-servers')) {
+      breadcrumbs.push('Servers');
+    } else if (path.includes('/mcp-clients')) {
+      breadcrumbs.push('Clients');
+    } else if (path.includes('/ollama')) {
+      breadcrumbs.push('Ollama');
+    }
   }
 
   return (
@@ -52,7 +63,7 @@ export function SiteHeader({ activeView, activeSubView }: SiteHeaderProps) {
           size="sm"
           onClick={async () => {
             await createNewChat();
-            setActiveView(NavigationViewKey.Chat);
+            navigate({ to: '/chat' });
           }}
           // @ts-expect-error - WebkitAppRegion is not a valid property
           style={{ WebkitAppRegion: 'no-drag' }}
@@ -68,7 +79,7 @@ export function SiteHeader({ activeView, activeSubView }: SiteHeaderProps) {
       >
         {/* @ts-expect-error - WebkitAppRegion is not a valid property */}
         <div style={{ WebkitAppRegion: 'no-drag' }}>
-          <Breadcrumbs breadcrumbs={breadcrumbs} isAnimatedTitle={activeView === NavigationViewKey.Chat} />
+          <Breadcrumbs breadcrumbs={breadcrumbs} isAnimatedTitle={path.startsWith('/chat')} />
         </div>
         {/* @ts-expect-error - WebkitAppRegion is not a valid property */}
         <div className="flex items-center gap-2" style={{ WebkitAppRegion: 'no-drag' }}>

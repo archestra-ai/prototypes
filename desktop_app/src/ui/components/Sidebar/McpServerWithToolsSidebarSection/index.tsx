@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router';
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -16,14 +17,13 @@ import {
 } from '@ui/components/ui/sidebar';
 import { useAvailableTools } from '@ui/hooks/useAvailableTools';
 import { formatToolName } from '@ui/lib/utils/tools';
-import { useChatStore, useNavigationStore } from '@ui/stores';
-import { NavigationViewKey } from '@ui/types';
+import { useChatStore } from '@ui/stores';
 
 interface McpServerWithToolsSidebarSectionProps {}
 
 export default function McpServerWithToolsSidebarSection(_props: McpServerWithToolsSidebarSectionProps) {
   const { selectedTools, setSelectedTools } = useChatStore();
-  const { setActiveView } = useNavigationStore();
+  const navigate = useNavigate();
   const { tools: availableTools, toolsByServer: allToolsByServer, isLoading } = useAvailableTools();
   const [toolSearchQuery, setToolSearchQuery] = useState('');
   const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
@@ -172,7 +172,7 @@ export default function McpServerWithToolsSidebarSection(_props: McpServerWithTo
                   <SidebarMenuButton
                     size="sm"
                     className="justify-start text-muted-foreground"
-                    onClick={() => setActiveView(NavigationViewKey.MCP)}
+                    onClick={() => navigate({ to: '/connectors' })}
                   >
                     <Plus className="h-4 w-4" />
                     <span>Add more</span>

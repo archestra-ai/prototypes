@@ -11,6 +11,7 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
+    "strictNullChecks": true,
     "sourceMap": true,
     "outDir": "dist",
     "moduleResolution": "bundler",

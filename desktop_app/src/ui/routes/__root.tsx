@@ -1,21 +1,20 @@
 import { Outlet, createRootRoute } from '@tanstack/react-router';
-import { TanStackRouterDevtools } from '@tanstack/router-devtools';
+import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 
 import Sidebar from '@ui/components/Sidebar';
-import { SiteHeader } from '@ui/components/SiteHeader';
-import { SidebarProvider } from '@ui/components/ui/sidebar';
+import { SidebarInset } from '@ui/components/ui/sidebar';
 
 export const Route = createRootRoute({
   component: () => (
-    <div className="[--header-height:2.25rem] h-screen flex flex-col">
-      <SidebarProvider className="flex flex-col flex-1">
-        <SiteHeader />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar />
-          <Outlet />
-        </div>
-      </SidebarProvider>
-      {import.meta.env.DEV && <TanStackRouterDevtools />}
-    </div>
+    <>
+      <Sidebar>
+        <SidebarInset className="overflow-hidden h-full">
+          <main className="flex-1 space-y-4 p-4 h-full overflow-y-auto">
+            <Outlet />
+          </main>
+        </SidebarInset>
+      </Sidebar>
+      <TanStackRouterDevtools />
+    </>
   ),
 });
