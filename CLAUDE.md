@@ -72,6 +72,7 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
 - **Backend**: Fastify server running in separate process
 - **Database**: SQLite with Drizzle ORM (snake_case naming)
 - **State Management**: Zustand stores
+- **Routing**: Tanstack Router with file-based routing
 - **Build**: Vite with separate configs for each process
 - **Containerization**: Podman for sandboxing
 
@@ -192,6 +193,15 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Tool caching in `McpServerSandboxManager` after connecting to servers
   - Unique tool identification format: `{serverId}:{toolName}`
   - Dynamic tool rendering in assistant messages with execution states
+- **Routing System** (Tanstack Router):
+  - File-based routing with automatic route generation
+  - Type-safe navigation with `@tanstack/react-router`
+  - Route tree automatically generated at `src/ui/routeTree.gen.ts`
+  - Routes defined in `src/ui/routes/` directory
+  - Layout route at `__root.tsx` provides sidebar wrapper
+  - Nested routes for settings and LLM providers
+  - Auto code-splitting enabled for better performance
+  - Development tools available via `TanStackRouterDevtools`
 
 ### Directory Structure
 
@@ -208,7 +218,8 @@ desktop_app/src/
 │   └── utils/         # Utility functions (paths, binaries, etc.)
 └── ui/
     ├── components/    # React components (don't modify ui/ subdirectory)
-    ├── pages/        # Application pages
+    ├── pages/        # Application pages (being phased out)
+    ├── routes/       # Tanstack Router file-based routes
     ├── stores/       # Zustand state stores
     └── hooks/        # Custom React hooks
 ```
