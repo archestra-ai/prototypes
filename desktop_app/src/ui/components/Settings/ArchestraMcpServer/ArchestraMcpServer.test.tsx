@@ -23,6 +23,7 @@ describe('ArchestraMcpServer', () => {
       state: 'running',
       message: null,
       error: null,
+      hasFetchedTools: true,
     } as ConnectedMcpServer;
     render(<ArchestraMcpServer archestraMcpServer={mockArchestraMcpServer} />);
   });

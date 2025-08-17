@@ -80,7 +80,7 @@ export default function McpServerInstallDialog({
     const newErrors: Record<string, string> = {};
 
     Object.entries(userConfig).forEach(([key, field]) => {
-      const value = configValues[key];
+      const value = configValues?.[key];
 
       // Check required fields
       if (field.required && (value === undefined || value === '')) {
@@ -109,7 +109,7 @@ export default function McpServerInstallDialog({
     if (validateConfig()) {
       // Convert string numbers to actual numbers for number fields
       const processedConfig: McpServerUserConfigValues = {};
-      Object.entries(configValues).forEach(([key, value]) => {
+      Object.entries(configValues || {}).forEach(([key, value]) => {
         const field = userConfig[key];
         if (field?.type === 'number' && typeof value === 'string') {
           processedConfig[key] = Number(value);
@@ -182,7 +182,7 @@ export default function McpServerInstallDialog({
           {hasUserConfig && (
             <div className="space-y-4">
               {Object.entries(userConfig).map(([key, field]) => {
-                const value = configValues[key];
+                const value = configValues?.[key];
                 const error = errors[key];
 
                 if (field.type === 'string') {

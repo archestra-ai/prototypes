@@ -65,7 +65,11 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
 
             // Add think block
             orderedElements.push(
-              <ThinkBlock key={`think-${orderedElements.length}`} content={currentThinkBlock} isStreaming={false} />
+              <ThinkBlock
+                key={`think-${orderedElements.length}`}
+                content={currentThinkBlock || ''}
+                isStreaming={false}
+              />
             );
 
             isInThinkBlock = false;
@@ -113,7 +117,7 @@ export default function AssistantMessage({ message }: AssistantMessageProps) {
     if (accumulatedText.trim()) {
       orderedElements.push(<AIResponse key={`text-${orderedElements.length}`}>{accumulatedText.trim()}</AIResponse>);
     }
-    orderedElements.push(<ThinkBlock key={`think-streaming`} content={currentThinkBlock} isStreaming={true} />);
+    orderedElements.push(<ThinkBlock key={`think-streaming`} content={currentThinkBlock || ''} isStreaming={true} />);
   } else if (accumulatedText.trim()) {
     // Remaining text
     orderedElements.push(<AIResponse key={`text-final`}>{accumulatedText.trim()}</AIResponse>);

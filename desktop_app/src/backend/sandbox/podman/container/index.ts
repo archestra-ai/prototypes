@@ -93,7 +93,7 @@ export default class PodmanContainer {
     );
 
     this.command = command;
-    this.args = args;
+    this.args = args || [];
     this.envVars = env;
 
     // Set the socket path for the container (needed for attach operations)
@@ -377,7 +377,7 @@ export default class PodmanContainer {
    */
   private static injectUserConfigValuesIntoServerConfig = (
     serverConfig: McpServerConfig,
-    userConfigValues: McpServerUserConfigValues
+    userConfigValues: McpServerUserConfigValues | null
   ) => {
     const replaceTemplateVariables = (str: string): string => {
       if (!userConfigValues) return str;
@@ -415,7 +415,7 @@ export default class PodmanContainer {
     return {
       command: processedCommand,
       args: processedArgs,
-      env: processedEnv,
+      env: processedEnv || {},
     };
   };
 

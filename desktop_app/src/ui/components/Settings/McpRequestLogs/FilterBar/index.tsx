@@ -36,7 +36,7 @@ export default function FilterBar({ filters, onFiltersChange, onReset }: FilterB
             <Input
               id="server-filter"
               placeholder="Filter by server..."
-              value={filters.serverName || ''}
+              value={filters?.serverName || ''}
               onChange={(e) => onFiltersChange({ ...filters, serverName: e.target.value || undefined })}
             />
           </div>
@@ -45,7 +45,7 @@ export default function FilterBar({ filters, onFiltersChange, onReset }: FilterB
             <Input
               id="method-filter"
               placeholder="Filter by method..."
-              value={filters.method || ''}
+              value={filters?.method || ''}
               onChange={(e) => onFiltersChange({ ...filters, method: e.target.value || undefined })}
             />
           </div>
@@ -54,14 +54,14 @@ export default function FilterBar({ filters, onFiltersChange, onReset }: FilterB
             <Input
               id="session-filter"
               placeholder="Filter by session..."
-              value={filters.mcpSessionId || ''}
+              value={filters?.mcpSessionId || ''}
               onChange={(e) => onFiltersChange({ ...filters, mcpSessionId: e.target.value || undefined })}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="status-filter">Status Code</Label>
             <Select
-              value={filters.status || 'all'}
+              value={filters?.status || 'all'}
               onValueChange={(value) =>
                 onFiltersChange({
                   ...filters,

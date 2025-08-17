@@ -99,7 +99,7 @@ export const useConnectorCatalogStore = create<ConnectorCatalogStore>((set, get)
     try {
       set({ loadingConnectorCatalogCategories: true, errorFetchingConnectorCatalogCategories: null });
       const { data } = await getMcpServerCategories();
-      set({ connectorCatalogCategories: data.categories });
+      set({ connectorCatalogCategories: data?.categories || [] });
     } catch (error) {
       set({ errorFetchingConnectorCatalogCategories: error as string });
     } finally {

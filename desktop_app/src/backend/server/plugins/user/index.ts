@@ -1,4 +1,4 @@
-import { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 
 import UserModel, { PatchUserSchema, SelectUserSchema as UserSchema } from '@backend/models/user';
@@ -9,7 +9,7 @@ import UserModel, { PatchUserSchema, SelectUserSchema as UserSchema } from '@bac
  */
 z.globalRegistry.add(UserSchema, { id: 'User' });
 
-const userRoutes: FastifyPluginAsync = async (fastify) => {
+const userRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
     '/api/user',
     {

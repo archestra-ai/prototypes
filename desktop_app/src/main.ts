@@ -88,22 +88,26 @@ async function startBackendServer(): Promise<void> {
       const existingProcess = serverProcess;
 
       // Set up a one-time listener for the exit event
-      existingProcess.once('exit', () => {
-        log.info('Previous server process has exited');
-        resolve();
-      });
+      if (existingProcess) {
+        existingProcess.once('exit', () => {
+          log.info('Previous server process has exited');
+          resolve();
+        });
 
-      // Send SIGTERM to trigger graceful shutdown
-      existingProcess.kill('SIGTERM');
+        // Send SIGTERM to trigger graceful shutdown
+        existingProcess.kill('SIGTERM');
 
-      // If process doesn't exit after 5 seconds, force kill it
-      setTimeout(() => {
-        if (existingProcess.killed === false) {
-          log.warn('Server process did not exit gracefully, force killing');
-          existingProcess.kill('SIGKILL');
-        }
+        // If process doesn't exit after 5 seconds, force kill it
+        setTimeout(() => {
+          if (existingProcess.killed === false) {
+            log.warn('Server process did not exit gracefully, force killing');
+            existingProcess.kill('SIGKILL');
+          }
+          resolve();
+        }, 5000);
+      } else {
         resolve();
-      }, 5000);
+      }
     });
 
     // Wait a bit more to ensure ports are released
