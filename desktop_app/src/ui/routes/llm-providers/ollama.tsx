@@ -73,7 +73,7 @@ function OllamaProviderPage() {
             />
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             <Checkbox
               id="tool-calls-filter"
               checked={toolCallsOnly}
@@ -105,7 +105,7 @@ function OllamaProviderPage() {
       </div>
 
       <ScrollArea className="h-[600px]">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
           {filteredModels.map((model) => (
             <Card key={model.name} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
@@ -117,7 +117,7 @@ function OllamaProviderPage() {
                 <p className="text-sm text-muted-foreground leading-relaxed">{model.description}</p>
               </CardHeader>
 
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3">
                 <div className="flex flex-wrap gap-2">
                   {model.labels.map((label) => (
                     <Badge key={label} variant="outline" className="text-xs">
@@ -126,7 +126,7 @@ function OllamaProviderPage() {
                   ))}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="text-sm font-medium flex items-center gap-1">
                     <HardDrive className="h-4 w-4" />
                     Available Sizes

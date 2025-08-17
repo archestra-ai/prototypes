@@ -14,7 +14,7 @@ function McpServersSettings() {
   const archestraMcpServerIsLoading = archestraMcpServer === null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {archestraMcpServerIsLoading ? (
         <div>Loading Archestra MCP server...</div>
       ) : (

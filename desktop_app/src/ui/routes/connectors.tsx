@@ -71,9 +71,9 @@ function ConnectorCatalogPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Header with search and filters */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div>
           <h1 className="text-3xl font-bold">MCP Server Catalog</h1>
           <p className="text-muted-foreground mt-1">

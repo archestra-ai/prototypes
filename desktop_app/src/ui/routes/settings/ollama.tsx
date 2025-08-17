@@ -14,7 +14,7 @@ function OllamaSettings() {
     <div className="space-y-3">
       <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-950/20">
         <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-        <AlertDescription className="text-blue-800 dark:text-blue-200">
+        <AlertDescription className="text-blue-800 dark:text-blue-200 inline-block">
           We use{' '}
           <a
             href="https://ollama.com"
@@ -22,7 +22,7 @@ function OllamaSettings() {
               e.preventDefault();
               window.electronAPI.openExternal('https://ollama.com');
             }}
-            className="underline hover:no-underline font-medium inline"
+            className="underline hover:no-underline font-medium"
           >
             Ollama
           </a>{' '}
