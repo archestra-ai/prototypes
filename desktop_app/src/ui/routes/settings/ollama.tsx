@@ -1,12 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { AlertCircle, Bot, CheckCircle, Download, Loader2 } from 'lucide-react';
+import { AlertCircle, Bot, CheckCircle, Loader2 } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@ui/components/ui/alert';
 import { Badge } from '@ui/components/ui/badge';
-import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@ui/components/ui/card';
 import { Progress } from '@ui/components/ui/progress';
-import { downloadOllamaModel } from '@ui/lib/clients/archestra/api/gen';
 import { useOllamaStore } from '@ui/stores/ollama-store';
 
 export const Route = createFileRoute('/settings/ollama')({
@@ -15,14 +13,6 @@ export const Route = createFileRoute('/settings/ollama')({
 
 function OllamaSettings() {
   const { requiredModelsStatus, requiredModelsDownloadProgress, loadingRequiredModels } = useOllamaStore();
-
-  const handleDownloadModel = async (modelName: string) => {
-    try {
-      await downloadOllamaModel({ body: { model: modelName } });
-    } catch (error) {
-      console.error('Failed to trigger model download:', error);
-    }
-  };
 
   return (
     <div className="space-y-3">
@@ -119,17 +109,6 @@ function OllamaSettings() {
                           <p className="text-xs text-red-600 mt-1">{progress.message || 'Download failed'}</p>
                         )}
                       </div>
-                      {!model.installed && !isDownloading && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDownloadModel(model.model)}
-                          className="ml-2"
-                        >
-                          <Download className="h-4 w-4 mr-1" />
-                          Download
-                        </Button>
-                      )}
                     </div>
                   );
                 })}
