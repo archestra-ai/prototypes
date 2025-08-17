@@ -6,6 +6,27 @@
   },
   "components": {
     "schemas": {
+      "OllamaModelDownloadProgressInput": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["downloading", "verifying", "completed", "error"]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["model", "status"]
+      },
       "SandboxStatusSummaryInput": {
         "type": "object",
         "properties": {
@@ -135,6 +156,19 @@
               },
               "payload": {
                 "$ref": "#/components/schemas/SandboxStatusSummaryInput"
+              }
+            },
+            "required": ["type", "payload"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["ollama-model-download-progress"]
+              },
+              "payload": {
+                "$ref": "#/components/schemas/OllamaModelDownloadProgressInput"
               }
             },
             "required": ["type", "payload"]
@@ -622,6 +656,21 @@
         },
         "required": ["id", "name", "mcpServerId", "mcpServerName"]
       },
+      "OllamaRequiredModelStatusInput": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "installed": {
+            "type": "boolean"
+          }
+        },
+        "required": ["model", "reason", "installed"]
+      },
       "UserInput": {
         "type": "object",
         "properties": {
@@ -644,6 +693,28 @@
           }
         },
         "required": ["id", "hasCompletedOnboarding", "collectTelemetryData", "createdAt", "updatedAt"]
+      },
+      "OllamaModelDownloadProgress": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["downloading", "verifying", "completed", "error"]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["model", "status"],
+        "additionalProperties": false
       },
       "SandboxStatusSummary": {
         "type": "object",
@@ -779,6 +850,20 @@
               },
               "payload": {
                 "$ref": "#/components/schemas/SandboxStatusSummary"
+              }
+            },
+            "required": ["type", "payload"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["ollama-model-download-progress"]
+              },
+              "payload": {
+                "$ref": "#/components/schemas/OllamaModelDownloadProgress"
               }
             },
             "required": ["type", "payload"],
@@ -1276,6 +1361,22 @@
           }
         },
         "required": ["id", "name", "mcpServerId", "mcpServerName"],
+        "additionalProperties": false
+      },
+      "OllamaRequiredModelStatus": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "installed": {
+            "type": "boolean"
+          }
+        },
+        "required": ["model", "reason", "installed"],
         "additionalProperties": false
       },
       "User": {
@@ -2318,6 +2419,35 @@
                   "items": {
                     "$ref": "#/components/schemas/AvailableTool"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ollama/required-models": {
+      "get": {
+        "operationId": "getOllamaRequiredModelsStatus",
+        "tags": ["MCP Server"],
+        "description": "Get the status of all Ollama required models",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OllamaRequiredModelStatus"
+                      }
+                    }
+                  },
+                  "required": ["models"],
+                  "additionalProperties": false
                 }
               }
             }

@@ -68,7 +68,14 @@ async function generateOpenAPISpec() {
 
   app.register(autoLoad, {
     dir: path.join(__dirname, '../../../src/backend/server/plugins'),
-    ignorePattern: /(^llm$|^mcp$|ollama)/, // Skip llm, mcp (exact match), and ollama plugin directories
+    // ignorePattern: /(^llm$|^mcp$)/, // Skip llm or mcp (exact match) plugin directories
+    ignoreFilter: (path) => {
+      const llmProxyPath = path.startsWith('/llm/');
+      const archestraMcpServerPath = path.startsWith('/mcp/');
+      const ollamaProxyPath = path.startsWith('/ollama/proxy');
+
+      return llmProxyPath || archestraMcpServerPath || ollamaProxyPath;
+    },
     dirNameRoutePrefix: false, // Disable automatic directory-based prefixing for clean API names
   });
 

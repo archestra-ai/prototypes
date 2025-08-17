@@ -2,6 +2,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { z } from 'zod';
 
 import config from '@backend/config';
+import { OllamaModelDownloadProgressWebsocketPayloadSchema } from '@backend/llms/ollama/client';
 import McpServerSandboxManager, { SandboxStatusSummarySchema } from '@backend/sandbox/manager';
 import log from '@backend/utils/logger';
 
@@ -13,6 +14,10 @@ const ChatTitleUpdatedPayloadSchema = z.object({
 export const WebSocketMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('chat-title-updated'), payload: ChatTitleUpdatedPayloadSchema }),
   z.object({ type: z.literal('sandbox-status-update'), payload: SandboxStatusSummarySchema }),
+  z.object({
+    type: z.literal('ollama-model-download-progress'),
+    payload: OllamaModelDownloadProgressWebsocketPayloadSchema,
+  }),
 ]);
 
 // type ChatTitleUpdatedPayload = z.infer<typeof ChatTitleUpdatedPayloadSchema>;

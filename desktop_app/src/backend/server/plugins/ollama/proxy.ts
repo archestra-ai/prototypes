@@ -1,12 +1,18 @@
 import FastifyHttpProxy from '@fastify/http-proxy';
-import { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import config from '@backend/config';
 
-const ollamaRoutes: FastifyPluginAsync = async (fastify) => {
+const {
+  ollama: {
+    server: { host: ollamaServerHost },
+  },
+} = config;
+
+const ollamaProxyRoutes: FastifyPluginAsyncZod = async (fastify) => {
   // Register proxy for all Ollama API routes
   fastify.register(FastifyHttpProxy, {
-    upstream: config.ollama.server.host,
+    upstream: ollamaServerHost,
     prefix: '/llm/ollama', // All requests to /llm/ollama/* will be proxied
     rewritePrefix: '', // Remove the /llm/ollama prefix when forwarding
     websocket: false, // Disable WebSocket to avoid conflicts with existing WebSocket plugin
@@ -33,7 +39,7 @@ const ollamaRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Log proxy registration
-  fastify.log.info(`Ollama proxy registered: /llm/ollama/* -> ${config.ollama.server.host}/*`);
+  fastify.log.info(`Ollama proxy registered: /llm/ollama/* -> ${ollamaServerHost}/*`);
 };
 
-export default ollamaRoutes;
+export default ollamaProxyRoutes;

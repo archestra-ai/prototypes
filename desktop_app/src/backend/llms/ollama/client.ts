@@ -2,6 +2,14 @@ import { z } from 'zod';
 
 import config from '@backend/config';
 import log from '@backend/utils/logger';
+import WebSocketService from '@backend/websocket';
+
+export const OllamaModelDownloadProgressWebsocketPayloadSchema = z.object({
+  model: z.string(),
+  status: z.enum(['downloading', 'verifying', 'completed', 'error']),
+  progress: z.number().min(0).max(100).optional(),
+  message: z.string().optional(),
+});
 
 const OllamaGenerateRequestSchema = z.object({
   model: z.string(),
@@ -36,7 +44,7 @@ const OllamaGenerateResponseSchema = z.object({
 const OllamaPullRequestSchema = z.object({
   name: z.string(),
   insecure: z.boolean().optional(),
-  stream: z.boolean().optional().default(true),
+  stream: z.boolean().optional(),
 });
 
 const OllamaPullResponseSchema = z.object({
@@ -66,6 +74,14 @@ const OllamaListResponseSchema = z.object({
         .optional(),
     })
   ),
+});
+
+/**
+ * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
+ * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
+ */
+z.globalRegistry.add(OllamaModelDownloadProgressWebsocketPayloadSchema, {
+  id: 'OllamaModelDownloadProgress',
 });
 
 type OllamaGenerateRequest = z.infer<typeof OllamaGenerateRequestSchema>;
@@ -111,54 +127,116 @@ class OllamaClient {
    */
   async pull(request: OllamaPullRequest): Promise<void> {
     try {
+      // Always use streaming to get progress updates
+      const streamingRequest = { ...request, stream: true };
+
       const response = await fetch(`${this.baseUrl}/api/pull`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify(streamingRequest),
       });
 
       if (!response.ok) {
         throw new Error(`Ollama pull failed: ${response.status} ${response.statusText}`);
       }
 
-      // Handle streaming response
-      if (request.stream) {
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-        if (!reader) {
-          throw new Error('No response body');
-        }
+      if (!reader) {
+        throw new Error('No response body');
+      }
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+      // Broadcast initial downloading status
+      WebSocketService.broadcast({
+        type: 'ollama-model-download-progress',
+        payload: {
+          model: request.name,
+          status: 'downloading',
+          progress: 0,
+        },
+      });
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n').filter((line) => line.trim());
+      let lastBroadcastedProgress = 0;
+      let lastStatus: 'downloading' | 'verifying' | 'completed' = 'downloading';
 
-          for (const line of lines) {
-            try {
-              const data = JSON.parse(line);
-              const parsed = OllamaPullResponseSchema.parse(data);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-              if (parsed.total && parsed.completed) {
-                const percentage = Math.round((parsed.completed / parsed.total) * 100);
-                log.info(`Pulling ${request.name}: ${percentage}% (${parsed.status})`);
-              } else {
-                log.info(`Pulling ${request.name}: ${parsed.status}`);
-              }
-            } catch (e) {
-              // Skip invalid JSON lines
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter((line) => line.trim());
+
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            const parsed = OllamaPullResponseSchema.parse(data);
+
+            let status: 'downloading' | 'verifying' | 'completed' = 'downloading';
+            let progress: number | undefined;
+
+            if (parsed.status === 'success') {
+              status = 'completed';
+              progress = 100;
+            } else if (parsed.status.includes('verifying')) {
+              status = 'verifying';
+            } else if (parsed.total && parsed.completed) {
+              progress = Math.round((parsed.completed / parsed.total) * 100);
             }
+
+            // Only broadcast if we have a meaningful update:
+            // - Status changed
+            // - Progress increased by at least 1 integer percentage
+            // - Completed
+            const shouldBroadcast =
+              status !== lastStatus ||
+              (progress !== undefined && progress > lastBroadcastedProgress) ||
+              status === 'completed';
+
+            if (shouldBroadcast) {
+              WebSocketService.broadcast({
+                type: 'ollama-model-download-progress',
+                payload: {
+                  model: request.name,
+                  status,
+                  progress,
+                  message: parsed.status,
+                },
+              });
+
+              if (progress !== undefined) {
+                lastBroadcastedProgress = progress;
+              }
+              lastStatus = status;
+            }
+          } catch (e) {
+            // Skip invalid JSON lines
           }
         }
-      } else {
-        await response.json();
       }
+
+      // Ensure we broadcast completion
+      WebSocketService.broadcast({
+        type: 'ollama-model-download-progress',
+        payload: {
+          model: request.name,
+          status: 'completed',
+          progress: 100,
+        },
+      });
     } catch (error) {
+      // Broadcast error status
+      WebSocketService.broadcast({
+        type: 'ollama-model-download-progress',
+        payload: {
+          model: request.name,
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        },
+      });
+
       log.error(`Failed to pull model ${request.name}:`, error);
       throw error;
     }
@@ -244,11 +322,11 @@ The title should capture the main topic or theme of the conversation. Respond wi
       const installedModelNames = installedModels.map((m) => m.name);
 
       // Check each required model
-      for (const modelName of config.ollama.requiredModels) {
+      for (const { model: modelName } of config.ollama.requiredModels) {
         if (!installedModelNames.includes(modelName)) {
           log.info(`Required model '${modelName}' not found. Downloading...`);
           try {
-            await this.pull({ name: modelName, stream: false });
+            await this.pull({ name: modelName });
             log.info(`Successfully downloaded model '${modelName}'`);
           } catch (error) {
             log.error(`Failed to download model '${modelName}':`, error);

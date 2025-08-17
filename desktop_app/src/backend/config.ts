@@ -28,11 +28,16 @@ export default {
       host: `http://localhost:${OLLAMA_SERVER_PORT}`,
       port: OLLAMA_SERVER_PORT,
     },
-    /**
-     * llama-guard3 for guard model
-     * phi3 for general tasks (ex. "tools analysis", chat summarization (for title))
-     */
-    requiredModels: ['llama-guard3:1b', 'phi3:3.8b'],
+    requiredModels: [
+      {
+        model: 'llama-guard3:1b',
+        reason: 'Guard model for safety checks',
+      },
+      {
+        model: 'phi3:3.8b',
+        reason: 'General tasks (tools analysis, chat summarization)',
+      },
+    ],
   },
   sandbox: {
     baseDockerImage:

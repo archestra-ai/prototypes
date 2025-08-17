@@ -2,8 +2,14 @@ import { ModelResponse } from 'ollama/browser';
 import { create } from 'zustand';
 
 import config from '@ui/config';
+import {
+  OllamaModelDownloadProgress,
+  OllamaRequiredModelStatus,
+  getOllamaRequiredModelsStatus,
+} from '@ui/lib/clients/archestra/api/gen';
 import { ArchestraOllamaClient } from '@ui/lib/clients/ollama';
 import { OllamaLocalStorage } from '@ui/lib/localStorage';
+import websocketService from '@ui/lib/websocket';
 
 import { AVAILABLE_MODELS } from './available_models';
 
@@ -16,12 +22,19 @@ interface OllamaState {
   loadingInstalledModelsError: Error | null;
   selectedModel: string;
   modelsBeingDownloaded: Set<string>;
+
+  requiredModelsStatus: OllamaRequiredModelStatus[];
+  requiredModelsDownloadProgress: Record<string, OllamaModelDownloadProgress>;
+  loadingRequiredModels: boolean;
 }
 
 interface OllamaActions {
   downloadModel: (fullModelName: string) => Promise<void>;
   fetchInstalledModels: () => Promise<void>;
   setSelectedModel: (model: string) => void;
+
+  fetchRequiredModelsStatus: () => Promise<void>;
+  updateRequiredModelDownloadProgress: (progress: OllamaModelDownloadProgress) => void;
 }
 
 type OllamaStore = OllamaState & OllamaActions;
@@ -34,6 +47,9 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
   loadingInstalledModelsError: null,
   selectedModel: OllamaLocalStorage.getSelectedModel() || '',
   modelsBeingDownloaded: new Set(),
+  requiredModelsStatus: [],
+  requiredModelsDownloadProgress: {},
+  loadingRequiredModels: true,
 
   // Actions
   fetchInstalledModels: async () => {
@@ -128,10 +144,36 @@ export const useOllamaStore = create<OllamaStore>((set, get) => ({
     OllamaLocalStorage.setSelectedModel(model);
     set({ selectedModel: model });
   },
+
+  fetchRequiredModelsStatus: async () => {
+    try {
+      const { data } = await getOllamaRequiredModelsStatus();
+      if (data) {
+        set({ requiredModelsStatus: data.models, loadingRequiredModels: false });
+      }
+    } catch (error) {
+      console.error('Failed to fetch required models:', error);
+      set({ loadingRequiredModels: false });
+    }
+  },
+
+  updateRequiredModelDownloadProgress: (progress: OllamaModelDownloadProgress) => {
+    set((state) => ({
+      requiredModelsDownloadProgress: {
+        ...state.requiredModelsDownloadProgress,
+        [progress.model]: progress,
+      },
+    }));
+  },
 }));
 
-// Fetch installed models on store creation
+// Fetch installed/required-models-status on store creation
 useOllamaStore.getState().fetchInstalledModels();
+useOllamaStore.getState().fetchRequiredModelsStatus();
+
+websocketService.subscribe('ollama-model-download-progress', ({ payload }) => {
+  useOllamaStore.getState().updateRequiredModelDownloadProgress(payload);
+});
 
 // Computed values as selectors
 export const useAvailableModels = () => AVAILABLE_MODELS;
