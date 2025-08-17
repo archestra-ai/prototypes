@@ -33,3 +33,19 @@ Archestra is an enterprise-grade platform that enables non-technical users to sa
 - 💻 **Local-First Architecture** - Privacy-focused design with local LLM
 - 🎯 **Enterprise Ready** - Built for non-technical users with enterprise-level security and compliance
 - 🔧 **Extensible Tool System** - Support most of MCP servers: GitHub, Gmail, Slack, PostgreSQL, filesystem, and more
+
+## Developer Quickstart
+
+To build and start the local Electron application:
+
+```bash
+# Clone the repository
+git clone https://github.com/archestra-ai/archestra.git
+cd archestra/desktop_app
+
+# Install dependencies
+pnpm install
+
+# Start the application
+pnpm start
+```

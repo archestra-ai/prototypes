@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **ALWAYS run all commands from the `desktop_app/` directory unless specifically instructed otherwise.**
 
+Note: The README.md includes a Developer Quickstart section that shows basic setup steps. When following those instructions, ensure you're in the `desktop_app/` directory for all commands after cloning.
+
 ## Important Rules
 
 1. **NEVER modify files in `src/ui/components/ui/`** - These are shadcn/ui components and should remain unchanged
