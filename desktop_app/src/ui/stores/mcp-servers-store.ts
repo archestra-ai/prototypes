@@ -86,7 +86,7 @@ const initializeConnectedMcpServerTools = async (
     ...tool,
     server: {
       id: server.id,
-      name: server.name,
+      name: server.name || 'Unnamed Server',
     },
     enabled: true,
   }));
@@ -214,7 +214,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
       if (requiresOAuth) {
         // Start OAuth flow
         const { data } = await startMcpServerOauth({
-          body: { catalogName: id },
+          body: { catalogName: id || '' },
         });
 
         if (data) {

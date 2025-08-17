@@ -27,7 +27,7 @@ export const mcpServersTable = sqliteTable('mcp_servers', {
   /**
    * Display name (from catalog or user-defined for custom)
    */
-  name: text(),
+  name: text().notNull(),
   /**
    * https://orm.drizzle.team/docs/column-types/sqlite#blob
    */

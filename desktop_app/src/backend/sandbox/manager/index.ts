@@ -123,6 +123,10 @@ class McpServerSandboxManager {
     const { id, name } = mcpServer;
     log.info(`Starting MCP server: id="${id}", name="${name}"`);
 
+    if (!this.socketPath) {
+      throw new Error('Socket path is not initialized');
+    }
+
     const container = new PodmanContainer(mcpServer, this.socketPath);
     await container.startOrCreateContainer();
 

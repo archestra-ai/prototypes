@@ -57,7 +57,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ isLoadingChats: true });
     try {
       const { data } = await getChats();
-      if (data.length > 0) {
+      if (data && data.length > 0) {
         const initializedChats = data.map(initializeChat);
         set({
           chats: initializedChats,

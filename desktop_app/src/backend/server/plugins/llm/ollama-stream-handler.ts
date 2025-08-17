@@ -187,7 +187,7 @@ export async function handleOllamaStream(
           isProcessingToolCall = true;
           hasToolCallsInStep = true;
 
-          for (const toolCall of chunk.message.tool_calls) {
+          for (const toolCall of chunk.message.tool_calls || []) {
             // Check if this is a new tool call or continuation
             if (toolCall.function?.name) {
               const toolCallId = generateId();

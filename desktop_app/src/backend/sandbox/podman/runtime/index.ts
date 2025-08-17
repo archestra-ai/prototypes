@@ -33,7 +33,7 @@ type RunCommandPipes<T extends object | object[]> = {
     attemptToParseOutputAsJson?: boolean;
   };
   onStderr?: (data: string) => void;
-  onExit?: (code: number, signal: string) => void;
+  onExit?: (code: number | null, signal: string | null) => void;
   onError?: (error: Error) => void;
 };
 
@@ -482,7 +482,7 @@ export default class PodmanRuntime {
    * if the machine is done starting up, we show messages/errors related to the base image pull
    */
   get statusSummary(): PodmanRuntimeStatusSummary {
-    let startupMessage: string;
+    let startupMessage: string | null;
     let startupError: string | null;
 
     if (this.machineStartupPercentage < 100) {
