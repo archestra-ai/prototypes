@@ -5,7 +5,6 @@ export { useDeveloperModeStore } from './developer-mode-store';
 export { useExternalMcpClientsStore } from './external-mcp-clients-store';
 export { useMcpLogsStore } from './mcp-logs-store';
 export { useMcpServersStore } from './mcp-servers-store';
-export { useNavigationStore } from './navigation-store';
 export { useAllAvailableModelLabels, useAvailableModels, useOllamaStore } from './ollama-store';
 export { useSandboxStore } from './sandbox-store';
 export { useSecurityTestStore } from './security-test-store';

@@ -521,15 +521,7 @@
             "type": "string"
           },
           "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "nullable": true,
-                "enum": [null]
-              }
-            ]
+            "type": "string"
           },
           "serverConfig": {
             "type": "object",
@@ -1182,15 +1174,7 @@
             "type": "string"
           },
           "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "nullable": true,
-                "enum": [null]
-              }
-            ]
+            "type": "string"
           },
           "serverConfig": {
             "type": "object",

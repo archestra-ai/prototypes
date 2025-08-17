@@ -132,7 +132,7 @@ export type McpRequestLogFilterStatusInput = 'HTTP 200' | 'HTTP 40x' | 'HTTP 50x
 
 export type McpServerInput = {
   id: string;
-  name: string | null;
+  name: string;
   serverConfig: {
     command: string;
     args?: Array<string>;
@@ -318,7 +318,7 @@ export type McpRequestLogFilterStatus = 'HTTP 200' | 'HTTP 40x' | 'HTTP 50x';
 
 export type McpServer = {
   id: string;
-  name: string | null;
+  name: string;
   serverConfig: {
     command: string;
     args?: Array<string>;

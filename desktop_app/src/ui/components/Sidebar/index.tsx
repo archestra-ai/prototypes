@@ -1,79 +1,141 @@
+import { Link, useLocation } from '@tanstack/react-router';
+import { Bot, ChevronRight, Download, MessageCircle, Settings } from 'lucide-react';
 import * as React from 'react';
 
 import { SiteHeader } from '@ui/components/SiteHeader';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/components/ui/collapsible';
 import {
   Sidebar as SidebarBase,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
 } from '@ui/components/ui/sidebar';
-import config from '@ui/config';
-import { useNavigationStore } from '@ui/stores';
-import { NavigationSubViewKey, NavigationViewKey } from '@ui/types';
 
 import ChatSidebarSection from './ChatSidebarSection';
-import LLMProvidersSidebarSection from './LLMProvidersSidebarSection';
 import McpServerWithToolsSidebarSection from './McpServerWithToolsSidebarSection';
 
 interface SidebarProps extends React.PropsWithChildren {}
 
 export default function Sidebar({ children }: SidebarProps) {
-  const { activeView, activeSubView, setActiveView, setActiveSubView } = useNavigationStore();
+  const location = useLocation();
+  const isChat = location.pathname.startsWith('/chat');
+  const [llmProvidersOpen, setLlmProvidersOpen] = React.useState(location.pathname.startsWith('/llm-providers'));
+  const [settingsOpen, setSettingsOpen] = React.useState(location.pathname.startsWith('/settings'));
 
   return (
-    <SidebarProvider className="flex flex-col flex-1">
-      <SiteHeader activeView={activeView} activeSubView={activeSubView} />
-      <div className="flex flex-1 overflow-hidden">
-        <SidebarBase
-          collapsible="icon"
-          className="border-r top-[var(--header-height)] h-[calc(100svh-var(--header-height))]"
-        >
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {config.navigation.map((item) => (
-                    <React.Fragment key={item.key}>
+    <div className="[--header-height:2.25rem] h-screen flex flex-col">
+      <SidebarProvider className="flex flex-col flex-1">
+        <SiteHeader />
+        <div className="flex flex-1 overflow-hidden">
+          <SidebarBase
+            collapsible="icon"
+            className="border-r top-[var(--header-height)] h-[calc(100svh-var(--header-height))]"
+          >
+            <SidebarContent>
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild isActive={location.pathname.startsWith('/chat')}>
+                        <Link to="/chat">
+                          <MessageCircle className="h-4 w-4" />
+                          <span>Chat</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    {isChat && <ChatSidebarSection />}
+
+                    <Collapsible open={llmProvidersOpen} onOpenChange={setLlmProvidersOpen}>
                       <SidebarMenuItem>
-                        <SidebarMenuButton
-                          onClick={() => {
-                            setActiveView(item.key);
-                            // TODO: when we add more LLM providers, we need to add a proper sub-navigation here
-                            if (item.key === NavigationViewKey.LLMProviders) {
-                              setActiveSubView(NavigationSubViewKey.Ollama);
-                            }
-                          }}
-                          isActive={activeView === item.key}
-                          tooltip={item.title}
-                          className="cursor-pointer hover:bg-accent/50"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </SidebarMenuButton>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton isActive={location.pathname.startsWith('/llm-providers')}>
+                            <Download className="h-4 w-4" />
+                            <span>LLM Providers</span>
+                            <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-90" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location.pathname === '/llm-providers/ollama'}>
+                                <Link to="/llm-providers/ollama">
+                                  <span>Ollama</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location.pathname === '/llm-providers/cloud'}>
+                                <Link to="/llm-providers/cloud">
+                                  <span>Cloud</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
                       </SidebarMenuItem>
-                      {item.key === NavigationViewKey.Chat && activeView === NavigationViewKey.Chat && (
-                        <ChatSidebarSection />
-                      )}
-                      {item.key === NavigationViewKey.LLMProviders && activeView === NavigationViewKey.LLMProviders && (
-                        <LLMProvidersSidebarSection />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-            {activeView === NavigationViewKey.Chat && <McpServerWithToolsSidebarSection />}
-          </SidebarContent>
-        </SidebarBase>
-        <SidebarInset className="overflow-hidden">
-          <main className="flex-1 space-y-4 overflow-y-auto">{children}</main>
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+                    </Collapsible>
+
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild isActive={location.pathname.startsWith('/connectors')}>
+                        <Link to="/connectors">
+                          <Bot className="h-4 w-4" />
+                          <span>Connectors</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton isActive={location.pathname.startsWith('/settings')}>
+                            <Settings className="h-4 w-4" />
+                            <span>Settings</span>
+                            <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-90" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location.pathname === '/settings/mcp-servers'}>
+                                <Link to="/settings/mcp-servers">
+                                  <span>Servers</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location.pathname === '/settings/mcp-clients'}>
+                                <Link to="/settings/mcp-clients">
+                                  <span>Clients</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location.pathname === '/settings/ollama'}>
+                                <Link to="/settings/ollama">
+                                  <span>Ollama</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+              {isChat && <McpServerWithToolsSidebarSection />}
+            </SidebarContent>
+          </SidebarBase>
+          {children}
+        </div>
+      </SidebarProvider>
+    </div>
   );
 }
