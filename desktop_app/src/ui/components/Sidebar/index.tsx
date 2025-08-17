@@ -1,5 +1,5 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import { Bot, ChevronRight, Download, MessageCircle, Server, Settings, Users } from 'lucide-react';
+import { Bot, ChevronRight, Download, MessageCircle, Settings } from 'lucide-react';
 import * as React from 'react';
 
 import { SiteHeader } from '@ui/components/SiteHeader';
@@ -9,8 +9,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -72,6 +70,13 @@ export default function Sidebar({ children }: SidebarProps) {
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={location.pathname === '/llm-providers/cloud'}>
+                                <Link to="/llm-providers/cloud">
+                                  <span>Cloud</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
                           </SidebarMenuSub>
                         </CollapsibleContent>
                       </SidebarMenuItem>
@@ -100,7 +105,6 @@ export default function Sidebar({ children }: SidebarProps) {
                             <SidebarMenuSubItem>
                               <SidebarMenuSubButton asChild isActive={location.pathname === '/settings/mcp-servers'}>
                                 <Link to="/settings/mcp-servers">
-                                  <Server className="h-3 w-3" />
                                   <span>Servers</span>
                                 </Link>
                               </SidebarMenuSubButton>
@@ -108,7 +112,6 @@ export default function Sidebar({ children }: SidebarProps) {
                             <SidebarMenuSubItem>
                               <SidebarMenuSubButton asChild isActive={location.pathname === '/settings/mcp-clients'}>
                                 <Link to="/settings/mcp-clients">
-                                  <Users className="h-3 w-3" />
                                   <span>Clients</span>
                                 </Link>
                               </SidebarMenuSubButton>

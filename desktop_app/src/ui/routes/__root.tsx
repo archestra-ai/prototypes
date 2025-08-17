@@ -3,6 +3,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 
 import Sidebar from '@ui/components/Sidebar';
 import { SidebarInset } from '@ui/components/ui/sidebar';
+import config from '@ui/config';
 
 export const Route = createRootRoute({
   component: () => (
@@ -14,7 +15,7 @@ export const Route = createRootRoute({
           </main>
         </SidebarInset>
       </Sidebar>
-      <TanStackRouterDevtools />
+      {config.debug && <TanStackRouterDevtools />}
     </>
   ),
 });

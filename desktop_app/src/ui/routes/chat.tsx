@@ -3,10 +3,10 @@ import { createFileRoute } from '@tanstack/react-router';
 import { DefaultChatTransport } from 'ai';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import ChatHistory from '@ui/components/Chat/ChatHistory';
+import ChatInput from '@ui/components/Chat/ChatInput';
+import SystemPrompt from '@ui/components/Chat/SystemPrompt';
 import config from '@ui/config';
-import ChatHistory from '@ui/pages/ChatPage/ChatHistory';
-import ChatInput from '@ui/pages/ChatPage/ChatInput';
-import SystemPrompt from '@ui/pages/ChatPage/SystemPrompt';
 import { useChatStore, useCloudProvidersStore, useOllamaStore } from '@ui/stores';
 
 export const Route = createFileRoute('/chat')({

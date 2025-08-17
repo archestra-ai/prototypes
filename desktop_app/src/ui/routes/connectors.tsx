@@ -2,12 +2,12 @@ import { createFileRoute } from '@tanstack/react-router';
 import { Filter, Package, Search } from 'lucide-react';
 import { useState } from 'react';
 
+import AlphaDisclaimerMessage from '@ui/components/ConnectorCatalog/AlphaDisclaimerMessage';
+import McpServer from '@ui/components/ConnectorCatalog/McpServer';
+import McpServerInstallDialog from '@ui/components/ConnectorCatalog/McpServerInstallDialog';
 import { Input } from '@ui/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@ui/components/ui/select';
 import { ArchestraMcpServerManifest } from '@ui/lib/clients/archestra/catalog/gen';
-import AlphaDisclaimerMessage from '@ui/pages/ConnectorCatalogPage/AlphaDisclaimerMessage';
-import McpServer from '@ui/pages/ConnectorCatalogPage/McpServer';
-import McpServerInstallDialog from '@ui/pages/ConnectorCatalogPage/McpServerInstallDialog';
 import { useConnectorCatalogStore, useMcpServersStore } from '@ui/stores';
 import { type McpServerUserConfigValues } from '@ui/types';
 
