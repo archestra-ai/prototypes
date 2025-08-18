@@ -42,6 +42,8 @@ import type {
   GetMcpServerLogsResponses,
   GetMcpServersData,
   GetMcpServersResponses,
+  GetOllamaRequiredModelsStatusData,
+  GetOllamaRequiredModelsStatusResponses,
   GetSupportedExternalMcpClientsData,
   GetSupportedExternalMcpClientsResponses,
   GetUserData,
@@ -369,6 +371,18 @@ export const getAvailableTools = <ThrowOnError extends boolean = false>(
 ) => {
   return (options?.client ?? _heyApiClient).get<GetAvailableToolsResponses, unknown, ThrowOnError>({
     url: '/api/mcp_server/tools',
+    ...options,
+  });
+};
+
+/**
+ * Get the status of all Ollama required models
+ */
+export const getOllamaRequiredModelsStatus = <ThrowOnError extends boolean = false>(
+  options?: Options<GetOllamaRequiredModelsStatusData, ThrowOnError>
+) => {
+  return (options?.client ?? _heyApiClient).get<GetOllamaRequiredModelsStatusResponses, unknown, ThrowOnError>({
+    url: '/api/ollama/required-models',
     ...options,
   });
 };

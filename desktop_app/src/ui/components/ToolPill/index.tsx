@@ -4,18 +4,18 @@ import { ToolHoverCard } from '@ui/components/ToolHoverCard';
 import { Badge } from '@ui/components/ui/badge';
 import { formatToolName } from '@ui/lib/utils/tools';
 import { useToolsStore } from '@ui/stores';
-import type { ToolWithMcpServerInfo } from '@ui/types';
+import type { Tool } from '@ui/types';
 
 import { ToolServerIcon } from '../ToolServerIcon';
 import ToolStatusIcon from '../ToolStatusIcon';
 
 interface ToolPillProps {
-  tool: ToolWithMcpServerInfo;
+  tool: Tool;
 }
 
 export default function ToolPill({ tool }: ToolPillProps) {
-  const { server, name, enabled } = tool;
-  const { removeSelectedTool } = useToolsStore();
+  const { mcpServerName, name, id } = tool;
+  const { removeSelectedTool, selectedToolIds } = useToolsStore();
 
   return (
     <ToolHoverCard
@@ -27,11 +27,11 @@ export default function ToolPill({ tool }: ToolPillProps) {
     >
       <div>
         <Badge variant="secondary" className="flex items-center gap-1.5 px-2 py-1 text-xs cursor-pointer">
-          <ToolServerIcon toolServerName={server.name} />
-          <ToolStatusIcon enabled={enabled} />
+          <ToolServerIcon toolServerName={mcpServerName} />
+          <ToolStatusIcon enabled={selectedToolIds.has(id)} />
           <span>{formatToolName(name)}</span>
           <button
-            onClick={() => removeSelectedTool(tool)}
+            onClick={() => removeSelectedTool(id)}
             className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
             type="button"
           >

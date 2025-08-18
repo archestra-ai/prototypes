@@ -125,7 +125,11 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       },
     },
     async ({ body: { catalogName } }, reply) => {
-      return reply.send({ authUrl: `https://oauth-proxy.archestra.ai/auth/${catalogName}` });
+      // Use the correct OAuth initiation endpoint (not the callback endpoint)
+      const authUrl = `https://oauth-proxy-new-354887056155.europe-west1.run.app/auth/gmail`;
+      fastify.log.info(`OAuth URL for ${catalogName}: ${authUrl}`);
+
+      return reply.send({ authUrl });
     }
   );
 

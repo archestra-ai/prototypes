@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { ClientCapabilities, Tool } from '@modelcontextprotocol/sdk/types.js';
+import { ClientCapabilities } from '@modelcontextprotocol/sdk/types.js';
 import { v4 as uuidv4 } from 'uuid';
 import { create } from 'zustand';
 
@@ -13,7 +13,7 @@ import {
   startMcpServerOauth,
   uninstallMcpServer,
 } from '@ui/lib/clients/archestra/api/gen';
-import { ConnectedMcpServer, ToolWithMcpServerInfo } from '@ui/types';
+import { ConnectedMcpServer } from '@ui/types';
 
 import { useSandboxStore } from './sandbox-store';
 
@@ -21,7 +21,7 @@ import { useSandboxStore } from './sandbox-store';
  * NOTE: these are here because the "archestra" MCP server is "injected" into the list of "installed" MCP servers
  * (since it is not actually persisted in the database)
  */
-export const ARCHESTRA_MCP_SERVER_ID = 'archestra';
+const ARCHESTRA_MCP_SERVER_ID = 'archestra';
 const ARCHESTRA_MCP_SERVER_NAME = 'Archestra.ai';
 
 interface McpServersState {
@@ -75,21 +75,6 @@ const configureMcpClient = async (
   await client.connect(transport);
 
   return client;
-};
-
-const initializeConnectedMcpServerTools = async (
-  client: Client,
-  server: ConnectedMcpServer
-): Promise<ToolWithMcpServerInfo[]> => {
-  const { tools } = await client.listTools();
-  return tools.map((tool: Tool) => ({
-    ...tool,
-    server: {
-      id: server.id,
-      name: server.name,
-    },
-    enabled: true,
-  }));
 };
 
 export const useMcpServersStore = create<McpServersStore>((set, get) => ({
@@ -153,8 +138,6 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
     set((state) => {
       const newServer: ConnectedMcpServer = {
         ...mcpServer,
-        tools: [],
-        hasFetchedTools: false,
         url: `${config.archestra.mcpProxyUrl}/${mcpServer.id}`,
         client: null,
         state: 'initializing',
@@ -214,12 +197,18 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
       if (requiresOAuth) {
         // Start OAuth flow
         const { data } = await startMcpServerOauth({
-          body: { catalogName: id },
+          body: { catalogName: id || '' },
         });
 
-        if (data) {
-          // For OAuth connectors, the backend will handle the installation after successful auth
-          alert(`OAuth setup started for ${name}. Please complete the authentication in your browser.`);
+        if (data?.authUrl) {
+          // Open the OAuth URL in the default browser
+          console.log('Opening OAuth URL:', data.authUrl);
+          window.electronAPI.openExternal(data.authUrl);
+
+          // Show user feedback
+          alert(
+            `OAuth setup started for ${installData.displayName || id}. Please complete the authentication in your browser.`
+          );
         }
       } else {
         const { data: newlyInstalledMcpServer, error } = await installMcpServer({ body: installData });
@@ -273,14 +262,10 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         });
 
         if (client) {
-          const tools = await initializeConnectedMcpServerTools(client, archestraMcpServer);
-
           set({
             archestraMcpServer: {
               ...archestraMcpServer,
               client,
-              tools,
-              hasFetchedTools: true,
               state: 'running',
               error: null,
             },
@@ -361,13 +346,8 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         return null;
       }
 
-      // List available tools
-      const tools = await initializeConnectedMcpServerTools(client, mcpServer);
-
       get().updateMcpServer(id, {
         client,
-        tools,
-        hasFetchedTools: true,
         state: 'running',
       });
       return client;

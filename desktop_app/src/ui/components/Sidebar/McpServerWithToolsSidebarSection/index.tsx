@@ -1,7 +1,8 @@
+import { CheckedState } from '@radix-ui/react-checkbox';
+import { useNavigate } from '@tanstack/react-router';
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { ToolHoverCard } from '@ui/components/ToolHoverCard';
 import { ToolServerIcon } from '@ui/components/ToolServerIcon';
 import { Checkbox } from '@ui/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/components/ui/collapsible';
@@ -14,18 +15,18 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@ui/components/ui/sidebar';
-import { useAvailableTools } from '@ui/hooks/useAvailableTools';
 import { formatToolName } from '@ui/lib/utils/tools';
-import { useChatStore, useNavigationStore } from '@ui/stores';
-import { NavigationViewKey } from '@ui/types';
+import { useToolsStore } from '@ui/stores';
 
 interface McpServerWithToolsSidebarSectionProps {}
 
 export default function McpServerWithToolsSidebarSection(_props: McpServerWithToolsSidebarSectionProps) {
-  const { selectedTools, setSelectedTools } = useChatStore();
-  const { setActiveView } = useNavigationStore();
-  const { tools: availableTools, toolsByServer: allToolsByServer, isLoading } = useAvailableTools();
+  const navigate = useNavigate();
+
   const [toolSearchQuery, setToolSearchQuery] = useState('');
+  const { availableTools, loadingAvailableTools, selectedToolIds, addSelectedTool, removeSelectedTool } =
+    useToolsStore();
+
   const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
 
   // Initialize all servers as expanded on first load
@@ -73,18 +74,21 @@ export default function McpServerWithToolsSidebarSection(_props: McpServerWithTo
   };
 
   // Handle tool selection
-  const handleToolToggle = (toolId: string, checked: boolean) => {
-    const newSelection = checked ? [...selectedTools, toolId] : selectedTools.filter((id) => id !== toolId);
-    setSelectedTools(newSelection);
+  const handleToolToggle = (toolId: string, checked: CheckedState) => {
+    if (checked) {
+      addSelectedTool(toolId);
+    } else {
+      removeSelectedTool(toolId);
+    }
   };
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>
         Tools
-        {selectedTools.length > 0 && (
+        {selectedToolIds.size > 0 && (
           <span className="ml-2 px-1.5 py-0.5 text-xs bg-primary/10 text-primary rounded-full">
-            {selectedTools.length}
+            {selectedToolIds.size}
           </span>
         )}
       </SidebarGroupLabel>
@@ -98,7 +102,7 @@ export default function McpServerWithToolsSidebarSection(_props: McpServerWithTo
           />
         </div>
         <SidebarMenu>
-          {isLoading ? (
+          {loadingAvailableTools ? (
             <SidebarMenuItem>
               <div className="flex items-center gap-2 px-2 py-1.5">
                 <div className="h-3 w-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
@@ -142,26 +146,20 @@ export default function McpServerWithToolsSidebarSection(_props: McpServerWithTo
                     </SidebarMenuItem>
 
                     <CollapsibleContent>
-                      {serverTools.map((tool) => {
-                        const isSelected = selectedTools.includes(tool.id);
-                        return (
-                          <SidebarMenuItem key={tool.id}>
-                            <div
-                              className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-muted/50 rounded-md cursor-pointer w-full"
-                              onClick={() => handleToolToggle(tool.id, !isSelected)}
-                            >
-                              <Checkbox
-                                checked={isSelected}
-                                onCheckedChange={(checked) => handleToolToggle(tool.id, checked as boolean)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="h-3 w-3"
-                              />
-                              <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" />
-                              <span className="truncate flex-1">{formatToolName(tool.name || tool.id)}</span>
-                            </div>
-                          </SidebarMenuItem>
-                        );
-                      })}
+                      {serverTools.map((tool) => (
+                        <SidebarMenuItem key={tool.id}>
+                          <div className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-muted/50 rounded-md cursor-pointer w-full">
+                            <Checkbox
+                              checked={selectedToolIds.has(tool.id)}
+                              onCheckedChange={(checked) => handleToolToggle(tool.id, checked)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="h-3 w-3"
+                            />
+                            <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" />
+                            <span className="truncate flex-1">{formatToolName(tool.name || tool.id)}</span>
+                          </div>
+                        </SidebarMenuItem>
+                      ))}
                     </CollapsibleContent>
                   </Collapsible>
                 );
@@ -172,7 +170,7 @@ export default function McpServerWithToolsSidebarSection(_props: McpServerWithTo
                   <SidebarMenuButton
                     size="sm"
                     className="justify-start text-muted-foreground"
-                    onClick={() => setActiveView(NavigationViewKey.MCP)}
+                    onClick={() => navigate({ to: '/connectors' })}
                   >
                     <Plus className="h-4 w-4" />
                     <span>Add more</span>

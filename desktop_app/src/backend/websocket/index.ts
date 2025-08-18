@@ -5,6 +5,13 @@ import config from '@backend/config';
 import McpServerSandboxManager, { SandboxStatusSummarySchema } from '@backend/sandbox/manager';
 import log from '@backend/utils/logger';
 
+const OllamaModelDownloadProgressWebsocketPayloadSchema = z.object({
+  model: z.string(),
+  status: z.enum(['downloading', 'verifying', 'completed', 'error']),
+  progress: z.number().min(0).max(100),
+  message: z.string(),
+});
+
 const ChatTitleUpdatedPayloadSchema = z.object({
   chatId: z.number(),
   title: z.string(),
@@ -13,10 +20,22 @@ const ChatTitleUpdatedPayloadSchema = z.object({
 export const WebSocketMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('chat-title-updated'), payload: ChatTitleUpdatedPayloadSchema }),
   z.object({ type: z.literal('sandbox-status-update'), payload: SandboxStatusSummarySchema }),
+  z.object({
+    type: z.literal('ollama-model-download-progress'),
+    payload: OllamaModelDownloadProgressWebsocketPayloadSchema,
+  }),
 ]);
 
 // type ChatTitleUpdatedPayload = z.infer<typeof ChatTitleUpdatedPayloadSchema>;
 type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;
+
+/**
+ * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
+ * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
+ */
+z.globalRegistry.add(OllamaModelDownloadProgressWebsocketPayloadSchema, {
+  id: 'OllamaModelDownloadProgress',
+});
 
 class WebSocketService {
   private wss: WebSocketServer | null = null;

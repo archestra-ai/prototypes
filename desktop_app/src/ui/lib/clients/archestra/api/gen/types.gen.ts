@@ -28,6 +28,13 @@ export type PodmanContainerStatusSummaryInput = {
   error: string | null;
 };
 
+export type OllamaModelDownloadProgressInput = {
+  model: string;
+  status: 'downloading' | 'verifying' | 'completed' | 'error';
+  progress: number;
+  message: string;
+};
+
 export type WebSocketMessageInput =
   | {
       type: 'chat-title-updated';
@@ -39,6 +46,10 @@ export type WebSocketMessageInput =
   | {
       type: 'sandbox-status-update';
       payload: SandboxStatusSummaryInput;
+    }
+  | {
+      type: 'ollama-model-download-progress';
+      payload: OllamaModelDownloadProgressInput;
     };
 
 export type ChatWithMessagesInput = {
@@ -132,7 +143,7 @@ export type McpRequestLogFilterStatusInput = 'HTTP 200' | 'HTTP 40x' | 'HTTP 50x
 
 export type McpServerInput = {
   id: string;
-  name: string | null;
+  name: string;
   serverConfig: {
     command: string;
     args?: Array<string>;
@@ -178,6 +189,12 @@ export type AvailableToolInput = {
   mcpServerName: string;
 };
 
+export type OllamaRequiredModelStatusInput = {
+  model: string;
+  reason: string;
+  installed: boolean;
+};
+
 export type UserInput = {
   id: number;
   hasCompletedOnboarding: boolean;
@@ -214,6 +231,13 @@ export type PodmanContainerStatusSummary = {
   error: string | null;
 };
 
+export type OllamaModelDownloadProgress = {
+  model: string;
+  status: 'downloading' | 'verifying' | 'completed' | 'error';
+  progress: number;
+  message: string;
+};
+
 export type WebSocketMessage =
   | {
       type: 'chat-title-updated';
@@ -225,6 +249,10 @@ export type WebSocketMessage =
   | {
       type: 'sandbox-status-update';
       payload: SandboxStatusSummary;
+    }
+  | {
+      type: 'ollama-model-download-progress';
+      payload: OllamaModelDownloadProgress;
     };
 
 export type ChatWithMessages = {
@@ -318,7 +346,7 @@ export type McpRequestLogFilterStatus = 'HTTP 200' | 'HTTP 40x' | 'HTTP 50x';
 
 export type McpServer = {
   id: string;
-  name: string | null;
+  name: string;
   serverConfig: {
     command: string;
     args?: Array<string>;
@@ -362,6 +390,12 @@ export type AvailableTool = {
    * MCP server name
    */
   mcpServerName: string;
+};
+
+export type OllamaRequiredModelStatus = {
+  model: string;
+  reason: string;
+  installed: boolean;
 };
 
 export type User = {
@@ -897,6 +931,25 @@ export type GetAvailableToolsResponses = {
 };
 
 export type GetAvailableToolsResponse = GetAvailableToolsResponses[keyof GetAvailableToolsResponses];
+
+export type GetOllamaRequiredModelsStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/api/ollama/required-models';
+};
+
+export type GetOllamaRequiredModelsStatusResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    models: Array<OllamaRequiredModelStatus>;
+  };
+};
+
+export type GetOllamaRequiredModelsStatusResponse =
+  GetOllamaRequiredModelsStatusResponses[keyof GetOllamaRequiredModelsStatusResponses];
 
 export type GetUserData = {
   body?: never;

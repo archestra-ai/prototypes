@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **ALWAYS run all commands from the `desktop_app/` directory unless specifically instructed otherwise.**
 
+Note: The README.md includes a Developer Quickstart section that shows basic setup steps. When following those instructions, ensure you're in the `desktop_app/` directory for all commands after cloning.
+
 ## Important Rules
 
 1. **NEVER modify files in `src/ui/components/ui/`** - These are shadcn/ui components and should remain unchanged
@@ -72,6 +74,7 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
 - **Backend**: Fastify server running in separate process
 - **Database**: SQLite with Drizzle ORM (snake_case naming)
 - **State Management**: Zustand stores
+- **Routing**: Tanstack Router with file-based routing
 - **Build**: Vite with separate configs for each process
 - **Containerization**: Podman for sandboxing
 
@@ -203,6 +206,42 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - Special handling in `llm/index.ts` to bypass standard provider validation
     - Provider type: `'ollama'` in the provider registry
     - Known limitation: Some MCP tool calls may not work correctly
+- **Routing System** (Tanstack Router):
+  - File-based routing with automatic route generation
+  - Type-safe navigation with `@tanstack/react-router`
+  - Route tree automatically generated at `src/ui/routeTree.gen.ts`
+  - Routes defined in `src/ui/routes/` directory
+  - Layout route at `__root.tsx` provides sidebar wrapper
+  - Nested routes for settings and LLM providers
+  - Auto code-splitting enabled for better performance
+  - Development tools available via `TanStackRouterDevtools`
+- **Ollama Integration**:
+  - **Automatic Server Management**: Launches bundled Ollama server (v0.11.4) on startup
+    - Runs locally on configurable port (default: 54589, env var: `ARCHESTRA_OLLAMA_SERVER_PORT`)
+    - Graceful startup/shutdown with process lifecycle management
+    - CORS configuration for API access
+  - **Model Management**: Automatic provisioning of required models
+    - Required models: `llama-guard3:1b` (safety checks), `phi3:3.8b` (general tasks)
+    - Parallel model downloads on first startup
+    - Real-time progress tracking via WebSocket (`ollama-model-download-progress`)
+    - Graceful error handling - continues operation if downloads fail
+  - **API Client** (`src/backend/llms/ollama/client.ts`):
+    - Full Ollama API support with TypeScript/Zod validation
+    - Methods: `generate()`, `pull()`, `list()`, `generateChatTitle()`
+    - Streaming support for model downloads and generation
+    - Automatic retry logic for server connectivity
+  - **API Endpoints**:
+    - `GET /api/ollama/required-models` - Check model installation status
+    - `/llm/ollama/*` - Proxy routes to local Ollama server
+  - **UI Integration**:
+    - Settings page at `/settings/ollama` with installation status
+    - Real-time progress bars during model downloads
+    - Color-coded status badges (Installed/Downloading/Not Installed)
+    - Error state handling with descriptive messages
+  - **Configuration** (`config.ts`):
+    - Server settings: host, port, CORS origins
+    - Required models list for auto-provisioning
+    - Default model selection (`OLLAMA_MODEL` env var)
 
 ### Directory Structure
 
@@ -219,7 +258,8 @@ desktop_app/src/
 │   └── utils/         # Utility functions (paths, binaries, etc.)
 └── ui/
     ├── components/    # React components (don't modify ui/ subdirectory)
-    ├── pages/        # Application pages
+    ├── pages/        # Application pages (being phased out)
+    ├── routes/       # Tanstack Router file-based routes
     ├── stores/       # Zustand state stores
     └── hooks/        # Custom React hooks
 ```

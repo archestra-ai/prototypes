@@ -56,7 +56,8 @@ export default class ExternalMcpClient {
   ): string {
     const homeDir =
       process.platform === 'win32'
-        ? process.env.USERPROFILE || process.env.HOMEDRIVE + process.env.HOMEPATH
+        ? process.env.USERPROFILE ||
+          (process.env.HOMEDRIVE && process.env.HOMEPATH ? process.env.HOMEDRIVE + process.env.HOMEPATH : undefined)
         : process.env.HOME;
 
     if (!homeDir) {

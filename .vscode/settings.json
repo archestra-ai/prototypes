@@ -6,5 +6,16 @@
   "editor.codeActionsOnSave": {
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit"
+  },
+  // See https://tanstack.com/router/latest/docs/framework/react/routing/installation-with-vite#ignoring-the-generated-route-tree-file
+  // for why we ignore this file
+  "files.readonlyInclude": {
+    "**/routeTree.gen.ts": true
+  },
+  "files.watcherExclude": {
+    "**/routeTree.gen.ts": true
+  },
+  "search.exclude": {
+    "**/routeTree.gen.ts": true
   }
 }
