@@ -153,8 +153,8 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0(zod@4.0.15)
       ollama-ai-provider-v2:
-        specifier: 1.1.1
-        version: 1.1.1(zod@4.0.15)
+        specifier: 1.1.2-beta.0
+        version: 1.1.2-beta.0(zod@4.0.15)
       react:
         specifier: ^19.1.1
         version: 19.1.1
@@ -4469,8 +4469,8 @@ packages:
   ohash@1.1.6:
     resolution: {integrity: sha512-TBu7PtV8YkAZn0tSxobKY2n2aAQva936lhRrj6957aDaCf9IEtqsKbgMzXE/F/sjqYOwmrukeORHNLe5glk7Cg==}
 
-  ollama-ai-provider-v2@1.1.1:
-    resolution: {integrity: sha512-HOYiMaEFbBpcS9myCE9PfUeYFqN0RrCEfBWSS5PKay9PUrawyNwrT92BE0QlHjL08MHXVo2Cjtcp7tEo6ur3xQ==}
+  ollama-ai-provider-v2@1.1.2-beta.0:
+    resolution: {integrity: sha512-04pVXiI9pJM0J7dgAXMfj/e9D0MIQhng26SL0yVu7aGafJ2IaNAwjjFyNFqM+Hm3DVcw/PmD2FovTuylDXF0BA==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^4.0.16
@@ -10563,7 +10563,7 @@ snapshots:
 
   ohash@1.1.6: {}
 
-  ollama-ai-provider-v2@1.1.1(zod@4.0.15):
+  ollama-ai-provider-v2@1.1.2-beta.0(zod@4.0.15):
     dependencies:
       '@ai-sdk/provider': 2.0.0
       '@ai-sdk/provider-utils': 3.0.1(zod@4.0.15)
