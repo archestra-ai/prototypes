@@ -1,4 +1,4 @@
-import { Server, Zap } from 'lucide-react';
+import { Server } from 'lucide-react';
 
 import { Badge } from '@ui/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@ui/components/ui/card';
@@ -10,9 +10,7 @@ interface ArchestraMcpServerProps {
   archestraMcpServer: ConnectedMcpServer;
 }
 
-export default function ArchestraMcpServer({
-  archestraMcpServer: { state, tools, error, url },
-}: ArchestraMcpServerProps) {
+export default function ArchestraMcpServer({ archestraMcpServer: { state, url } }: ArchestraMcpServerProps) {
   const getStatusBadge = () => {
     switch (state) {
       case 'running':
@@ -51,31 +49,6 @@ export default function ArchestraMcpServer({
             <Input id="server-url" value={url} readOnly className="font-mono text-sm" />
           </div>
           <p className="text-sm text-muted-foreground">Use this URL to connect to the Archestra MCP server.</p>
-        </div>
-
-        <div className="bg-muted p-4 rounded-lg">
-          <h4 className="font-medium mb-2 flex items-center gap-2">
-            <Zap className="h-4 w-4" />
-            Available Tools
-          </h4>
-          {state === 'initializing' ? (
-            <div className="space-y-1 text-sm">
-              <div>Loading tools...</div>
-            </div>
-          ) : (
-            <div className="space-y-1 text-sm">
-              {tools.map((tool) => (
-                <div key={tool.name}>
-                  • {tool.name} - {tool.description || 'No description'}
-                </div>
-              ))}
-            </div>
-          )}
-          {error && (
-            <div className="space-y-1 text-sm">
-              <div>Error loading tools: {error}</div>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>

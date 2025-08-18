@@ -18,10 +18,9 @@ import {
 } from '@ui/components/kibo/ai-input';
 import { Badge } from '@ui/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ui/components/ui/tooltip';
-import { useAvailableTools } from '@ui/hooks/useAvailableTools';
 import { cn } from '@ui/lib/utils/tailwind';
 import { formatToolName } from '@ui/lib/utils/tools';
-import { useChatStore, useCloudProvidersStore, useDeveloperModeStore, useOllamaStore } from '@ui/stores';
+import { useCloudProvidersStore, useDeveloperModeStore, useOllamaStore, useToolsStore } from '@ui/stores';
 
 interface ChatInputProps {
   input: string;
@@ -32,11 +31,10 @@ interface ChatInputProps {
 }
 
 export default function ChatInput({ input, handleInputChange, handleSubmit, isLoading, stop }: ChatInputProps) {
-  const { selectedTools, setSelectedTools } = useChatStore();
   const { isDeveloperMode, toggleDeveloperMode } = useDeveloperModeStore();
   const { installedModels, selectedModel, setSelectedModel } = useOllamaStore();
   const { availableCloudProviderModels } = useCloudProvidersStore();
-  const { toolsMap: availableToolsMap } = useAvailableTools();
+  const { availableTools, selectedToolIds, removeSelectedTool } = useToolsStore();
 
   // Use the selected model from Ollama store
   const currentModel = selectedModel || '';
@@ -52,26 +50,22 @@ export default function ChatInput({ input, handleInputChange, handleSubmit, isLo
     [handleSubmit]
   );
 
-  const removeSelectedTool = (toolId: string) => {
-    setSelectedTools(selectedTools.filter((id) => id !== toolId));
-  };
-
   return (
     <TooltipProvider>
       <AIInput onSubmit={handleSubmit} className="bg-inherit">
-        {selectedTools.length > 0 && (
+        {selectedToolIds.size > 0 && (
           <div className={cn('flex flex-wrap gap-2 p-3 pb-0')}>
-            {selectedTools.map((toolId) => {
-              const tool = availableToolsMap[toolId];
+            {Array.from(selectedToolIds).map((toolId) => {
+              const tool = availableTools.find((t) => t.id === toolId);
               if (!tool) return null;
 
               return (
-                <Badge key={toolId} variant="secondary" className="flex items-center gap-1.5 px-2 py-1 text-xs">
+                <Badge key={tool.id} variant="secondary" className="flex items-center gap-1.5 px-2 py-1 text-xs">
                   <span className="text-xs font-medium text-muted-foreground">{tool.mcpServerName}</span>
                   <span>/</span>
-                  <span>{formatToolName(tool.name || toolId)}</span>
+                  <span>{formatToolName(tool.name || tool.id)}</span>
                   <button
-                    onClick={() => removeSelectedTool(toolId)}
+                    onClick={() => removeSelectedTool(tool.id)}
                     className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
                     type="button"
                   >

@@ -5,7 +5,7 @@ import DetailedProgressBar from '@ui/components/DetailedProgressBar';
 import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@ui/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/components/ui/collapsible';
-import { useMcpServersStore, useSandboxStore } from '@ui/stores';
+import { useMcpServersStore, useSandboxStore, useToolsStore } from '@ui/stores';
 
 import McpServer from './McpServer';
 import SettingsDialog from './SettingsDialog';
@@ -23,8 +23,9 @@ export default function McpServers(_props: McpServersProps) {
     },
   } = useSandboxStore();
   const { installedMcpServers, loadingInstalledMcpServers, errorLoadingInstalledMcpServers } = useMcpServersStore();
+  const { availableTools } = useToolsStore();
 
-  const totalNumberOfMcpTools = installedMcpServers.reduce((acc, server) => acc + server.tools.length, 0);
+  const totalNumberOfMcpTools = availableTools.length;
   const hasErrorLoadingInstalledMcpServers = errorLoadingInstalledMcpServers !== null;
 
   const getOverallSandboxStatus = () => {

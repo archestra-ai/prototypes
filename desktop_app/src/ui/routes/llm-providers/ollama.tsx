@@ -18,7 +18,7 @@ export const Route = createFileRoute('/llm-providers/ollama')({
 function OllamaProviderPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLabel, setSelectedLabel] = useState<string>('all');
-  const [toolCallsOnly, setToolCallsOnly] = useState(true);
+  const [toolCallsOnly, setToolCallsOnly] = useState(false);
 
   const { installedModels, downloadModel, downloadProgress, modelsBeingDownloaded } = useOllamaStore();
 

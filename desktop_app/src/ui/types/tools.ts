@@ -1,3 +1,5 @@
+import { type AvailableTool as Tool } from '@ui/lib/clients/archestra/api/gen';
+
 /**
  * TODO: what is the proper type on this? It used to be this👇
  *
@@ -34,4 +36,8 @@ export interface ToolCall extends ServerToolCallRepresentation {
   endTime: Date | null;
 }
 
-export type { Tool } from '@modelcontextprotocol/sdk/types.js';
+export type ToolsByServer = Record<string, Tool[]>;
+export type AvailableToolsMap = Record<string, Tool>;
+export type ToolChoice = 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string };
+
+export { Tool };

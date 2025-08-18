@@ -6,7 +6,7 @@ import { Button } from '@ui/components/ui/button';
 import { Card, CardContent } from '@ui/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@ui/components/ui/dialog';
 import { Progress } from '@ui/components/ui/progress';
-import { useMcpServersStore } from '@ui/stores';
+import { useMcpServersStore, useToolsStore } from '@ui/stores';
 import { ConnectedMcpServer } from '@ui/types';
 
 import LogViewerDialog from './LogViewerDialog';
@@ -15,14 +15,18 @@ interface McpServerProps {
   mcpServer: ConnectedMcpServer;
 }
 
-export default function McpServer({ mcpServer }: McpServerProps) {
-  const { id, name, state, tools, url, error, startupPercentage, hasFetchedTools, message } = mcpServer;
-  const isRunning = state === 'running';
-
+export default function McpServer({
+  mcpServer: { id, name, state, url, error, startupPercentage, message },
+}: McpServerProps) {
   const [showLogs, setShowLogs] = useState(false);
   const [showUninstallDialog, setShowUninstallDialog] = useState(false);
   const { uninstallMcpServer, uninstallingMcpServerId } = useMcpServersStore();
-  const isUninstalling = uninstallingMcpServerId === mcpServer.id;
+  const { getToolsByServerName } = useToolsStore();
+
+  const isRunning = state === 'running';
+  const isUninstalling = uninstallingMcpServerId === id;
+  const tools = getToolsByServerName()[name] || [];
+  const hasFetchedTools = tools.length > 0;
 
   const getStateIcon = (state: ConnectedMcpServer['state']) => {
     switch (state) {
@@ -189,7 +193,7 @@ export default function McpServer({ mcpServer }: McpServerProps) {
             <Button
               variant="destructive"
               onClick={async () => {
-                await uninstallMcpServer(mcpServer.id);
+                await uninstallMcpServer(id);
                 setShowUninstallDialog(false);
               }}
               disabled={isUninstalling}

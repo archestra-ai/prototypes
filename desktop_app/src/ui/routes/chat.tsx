@@ -7,14 +7,15 @@ import ChatHistory from '@ui/components/Chat/ChatHistory';
 import ChatInput from '@ui/components/Chat/ChatInput';
 import SystemPrompt from '@ui/components/Chat/SystemPrompt';
 import config from '@ui/config';
-import { useChatStore, useCloudProvidersStore, useOllamaStore } from '@ui/stores';
+import { useChatStore, useCloudProvidersStore, useOllamaStore, useToolsStore } from '@ui/stores';
 
 export const Route = createFileRoute('/chat')({
   component: ChatPage,
 });
 
 function ChatPage() {
-  const { getCurrentChat, selectedTools } = useChatStore();
+  const { getCurrentChat } = useChatStore();
+  const { selectedToolIds } = useToolsStore();
   const { selectedModel } = useOllamaStore();
   const { availableCloudProviderModels } = useCloudProvidersStore();
   const [localInput, setLocalInput] = useState('');
@@ -32,8 +33,8 @@ function ChatPage() {
   const availableCloudProviderModelsRef = useRef(availableCloudProviderModels);
   availableCloudProviderModelsRef.current = availableCloudProviderModels;
 
-  const selectedToolsRef = useRef(selectedTools);
-  selectedToolsRef.current = selectedTools;
+  const selectedToolIdsRef = useRef(selectedToolIds);
+  selectedToolIdsRef.current = selectedToolIds;
 
   const transport = useMemo(() => {
     const apiEndpoint = `${config.archestra.chatStreamBaseUrl}/stream`;
@@ -43,7 +44,7 @@ function ChatPage() {
       prepareSendMessagesRequest: ({ id, messages }) => {
         const currentModel = selectedModelRef.current;
         const currentCloudProviderModels = availableCloudProviderModelsRef.current;
-        const currentSelectedTools = selectedToolsRef.current;
+        const currentSelectedToolIds = selectedToolIdsRef.current;
 
         const cloudModel = currentCloudProviderModels.find((m) => m.id === currentModel);
         const provider = cloudModel ? cloudModel.provider : 'ollama';
@@ -54,8 +55,8 @@ function ChatPage() {
             model: currentModel || 'llama3.1:8b',
             sessionId: id || currentChatSessionId,
             provider: provider,
-            requestedTools: currentSelectedTools.length > 0 ? currentSelectedTools : undefined,
-            toolChoice: currentSelectedTools.length > 0 ? 'auto' : undefined,
+            requestedTools: currentSelectedToolIds.size > 0 ? Array.from(currentSelectedToolIds) : undefined,
+            toolChoice: currentSelectedToolIds.size > 0 ? 'auto' : undefined,
           },
         };
       },

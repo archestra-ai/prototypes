@@ -18,12 +18,10 @@ describe('ArchestraMcpServer', () => {
       userConfigValues: {},
       url: 'http://localhost:54587/mcp',
       client: null,
-      tools: [],
       startupPercentage: 100,
       state: 'running',
       message: null,
       error: null,
-      hasFetchedTools: true,
     } as ConnectedMcpServer;
     render(<ArchestraMcpServer archestraMcpServer={mockArchestraMcpServer} />);
   });
