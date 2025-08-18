@@ -8,8 +8,8 @@ import log from '@backend/utils/logger';
 const OllamaModelDownloadProgressWebsocketPayloadSchema = z.object({
   model: z.string(),
   status: z.enum(['downloading', 'verifying', 'completed', 'error']),
-  progress: z.number().min(0).max(100).optional(),
-  message: z.string().optional(),
+  progress: z.number().min(0).max(100),
+  message: z.string(),
 });
 
 const ChatTitleUpdatedPayloadSchema = z.object({

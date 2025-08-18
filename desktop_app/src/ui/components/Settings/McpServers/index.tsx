@@ -1,10 +1,10 @@
 import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, Loader2, Server, Settings, XCircle } from 'lucide-react';
 import { useState } from 'react';
 
+import DetailedProgressBar from '@ui/components/DetailedProgressBar';
 import { Button } from '@ui/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@ui/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/components/ui/collapsible';
-import { Progress } from '@ui/components/ui/progress';
 import { useMcpServersStore, useSandboxStore } from '@ui/stores';
 
 import McpServer from './McpServer';
@@ -76,26 +76,13 @@ export default function McpServers(_props: McpServersProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-start gap-3">
-            {overallSandboxStatus.icon}
-            <div className="flex-1 space-y-1">
-              <p className="font-medium">{overallSandboxStatus.title}</p>
-              <p className="text-sm text-muted-foreground">{overallSandboxStatus.description}</p>
-            </div>
-          </div>
-
-          {startupPercentage > 0 && startupPercentage < 100 && (
-            <div className="space-y-2">
-              <Progress value={startupPercentage} className="h-2" />
-              <p className="text-xs text-muted-foreground text-right">{Math.floor(startupPercentage)}%</p>
-            </div>
-          )}
-
-          {startupError && (
-            <div className="rounded-md bg-destructive/10 p-3">
-              <p className="text-sm text-destructive">Please check the logs for more information about the failure.</p>
-            </div>
-          )}
+          <DetailedProgressBar
+            icon={overallSandboxStatus.icon}
+            title={overallSandboxStatus.title}
+            description={overallSandboxStatus.description}
+            percentage={startupPercentage}
+            error={startupError}
+          />
         </CardContent>
       </Card>
     );

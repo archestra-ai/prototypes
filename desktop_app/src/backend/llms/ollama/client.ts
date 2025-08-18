@@ -141,6 +141,7 @@ class OllamaClient {
           model: request.name,
           status: 'downloading',
           progress: 0,
+          message: 'Starting download',
         },
       });
 
@@ -160,7 +161,7 @@ class OllamaClient {
             const parsed = OllamaPullResponseSchema.parse(data);
 
             let status: 'downloading' | 'verifying' | 'completed' = 'downloading';
-            let progress: number | undefined;
+            let progress: number = 0;
 
             if (parsed.status === 'success') {
               status = 'completed';
@@ -171,10 +172,12 @@ class OllamaClient {
               progress = Math.round((parsed.completed / parsed.total) * 100);
             }
 
-            // Only broadcast if we have a meaningful update:
-            // - Status changed
-            // - Progress increased by at least 1 integer percentage
-            // - Completed
+            /**
+             * Only broadcast if we have a meaningful update:
+             * - Status changed
+             * - Progress increased by at least 1 integer percentage
+             * - Completed
+             */
             const shouldBroadcast =
               status !== lastStatus ||
               (progress !== undefined && progress > lastBroadcastedProgress) ||
@@ -209,6 +212,7 @@ class OllamaClient {
           model: request.name,
           status: 'completed',
           progress: 100,
+          message: 'Download complete!',
         },
       });
     } catch (error) {
@@ -219,6 +223,7 @@ class OllamaClient {
           model: request.name,
           status: 'error',
           message: error instanceof Error ? error.message : 'Unknown error',
+          progress: 0,
         },
       });
 

@@ -121,7 +121,7 @@
             "type": "string"
           }
         },
-        "required": ["model", "status"]
+        "required": ["model", "status", "progress", "message"]
       },
       "WebSocketMessageInput": {
         "anyOf": [
@@ -812,7 +812,7 @@
             "type": "string"
           }
         },
-        "required": ["model", "status"],
+        "required": ["model", "status", "progress", "message"],
         "additionalProperties": false
       },
       "WebSocketMessage": {

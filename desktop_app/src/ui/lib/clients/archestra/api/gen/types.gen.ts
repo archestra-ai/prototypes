@@ -31,8 +31,8 @@ export type PodmanContainerStatusSummaryInput = {
 export type OllamaModelDownloadProgressInput = {
   model: string;
   status: 'downloading' | 'verifying' | 'completed' | 'error';
-  progress?: number;
-  message?: string;
+  progress: number;
+  message: string;
 };
 
 export type WebSocketMessageInput =
@@ -234,8 +234,8 @@ export type PodmanContainerStatusSummary = {
 export type OllamaModelDownloadProgress = {
   model: string;
   status: 'downloading' | 'verifying' | 'completed' | 'error';
-  progress?: number;
-  message?: string;
+  progress: number;
+  message: string;
 };
 
 export type WebSocketMessage =
