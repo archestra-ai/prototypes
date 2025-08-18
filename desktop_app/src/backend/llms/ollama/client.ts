@@ -112,7 +112,6 @@ class OllamaClient {
    */
   async pull(request: OllamaPullRequest): Promise<void> {
     try {
-      // Always use streaming to get progress updates
       const streamingRequest = { ...request, stream: true };
 
       const response = await fetch(`${this.baseUrl}/api/pull`, {
@@ -134,7 +133,6 @@ class OllamaClient {
         throw new Error('No response body');
       }
 
-      // Broadcast initial downloading status
       WebSocketService.broadcast({
         type: 'ollama-model-download-progress',
         payload: {
@@ -205,7 +203,6 @@ class OllamaClient {
         }
       }
 
-      // Ensure we broadcast completion
       WebSocketService.broadcast({
         type: 'ollama-model-download-progress',
         payload: {
@@ -216,7 +213,6 @@ class OllamaClient {
         },
       });
     } catch (error) {
-      // Broadcast error status
       WebSocketService.broadcast({
         type: 'ollama-model-download-progress',
         payload: {
@@ -303,15 +299,12 @@ The title should capture the main topic or theme of the conversation. Respond wi
    * Ensure that required models are available, downloading them if necessary
    */
   async ensureModelsAvailable(): Promise<void> {
-    // Wait for server to be ready
     await this.waitForServerReady();
 
     try {
-      // Get list of installed models
       const { models: installedModels } = await this.list();
       const installedModelNames = installedModels.map((m) => m.name);
 
-      // Find models that need to be downloaded
       const modelsToDownload = config.ollama.requiredModels.filter(
         ({ model: modelName }) => !installedModelNames.includes(modelName)
       );
@@ -321,7 +314,6 @@ The title should capture the main topic or theme of the conversation. Respond wi
         return;
       }
 
-      // Download all missing models in parallel
       log.info(`Downloading ${modelsToDownload.length} required models...`);
 
       const downloadPromises = modelsToDownload.map(async ({ model: modelName }) => {
@@ -335,7 +327,6 @@ The title should capture the main topic or theme of the conversation. Respond wi
         }
       });
 
-      // Wait for all downloads to complete
       await Promise.all(downloadPromises);
 
       log.info('Finished downloading required models');
