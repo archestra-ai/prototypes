@@ -41,6 +41,7 @@ const createModelInstance = async (model: string, provider?: string) => {
     openai: () => createOpenAI({ apiKey, baseURL: baseUrl, headers }),
     deepseek: () => createDeepSeek({ apiKey, baseURL: baseUrl || 'https://api.deepseek.com/v1' }),
     gemini: () => createGoogleGenerativeAI({ apiKey, baseURL: baseUrl }),
+    ollama: () => createOllama({ baseURL: baseUrl }),
   };
 
   const createClient = clientFactories[type] || (() => createOpenAI({ apiKey, baseURL: baseUrl, headers }));
