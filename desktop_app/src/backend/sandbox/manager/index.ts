@@ -291,11 +291,9 @@ class McpServerSandboxManager {
 
     for (const [serverId, serverTools] of this.availableTools) {
       for (const [toolName, tool] of Object.entries(serverTools)) {
-        // Create tool ID that's compatible with OpenAI's naming requirements
-        // Replace non-alphanumeric characters with underscores, use double underscore as separator
-        const sanitizedServerId = serverId.replace(/[^a-zA-Z0-9_-]/g, '_');
-        const sanitizedToolName = toolName.replace(/[^a-zA-Z0-9_-]/g, '_');
-        const toolId = `${sanitizedServerId}__${sanitizedToolName}`;
+        // Use : separator to combine server ID and tool name
+        // This allows us to reliably extract the server ID later
+        const toolId = `${serverId}:${toolName}`;
 
         allTools[toolId] = tool;
       }

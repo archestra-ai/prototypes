@@ -21,11 +21,13 @@ export default function McpServer({
   const [showLogs, setShowLogs] = useState(false);
   const [showUninstallDialog, setShowUninstallDialog] = useState(false);
   const { uninstallMcpServer, uninstallingMcpServerId } = useMcpServersStore();
-  const { getToolsByServerName } = useToolsStore();
+  const { availableTools } = useToolsStore();
 
   const isRunning = state === 'running';
   const isUninstalling = uninstallingMcpServerId === id;
-  const tools = getToolsByServerName()[name] || [];
+  console.log(id);
+  const tools = availableTools.filter((tool) => tool.mcpServerId === id);
+  console.log(availableTools);
   const hasFetchedTools = tools.length > 0;
 
   const getStateIcon = (state: ConnectedMcpServer['state']) => {

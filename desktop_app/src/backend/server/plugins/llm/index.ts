@@ -92,7 +92,13 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
 
         // Only add tools and toolChoice if tools are available
         if (hasTools) {
-          streamConfig.tools = tools;
+          // Convert tool IDs from serverId:toolName to serverId__toolName for LLM compatibility
+          const convertedTools: Record<string, any> = {};
+          for (const [toolId, tool] of Object.entries(tools)) {
+            const convertedId = toolId.replace(':', '__');
+            convertedTools[convertedId] = tool;
+          }
+          streamConfig.tools = convertedTools;
           streamConfig.toolChoice = toolChoice || 'auto';
         }
 

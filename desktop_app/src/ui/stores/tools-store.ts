@@ -17,7 +17,6 @@ interface ToolsActions {
   addSelectedTool: (toolId: string) => void;
   removeSelectedTool: (toolId: string) => void;
   setToolChoice: (choice: ToolChoice) => void;
-  getToolsByServerName: () => ToolsByServer;
   getAvailableToolsMap: () => AvailableToolsMap;
   _periodicallyFetchAvailableTools: () => void;
 }
@@ -51,17 +50,6 @@ export const useToolsStore = create<ToolsStore>((set, get) => ({
 
   setToolChoice: (choice: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string }) => {
     set({ toolChoice: choice });
-  },
-
-  getToolsByServerName: () => {
-    return get().availableTools.reduce((acc: ToolsByServer, tool: Tool) => {
-      const serverName = tool.mcpServerName || 'Unknown';
-      if (!acc[serverName]) {
-        acc[serverName] = [];
-      }
-      acc[serverName].push(tool);
-      return acc;
-    }, {});
   },
 
   getAvailableToolsMap: () => {
