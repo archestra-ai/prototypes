@@ -4,13 +4,6 @@ import config from '@backend/config';
 import log from '@backend/utils/logger';
 import WebSocketService from '@backend/websocket';
 
-export const OllamaModelDownloadProgressWebsocketPayloadSchema = z.object({
-  model: z.string(),
-  status: z.enum(['downloading', 'verifying', 'completed', 'error']),
-  progress: z.number().min(0).max(100).optional(),
-  message: z.string().optional(),
-});
-
 const OllamaGenerateRequestSchema = z.object({
   model: z.string(),
   prompt: z.string(),
@@ -74,14 +67,6 @@ const OllamaListResponseSchema = z.object({
         .optional(),
     })
   ),
-});
-
-/**
- * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
- * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
- */
-z.globalRegistry.add(OllamaModelDownloadProgressWebsocketPayloadSchema, {
-  id: 'OllamaModelDownloadProgress',
 });
 
 type OllamaGenerateRequest = z.infer<typeof OllamaGenerateRequestSchema>;
@@ -321,21 +306,34 @@ The title should capture the main topic or theme of the conversation. Respond wi
       const { models: installedModels } = await this.list();
       const installedModelNames = installedModels.map((m) => m.name);
 
-      // Check each required model
-      for (const { model: modelName } of config.ollama.requiredModels) {
-        if (!installedModelNames.includes(modelName)) {
-          log.info(`Required model '${modelName}' not found. Downloading...`);
-          try {
-            await this.pull({ name: modelName });
-            log.info(`Successfully downloaded model '${modelName}'`);
-          } catch (error) {
-            log.error(`Failed to download model '${modelName}':`, error);
-            // Continue with other models even if one fails
-          }
-        } else {
-          log.info(`Required model '${modelName}' is already available`);
-        }
+      // Find models that need to be downloaded
+      const modelsToDownload = config.ollama.requiredModels.filter(
+        ({ model: modelName }) => !installedModelNames.includes(modelName)
+      );
+
+      if (modelsToDownload.length === 0) {
+        log.info('All required models are already available');
+        return;
       }
+
+      // Download all missing models in parallel
+      log.info(`Downloading ${modelsToDownload.length} required models...`);
+
+      const downloadPromises = modelsToDownload.map(async ({ model: modelName }) => {
+        log.info(`Starting download for model '${modelName}'...`);
+        try {
+          await this.pull({ name: modelName });
+          log.info(`Successfully downloaded model '${modelName}'`);
+        } catch (error) {
+          log.error(`Failed to download model '${modelName}':`, error);
+          // Don't throw - allow other models to continue downloading
+        }
+      });
+
+      // Wait for all downloads to complete
+      await Promise.all(downloadPromises);
+
+      log.info('Finished downloading required models');
     } catch (error) {
       log.error('Failed to ensure models are available:', error);
       // Don't throw here - server should still work even if models aren't downloaded

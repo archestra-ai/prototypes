@@ -6,27 +6,6 @@
   },
   "components": {
     "schemas": {
-      "OllamaModelDownloadProgressInput": {
-        "type": "object",
-        "properties": {
-          "model": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["downloading", "verifying", "completed", "error"]
-          },
-          "progress": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": ["model", "status"]
-      },
       "SandboxStatusSummaryInput": {
         "type": "object",
         "properties": {
@@ -122,6 +101,27 @@
           }
         },
         "required": ["startupPercentage", "state", "message", "error"]
+      },
+      "OllamaModelDownloadProgressInput": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["downloading", "verifying", "completed", "error"]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["model", "status"]
       },
       "WebSocketMessageInput": {
         "anyOf": [
@@ -694,28 +694,6 @@
         },
         "required": ["id", "hasCompletedOnboarding", "collectTelemetryData", "createdAt", "updatedAt"]
       },
-      "OllamaModelDownloadProgress": {
-        "type": "object",
-        "properties": {
-          "model": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["downloading", "verifying", "completed", "error"]
-          },
-          "progress": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": ["model", "status"],
-        "additionalProperties": false
-      },
       "SandboxStatusSummary": {
         "type": "object",
         "properties": {
@@ -813,6 +791,28 @@
           }
         },
         "required": ["startupPercentage", "state", "message", "error"],
+        "additionalProperties": false
+      },
+      "OllamaModelDownloadProgress": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["downloading", "verifying", "completed", "error"]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["model", "status"],
         "additionalProperties": false
       },
       "WebSocketMessage": {
