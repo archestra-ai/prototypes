@@ -204,6 +204,33 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Nested routes for settings and LLM providers
   - Auto code-splitting enabled for better performance
   - Development tools available via `TanStackRouterDevtools`
+- **Ollama Integration**:
+  - **Automatic Server Management**: Launches bundled Ollama server (v0.11.4) on startup
+    - Runs locally on configurable port (default: 54589, env var: `ARCHESTRA_OLLAMA_SERVER_PORT`)
+    - Graceful startup/shutdown with process lifecycle management
+    - CORS configuration for API access
+  - **Model Management**: Automatic provisioning of required models
+    - Required models: `llama-guard3:1b` (safety checks), `phi3:3.8b` (general tasks)
+    - Parallel model downloads on first startup
+    - Real-time progress tracking via WebSocket (`ollama-model-download-progress`)
+    - Graceful error handling - continues operation if downloads fail
+  - **API Client** (`src/backend/llms/ollama/client.ts`):
+    - Full Ollama API support with TypeScript/Zod validation
+    - Methods: `generate()`, `pull()`, `list()`, `generateChatTitle()`
+    - Streaming support for model downloads and generation
+    - Automatic retry logic for server connectivity
+  - **API Endpoints**:
+    - `GET /api/ollama/required-models` - Check model installation status
+    - `/llm/ollama/*` - Proxy routes to local Ollama server
+  - **UI Integration**:
+    - Settings page at `/settings/ollama` with installation status
+    - Real-time progress bars during model downloads
+    - Color-coded status badges (Installed/Downloading/Not Installed)
+    - Error state handling with descriptive messages
+  - **Configuration** (`config.ts`):
+    - Server settings: host, port, CORS origins
+    - Required models list for auto-provisioning
+    - Default model selection (`OLLAMA_MODEL` env var)
 
 ### Directory Structure
 
