@@ -209,10 +209,12 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - Runs locally on configurable port (default: 54589, env var: `ARCHESTRA_OLLAMA_SERVER_PORT`)
     - Graceful startup/shutdown with process lifecycle management
     - CORS configuration for API access
+    - Integrated into application lifecycle after core services (WebSocket, Fastify)
   - **Model Management**: Automatic provisioning of required models
     - Required models: `llama-guard3:1b` (safety checks), `phi3:3.8b` (general tasks)
     - Parallel model downloads on first startup
     - Real-time progress tracking via WebSocket (`ollama-model-download-progress`)
+    - Progress throttling to avoid UI spam - only meaningful updates broadcast
     - Graceful error handling - continues operation if downloads fail
   - **API Client** (`src/backend/llms/ollama/client.ts`):
     - Full Ollama API support with TypeScript/Zod validation
@@ -224,13 +226,20 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - `/llm/ollama/*` - Proxy routes to local Ollama server
   - **UI Integration**:
     - Settings page at `/settings/ollama` with installation status
-    - Real-time progress bars during model downloads
-    - Color-coded status badges (Installed/Downloading/Not Installed)
+    - Real-time progress bars during model downloads (`DetailedProgressBar` component)
+    - Color-coded status badges (Installed/Downloading/Not Installed/Error)
     - Error state handling with descriptive messages
+    - Zustand store (`ollama-store.ts`) with WebSocket integration for real-time updates
+    - Extensive model catalog with descriptions and tags for future expansion
   - **Configuration** (`config.ts`):
     - Server settings: host, port, CORS origins
     - Required models list for auto-provisioning
     - Default model selection (`OLLAMA_MODEL` env var)
+  - **Binary Distribution**:
+    - Multi-platform Ollama binaries bundled (Linux, macOS, Windows)
+    - Architecture support for both x86_64 and ARM64
+    - Located in `desktop_app/resources/bin/` with platform-specific paths
+    - No external dependencies - fully self-contained
 
 ### Directory Structure
 
