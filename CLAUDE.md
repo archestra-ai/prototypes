@@ -185,16 +185,21 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - `POST /api/onboarding/complete` - Marks onboarding as complete
   - Zustand store for frontend state management (`user-store.ts`)
 - **Tool Selection**:
-  - Browse and select specific MCP tools for chat conversations
-  - Tool discovery via `GET /api/mcp_server/tools` endpoint
-  - Real-time tool list updates every 5 seconds as servers connect/disconnect
-  - Tools organized by MCP server for better UX
-  - Selected tools displayed as pills in chat interface
-  - Chat store management with `selectedTools` and `toolChoice` state
-  - Selective tool execution - LLM only uses selected tools instead of all available
-  - Tool caching in `McpServerSandboxManager` after connecting to servers
-  - Unique tool identification format: `{serverId}:{toolName}`
-  - Dynamic tool rendering in assistant messages with execution states
+  - **Centralized State Management**: All tool-related state managed in `tools-store.ts`
+    - `availableTools`: List of all available tools from connected MCP servers
+    - `selectedToolIds`: Set of selected tool IDs for current chat
+    - `toolChoice`: Strategy for tool invocation (auto, manual, etc.)
+    - Automatic refresh every 5 seconds as servers connect/disconnect
+  - **Tool Discovery**: Via `GET /api/mcp_server/tools` endpoint
+  - **UI Components**:
+    - Tool browser organized by MCP server for better UX
+    - Selected tools displayed as pills in chat interface
+    - Tool search handled at component level
+    - Dynamic tool rendering in assistant messages with execution states
+  - **Tool Identification**: Format `{serverId}:{toolName}` for unique identification
+  - **Performance**: Single centralized data fetch instead of multiple component fetches
+  - **Selective Execution**: LLM only uses selected tools instead of all available
+  - **Caching**: Tool data cached in `McpServerSandboxManager` after server connection
 - **Routing System** (Tanstack Router):
   - File-based routing with automatic route generation
   - Type-safe navigation with `@tanstack/react-router`
