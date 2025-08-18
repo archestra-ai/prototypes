@@ -20,6 +20,35 @@ interface StreamRequestBody {
   toolChoice?: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string };
 }
 
+const createModelInstance = async (model: string, provider?: string) => {
+  if (provider === 'ollama') {
+    const baseUrl = config.ollama.server.host + '/api';
+    const ollamaClient = createOllama({ baseURL: baseUrl });
+    return ollamaClient(model);
+  }
+
+  const providerConfig = await CloudProviderModel.getProviderConfigForModel(model);
+
+  if (!providerConfig) {
+    return openai(model);
+  }
+
+  const { apiKey, provider: providerData } = providerConfig;
+  const { type, baseUrl, headers } = providerData;
+
+  const clientFactories = {
+    anthropic: () => createAnthropic({ apiKey, baseURL: baseUrl }),
+    openai: () => createOpenAI({ apiKey, baseURL: baseUrl, headers }),
+    deepseek: () => createDeepSeek({ apiKey, baseURL: baseUrl || 'https://api.deepseek.com/v1' }),
+    gemini: () => createGoogleGenerativeAI({ apiKey, baseURL: baseUrl }),
+  };
+
+  const createClient = clientFactories[type] || (() => createOpenAI({ apiKey, baseURL: baseUrl, headers }));
+  const client = createClient();
+
+  return client(model);
+};
+
 const llmRoutes: FastifyPluginAsync = async (fastify) => {
   // Note: MCP connections are now managed by McpServerSandboxManager
   // Based on this doc: https://ai-sdk.dev/docs/ai-sdk-core/generating-text
@@ -44,71 +73,7 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
           tools = McpServerSandboxManager.getAllTools();
         }
 
-        let modelInstance;
-
-        // Check if Ollama provider is explicitly specified
-        if (provider === 'ollama') {
-          // Use Ollama directly without checking provider config
-          const baseUrl = config.ollama.server.host + '/api';
-          const ollamaClient = createOllama({
-            baseURL: baseUrl,
-          });
-          modelInstance = ollamaClient(model);
-        } else {
-          // Get provider configuration for the model
-          const providerConfig = await CloudProviderModel.getProviderConfigForModel(model);
-
-          if (providerConfig) {
-            // Create appropriate client based on provider type
-            switch (providerConfig.provider.type) {
-              case 'anthropic': {
-                const anthropicClient = createAnthropic({
-                  apiKey: providerConfig.apiKey,
-                  baseURL: providerConfig.provider.baseUrl,
-                });
-                modelInstance = anthropicClient(model);
-                break;
-              }
-              case 'openai': {
-                const openaiClient = createOpenAI({
-                  apiKey: providerConfig.apiKey,
-                  baseURL: providerConfig.provider.baseUrl,
-                  headers: providerConfig.provider.headers,
-                });
-                modelInstance = openaiClient(model);
-                break;
-              }
-              case 'deepseek': {
-                const deepseekClient = createDeepSeek({
-                  apiKey: providerConfig.apiKey,
-                  baseURL: providerConfig.provider.baseUrl || 'https://api.deepseek.com/v1',
-                });
-                modelInstance = deepseekClient(model);
-                break;
-              }
-              case 'gemini': {
-                const googleClient = createGoogleGenerativeAI({
-                  apiKey: providerConfig.apiKey,
-                  baseURL: providerConfig.provider.baseUrl,
-                });
-                modelInstance = googleClient(model);
-                break;
-              }
-              default: {
-                // Fallback to OpenAI-compatible client
-                const openaiClient = createOpenAI({
-                  apiKey: providerConfig.apiKey,
-                  baseURL: providerConfig.provider.baseUrl,
-                  headers: providerConfig.provider.headers,
-                });
-                modelInstance = openaiClient(model);
-              }
-            }
-          } else {
-            // Default OpenAI client for backward compatibility
-            modelInstance = openai(model);
-          }
-        }
+        const modelInstance = await createModelInstance(model, provider);
 
         // Create the stream with the appropriate model
         const hasTools = Object.keys(tools).length > 0;
