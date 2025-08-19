@@ -190,6 +190,36 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         errorInstallingMcpServer: null,
       });
 
+      // Special handling for Slack MCP server
+      if (id === 'korotovsky__slack-mcp-server') {
+        try {
+          // Open Slack authentication window and get tokens
+          const tokens = await window.electronAPI.slackAuth();
+
+          // Install the server with the extracted tokens
+          const { data } = await installMcpServer({
+            body: {
+              ...installData,
+              userConfigValues: {
+                ...installData.userConfigValues,
+                ...tokens,
+              },
+            },
+          });
+
+          if (data) {
+            get().addMcpServerToInstalledMcpServers(data);
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          set({ errorInstallingMcpServer: errorMessage });
+          throw error;
+        } finally {
+          set({ installingMcpServerId: null });
+        }
+        return;
+      }
+
       /**
        * If OAuth is required for installation of this MCP server, we start the OAuth flow
        * rather than directly "installing" the MCP server

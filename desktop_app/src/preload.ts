@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   websocketPort: 54588,
   ollamaPort: 54589,
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
+  slackAuth: () => ipcRenderer.invoke('slack-auth'),
 });
