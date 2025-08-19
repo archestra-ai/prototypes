@@ -56,9 +56,9 @@ COPY --from=python-builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-# Install uv in the final image for uvx command support
-RUN pip3 install --no-cache-dir uv
-ENV PATH="/root/.local/bin:$PATH"
+# Install uv globally for uvx command support (needed for modern Python MCP servers)
+# Note: --break-system-packages is required for Alpine's pip3
+RUN pip3 install --no-cache-dir --break-system-packages uv
 
 # Copy Node.js global modules from builder
 COPY --from=node-builder /usr/local/lib/node_modules /usr/local/lib/node_modules
