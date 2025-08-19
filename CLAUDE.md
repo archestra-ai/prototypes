@@ -242,6 +242,32 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - Server settings: host, port, CORS origins
     - Required models list for auto-provisioning
     - Default model selection (`OLLAMA_MODEL` env var)
+- **Slack Authentication** (MCP Server OAuth Flow):
+  - **Seamless OAuth Integration**: One-click installation for Slack MCP server
+    - Special handling in connectors page bypasses configuration dialog
+    - Automatic OAuth flow triggered via IPC (`slack-auth` handler)
+    - Dedicated authentication window with Slack sign-in
+  - **Token Extraction**: Automatic extraction of required Slack tokens
+    - `xoxc` token extracted from localStorage (`localConfig_v2`)
+    - `xoxd` token extracted from session cookies
+    - Multi-workspace support with workspace ID detection
+    - Graceful handling of Slack's redirect pages
+  - **Security Architecture**:
+    - IPC communication through secure preload script
+    - Authentication window with restricted navigation (Slack domains only)
+    - Prevention of desktop app redirects (`slack://` protocol)
+    - Tokens passed securely to backend for MCP server configuration
+  - **Implementation Details** (`src/main.ts`):
+    - Browser window with persistent session for authentication
+    - Workspace detection from multiple sources (URLs, localStorage)
+    - Visual feedback during authentication process
+    - Automatic navigation through Slack's SSO flow
+    - Error handling with user-friendly messages
+  - **Frontend Integration**:
+    - Type-safe API via `window.electronAPI.slackAuth()`
+    - Store integration in `mcp-servers-store.ts`
+    - Automatic token injection into server installation config
+    - Special case handling for `korotovsky__slack-mcp-server`
 
 ### Directory Structure
 
