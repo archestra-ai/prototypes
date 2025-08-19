@@ -20,12 +20,14 @@ export default defineConfig({
       // Native Node.js modules (.node files) cannot be bundled by Rollup/Vite
       // This tells Vite to leave `require('better-sqlite3')` as-is in the output
       // Also mark UI components as external since server doesn't need them
-      external: ['better-sqlite3'],
+      // IMPORTANT: Mark dotenv as external to ensure it's available in packaged app
+      external: ['better-sqlite3', 'dotenv'],
     },
   },
   optimizeDeps: {
     // Also exclude from dependency optimization
     // This prevents Vite from trying to pre-bundle better-sqlite3
-    exclude: ['better-sqlite3'],
+    // and dotenv modules
+    exclude: ['better-sqlite3', 'dotenv'],
   },
 });
