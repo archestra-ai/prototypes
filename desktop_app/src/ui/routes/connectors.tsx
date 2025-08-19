@@ -52,6 +52,12 @@ function ConnectorCatalogPage() {
   };
 
   const handleInstallClick = (mcpServer: ArchestraMcpServerManifest) => {
+    // Special handling for Slack MCP server - skip the config dialog
+    if (mcpServer.name === 'korotovsky__slack-mcp-server') {
+      installMcpServer(mcpServer);
+      return;
+    }
+
     // If server has user_config, show the dialog
     if (mcpServer.user_config && Object.keys(mcpServer.user_config).length > 0) {
       setSelectedServerForInstall(mcpServer);

@@ -9,6 +9,7 @@ import { updateElectronApp } from 'update-electron-app';
 import log from '@backend/utils/logger';
 
 import config from './config';
+import { setupSlackAuthHandler } from './main-slack-auth';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -69,7 +70,7 @@ const createWindow = () => {
 };
 
 /**
- * Start the backendin a separate Node.js process
+ * Start the backend in a separate Node.js process
  *
  * This function spawns the backend as a child process because:
  * 1. The backend needs access to native Node.js modules (better-sqlite3)
@@ -97,56 +98,59 @@ async function startBackendServer(): Promise<void> {
         // Send SIGTERM to trigger graceful shutdown
         existingProcess.kill('SIGTERM');
 
-        // If process doesn't exit after 5 seconds, force kill it
+        // Fallback: Force kill after 2 seconds if process doesn't exit gracefully
         setTimeout(() => {
-          if (existingProcess.killed === false) {
-            log.warn('Server process did not exit gracefully, force killing');
+          if (existingProcess.exitCode === null) {
+            log.warn('Server process did not exit gracefully, forcing kill');
             existingProcess.kill('SIGKILL');
           }
           resolve();
-        }, 5000);
+        }, 2000);
       } else {
         resolve();
       }
     });
 
-    // Wait a bit more to ensure ports are released
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    serverProcess = null;
   }
 
+  log.info(`Starting backend server from: ${serverPath}`);
+
   /**
-   * Fork creates a new Node.js process that can communicate with the parent
-   * pass --transpileOnly (disable type checking) to increase startup speed
-   *
-   * https://github.com/fastify/fastify/discussions/3795#discussioncomment-4690921
+   * Set up paths for the backend server
+   * These are used by the backend to know where to store data
    */
-  serverProcess = fork(serverPath, ['--transpileOnly'], {
+  const userDataPath = app.getPath('userData');
+  const logsPath = path.join(userDataPath, 'logs');
+
+  serverProcess = fork(serverPath, [], {
     env: {
       ...process.env,
-      // CRITICAL: This flag tells Electron to run this process as pure Node.js
-      // Without it, the process would run as an Electron process and fail to load native modules
-      ELECTRON_RUN_AS_NODE: '1',
+      NODE_ENV: config.debug ? 'development' : 'production',
       /**
-       * NOTE: we are passing these paths in here because electron's app object is not available in
-       * forked processes..
-       *
-       * According to https://www.electronjs.org/docs/latest/api/app#appgetpathname
-       *
-       * userData - The directory for storing your app's configuration files, which by default is the appData directory
-       * appended with your app's name. By convention files storing user data should be written to this directory, and
-       * it is not recommended to write large files here because some environments may backup this directory to cloud
-       * storage.
-       * logs - Directory for your app's log folder.
+       * The backend server needs to know where to store data
+       * We pass these as environment variables since the server
+       * runs in a separate process and doesn't have access to
+       * Electron's app.getPath() directly
        */
-      ARCHESTRA_USER_DATA_PATH: app.getPath('userData'),
-      ARCHESTRA_LOGS_PATH: app.getPath('logs'),
+      ARCHESTRA_USER_DATA_PATH: userDataPath,
+      ARCHESTRA_LOGS_PATH: logsPath,
     },
-    silent: false, // Allow console output from child process for debugging
+    silent: true, // Capture stdout/stderr so we can log it
   });
 
-  // Handle server process errors
+  // Log server output
+  serverProcess.stdout?.on('data', (data) => {
+    log.info(`[Server]: ${data.toString().trim()}`);
+  });
+
+  serverProcess.stderr?.on('data', (data) => {
+    log.error(`[Server Error]: ${data.toString().trim()}`);
+  });
+
+  // Handle server errors
   serverProcess.on('error', (error) => {
-    log.error('Server process error:', error);
+    log.error('Failed to start server process:', error);
   });
 
   // Handle server process exit
@@ -161,12 +165,15 @@ ipcMain.handle('open-external', async (_event, url: string) => {
   await shell.openExternal(url);
 });
 
+// Set up Slack authentication handler
+setupSlackAuthHandler();
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', async () => {
   if (config.debug) {
-    const serverPath = path.resolve(__dirname, '.vite/build/server-process.js');
+    const serverPath = path.join(__dirname, 'server-process.js');
 
     chokidar.watch(serverPath).on('change', async () => {
       log.info('Restarting server..');
