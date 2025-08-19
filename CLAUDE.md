@@ -172,6 +172,17 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Process isolation per MCP server
   - stdin/stdout communication only (no exposed ports)
   - Minimal base image with only essential dependencies
+- **MCP Base Image** (`mcp_server_docker_image/`):
+  - Multi-stage Docker build for minimal final image size
+  - Base image: Alpine Linux 3.19 for security and size optimization
+  - Python 3.12 with uv package manager for fast dependency management
+  - Node.js 20 for JavaScript/TypeScript MCP servers
+  - **uv Installation**: Uses `pip3 install --break-system-packages uv` for Alpine compatibility
+    - The `--break-system-packages` flag is required in Alpine Linux when installing packages outside virtual environments
+    - Alternative: Consider using official uv installer (`curl -LsSf https://astral.sh/uv/install.sh | sh`) to avoid system package conflicts
+  - Pre-installed Python dependencies: mcp[cli], httpx, fastapi, uvicorn, requests, python-dotenv
+  - Pre-installed Node.js dependencies: @modelcontextprotocol/sdk, typescript, zod, express
+  - Health checks and tini for proper signal handling
 - **User Management**:
   - Centralized user settings and preferences
   - Onboarding flow tracking with `has_completed_onboarding` field
