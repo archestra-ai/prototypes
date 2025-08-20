@@ -57,33 +57,7 @@
                 "tools": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "description": "Tool ID in format sanitizedServerId__sanitizedToolName",
-                        "type": "string"
-                      },
-                      "name": {
-                        "description": "Tool name",
-                        "type": "string"
-                      },
-                      "description": {
-                        "description": "Tool description",
-                        "type": "string"
-                      },
-                      "inputSchema": {
-                        "description": "Tool input schema"
-                      },
-                      "mcpServerId": {
-                        "description": "MCP server ID",
-                        "type": "string"
-                      },
-                      "mcpServerName": {
-                        "description": "MCP server name",
-                        "type": "string"
-                      }
-                    },
-                    "required": ["id", "name", "mcpServerId", "mcpServerName"]
+                    "$ref": "#/components/schemas/AvailableToolInput"
                   }
                 }
               },
@@ -784,34 +758,7 @@
                 "tools": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "description": "Tool ID in format sanitizedServerId__sanitizedToolName",
-                        "type": "string"
-                      },
-                      "name": {
-                        "description": "Tool name",
-                        "type": "string"
-                      },
-                      "description": {
-                        "description": "Tool description",
-                        "type": "string"
-                      },
-                      "inputSchema": {
-                        "description": "Tool input schema"
-                      },
-                      "mcpServerId": {
-                        "description": "MCP server ID",
-                        "type": "string"
-                      },
-                      "mcpServerName": {
-                        "description": "MCP server name",
-                        "type": "string"
-                      }
-                    },
-                    "required": ["id", "name", "mcpServerId", "mcpServerName"],
-                    "additionalProperties": false
+                    "$ref": "#/components/schemas/AvailableTool"
                   }
                 }
               },
