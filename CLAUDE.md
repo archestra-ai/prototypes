@@ -211,6 +211,7 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Dynamic tool rendering in assistant messages with execution states
   - WebSocket broadcasts include tools in sandbox status updates
   - **Tool Analysis**: Automatic analysis of tool properties using Ollama
+    - Uses `phi3:3.8b` model to analyze each tool's characteristics
     - Analyzes tools for: `is_read`, `is_write`, `idempotent`, `reversible` properties
     - Analysis performed when new tools are discovered
     - Results stored in database and displayed in ToolHoverCard UI
