@@ -257,6 +257,27 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - Server settings: host, port, CORS origins
     - Required models list for auto-provisioning
     - Default model selection (`OLLAMA_MODEL` env var)
+- **Google OAuth Integration** (Experimental):
+  - **Standalone OAuth Script** (`google-auth-server.py`):
+    - Complete OAuth 2.0 authorization code flow implementation
+    - PKCE (Proof Key for Code Exchange) for enhanced security
+    - Local callback server on port 8080
+    - Automatic browser launch for user authentication
+    - Token exchange and refresh capabilities
+    - User profile information retrieval
+  - **Security Considerations**:
+    - Client secrets stored in `secrets/client_secret.json` (gitignored)
+    - PKCE implementation for protection against code interception
+    - State parameter for CSRF protection
+    - Localhost-only callback restriction
+  - **Setup Requirements**:
+    - Google Cloud Console project with OAuth 2.0 credentials
+    - Authorized redirect URI: `http://localhost:8080/callback`
+    - Required scopes: `openid`, `email`, `profile`
+  - **Future Integration Path**:
+    - Foundation for Google services integration (Gmail, Drive, etc.)
+    - Could be adapted for Electron's OAuth flow
+    - Demonstrates desktop OAuth best practices
 
 ### Directory Structure
 
