@@ -47,7 +47,7 @@ export default class SandboxedMcpServer {
 
   private mcpClient: experimental_MCPClient;
 
-  tools: McpTools;
+  tools: McpTools = {};
 
   constructor(mcpServer: McpServer, podmanSocketPath: string) {
     this.mcpServer = mcpServer;
@@ -58,25 +58,9 @@ export default class SandboxedMcpServer {
     this.podmanContainer = new PodmanContainer(mcpServer, podmanSocketPath);
   }
 
-  /**
-   * Helper function to make schema JSON-serializable by removing symbols
-   */
-  private cleanToolInputSchema = (
-    schema: Awaited<ReturnType<experimental_MCPClient['tools']>>[string]['inputSchema']
-  ): any => {
-    if (!schema) return undefined;
-
-    try {
-      // JSON.parse(JSON.stringify()) removes non-serializable properties like symbols
-      return JSON.parse(JSON.stringify(schema));
-    } catch {
-      return undefined;
-    }
-  };
-
   private async connectMcpClient() {
     try {
-      log.info(`Attempting to connect MCP client to ${this.mcpServerProxyUrl}`);
+      log.info(`Attempting to connect MCP client to ${this.mcpServerProxyUrl}.`);
 
       if (!this.mcpClient) {
         const transport = new StreamableHTTPClientTransport(new URL(this.mcpServerProxyUrl));
@@ -103,7 +87,11 @@ export default class SandboxedMcpServer {
     this.podmanContainer = new PodmanContainer(this.mcpServer, this.podmanSocketPath);
     await this.podmanContainer.startOrCreateContainer();
 
-    // Connect MCP client after container is ready
+    /**
+     * Wait a bit for container to be fully ready before attempting to communicate with it
+     */
+    await this.podmanContainer.waitForHealthy();
+
     await this.connectMcpClient();
   }
 
@@ -134,18 +122,42 @@ export default class SandboxedMcpServer {
   }
 
   /**
+   * Helper function to make schema JSON-serializable by removing symbols
+   */
+  private cleanToolInputSchema = (
+    schema: Awaited<ReturnType<experimental_MCPClient['tools']>>[string]['inputSchema']
+  ): any => {
+    if (!schema) return undefined;
+
+    try {
+      // JSON.parse(JSON.stringify()) removes non-serializable properties like symbols
+      return JSON.parse(JSON.stringify(schema));
+    } catch {
+      return undefined;
+    }
+  };
+
+  /**
    * This provides a list of tools in a slightly transformed format
    * that we expose to the UI
    */
   get availableToolsList(): AvailableTool[] {
-    return Object.entries(this.tools).map(([id, tool]) => ({
-      id,
-      name: id,
-      description: tool.description,
-      inputSchema: this.cleanToolInputSchema(tool.inputSchema),
-      mcpServerId: this.mcpServerId,
-      mcpServerName: this.mcpServer.name,
-    }));
+    return Object.entries(this.tools).map(([id, tool]) => {
+      /**
+       * Tool IDs, as stored in this.tools, have IDs in the format of <mcp_server_id>:<tool_name>
+       */
+      const separatorIndex = id.indexOf(':');
+      const toolName = separatorIndex !== -1 ? id.substring(separatorIndex + 1) : id;
+
+      return {
+        id,
+        name: toolName,
+        description: tool.description,
+        inputSchema: this.cleanToolInputSchema(tool.inputSchema),
+        mcpServerId: this.mcpServerId,
+        mcpServerName: this.mcpServer.name,
+      };
+    });
   }
 
   get statusSummary(): SandboxedMcpServerStatusSummary {

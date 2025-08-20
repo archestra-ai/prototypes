@@ -122,10 +122,17 @@ class McpServerSandboxManager {
     }
 
     const sandboxedMcpServer = new SandboxedMcpServer(mcpServer, this.socketPath);
-    await sandboxedMcpServer.start();
 
+    /**
+     * TODO: this is a bit sub-optimal.. register the sandboxedMcpServer in mcpServerIdToSandboxedMcpServerMap
+     * BEFORE calling sandboxedMcpServer.start because, internally, start calls POST /mcp_proxy/:mcp_server_id
+     * which does a check against McpServerSandboxManager.mcpServerIdToSandboxedMcpServerMap to make sure
+     * that the sandboxed mcp server "exists"
+     */
     this.mcpServerIdToSandboxedMcpServerMap.set(id, sandboxedMcpServer);
     log.info(`Registered sandboxed MCP server ${id} in map`);
+
+    await sandboxedMcpServer.start();
   }
 
   async stopServer(mcpServerId: string) {
