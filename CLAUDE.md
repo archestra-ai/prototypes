@@ -103,7 +103,7 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
 - **SandboxedMcpServer**: Individual MCP server management
   - MCP client lifecycle management using AI SDK's `experimental_createMCPClient`
   - Automatic tools discovery and caching from connected servers
-  - Tool ID transformation to format: `<mcp_server_id>:<tool_name>`
+  - Tool ID transformation to format: `<mcp_server_id>__<tool_name>` (double underscore separator)
   - Container integration with health monitoring
   - JSON-serializable schema processing for tool inputs
   - Status reporting and container log access
