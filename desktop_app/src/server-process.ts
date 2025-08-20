@@ -14,8 +14,8 @@
  * which main.ts spawns as a child process with ELECTRON_RUN_AS_NODE=1
  */
 import { runDatabaseMigrations } from '@backend/database';
-import { OllamaClient, OllamaServer } from '@backend/llms/ollama';
 import UserModel from '@backend/models/user';
+import { OllamaClient, OllamaServer } from '@backend/ollama';
 import McpServerSandboxManager from '@backend/sandbox';
 import { startFastifyServer, stopFastifyServer } from '@backend/server';
 import log from '@backend/utils/logger';
