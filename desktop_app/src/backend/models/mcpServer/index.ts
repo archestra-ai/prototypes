@@ -117,7 +117,7 @@ export default class McpServerModel {
     await db.delete(mcpServersTable).where(eq(mcpServersTable.id, id));
 
     // Remove the container and clean up its resources
-    await McpServerSandboxManager.removeContainer(id);
+    await McpServerSandboxManager.removeMcpServer(id);
 
     // Sync all connected external MCP clients after uninstalling
     await ExternalMcpClientModel.syncAllConnectedExternalMcpClients();

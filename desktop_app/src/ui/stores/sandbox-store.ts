@@ -4,8 +4,9 @@ import { type SandboxStatusSummary as SandboxStatusSummaryWebSocketPayload } fro
 import websocketService from '@ui/lib/websocket';
 
 import { useMcpServersStore } from './mcp-servers-store';
+import { useToolsStore } from './tools-store';
 
-type SandboxStatusSummary = Omit<SandboxStatusSummaryWebSocketPayload, 'containers'>;
+type SandboxStatusSummary = Omit<SandboxStatusSummaryWebSocketPayload, 'mcpServers'>;
 
 interface SandboxState {
   statusSummary: SandboxStatusSummary;
@@ -32,7 +33,9 @@ export const useSandboxStore = create<SandboxStore>((set, _get) => ({
 
   _updateStateFromStatusSummary: (payload: SandboxStatusSummaryWebSocketPayload) => {
     const { updateMcpServer } = useMcpServersStore.getState();
-    const { containers, ...statusSummary } = payload;
+    const { setAvailableTools } = useToolsStore.getState();
+
+    const { mcpServers: sandboxedMcpServers, ...statusSummary } = payload;
 
     set({
       statusSummary,
@@ -40,9 +43,14 @@ export const useSandboxStore = create<SandboxStore>((set, _get) => ({
     });
 
     /**
-     * Update the MCP server statuses based on the latest update we just received
+     * Updates two things:
+     * 1. MCP server statuses based on the latest update we just received
+     * 2. Available tools
      */
-    Object.entries(containers).forEach(([mcpServerId, container]) => {
+    const allAvailableTools = Object.entries(sandboxedMcpServers).flatMap(([_mcpServerId, { tools }]) => tools);
+    setAvailableTools(allAvailableTools);
+
+    Object.entries(sandboxedMcpServers).forEach(([mcpServerId, { container }]) => {
       updateMcpServer(mcpServerId, container);
     });
   },

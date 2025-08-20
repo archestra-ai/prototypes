@@ -19,9 +19,6 @@ export default {
      */
     mcpUrl: `${BASE_URL_WITH_PROTOCOL}/mcp`,
     mcpProxyUrl: `${BASE_URL_WITH_PROTOCOL}/mcp_proxy`,
-    /**
-     * TODO: chatStreamBaseUrl vs ollamaProxyUrl is unnecessarily overcomplicated... clean this up
-     */
     chatStreamBaseUrl: `${BASE_URL_WITH_PROTOCOL}/api/llm`,
     ollamaProxyUrl: `${BASE_URL}/llm/ollama`,
     websocketUrl: `ws://${BASE_URL}/ws`,

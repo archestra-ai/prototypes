@@ -6,6 +6,7 @@ import { Button } from '@ui/components/ui/button';
 import { Card, CardContent } from '@ui/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@ui/components/ui/dialog';
 import { Progress } from '@ui/components/ui/progress';
+import config from '@ui/config';
 import { useMcpServersStore, useToolsStore } from '@ui/stores';
 import { ConnectedMcpServer } from '@ui/types';
 
@@ -16,18 +17,17 @@ interface McpServerProps {
 }
 
 export default function McpServer({
-  mcpServer: { id, name, state, url, error, startupPercentage, message },
+  mcpServer: { id, name, state, error, startupPercentage, message },
 }: McpServerProps) {
   const [showLogs, setShowLogs] = useState(false);
   const [showUninstallDialog, setShowUninstallDialog] = useState(false);
   const { uninstallMcpServer, uninstallingMcpServerId } = useMcpServersStore();
   const { availableTools } = useToolsStore();
 
+  const url = `${config.archestra.mcpProxyUrl}/${id}`;
   const isRunning = state === 'running';
   const isUninstalling = uninstallingMcpServerId === id;
-  console.log(id);
   const tools = availableTools.filter((tool) => tool.mcpServerId === id);
-  console.log(availableTools);
   const hasFetchedTools = tools.length > 0;
 
   const getStateIcon = (state: ConnectedMcpServer['state']) => {

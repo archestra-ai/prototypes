@@ -4,13 +4,14 @@ import { Badge } from '@ui/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@ui/components/ui/card';
 import { Input } from '@ui/components/ui/input';
 import { Label } from '@ui/components/ui/label';
+import config from '@ui/config';
 import { ConnectedMcpServer } from '@ui/types';
 
 interface ArchestraMcpServerProps {
   archestraMcpServer: ConnectedMcpServer;
 }
 
-export default function ArchestraMcpServer({ archestraMcpServer: { state, url } }: ArchestraMcpServerProps) {
+export default function ArchestraMcpServer({ archestraMcpServer: { state } }: ArchestraMcpServerProps) {
   const getStatusBadge = () => {
     switch (state) {
       case 'running':
@@ -46,7 +47,7 @@ export default function ArchestraMcpServer({ archestraMcpServer: { state, url } 
         <div className="space-y-2">
           <Label htmlFor="server-url">Server URL</Label>
           <div className="flex items-center gap-2">
-            <Input id="server-url" value={url} readOnly className="font-mono text-sm" />
+            <Input id="server-url" value={config.archestra.mcpUrl} readOnly className="font-mono text-sm" />
           </div>
           <p className="text-sm text-muted-foreground">Use this URL to connect to the Archestra MCP server.</p>
         </div>

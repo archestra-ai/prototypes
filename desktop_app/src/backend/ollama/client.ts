@@ -261,7 +261,7 @@ The title should capture the main topic or theme of the conversation. Respond wi
 
     try {
       const response = await this.generate({
-        model: config.ai.ollamaModel,
+        model: config.ollama.generalModel,
         prompt,
         stream: false,
         options: {

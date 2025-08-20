@@ -7,8 +7,36 @@ export type SandboxStatusSummaryInput = {
     startupMessage: string | null;
     startupError: string | null;
   };
-  containers: {
-    [key: string]: PodmanContainerStatusSummaryInput;
+  mcpServers: {
+    [key: string]: {
+      container: PodmanContainerStatusSummaryInput;
+      tools: Array<{
+        /**
+         * Tool ID in format sanitizedServerId__sanitizedToolName
+         */
+        id: string;
+        /**
+         * Tool name
+         */
+        name: string;
+        /**
+         * Tool description
+         */
+        description?: string;
+        /**
+         * Tool input schema
+         */
+        inputSchema?: unknown;
+        /**
+         * MCP server ID
+         */
+        mcpServerId: string;
+        /**
+         * MCP server name
+         */
+        mcpServerName: string;
+      }>;
+    };
   };
 };
 
@@ -210,8 +238,36 @@ export type SandboxStatusSummary = {
     startupMessage: string | null;
     startupError: string | null;
   };
-  containers: {
-    [key: string]: PodmanContainerStatusSummary;
+  mcpServers: {
+    [key: string]: {
+      container: PodmanContainerStatusSummary;
+      tools: Array<{
+        /**
+         * Tool ID in format sanitizedServerId__sanitizedToolName
+         */
+        id: string;
+        /**
+         * Tool name
+         */
+        name: string;
+        /**
+         * Tool description
+         */
+        description?: string;
+        /**
+         * Tool input schema
+         */
+        inputSchema?: unknown;
+        /**
+         * MCP server ID
+         */
+        mcpServerId: string;
+        /**
+         * MCP server name
+         */
+        mcpServerName: string;
+      }>;
+    };
   };
 };
 

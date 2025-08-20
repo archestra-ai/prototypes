@@ -162,6 +162,39 @@ export type ArchestraMcpServerManifest = {
     importance: number;
   }>;
   raw_dependencies: string | null;
+  server_overridden?: {
+    type: 'python' | 'node' | 'binary';
+    entry_point: string;
+    mcp_config: {
+      command: string;
+      args?: Array<string>;
+      env?: {
+        [key: string]: string;
+      };
+      platform_overrides?: {
+        [key: string]: {
+          command?: string;
+          args?: Array<string>;
+          env?: {
+            [key: string]: string;
+          };
+        };
+      };
+    };
+  };
+  user_config_overridden?: {
+    [key: string]: {
+      type: 'string' | 'number' | 'boolean' | 'directory' | 'file';
+      title: string;
+      description: string;
+      required?: boolean;
+      default?: string | number | boolean | Array<string>;
+      multiple?: boolean;
+      sensitive?: boolean;
+      min?: number;
+      max?: number;
+    };
+  };
 };
 
 export type ArchestraMcpServerManifestWithScoreBreakdown = ArchestraMcpServerManifest & {

@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const OLLAMA_SERVER_PORT = parseInt(process.env.ARCHESTRA_OLLAMA_SERVER_PORT || '54589', 10);
+const OLLAMA_GUARD_MODEL = 'llama-guard3:1b';
+const OLLAMA_GENERAL_MODEL = 'phi3:3.8b';
 
 const DEBUG = !['production', 'prod'].includes(process.env.NODE_ENV?.toLowerCase() || '');
 
@@ -18,23 +20,20 @@ export default {
       port: parseInt(process.env.ARCHESTRA_WEBSOCKET_SERVER_PORT || '54588', 10),
     },
   },
-  ai: {
-    defaultProvider: process.env.DEFAULT_AI_PROVIDER || 'openai',
-    openaiApiKey: process.env.OPENAI_API_KEY,
-    ollamaModel: process.env.OLLAMA_MODEL || 'llama3.2',
-  },
   ollama: {
     server: {
       host: `http://localhost:${OLLAMA_SERVER_PORT}`,
       port: OLLAMA_SERVER_PORT,
     },
+    guardModel: OLLAMA_GUARD_MODEL,
+    generalModel: OLLAMA_GENERAL_MODEL,
     requiredModels: [
       {
-        model: 'llama-guard3:1b',
+        model: OLLAMA_GUARD_MODEL,
         reason: 'Guard model for safety checks',
       },
       {
-        model: 'phi3:3.8b',
+        model: OLLAMA_GENERAL_MODEL,
         reason: 'General tasks (tools analysis, chat summarization)',
       },
     ],

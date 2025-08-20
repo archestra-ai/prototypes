@@ -1,29 +1,22 @@
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { type experimental_MCPClient, experimental_createMCPClient } from 'ai';
-import type { RawReplyDefaultExpression } from 'fastify';
 import { z } from 'zod';
 
 import { setSocketPath } from '@backend/clients/libpod/client';
-import config from '@backend/config';
 import McpServerModel, { type McpServer } from '@backend/models/mcpServer';
-import PodmanContainer, { PodmanContainerStatusSummarySchema } from '@backend/sandbox/podman/container';
+import { PodmanContainerStatusSummarySchema } from '@backend/sandbox/podman/container';
 import PodmanRuntime, { PodmanRuntimeStatusSummarySchema } from '@backend/sandbox/podman/runtime';
+import SandboxedMcpServer, {
+  type AvailableTool,
+  type McpTools,
+  SandboxedMcpServerStatusSummarySchema,
+} from '@backend/sandbox/sandboxedMcp';
 import log from '@backend/utils/logger';
-
-// Type for MCP tools returned by the client
-type McpTools = Awaited<ReturnType<experimental_MCPClient['tools']>>;
 
 export const SandboxStatusSchema = z.enum(['not_installed', 'initializing', 'running', 'error', 'stopping', 'stopped']);
 
 export const SandboxStatusSummarySchema = z.object({
   status: SandboxStatusSchema,
   runtime: PodmanRuntimeStatusSummarySchema,
-  containers: z.record(z.string().describe('The MCP server ID'), PodmanContainerStatusSummarySchema),
-});
-
-export const McpServerContainerLogsSchema = z.object({
-  logs: z.string(),
-  containerName: z.string(),
+  mcpServers: z.record(z.string().describe('The MCP server ID'), SandboxedMcpServerStatusSummarySchema),
 });
 
 /**
@@ -35,13 +28,14 @@ z.globalRegistry.add(PodmanContainerStatusSummarySchema, { id: 'PodmanContainerS
 
 type SandboxStatus = z.infer<typeof SandboxStatusSchema>;
 export type SandboxStatusSummary = z.infer<typeof SandboxStatusSummarySchema>;
-type McpServerContainerLogs = z.infer<typeof McpServerContainerLogsSchema>;
 
+/**
+ * McpServerSandboxManager is a singleton "manager" responsible for.. managing
+ * the installation/status of sandboxed MCP servers running in Podman
+ */
 class McpServerSandboxManager {
   private podmanRuntime: InstanceType<typeof PodmanRuntime>;
-  private mcpServerIdToPodmanContainerMap: Map<string, PodmanContainer> = new Map();
-  private mcpClients: Map<string, experimental_MCPClient> = new Map();
-  private availableTools: Map<string, McpTools> = new Map();
+  private mcpServerIdToSandboxedMcpServerMap: Map<string, SandboxedMcpServer> = new Map();
 
   private status: SandboxStatus = 'not_installed';
 
@@ -127,63 +121,26 @@ class McpServerSandboxManager {
       throw new Error('Socket path is not initialized');
     }
 
-    const container = new PodmanContainer(mcpServer, this.socketPath);
-    await container.startOrCreateContainer();
+    const sandboxedMcpServer = new SandboxedMcpServer(mcpServer, this.socketPath);
 
-    this.mcpServerIdToPodmanContainerMap.set(id, container);
-    log.info(`Registered container for MCP server ${id} in map`);
+    /**
+     * TODO: this is a bit sub-optimal.. register the sandboxedMcpServer in mcpServerIdToSandboxedMcpServerMap
+     * BEFORE calling sandboxedMcpServer.start because, internally, start calls POST /mcp_proxy/:mcp_server_id
+     * which does a check against McpServerSandboxManager.mcpServerIdToSandboxedMcpServerMap to make sure
+     * that the sandboxed mcp server "exists"
+     */
+    this.mcpServerIdToSandboxedMcpServerMap.set(id, sandboxedMcpServer);
+    log.info(`Registered sandboxed MCP server ${id} in map`);
 
-    // Connect MCP client after container is ready
-    await this.connectMcpClient(id);
-  }
-
-  private async connectMcpClient(serverId: string) {
-    try {
-      // Wait a bit for container to be fully ready
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const { host, port } = config.server.http;
-      const url = `http://${host}:${port}/mcp_proxy/${serverId}`;
-      log.info(`Attempting to connect MCP client to ${url}`);
-
-      // First check if the server is reachable
-      try {
-        const testResponse = await fetch(`http://${host}:${port}/api/mcp_server/sandbox_status`);
-        log.info(`Server health check response status: ${testResponse.status}`);
-      } catch (testError) {
-        log.error(`Server is not reachable at http://${host}:${port}:`, testError);
-        // Don't proceed if server is not reachable
-        return;
-      }
-
-      const transport = new StreamableHTTPClientTransport(new URL(url));
-      const client = await experimental_createMCPClient({ transport: transport as any });
-      this.mcpClients.set(serverId, client);
-
-      // Fetch and cache tools directly from the client
-      const clientTools = await client.tools();
-      this.availableTools.set(serverId, clientTools);
-
-      log.info(`Connected MCP client for ${serverId}, found ${Object.keys(clientTools).length} tools`);
-    } catch (error) {
-      log.error(`Failed to connect MCP client for ${serverId}:`, error);
-    }
+    await sandboxedMcpServer.start();
   }
 
   async stopServer(mcpServerId: string) {
-    const container = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
+    const sandboxedMcpServer = this.mcpServerIdToSandboxedMcpServerMap.get(mcpServerId);
 
-    if (container) {
-      await container.stopContainer();
-      this.mcpServerIdToPodmanContainerMap.delete(mcpServerId);
-    }
-
-    // Clean up MCP client
-    const client = this.mcpClients.get(mcpServerId);
-    if (client) {
-      await client.close();
-      this.mcpClients.delete(mcpServerId);
-      this.availableTools.delete(mcpServerId);
+    if (sandboxedMcpServer) {
+      await sandboxedMcpServer.stop();
+      this.mcpServerIdToSandboxedMcpServerMap.delete(mcpServerId);
     }
   }
 
@@ -207,105 +164,51 @@ class McpServerSandboxManager {
     this.status = 'stopped';
   }
 
-  checkContainerExists(mcpServerId: string): boolean {
-    log.info(`Checking if container exists for MCP server ${mcpServerId}...`);
-    log.info(`Available MCP servers: ${Array.from(this.mcpServerIdToPodmanContainerMap.keys())}`);
-    log.info(`Total containers in map: ${this.mcpServerIdToPodmanContainerMap.size}`);
-
-    const exists = this.mcpServerIdToPodmanContainerMap.has(mcpServerId);
-    log.info(`Container ${mcpServerId} exists: ${exists}`);
-    return exists;
+  getSandboxedMcpServer(mcpServerId: string): SandboxedMcpServer | undefined {
+    return this.mcpServerIdToSandboxedMcpServerMap.get(mcpServerId);
   }
 
-  async streamToMcpServerContainer(
-    mcpServerId: string,
-    request: any,
-    responseStream: RawReplyDefaultExpression
-  ): Promise<void> {
-    log.info(`Looking for MCP server ${mcpServerId} in map...`);
-    log.info(`Available MCP servers: ${Array.from(this.mcpServerIdToPodmanContainerMap.keys())}`);
+  async removeMcpServer(mcpServerId: string) {
+    log.info(`Removing mcp server for MCP server: ${mcpServerId}`);
 
-    const podmanContainer = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
-    if (!podmanContainer) {
-      // This should not happen if checkContainerExists was called first
-      throw new Error(`MCP server ${mcpServerId} container not found`);
-    }
-
-    log.info(`Found container for ${mcpServerId}, streaming request...`);
-    await podmanContainer.streamToContainer(request, responseStream);
-  }
-
-  /**
-   * Get logs for a specific MCP server container
-   */
-  async getMcpServerLogs(mcpServerId: string, lines: number = 100): Promise<McpServerContainerLogs> {
-    const podmanContainer = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
-    if (!podmanContainer) {
-      throw new Error(`MCP server ${mcpServerId} container not found`);
-    }
-    return {
-      logs: await podmanContainer.getRecentLogs(lines),
-      containerName: podmanContainer.containerName,
-    };
-  }
-
-  /**
-   * Remove a container and clean up its resources
-   */
-  async removeContainer(mcpServerId: string) {
-    log.info(`Removing container for MCP server: ${mcpServerId}`);
-
-    const container = this.mcpServerIdToPodmanContainerMap.get(mcpServerId);
-    if (!container) {
+    const sandboxedMcpServer = this.mcpServerIdToSandboxedMcpServerMap.get(mcpServerId);
+    if (!sandboxedMcpServer) {
       log.warn(`No container found for MCP server ${mcpServerId}`);
       return;
     }
 
     try {
-      await container.removeContainer();
-      this.mcpServerIdToPodmanContainerMap.delete(mcpServerId);
-
-      log.info(`Successfully removed container and cleaned up resources for MCP server ${mcpServerId}`);
+      await sandboxedMcpServer.stop();
+      log.info(`Successfully removed MCP server ${mcpServerId}`);
     } catch (error) {
-      log.error(`Failed to remove container for MCP server ${mcpServerId}:`, error);
+      log.error(`Failed to remove MCP server ${mcpServerId}:`, error);
       throw error;
+    } finally {
+      this.mcpServerIdToSandboxedMcpServerMap.delete(mcpServerId);
     }
   }
 
-  get statusSummary(): SandboxStatusSummary {
-    return {
-      status: this.status,
-      runtime: this.podmanRuntime.statusSummary,
-      containers: Object.fromEntries(
-        Array.from(this.mcpServerIdToPodmanContainerMap.entries()).map(([mcpServerId, podmanContainer]) => [
-          mcpServerId,
-          podmanContainer.statusSummary,
-        ])
-      ),
-    };
-  }
-
-  // Get all available tools with execute functions
+  /**
+   * Get all tools, for all running MCP servers, in the Vercel AI SDK's format
+   */
   getAllTools(): McpTools {
-    const allTools: McpTools = {} as McpTools;
+    const allTools: McpTools = {};
 
-    for (const [serverId, serverTools] of this.availableTools) {
-      for (const [toolName, tool] of Object.entries(serverTools)) {
-        // Use : separator to combine server ID and tool name
-        // This allows us to reliably extract the server ID later
-        const toolId = `${serverId}:${toolName}`;
-
-        allTools[toolId] = tool;
+    for (const sandboxedMcpServer of this.mcpServerIdToSandboxedMcpServerMap.values()) {
+      for (const [toolName, tool] of Object.entries(sandboxedMcpServer.tools)) {
+        allTools[toolName] = tool;
       }
     }
 
     return allTools;
   }
 
-  // Get specific tools by IDs
-  getToolsById(toolIds: string[]): Partial<McpTools> {
+  /**
+   * Get specific tools, by ID, in the Vercel AI SDK's format
+   */
+  getToolsById(toolIds: string[]): McpTools {
     const allTools = this.getAllTools();
-    const selected: Partial<McpTools> = {};
+    const selected: McpTools = {};
 
     for (const toolId of toolIds) {
       if (allTools[toolId]) {
@@ -314,6 +217,29 @@ class McpServerSandboxManager {
     }
 
     return selected;
+  }
+
+  /**
+   * Get all available tools, for all running MCP servers, in a slightly transformed format
+   * that we expose to the UI
+   */
+  get allAvailableTools(): AvailableTool[] {
+    return Array.from(this.mcpServerIdToSandboxedMcpServerMap.values()).flatMap(
+      (sandboxedMcpServer) => sandboxedMcpServer.availableToolsList
+    );
+  }
+
+  get statusSummary(): SandboxStatusSummary {
+    return {
+      status: this.status,
+      runtime: this.podmanRuntime.statusSummary,
+      mcpServers: Object.fromEntries(
+        Array.from(this.mcpServerIdToSandboxedMcpServerMap.entries()).map(([mcpServerId, podmanContainer]) => [
+          mcpServerId,
+          podmanContainer.statusSummary,
+        ])
+      ),
+    };
   }
 }
 
