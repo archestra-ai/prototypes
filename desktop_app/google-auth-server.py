@@ -47,12 +47,12 @@ class OAuthHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         """Handle OAuth callback"""
         global auth_result
-        
+
         if self.path.startswith('/callback'):
             # Parse query parameters
             query = urllib.parse.urlparse(self.path).query
             params = urllib.parse.parse_qs(query)
-            
+
             if 'code' in params:
                 auth_result = {'code': params['code'][0]}
                 # Send success page
@@ -63,7 +63,7 @@ class OAuthHandler(http.server.SimpleHTTPRequestHandler):
                 <html>
                 <head><title>Success</title></head>
                 <body style="font-family: system-ui; padding: 40px; text-align: center;">
-                    <h1 style="color: #22c55e;">✓ Authentication Successful!</h1>
+                    <h1 style="color: #22c55e;">Authentication Successful!</h1>
                     <p>You can close this window and return to the terminal.</p>
                 </body>
                 </html>
@@ -88,7 +88,7 @@ class OAuthHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(html.encode('utf-8'))
         else:
             self.send_error(404)
-    
+
     def log_message(self, format, *args):
         """Suppress default logging"""
         pass
@@ -99,7 +99,7 @@ def start_auth_flow():
     code_verifier = generate_code_verifier()
     code_challenge = generate_code_challenge(code_verifier)
     state = base64_url_encode(secrets.token_bytes(16))
-    
+
     # Build authorization URL
     params = {
         'client_id': CLIENT_ID,
@@ -112,37 +112,37 @@ def start_auth_flow():
         'access_type': 'offline',
         'prompt': 'consent'
     }
-    
+
     auth_url = f"{AUTH_URI}?{urllib.parse.urlencode(params)}"
-    
+
     print(f"\n📋 Opening browser for authentication...")
     print(f"   If browser doesn't open, visit:\n   {auth_url}\n")
-    
+
     # Open browser
     webbrowser.open(auth_url)
-    
+
     # Start local server to receive callback
     global auth_result
     auth_result = None
-    
+
     with socketserver.TCPServer(("", PORT), OAuthHandler) as httpd:
         print(f"⏳ Waiting for authentication callback on port {PORT}...")
-        
+
         # Wait for one request
         while auth_result is None:
             httpd.handle_request()
-    
+
     if 'error' in auth_result:
         print(f"\n❌ Authentication failed: {auth_result['error']}")
         return None, None
-    
+
     print(f"\n✅ Authorization code received!")
     return auth_result['code'], code_verifier
 
 def exchange_code_for_tokens(auth_code, code_verifier):
     """Exchange authorization code for tokens"""
     print("\n🔄 Exchanging code for tokens...")
-    
+
     # For installed/native apps, client_secret is optional
     params = {
         'grant_type': 'authorization_code',
@@ -151,14 +151,14 @@ def exchange_code_for_tokens(auth_code, code_verifier):
         'client_id': CLIENT_ID,
         'code_verifier': code_verifier
     }
-    
+
     data = urllib.parse.urlencode(params).encode('utf-8')
     req = urllib.request.Request(
         TOKEN_URI,
         data=data,
         headers={'Content-Type': 'application/x-www-form-urlencoded'}
     )
-    
+
     try:
         with urllib.request.urlopen(req) as response:
             tokens = json.loads(response.read())
@@ -172,12 +172,12 @@ def exchange_code_for_tokens(auth_code, code_verifier):
 def get_user_info(access_token):
     """Get user info using access token"""
     print("\n👤 Fetching user information...")
-    
+
     req = urllib.request.Request(
         USERINFO_URI,
         headers={'Authorization': f'Bearer {access_token}'}
     )
-    
+
     try:
         with urllib.request.urlopen(req) as response:
             user_info = json.loads(response.read())
@@ -200,19 +200,19 @@ def main():
 ║  • User info retrieval                                 ║
 ╚════════════════════════════════════════════════════════╝
     """)
-    
+
     # Step 1: Start auth flow
     auth_code, code_verifier = start_auth_flow()
-    
+
     if not auth_code:
         return
-    
+
     # Step 2: Exchange code for tokens
     tokens = exchange_code_for_tokens(auth_code, code_verifier)
-    
+
     if not tokens:
         return
-    
+
     # Display tokens
     print("\n📦 Tokens Received:")
     print("─" * 50)
@@ -223,11 +223,11 @@ def main():
         print(f"Refresh Token: {tokens['refresh_token'][:50]}...")
     if 'id_token' in tokens:
         print(f"ID Token: {tokens['id_token'][:50]}...")
-    
+
     # Step 3: Get user info
     if 'access_token' in tokens:
         user_info = get_user_info(tokens['access_token'])
-        
+
         if user_info:
             print("\n👤 User Information:")
             print("─" * 50)
@@ -236,9 +236,9 @@ def main():
             print(f"Picture: {user_info.get('picture', 'N/A')}")
             print(f"ID: {user_info.get('id', 'N/A')}")
             print(f"Verified Email: {user_info.get('verified_email', 'N/A')}")
-    
+
     print("\n✨ OAuth flow complete!")
-    
+
     # Optionally save tokens
     save = input("\n💾 Save tokens to file? (y/n): ").lower()
     if save == 'y':
