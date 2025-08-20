@@ -9,6 +9,7 @@ import { updateElectronApp } from 'update-electron-app';
 import log from '@backend/utils/logger';
 
 import config from './config';
+import { setupSlackAuthHandler } from './main-slack-auth';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -160,6 +161,9 @@ async function startBackendServer(): Promise<void> {
 ipcMain.handle('open-external', async (_event, url: string) => {
   await shell.openExternal(url);
 });
+
+// Set up Slack authentication handler
+setupSlackAuthHandler();
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
