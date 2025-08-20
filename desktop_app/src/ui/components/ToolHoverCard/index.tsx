@@ -17,7 +17,7 @@ interface ToolHoverCardProps extends React.PropsWithChildren {
 }
 
 export function ToolHoverCard({
-  tool: { mcpServerName, name, description, id },
+  tool,
   children,
   side = 'right',
   align = 'start',
@@ -25,7 +25,9 @@ export function ToolHoverCard({
   instructionText,
 }: ToolHoverCardProps) {
   const { selectedToolIds } = useToolsStore();
-  const isSelected = selectedToolIds.has(id);
+  const isSelected = selectedToolIds.has(tool.id);
+
+  const { mcpServerName, name, description, id, is_read, is_write, idempotent, reversible } = tool;
 
   return (
     <HoverCard openDelay={100} closeDelay={0}>
@@ -50,6 +52,47 @@ export function ToolHoverCard({
             <ToolStatusIcon enabled={isSelected} />
             <span className="text-xs text-muted-foreground">{!isSelected ? 'Disabled' : 'Available'}</span>
           </div>
+
+          {/* Tool Analysis Results */}
+          {(is_read !== null || is_write !== null || idempotent !== null || reversible !== null) && (
+            <div className="pt-2 border-t space-y-1">
+              <h5 className="text-xs font-semibold text-muted-foreground mb-1">Tool Properties</h5>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                {is_read !== null && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Read-only:</span>
+                    <span className={`text-xs font-medium ${is_read ? 'text-green-600' : 'text-orange-600'}`}>
+                      {is_read ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                )}
+                {is_write !== null && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Writes data:</span>
+                    <span className={`text-xs font-medium ${is_write ? 'text-orange-600' : 'text-green-600'}`}>
+                      {is_write ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                )}
+                {idempotent !== null && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Idempotent:</span>
+                    <span className={`text-xs font-medium ${idempotent ? 'text-green-600' : 'text-orange-600'}`}>
+                      {idempotent ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                )}
+                {reversible !== null && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Reversible:</span>
+                    <span className={`text-xs font-medium ${reversible ? 'text-green-600' : 'text-orange-600'}`}>
+                      {reversible ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {showInstructions && instructionText && (
             <div className="text-xs text-muted-foreground pt-2 border-t">{instructionText}</div>

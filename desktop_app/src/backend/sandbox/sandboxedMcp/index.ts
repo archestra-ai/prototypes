@@ -6,6 +6,8 @@ import { z } from 'zod';
 
 import config from '@backend/config';
 import { type McpServer } from '@backend/models/mcpServer';
+import { ToolModel } from '@backend/models/tools';
+import { ToolAnalysis } from '@backend/models/tools/analysis';
 import PodmanContainer, { PodmanContainerStatusSummarySchema } from '@backend/sandbox/podman/container';
 import log from '@backend/utils/logger';
 
@@ -30,6 +32,11 @@ export const AvailableToolSchema = z.object({
   inputSchema: z.any().optional().describe('Tool input schema'),
   mcpServerId: z.string().describe('MCP server ID'),
   mcpServerName: z.string().describe('MCP server name'),
+  // Analysis results
+  is_read: z.boolean().nullable().optional().describe('Whether the tool is read-only'),
+  is_write: z.boolean().nullable().optional().describe('Whether the tool writes data'),
+  idempotent: z.boolean().nullable().optional().describe('Whether the tool is idempotent'),
+  reversible: z.boolean().nullable().optional().describe('Whether the tool actions are reversible'),
 });
 
 export const SandboxedMcpServerStatusSummarySchema = z.object({
@@ -56,6 +63,16 @@ export default class SandboxedMcpServer {
   private mcpClient: experimental_MCPClient;
 
   tools: McpTools = {};
+  private toolAnalysis: ToolAnalysis;
+  private cachedToolAnalysis: Map<
+    string,
+    {
+      is_read: boolean | null;
+      is_write: boolean | null;
+      idempotent: boolean | null;
+      reversible: boolean | null;
+    }
+  > = new Map();
 
   constructor(mcpServer: McpServer, podmanSocketPath: string) {
     this.mcpServer = mcpServer;
@@ -64,6 +81,41 @@ export default class SandboxedMcpServer {
 
     this.podmanSocketPath = podmanSocketPath;
     this.podmanContainer = new PodmanContainer(mcpServer, podmanSocketPath);
+    this.toolAnalysis = new ToolAnalysis();
+
+    // Try to fetch cached tools on initialization
+    this.fetchCachedTools();
+  }
+
+  /**
+   * Try to fetch cached tools from the database
+   */
+  private async fetchCachedTools() {
+    try {
+      const cachedTools = await ToolModel.getByMcpServerId(this.mcpServerId);
+      if (cachedTools.length > 0) {
+        log.info(`Found ${cachedTools.length} cached tools for ${this.mcpServerId}`);
+
+        // Reconstruct the tools object and analysis cache from cached data
+        for (const cachedTool of cachedTools) {
+          const toolId = `${this.mcpServerId}${TOOL_ID_SEPARATOR}${cachedTool.name}`;
+          this.tools[toolId] = {
+            description: cachedTool.description,
+            inputSchema: cachedTool.input_schema,
+          };
+
+          // Cache the analysis results
+          this.cachedToolAnalysis.set(cachedTool.name, {
+            is_read: cachedTool.is_read,
+            is_write: cachedTool.is_write,
+            idempotent: cachedTool.idempotent,
+            reversible: cachedTool.reversible,
+          });
+        }
+      }
+    } catch (error) {
+      log.error(`Failed to fetch cached tools for ${this.mcpServerId}:`, error);
+    }
   }
 
   /**
@@ -74,12 +126,40 @@ export default class SandboxedMcpServer {
     log.info(`Fetching tools for ${this.mcpServerId}...`);
 
     const tools = await this.mcpClient.tools();
+    const previousToolCount = Object.keys(this.tools).length;
+
+    // Clear existing tools to ensure we have fresh data
+    this.tools = {};
+
     for (const [toolName, tool] of Object.entries(tools)) {
       const toolId = `${this.mcpServerId}${TOOL_ID_SEPARATOR}${toolName}`;
       this.tools[toolId] = tool;
     }
 
-    log.info(`Fetched ${Object.keys(this.tools).length} tools for ${this.mcpServerId}`);
+    const newToolCount = Object.keys(this.tools).length;
+    log.info(`Fetched ${newToolCount} tools for ${this.mcpServerId}`);
+
+    // If we have new tools or the count changed, analyze them
+    if (newToolCount > 0 && (newToolCount !== previousToolCount || previousToolCount === 0)) {
+      try {
+        log.info(`Analyzing tools for ${this.mcpServerId}...`);
+        await this.toolAnalysis.analyze(tools, this.mcpServerId);
+
+        // Update the cached analysis results
+        const updatedTools = await ToolModel.getByMcpServerId(this.mcpServerId);
+        for (const tool of updatedTools) {
+          this.cachedToolAnalysis.set(tool.name, {
+            is_read: tool.is_read,
+            is_write: tool.is_write,
+            idempotent: tool.idempotent,
+            reversible: tool.reversible,
+          });
+        }
+      } catch (error) {
+        log.error(`Failed to analyze tools for ${this.mcpServerId}:`, error);
+        // Continue even if analysis fails
+      }
+    }
   }
 
   private async createMcpClient() {
@@ -191,7 +271,10 @@ export default class SandboxedMcpServer {
   get availableToolsList(): AvailableTool[] {
     return Object.entries(this.tools).map(([id, tool]) => {
       const separatorIndex = id.indexOf(TOOL_ID_SEPARATOR);
-      const toolName = separatorIndex !== -1 ? id.substring(separatorIndex + 1) : id;
+      const toolName = separatorIndex !== -1 ? id.substring(separatorIndex + TOOL_ID_SEPARATOR.length) : id;
+
+      // Get analysis results from cache if available
+      const cachedAnalysis = this.cachedToolAnalysis.get(toolName);
 
       return {
         id,
@@ -200,6 +283,11 @@ export default class SandboxedMcpServer {
         inputSchema: this.cleanToolInputSchema(tool.inputSchema),
         mcpServerId: this.mcpServerId,
         mcpServerName: this.mcpServer.name,
+        // Include analysis results if available
+        is_read: cachedAnalysis?.is_read ?? null,
+        is_write: cachedAnalysis?.is_write ?? null,
+        idempotent: cachedAnalysis?.idempotent ?? null,
+        reversible: cachedAnalysis?.reversible ?? null,
       };
     });
   }

@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { ToolHoverCard } from '@ui/components/ToolHoverCard';
 import { ToolServerIcon } from '@ui/components/ToolServerIcon';
 import { Checkbox } from '@ui/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui/components/ui/collapsible';
@@ -148,16 +149,24 @@ export default function McpServerWithToolsSidebarSection(_props: McpServerWithTo
                     <CollapsibleContent>
                       {serverTools.map((tool) => (
                         <SidebarMenuItem key={tool.id}>
-                          <div className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-muted/50 rounded-md cursor-pointer w-full">
-                            <Checkbox
-                              checked={selectedToolIds.has(tool.id)}
-                              onCheckedChange={(checked) => handleToolToggle(tool.id, checked)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="h-3 w-3"
-                            />
-                            <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" />
-                            <span className="truncate flex-1">{formatToolName(tool.name || tool.id)}</span>
-                          </div>
+                          <ToolHoverCard
+                            tool={tool}
+                            side="right"
+                            align="start"
+                            showInstructions={true}
+                            instructionText="Check the box to enable this tool in your chat"
+                          >
+                            <div className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-muted/50 rounded-md cursor-pointer w-full">
+                              <Checkbox
+                                checked={selectedToolIds.has(tool.id)}
+                                onCheckedChange={(checked) => handleToolToggle(tool.id, checked)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-3 w-3"
+                              />
+                              <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" />
+                              <span className="truncate flex-1">{formatToolName(tool.name || tool.id)}</span>
+                            </div>
+                          </ToolHoverCard>
                         </SidebarMenuItem>
                       ))}
                     </CollapsibleContent>

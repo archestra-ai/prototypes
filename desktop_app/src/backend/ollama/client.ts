@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import config from '@backend/config';
+import { ToolAnalysisResultSchema } from '@backend/database/schema/tool';
 import log from '@backend/utils/logger';
 import WebSocketService from '@backend/websocket';
 
@@ -250,6 +251,80 @@ class OllamaClient {
   }
 
   /**
+   * Analyze tools and return structured analysis results
+   */
+  async analyzeTools(
+    tools: Array<{
+      name: string;
+      description: string;
+      inputSchema?: any;
+      annotations?: any;
+    }>
+  ): Promise<Record<string, z.infer<typeof ToolAnalysisResultSchema>>> {
+    const prompt = `You are an expert at analyzing API tools and their capabilities. Analyze the following tools and determine their characteristics.
+
+For each tool, evaluate:
+1. is_read: Does this tool primarily read or retrieve data without modifying state?
+2. is_write: Does this tool create, update, or delete data?
+3. idempotent: Can this tool be safely called multiple times with the same parameters without changing the result beyond the initial call?
+4. reversible: Can the effects of this tool be undone or rolled back? (e.g., sending an email is NOT reversible)
+
+Consider the tool's name, description, input schema, and any annotations provided.
+
+Tools to analyze:
+${JSON.stringify(tools, null, 2)}
+
+Return a JSON object with tool names as keys and analysis results as values. The format should be:
+{
+  "toolName": {
+    "is_read": boolean,
+    "is_write": boolean,
+    "idempotent": boolean,
+    "reversible": boolean
+  }
+}
+
+IMPORTANT: Return ONLY valid JSON, no markdown formatting or explanations.`;
+
+    try {
+      const response = await this.generate({
+        model: config.ollama.generalModel,
+        prompt,
+        stream: false,
+        format: 'json',
+        options: {
+          temperature: 0.3,
+          num_predict: 2000,
+        },
+      });
+
+      const rawResult = JSON.parse(response.response);
+      const result: Record<string, z.infer<typeof ToolAnalysisResultSchema>> = {};
+
+      // Validate each tool's analysis results
+      for (const [toolName, analysis] of Object.entries(rawResult)) {
+        try {
+          result[toolName] = ToolAnalysisResultSchema.parse(analysis);
+        } catch (error) {
+          log.warn(`Invalid analysis result for tool ${toolName}:`, error);
+          // Provide default values if parsing fails
+          result[toolName] = {
+            is_read: false,
+            is_write: false,
+            idempotent: false,
+            reversible: false,
+          };
+        }
+      }
+
+      return result;
+    } catch (error) {
+      log.error('Failed to analyze tools:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Generate a chat title based on messages
    */
   async generateChatTitle(messages: string[]): Promise<string> {
@@ -337,4 +412,5 @@ The title should capture the main topic or theme of the conversation. Respond wi
   }
 }
 
+export { OllamaClient };
 export default new OllamaClient();
