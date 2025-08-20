@@ -46,14 +46,52 @@
             },
             "required": ["startupPercentage", "startupMessage", "startupError"]
           },
-          "containers": {
+          "mcpServers": {
             "type": "object",
             "additionalProperties": {
-              "$ref": "#/components/schemas/PodmanContainerStatusSummaryInput"
+              "type": "object",
+              "properties": {
+                "container": {
+                  "$ref": "#/components/schemas/PodmanContainerStatusSummaryInput"
+                },
+                "tools": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "description": "Tool ID in format sanitizedServerId__sanitizedToolName",
+                        "type": "string"
+                      },
+                      "name": {
+                        "description": "Tool name",
+                        "type": "string"
+                      },
+                      "description": {
+                        "description": "Tool description",
+                        "type": "string"
+                      },
+                      "inputSchema": {
+                        "description": "Tool input schema"
+                      },
+                      "mcpServerId": {
+                        "description": "MCP server ID",
+                        "type": "string"
+                      },
+                      "mcpServerName": {
+                        "description": "MCP server name",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["id", "name", "mcpServerId", "mcpServerName"]
+                  }
+                }
+              },
+              "required": ["container", "tools"]
             }
           }
         },
-        "required": ["status", "runtime", "containers"]
+        "required": ["status", "runtime", "mcpServers"]
       },
       "PodmanContainerStatusSummaryInput": {
         "type": "object",
@@ -735,14 +773,54 @@
             "required": ["startupPercentage", "startupMessage", "startupError"],
             "additionalProperties": false
           },
-          "containers": {
+          "mcpServers": {
             "type": "object",
             "additionalProperties": {
-              "$ref": "#/components/schemas/PodmanContainerStatusSummary"
+              "type": "object",
+              "properties": {
+                "container": {
+                  "$ref": "#/components/schemas/PodmanContainerStatusSummary"
+                },
+                "tools": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "description": "Tool ID in format sanitizedServerId__sanitizedToolName",
+                        "type": "string"
+                      },
+                      "name": {
+                        "description": "Tool name",
+                        "type": "string"
+                      },
+                      "description": {
+                        "description": "Tool description",
+                        "type": "string"
+                      },
+                      "inputSchema": {
+                        "description": "Tool input schema"
+                      },
+                      "mcpServerId": {
+                        "description": "MCP server ID",
+                        "type": "string"
+                      },
+                      "mcpServerName": {
+                        "description": "MCP server name",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["id", "name", "mcpServerId", "mcpServerName"],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": ["container", "tools"],
+              "additionalProperties": false
             }
           }
         },
-        "required": ["status", "runtime", "containers"],
+        "required": ["status", "runtime", "mcpServers"],
         "additionalProperties": false
       },
       "PodmanContainerStatusSummary": {

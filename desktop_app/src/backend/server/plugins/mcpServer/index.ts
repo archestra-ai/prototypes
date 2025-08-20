@@ -4,19 +4,10 @@ import { z } from 'zod';
 
 import McpRequestLog from '@backend/models/mcpRequestLog';
 import McpServerModel, { McpServerInstallSchema, McpServerSchema } from '@backend/models/mcpServer';
-import McpServerSandboxManager, { McpServerContainerLogsSchema } from '@backend/sandbox/manager';
+import McpServerSandboxManager from '@backend/sandbox/manager';
+import { AvailableToolSchema, McpServerContainerLogsSchema } from '@backend/sandbox/sandboxedMcp';
 import { ErrorResponseSchema } from '@backend/schemas';
 import log from '@backend/utils/logger';
-
-// Schema for available tools
-const AvailableToolSchema = z.object({
-  id: z.string().describe('Tool ID in format sanitizedServerId__sanitizedToolName'),
-  name: z.string().describe('Tool name'),
-  description: z.string().optional().describe('Tool description'),
-  inputSchema: z.any().optional().describe('Tool input schema'),
-  mcpServerId: z.string().describe('MCP server ID'),
-  mcpServerName: z.string().describe('MCP server name'),
-});
 
 /**
  * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
@@ -25,18 +16,6 @@ const AvailableToolSchema = z.object({
 z.globalRegistry.add(McpServerSchema, { id: 'McpServer' });
 z.globalRegistry.add(McpServerContainerLogsSchema, { id: 'McpServerContainerLogs' });
 z.globalRegistry.add(AvailableToolSchema, { id: 'AvailableTool' });
-
-// Helper function to make schema JSON-serializable by removing symbols
-const cleanSchema = (schema: any): any => {
-  if (!schema) return undefined;
-
-  try {
-    // JSON.parse(JSON.stringify()) removes non-serializable properties like symbols
-    return JSON.parse(JSON.stringify(schema));
-  } catch {
-    return undefined;
-  }
-};
 
 const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
@@ -162,11 +141,11 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       },
     },
     async ({ params: { id }, body, headers }, reply) => {
-      const mcpServers = await McpServerModel.getById(id);
-      if (!mcpServers || mcpServers.length === 0) {
+      const sandboxedMcpServer = McpServerSandboxManager.getSandboxedMcpServer(id);
+      if (!sandboxedMcpServer) {
         return reply.code(404).send({ error: 'MCP server not found' });
       }
-      const mcpServer = mcpServers[0];
+      const { name: mcpServerName } = sandboxedMcpServer.mcpServer;
 
       // Create MCP request log entry
       const requestId = uuidv4();
@@ -178,44 +157,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       try {
         fastify.log.info(`Proxying request to MCP server ${id}: ${JSON.stringify(body)}`);
 
-        // Check if container exists BEFORE hijacking!
-        const containerExists = McpServerSandboxManager.checkContainerExists(id);
-
-        if (!containerExists) {
-          // Container not ready yet, return 404 so UI can retry
-          fastify.log.info(`Container ${id} not ready yet, returning 404`);
-          statusCode = 404;
-          errorMessage = 'MCP server container not ready yet';
-
-          // Log the failed request
-          await McpRequestLog.create({
-            requestId,
-            sessionId: body.sessionId || null,
-            mcpSessionId: body.mcpSessionId || null,
-            serverName: mcpServer.name || id,
-            clientInfo: {
-              userAgent: headers['user-agent'],
-              clientName: 'Archestra Desktop App',
-              clientVersion: '0.0.1',
-              clientPlatform: process.platform,
-            },
-            method: body.method || null,
-            requestHeaders: headers as Record<string, string>,
-            requestBody: JSON.stringify(body),
-            responseBody: JSON.stringify({ error: errorMessage, retry: true }),
-            responseHeaders: {},
-            statusCode,
-            errorMessage,
-            durationMs: Date.now() - startTime,
-          });
-
-          return reply.code(404).send({
-            error: 'MCP server container not ready yet',
-            retry: true,
-          });
-        }
-
-        // Now hijack the response to handle streaming manually!
+        // Hijack the response to handle streaming manually!
         reply.hijack();
 
         // Set up streaming response headers!
@@ -247,7 +189,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
             requestId,
             sessionId: body.sessionId || null,
             mcpSessionId: body.mcpSessionId || null,
-            serverName: mcpServer.name || id,
+            serverName: mcpServerName || id,
             clientInfo: {
               userAgent: headers['user-agent'],
               clientName: 'Archestra Desktop App',
@@ -273,7 +215,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         };
 
         // Stream the request to the container!
-        await McpServerSandboxManager.streamToMcpServerContainer(id, body, reply.raw);
+        await sandboxedMcpServer.streamToContainer(body, reply.raw);
 
         // Return undefined when hijacking to prevent Fastify from sending response
         return;
@@ -292,7 +234,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
           requestId,
           sessionId: body.sessionId || null,
           mcpSessionId: body.mcpSessionId || null,
-          serverName: mcpServer.name || id,
+          serverName: mcpServerName || id,
           clientInfo: {
             userAgent: headers['user-agent'],
             clientName: 'Archestra Desktop App',
@@ -347,14 +289,13 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       },
     },
     async ({ params: { id }, query: { lines } }, reply) => {
-      const mcpServers = await McpServerModel.getById(id);
-
-      if (!mcpServers || mcpServers.length === 0) {
+      const sandboxedMcpServer = McpServerSandboxManager.getSandboxedMcpServer(id);
+      if (!sandboxedMcpServer) {
         return reply.code(404).send({ error: 'MCP server not found' });
       }
 
       try {
-        const logs = await McpServerSandboxManager.getMcpServerLogs(id, lines);
+        const logs = await sandboxedMcpServer.getMcpServerLogs(lines);
         return reply.send(logs);
       } catch (error) {
         fastify.log.error(`Error getting logs for MCP server ${id}: ${error}`);
@@ -365,7 +306,6 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
     }
   );
 
-  // Get all available tools from connected MCP servers
   fastify.get(
     '/api/mcp_server/tools',
     {
@@ -378,30 +318,8 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         },
       },
     },
-    async (request, reply) => {
-      const tools = McpServerSandboxManager.getAllTools();
-      const servers = await McpServerModel.getAll();
-
-      const toolList = Object.entries(tools).map(([id, tool]) => {
-        // Tool IDs are now in format: serverId:toolName
-        const separatorIndex = id.indexOf(':');
-        const serverId = separatorIndex !== -1 ? id.substring(0, separatorIndex) : id;
-        const toolName = separatorIndex !== -1 ? id.substring(separatorIndex + 1) : id;
-
-        // Find the server directly by its ID
-        const server = servers.find((s) => s.id === serverId);
-
-        return {
-          id,
-          name: toolName || id,
-          description: tool.description,
-          inputSchema: cleanSchema(tool.inputSchema),
-          mcpServerId: server?.id || serverId,
-          mcpServerName: server?.name || 'Unknown',
-        };
-      });
-
-      return reply.send(toolList);
+    async (_request, reply) => {
+      return reply.send(McpServerSandboxManager.allAvailableTools);
     }
   );
 };
