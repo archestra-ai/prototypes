@@ -87,3 +87,10 @@ typings/
 
 # Electron-Forge
 out/
+
+# Secrets - OAuth credentials
+secrets/
+client_secret.json
+
+# Local MCP repositories
+.local-mcp-repos/

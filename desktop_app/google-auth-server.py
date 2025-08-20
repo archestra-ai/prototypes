@@ -3,7 +3,21 @@
 """
 Simple Google OAuth Server for Native Apps
 Following: https://developers.google.com/identity/protocols/oauth2/native-app
-No client secret needed for installed/native apps
+
+REQUIREMENTS:
+1. Create a Google OAuth 2.0 Client ID (type: Desktop/Installed application)
+2. Download the client credentials JSON from Google Cloud Console
+3. Save it as: secrets/client_secret.json
+4. The JSON should have this structure:
+   {
+     "installed": {
+       "client_id": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+       "client_secret": "YOUR_CLIENT_SECRET",
+       "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+       "token_uri": "https://oauth2.googleapis.com/token",
+       ...
+     }
+   }
 """
 
 import http.server
@@ -15,12 +29,57 @@ import secrets
 import hashlib
 import base64
 import urllib.request
+import os
+import sys
 from urllib.error import HTTPError
 
-# Google OAuth Configuration for Installed/Native App
-CLIENT_ID = '354887056155-otc8l2ocrr0a7qnkbnt8u19bfh0rqudj.apps.googleusercontent.com'
-AUTH_URI = 'https://accounts.google.com/o/oauth2/v2/auth'
-TOKEN_URI = 'https://oauth2.googleapis.com/token'
+# Load OAuth credentials from secrets file
+SECRETS_FILE = 'secrets/client_secret.json'
+
+try:
+    if not os.path.exists(SECRETS_FILE):
+        print(f"""
+❌ ERROR: OAuth credentials file not found!
+
+Please follow these steps:
+1. Go to https://console.cloud.google.com/apis/credentials
+2. Create an OAuth 2.0 Client ID (type: Desktop application)
+3. Download the JSON credentials
+4. Save it as: {SECRETS_FILE}
+
+Directory structure should be:
+  desktop_app/
+    ├── google-auth-server.py
+    └── secrets/
+        └── client_secret.json
+        """)
+        sys.exit(1)
+        
+    with open(SECRETS_FILE, 'r') as f:
+        creds = json.load(f)
+        
+    # Extract credentials from the JSON file
+    if 'installed' in creds:
+        oauth_config = creds['installed']
+    elif 'web' in creds:
+        oauth_config = creds['web']
+    else:
+        print("❌ ERROR: Invalid client secret file format!")
+        sys.exit(1)
+        
+    CLIENT_ID = oauth_config['client_id']
+    CLIENT_SECRET = oauth_config['client_secret']
+    AUTH_URI = oauth_config.get('auth_uri', 'https://accounts.google.com/o/oauth2/v2/auth')
+    TOKEN_URI = oauth_config.get('token_uri', 'https://oauth2.googleapis.com/token')
+    
+    print(f"✅ Loaded OAuth credentials from {SECRETS_FILE}")
+    print(f"   Client ID: {CLIENT_ID[:50]}...")
+    
+except Exception as e:
+    print(f"❌ ERROR loading credentials: {e}")
+    sys.exit(1)
+
+# Additional endpoints not in the credentials file
 USERINFO_URI = 'https://www.googleapis.com/oauth2/v2/userinfo'
 
 # Local server configuration
@@ -143,13 +202,14 @@ def exchange_code_for_tokens(auth_code, code_verifier):
     """Exchange authorization code for tokens"""
     print("\n🔄 Exchanging code for tokens...")
 
-    # For installed/native apps, client_secret is optional
+    # Google requires client_secret even with PKCE
     params = {
         'grant_type': 'authorization_code',
         'code': auth_code,
         'redirect_uri': REDIRECT_URI,
         'client_id': CLIENT_ID,
-        'code_verifier': code_verifier
+        'client_secret': CLIENT_SECRET,  # Required by Google
+        'code_verifier': code_verifier  # Additional security with PKCE
     }
 
     data = urllib.parse.urlencode(params).encode('utf-8')
@@ -191,12 +251,12 @@ def main():
     """Main flow"""
     print("""
 ╔════════════════════════════════════════════════════════╗
-║     Google OAuth Flow for Native Apps (No Secret)      ║
+║     Google OAuth Flow for Native Apps                  ║
 ╠════════════════════════════════════════════════════════╣
 ║  This implements the complete OAuth flow including:    ║
-║  • PKCE for security                                   ║
+║  • PKCE for additional security                        ║
 ║  • Local server for callback                           ║
-║  • Token exchange                                      ║
+║  • Token exchange with client secret                   ║
 ║  • User info retrieval                                 ║
 ╚════════════════════════════════════════════════════════╝
     """)
@@ -239,15 +299,49 @@ def main():
 
     print("\n✨ OAuth flow complete!")
 
-    # Optionally save tokens
-    save = input("\n💾 Save tokens to file? (y/n): ").lower()
-    if save == 'y':
-        with open('google_tokens.json', 'w') as f:
-            json.dump({
-                'tokens': tokens,
-                'user_info': user_info if 'user_info' in locals() else None
-            }, f, indent=2)
-        print("✅ Saved to google_tokens.json")
+    # Optionally refresh the access token
+    if 'refresh_token' in tokens:
+        refresh = input("\n🔄 Test token refresh? (y/n): ").lower()
+        if refresh == 'y':
+            print("\nRefreshing access token using refresh token...")
+
+            # Exchange refresh token for new access token
+            refresh_params = {
+                'grant_type': 'refresh_token',
+                'refresh_token': tokens['refresh_token'],
+                'client_id': CLIENT_ID,
+                'client_secret': CLIENT_SECRET  # Required by Google
+            }
+
+            refresh_data = urllib.parse.urlencode(refresh_params).encode('utf-8')
+            refresh_req = urllib.request.Request(
+                TOKEN_URI,
+                data=refresh_data,
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+
+            try:
+                with urllib.request.urlopen(refresh_req) as response:
+                    new_tokens = json.loads(response.read())
+                    print("\n✅ Token refresh successful!")
+                    print("─" * 50)
+                    print(f"New Access Token: {new_tokens['access_token'][:50]}...")
+                    print(f"Expires In: {new_tokens.get('expires_in', 'N/A')} seconds")
+
+                    # Test the new token
+                    print("\n🧪 Testing new access token...")
+                    test_req = urllib.request.Request(
+                        USERINFO_URI,
+                        headers={'Authorization': f'Bearer {new_tokens["access_token"]}'}
+                    )
+
+                    with urllib.request.urlopen(test_req) as test_response:
+                        test_user = json.loads(test_response.read())
+                        print(f"✅ New token works! User: {test_user.get('email', 'N/A')}")
+
+            except HTTPError as e:
+                error_body = e.read().decode('utf-8')
+                print(f"❌ Token refresh failed: {error_body}")
 
 if __name__ == '__main__':
     try:
