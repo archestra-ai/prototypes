@@ -152,6 +152,8 @@ def exchange_code_for_tokens(auth_code, code_verifier):
         'code_verifier': code_verifier
     }
     
+    print(f"→ Sending: grant_type={params['grant_type']}, code={auth_code[:20]}..., verifier={code_verifier[:20]}...")
+    
     data = json.dumps(params).encode('utf-8')
     req = urllib.request.Request(
         f'{PROXY_SERVER}/token',
@@ -162,11 +164,14 @@ def exchange_code_for_tokens(auth_code, code_verifier):
     try:
         with urllib.request.urlopen(req) as response:
             tokens = json.loads(response.read())
-            print("✅ Tokens received!")
+            print(f"← Received: access_token={tokens.get('access_token', 'none')[:20]}..., expires_in={tokens.get('expires_in', 'N/A')}s")
+            if 'refresh_token' in tokens:
+                print(f"← Refresh token: {tokens['refresh_token'][:20]}...")
             return tokens
     except HTTPError as e:
         error_body = e.read().decode('utf-8')
-        print(f"❌ Token exchange failed: {error_body}")
+        error_json = json.loads(error_body)
+        print(f"← Error: {error_json.get('error', 'unknown')} - {error_json.get('error_description', 'no description')}")
         return None
 
 def refresh_token(refresh_token_value):
@@ -180,6 +185,8 @@ def refresh_token(refresh_token_value):
         'client_id': CLIENT_ID
     }
     
+    print(f"→ Sending: grant_type={params['grant_type']}, refresh_token={refresh_token_value[:20]}...")
+    
     data = json.dumps(params).encode('utf-8')
     req = urllib.request.Request(
         f'{PROXY_SERVER}/token',
@@ -190,11 +197,12 @@ def refresh_token(refresh_token_value):
     try:
         with urllib.request.urlopen(req) as response:
             tokens = json.loads(response.read())
-            print("✅ New access token received!")
+            print(f"← Received: access_token={tokens.get('access_token', 'none')[:20]}..., expires_in={tokens.get('expires_in', 'N/A')}s")
             return tokens
     except HTTPError as e:
         error_body = e.read().decode('utf-8')
-        print(f"❌ Token refresh failed: {error_body}")
+        error_json = json.loads(error_body)
+        print(f"← Error: {error_json.get('error', 'unknown')} - {error_json.get('error_description', 'no description')}")
         return None
 
 def get_user_info(access_token):

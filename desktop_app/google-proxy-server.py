@@ -88,14 +88,21 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 post_data = self.rfile.read(content_length)
                 params = json.loads(post_data.decode('utf-8'))
                 
+                # Log incoming request
+                grant_type = params.get('grant_type', 'unknown')
+                print(f"\n[PROXY] ← From client: grant_type={grant_type}")
+                if grant_type == 'authorization_code':
+                    print(f"        code={params.get('code', '')[:20]}...")
+                    print(f"        verifier={params.get('code_verifier', '')[:20]}...")
+                elif grant_type == 'refresh_token':
+                    print(f"        refresh_token={params.get('refresh_token', '')[:20]}...")
+                
                 # Add client secret to the request
                 params['client_secret'] = CLIENT_SECRET
-                
-                # Log the request (without showing the secret)
-                grant_type = params.get('grant_type', 'unknown')
-                print(f"\n🔄 Proxying {grant_type} request to Google...")
+                print(f"[PROXY] + Adding: client_secret=****")
                 
                 # Forward to Google's token endpoint
+                print(f"[PROXY] → To Google: {TOKEN_URI}")
                 google_data = urllib.parse.urlencode(params).encode('utf-8')
                 google_req = urllib.request.Request(
                     TOKEN_URI,
@@ -106,6 +113,13 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                 try:
                     with urllib.request.urlopen(google_req) as google_response:
                         response_data = google_response.read()
+                        response_json = json.loads(response_data)
+                        
+                        # Log Google's response
+                        print(f"[PROXY] ← From Google: access_token={response_json.get('access_token', '')[:20]}...")
+                        if 'refresh_token' in response_json:
+                            print(f"        refresh_token={response_json.get('refresh_token', '')[:20]}...")
+                        print(f"        expires_in={response_json.get('expires_in', 'N/A')}s")
                         
                         # Forward Google's response to client
                         self.send_response(200)
@@ -113,19 +127,22 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                         self.end_headers()
                         self.wfile.write(response_data)
                         
-                        print(f"✅ Successfully proxied {grant_type} request")
+                        print(f"[PROXY] → To client: forwarded response")
                         
                 except HTTPError as e:
                     error_body = e.read().decode('utf-8')
+                    error_json = json.loads(error_body)
+                    
+                    print(f"[PROXY] ← From Google: ERROR {e.code}")
+                    print(f"        error={error_json.get('error', 'unknown')}")
+                    print(f"        description={error_json.get('error_description', 'N/A')}")
+                    
                     self.send_response(e.code)
                     self.send_header('Content-Type', 'application/json')
                     self.end_headers()
                     self.wfile.write(error_body.encode())
                     
-                    print(f"❌ Google returned error: {e.code}")
-                    error_json = json.loads(error_body)
-                    print(f"   Error: {error_json.get('error', 'unknown')}")
-                    print(f"   Description: {error_json.get('error_description', 'No description')}")
+                    print(f"[PROXY] → To client: forwarded error")
                     
             except Exception as e:
                 self.send_response(500)
