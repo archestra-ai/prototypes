@@ -274,7 +274,7 @@ Consider the tool's name, description, input schema, and any annotations provide
 Tools to analyze:
 ${JSON.stringify(tools, null, 2)}
 
-Return a JSON object with tool names as keys and analysis results as values. The format should be:
+Return a JSON object with tool names as keys and analysis results as values. The format MUST be exactly:
 {
   "toolName": {
     "is_read": boolean,
@@ -284,7 +284,12 @@ Return a JSON object with tool names as keys and analysis results as values. The
   }
 }
 
-IMPORTANT: Return ONLY valid JSON, no markdown formatting or explanations.`;
+CRITICAL REQUIREMENTS:
+- Return ONLY the JSON object, nothing else
+- Do NOT include any markdown formatting (no \`\`\`json blocks)
+- Do NOT include any explanations or text before or after the JSON
+- Use actual boolean values (true/false), not strings
+- Start your response with { and end with }`;
 
     try {
       const response = await this.generate({
@@ -294,11 +299,13 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting or explanations.`;
         format: 'json',
         options: {
           temperature: 0.3,
-          num_predict: 2000,
+          num_predict: 8192, // Increased to handle larger responses
         },
       });
 
       const rawResult = JSON.parse(response.response);
+      log.debug(`Raw Ollama response for tool analysis: ${response.response.substring(0, 200)}...`);
+
       const result: Record<string, z.infer<typeof ToolAnalysisResultSchema>> = {};
 
       // Validate each tool's analysis results

@@ -44,7 +44,7 @@ export function ToolHoverCard({
 
           {description && (
             <div>
-              <p className="text-sm text-muted-foreground">{description}</p>
+              <p className="text-sm text-muted-foreground line-clamp-10">{description}</p>
             </div>
           )}
 
