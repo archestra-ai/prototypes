@@ -1,6 +1,7 @@
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { type experimental_MCPClient, experimental_createMCPClient } from 'ai';
 import type { RawReplyDefaultExpression } from 'fastify';
+import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
 import config from '@backend/config';
@@ -10,13 +11,20 @@ import log from '@backend/utils/logger';
 
 const { host: proxyMcpServerHost, port: proxyMcpServerPort } = config.server.http;
 
+/**
+ * We use a double underscore to separate the MCP server ID from the tool name.
+ *
+ * this is for LLM compatability..
+ */
+const TOOL_ID_SEPARATOR = '__';
+
 export const McpServerContainerLogsSchema = z.object({
   logs: z.string(),
   containerName: z.string(),
 });
 
 export const AvailableToolSchema = z.object({
-  id: z.string().describe('Tool ID in format sanitizedServerId:sanitizedToolName'),
+  id: z.string().describe('Tool ID in format sanitizedServerId__sanitizedToolName'),
   name: z.string().describe('Tool name'),
   description: z.string().optional().describe('Tool description'),
   inputSchema: z.any().optional().describe('Tool input schema'),
@@ -69,11 +77,11 @@ export default class SandboxedMcpServer {
 
       /**
        * Fetch tools and slightly transform their "ids" to be in the format of
-       * `<mcp_server_id>:<tool_name>`
+       * `<mcp_server_id>${TOOL_ID_SEPARATOR}<tool_name>`
        */
       const tools = await this.mcpClient.tools();
       for (const [toolName, tool] of Object.entries(tools)) {
-        const toolId = `${this.mcpServerId}:${toolName}`;
+        const toolId = `${this.mcpServerId}${TOOL_ID_SEPARATOR}${toolName}`;
         this.tools[toolId] = tool;
       }
 
@@ -83,22 +91,56 @@ export default class SandboxedMcpServer {
     }
   }
 
+  /**
+   * This is a (semi) temporary way of ensuring that the MCP server container
+   * is fully ready before attempting to communicate with it.
+   *
+   * https://modelcontextprotocol.io/specification/2025-06-18/basic/utilities/ping#ping
+   *
+   * TODO: this should be baked into the MCP Server Dockfile's health check (to replace the current one)
+   */
+  private async pingMcpServerContainerUntilHealthy() {
+    const MAX_PING_ATTEMPTS = 10;
+    const PING_INTERVAL_MS = 500;
+    let attempts = 0;
+
+    while (attempts < MAX_PING_ATTEMPTS) {
+      log.info(`Pinging MCP server container ${this.mcpServerId} until healthy...`);
+
+      const response = await fetch(this.mcpServerProxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: uuidv4(),
+          method: 'ping',
+        }),
+      });
+
+      if (response.ok) {
+        log.info(`MCP server container ${this.mcpServerId} is healthy!`);
+        return;
+      } else {
+        log.info(`MCP server container ${this.mcpServerId} is not healthy, retrying...`);
+        attempts++;
+        await new Promise((resolve) => setTimeout(resolve, PING_INTERVAL_MS));
+      }
+    }
+  }
+
   async start() {
     this.podmanContainer = new PodmanContainer(this.mcpServer, this.podmanSocketPath);
+
     await this.podmanContainer.startOrCreateContainer();
-
-    /**
-     * Wait a bit for container to be fully ready before attempting to communicate with it
-     */
-    await this.podmanContainer.waitForHealthy();
-
+    await this.pingMcpServerContainerUntilHealthy();
     await this.connectMcpClient();
   }
 
   async stop() {
     await this.podmanContainer.stopContainer();
 
-    // Clean up MCP client
     if (this.mcpClient) {
       await this.mcpClient.close();
     }
@@ -143,10 +185,7 @@ export default class SandboxedMcpServer {
    */
   get availableToolsList(): AvailableTool[] {
     return Object.entries(this.tools).map(([id, tool]) => {
-      /**
-       * Tool IDs, as stored in this.tools, have IDs in the format of <mcp_server_id>:<tool_name>
-       */
-      const separatorIndex = id.indexOf(':');
+      const separatorIndex = id.indexOf(TOOL_ID_SEPARATOR);
       const toolName = separatorIndex !== -1 ? id.substring(separatorIndex + 1) : id;
 
       return {

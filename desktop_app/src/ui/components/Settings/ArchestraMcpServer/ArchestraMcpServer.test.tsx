@@ -16,8 +16,6 @@ describe('ArchestraMcpServer', () => {
         env: {},
       },
       userConfigValues: {},
-      url: 'http://localhost:54587/mcp',
-      client: null,
       startupPercentage: 100,
       state: 'running',
       message: null,

@@ -1,10 +1,6 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { ClientCapabilities } from '@modelcontextprotocol/sdk/types.js';
 import { v4 as uuidv4 } from 'uuid';
 import { create } from 'zustand';
 
-import config from '@ui/config';
 import {
   type InstallMcpServerData,
   type McpServer,
@@ -14,8 +10,6 @@ import {
   uninstallMcpServer,
 } from '@ui/lib/clients/archestra/api/gen';
 import { ConnectedMcpServer } from '@ui/types';
-
-import { useSandboxStore } from './sandbox-store';
 
 /**
  * NOTE: these are here because the "archestra" MCP server is "injected" into the list of "installed" MCP servers
@@ -46,36 +40,9 @@ interface McpServersActions {
   updateMcpServer: (mcpServerId: string, data: Partial<ConnectedMcpServer>) => void;
   installMcpServer: (requiresOAuth: boolean, installData: InstallMcpServerData['body']) => Promise<void>;
   uninstallMcpServer: (mcpServerId: string) => Promise<void>;
-
-  connectToArchestraMcpServer: () => Promise<void>;
-  connectToMcpServer: (mcpServer: ConnectedMcpServer, url: string) => Promise<Client | null>;
-
-  _init: () => void;
 }
 
 type McpServersStore = McpServersState & McpServersActions;
-
-const configureMcpClient = async (
-  clientName: string,
-  clientUrl: string,
-  clientCapabilities: ClientCapabilities
-): Promise<Client | null> => {
-  const client = new Client(
-    {
-      name: clientName,
-      version: '1.0.0',
-    },
-    {
-      capabilities: clientCapabilities,
-    }
-  );
-
-  const transport = new StreamableHTTPClientTransport(new URL(clientUrl));
-
-  await client.connect(transport);
-
-  return client;
-};
 
 export const useMcpServersStore = create<McpServersStore>((set, get) => ({
   // State
@@ -89,10 +56,6 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
       env: {},
     },
     userConfigValues: {},
-    url: config.archestra.mcpUrl,
-    client: null,
-    tools: [],
-    hasFetchedTools: false,
     state: 'initializing',
     startupPercentage: 0,
     message: null,
@@ -108,9 +71,6 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
 
   uninstallingMcpServerId: null,
   errorUninstallingMcpServer: null,
-
-  selectedTools: [],
-  toolSearchQuery: '',
 
   // Actions
   loadInstalledMcpServers: async () => {
@@ -138,15 +98,11 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
     set((state) => {
       const newServer: ConnectedMcpServer = {
         ...mcpServer,
-        url: `${config.archestra.mcpProxyUrl}/${mcpServer.id}`,
-        client: null,
         state: 'initializing',
         startupPercentage: 0,
         message: null,
         error: null,
       };
-
-      get().connectToMcpServer(newServer, newServer.url);
 
       return {
         installedMcpServers: [...state.installedMcpServers, newServer],
@@ -155,12 +111,6 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
   },
 
   removeMcpServerFromInstalledMcpServers: (mcpServerId: string) => {
-    // Close the client connection before removing
-    const server = get().installedMcpServers.find((s) => s.id === mcpServerId);
-    if (server?.client) {
-      server.client.close();
-    }
-
     set((state) => ({
       installedMcpServers: state.installedMcpServers.filter((mcpServer) => mcpServer.id !== mcpServerId),
     }));
@@ -276,146 +226,7 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
       set({ uninstallingMcpServerId: null });
     }
   },
-
-  connectToArchestraMcpServer: async () => {
-    const MAX_RETRIES = 30;
-    const RETRY_DELAY_MILLISECONDS = 1000;
-
-    let retries = 0;
-
-    const attemptConnection = async (): Promise<boolean> => {
-      const { archestraMcpServer } = get();
-
-      try {
-        const client = await configureMcpClient(`${ARCHESTRA_MCP_SERVER_NAME}-client`, archestraMcpServer.url, {
-          tools: {},
-        });
-
-        if (client) {
-          set({
-            archestraMcpServer: {
-              ...archestraMcpServer,
-              client,
-              state: 'running',
-              error: null,
-            },
-          });
-
-          return true;
-        }
-        return false;
-      } catch (error) {
-        return false;
-      }
-    };
-
-    // Keep trying to connect until successful or max retries reached
-    while (retries < MAX_RETRIES) {
-      const connected = await attemptConnection();
-      if (connected) {
-        return;
-      }
-
-      retries++;
-      if (retries < MAX_RETRIES) {
-        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MILLISECONDS));
-      }
-    }
-
-    // If we've exhausted all retries, set error state
-    set({
-      archestraMcpServer: {
-        ...get().archestraMcpServer,
-        state: 'error',
-        error: 'Failed to connect after maximum retries',
-      },
-    });
-  },
-
-  connectToMcpServer: async (mcpServer: ConnectedMcpServer, url: string) => {
-    const { id } = mcpServer;
-
-    // For containerized MCP servers, wait for sandbox to be ready!
-    const MAX_SANDBOX_WAIT_RETRIES = 60; // 60 seconds total
-    const SANDBOX_RETRY_DELAY_MS = 1000;
-    let sandboxRetries = 0;
-
-    const waitForSandbox = async (): Promise<boolean> => {
-      while (sandboxRetries < MAX_SANDBOX_WAIT_RETRIES) {
-        const { statusSummary } = useSandboxStore.getState();
-
-        if (statusSummary.status === 'running') {
-          return true; // Sandbox is ready!
-        }
-
-        sandboxRetries++;
-        if (sandboxRetries < MAX_SANDBOX_WAIT_RETRIES) {
-          await new Promise((resolve) => setTimeout(resolve, SANDBOX_RETRY_DELAY_MS));
-        }
-      }
-      return false; // Timeout
-    };
-
-    const sandboxReady = await waitForSandbox();
-
-    if (!sandboxReady) {
-      get().updateMcpServer(id, {
-        client: null,
-        state: 'error',
-        error: 'Sandbox initialization timeout - Podman runtime not ready',
-      });
-      return null;
-    }
-
-    try {
-      const client = await configureMcpClient(`${id}-client`, url, {
-        tools: {},
-      });
-
-      if (!client) {
-        return null;
-      }
-
-      get().updateMcpServer(id, {
-        client,
-        state: 'running',
-      });
-      return client;
-    } catch (error) {
-      // Extract more detailed error information
-      let errorMessage = 'Unknown error';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-        if (error.message.includes('HTTP 500')) {
-          errorMessage = `Server error (500) - possible JSON-RPC format issue`;
-        }
-      }
-
-      get().updateMcpServer(id, {
-        client: null,
-        state: 'error',
-        error: errorMessage,
-      });
-      return null;
-    }
-  },
-
-  _init: () => {
-    const { connectToArchestraMcpServer, loadInstalledMcpServers } = get();
-
-    connectToArchestraMcpServer();
-    loadInstalledMcpServers();
-  },
 }));
 
-// Initialize data + connections on store creation
-useMcpServersStore.getState()._init();
-
-// Cleanup on window unload
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
-    const store = useMcpServersStore.getState();
-    store.archestraMcpServer?.client?.close();
-    store.installedMcpServers.forEach((server) => server.client?.close());
-  });
-}
+// Initialize data on store creation
+useMcpServersStore.getState().loadInstalledMcpServers();

@@ -25,9 +25,7 @@ export default function McpServer({
 
   const isRunning = state === 'running';
   const isUninstalling = uninstallingMcpServerId === id;
-  console.log(id);
   const tools = availableTools.filter((tool) => tool.mcpServerId === id);
-  console.log(availableTools);
   const hasFetchedTools = tools.length > 0;
 
   const getStateIcon = (state: ConnectedMcpServer['state']) => {

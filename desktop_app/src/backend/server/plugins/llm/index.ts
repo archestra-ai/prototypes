@@ -77,7 +77,6 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
         const modelInstance = await createModelInstance(model, provider);
 
         // Create the stream with the appropriate model
-        const hasTools = Object.keys(tools).length > 0;
         const streamConfig: any = {
           model: modelInstance,
           messages: convertToModelMessages(messages),
@@ -92,14 +91,8 @@ const llmRoutes: FastifyPluginAsync = async (fastify) => {
         };
 
         // Only add tools and toolChoice if tools are available
-        if (hasTools) {
-          // Convert tool IDs from serverId:toolName to serverId__toolName for LLM compatibility
-          const convertedTools: Record<string, any> = {};
-          for (const [toolId, tool] of Object.entries(tools)) {
-            const convertedId = toolId.replace(':', '__');
-            convertedTools[convertedId] = tool;
-          }
-          streamConfig.tools = convertedTools;
+        if (Object.keys(tools).length > 0) {
+          streamConfig.tools = tools;
           streamConfig.toolChoice = toolChoice || 'auto';
         }
 
