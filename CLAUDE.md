@@ -94,11 +94,19 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - Enhanced progress tracking with percentage-based reporting
   - Combined progress calculation (50% machine startup + 50% image pull)
   - Progress parsing utilities for real-time output processing
-- **McpServerSandboxManager**: Orchestrates sandbox initialization
+- **McpServerSandboxManager**: High-level orchestration of MCP servers
   - Base image management (`europe-west1-docker.pkg.dev/friendly-path-465518-r6/archestra-public/mcp-server-base:0.0.1`)
-  - Container lifecycle management per MCP server
+  - Manages multiple `SandboxedMcpServer` instances
   - WebSocket progress broadcasting with detailed status updates
   - Comprehensive `statusSummary` getter combining runtime and container statuses
+  - Tools aggregation across all servers (`getAllTools()`, `getToolsById()`)
+- **SandboxedMcpServer**: Individual MCP server management
+  - MCP client lifecycle management using AI SDK's `experimental_createMCPClient`
+  - Automatic tools discovery and caching from connected servers
+  - Tool ID transformation to format: `<mcp_server_id>:<tool_name>`
+  - Container integration with health monitoring
+  - JSON-serializable schema processing for tool inputs
+  - Status reporting and container log access
 - **Progress Tracking Architecture**:
   - Hierarchical progress system: Runtime → Image → Container levels
   - Real-time progress parsing from Podman machine installation output
@@ -184,17 +192,24 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - `GET /api/onboarding/status` - Returns onboarding completion status
     - `POST /api/onboarding/complete` - Marks onboarding as complete
   - Zustand store for frontend state management (`user-store.ts`)
-- **Tool Selection**:
+- **Tool Selection and Discovery**:
   - Browse and select specific MCP tools for chat conversations
   - Tool discovery via `GET /api/mcp_server/tools` endpoint
-  - Real-time tool list updates every 5 seconds as servers connect/disconnect
+  - Real-time tool list updates as servers connect/disconnect via WebSocket
   - Tools organized by MCP server for better UX
   - Selected tools displayed as pills in chat interface
   - Chat store management with `selectedTools` and `toolChoice` state
   - Selective tool execution - LLM only uses selected tools instead of all available
-  - Tool caching in `McpServerSandboxManager` after connecting to servers
+  - **Enhanced Tools Architecture**:
+    - Individual `SandboxedMcpServer` instances handle tool discovery
+    - Tools cached after MCP client connection
+    - Tool schemas cleaned for JSON serialization (symbol removal)
+    - Tools available in two formats:
+      - AI SDK format: `McpTools` for LLM execution
+      - UI format: `AvailableTool` with rich metadata
   - Unique tool identification format: `{serverId}:{toolName}`
   - Dynamic tool rendering in assistant messages with execution states
+  - WebSocket broadcasts include tools in sandbox status updates
 - **LLM Provider Support**:
   - **Cloud Providers**: Anthropic, OpenAI, Google Gemini
   - **Local Providers**: Ollama for running models locally
@@ -225,7 +240,7 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - Parallel model downloads on first startup
     - Real-time progress tracking via WebSocket (`ollama-model-download-progress`)
     - Graceful error handling - continues operation if downloads fail
-  - **API Client** (`src/backend/llms/ollama/client.ts`):
+  - **API Client** (`src/backend/ollama/client.ts`):
     - Full Ollama API support with TypeScript/Zod validation
     - Methods: `generate()`, `pull()`, `list()`, `generateChatTitle()`
     - Streaming support for model downloads and generation
@@ -250,10 +265,13 @@ desktop_app/src/
 ├── backend/
 │   ├── clients/        # API clients (Podman integration)
 │   ├── database/       # SQLite schema and migrations
-│   ├── llms/          # LLM integrations and Ollama management
+│   ├── llms/          # LLM integrations (cloud providers)
 │   ├── mcpServer/     # MCP server implementation
 │   ├── models/        # Data models
+│   ├── ollama/        # Ollama local LLM integration
 │   ├── sandbox/       # Container sandboxing logic
+│   │   ├── manager/   # McpServerSandboxManager
+│   │   └── sandboxedMcp/ # SandboxedMcpServer class
 │   ├── server/        # Fastify server and plugins
 │   └── utils/         # Utility functions (paths, binaries, etc.)
 └── ui/
@@ -330,6 +348,7 @@ Key tables (snake_case naming):
 - Logs directory: `~/Library/Application Support/archestra/logs/`
   - MCP server logs: `~/Library/Application Support/archestra/logs/<container-name>.log`
 - Binary resources: `desktop_app/resources/bin/` (platform-specific)
+- OAuth proxy server: `oauth_proxy/` (top-level directory)
 - Code signing configured for macOS notarization
 - ASAR packaging enabled for production builds
 
