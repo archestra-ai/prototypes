@@ -139,10 +139,12 @@ function setupTokenExtraction(
   // Extract tokens when page finishes loading
   authWindow.webContents.on('did-finish-load', async () => {
     const url = authWindow.webContents.getURL();
+    log.info('[Slack Auth] Page loaded:', url);
 
     // Handle different page states
     if (url.includes('app.slack.com/client/')) {
       // We're in the workspace, extract tokens
+      log.info('[Slack Auth] Detected workspace page, extracting tokens...');
       await extractTokens(authWindow, detectedWorkspaceId, resolve);
     } else if (url.includes('/ssb/redirect')) {
       // On redirect page, guide user to click "Slack in your browser"
@@ -150,6 +152,17 @@ function setupTokenExtraction(
     } else if (url.includes('slack.com/signin')) {
       // On signin page, guide user to select workspace
       await showSigninMessage(authWindow);
+    }
+  });
+
+  // Also listen for navigation within the same page (SPA navigation)
+  authWindow.webContents.on('did-navigate-in-page', async () => {
+    const url = authWindow.webContents.getURL();
+    log.info('[Slack Auth] In-page navigation:', url);
+
+    if (url.includes('app.slack.com/client/')) {
+      log.info('[Slack Auth] Detected workspace page after navigation, extracting tokens...');
+      await extractTokens(authWindow, detectedWorkspaceId, resolve);
     }
   });
 }
@@ -268,13 +281,37 @@ async function extractTokens(
  * Shows message on redirect page
  */
 async function showRedirectMessage(authWindow: BrowserWindow) {
+  // First check if we're actually already in the workspace
+  const currentUrl = authWindow.webContents.getURL();
+  if (currentUrl.includes('app.slack.com/client/')) {
+    log.info('[Slack Auth] Already in workspace, attempting token extraction...');
+    // We're already in the workspace, extract tokens
+    await extractTokens(authWindow, null, (tokens) => {
+      // Token extraction succeeded, close window
+      authWindow.close();
+    });
+    return;
+  }
+
   await authWindow.webContents.executeJavaScript(`
     const existingMessage = document.getElementById('archestra-message');
     if (!existingMessage) {
       const messageDiv = document.createElement('div');
       messageDiv.id = 'archestra-message';
       messageDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #4A154B; color: white; padding: 15px 20px; border-radius: 8px; z-index: 10000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);';
-      messageDiv.innerHTML = '<strong>Archestra:</strong> Click "Slack in your browser" to continue...';
+      
+      // Check if we're in the workspace (sometimes URL detection fails)
+      if (document.querySelector('.p-workspace__sidebar') || document.querySelector('.p-client')) {
+        messageDiv.innerHTML = '<strong>Archestra:</strong> Detected Slack workspace. <button onclick="window.archestraExtractTokens()" style="margin-left: 10px; padding: 5px 10px; background: white; color: #4A154B; border: none; border-radius: 4px; cursor: pointer;">Extract Tokens Now</button>';
+        
+        // Add extraction function to window
+        window.archestraExtractTokens = function() {
+          window.location.href = window.location.href; // Trigger a reload to force token extraction
+        };
+      } else {
+        messageDiv.innerHTML = '<strong>Archestra:</strong> Click "Slack in your browser" to continue...';
+      }
+      
       document.body.appendChild(messageDiv);
     }
     

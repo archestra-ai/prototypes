@@ -28,10 +28,11 @@ import McpServerDetailsDialog from './McpServerDetailsDialog';
 interface McpServerProps {
   server: ArchestraMcpServerManifest;
   onInstallClick: (server: ArchestraMcpServerManifest) => void;
+  onBrowserInstallClick?: (server: ArchestraMcpServerManifest) => void;
   onUninstallClick: (serverId: string) => void;
 }
 
-export default function McpServer({ server, onInstallClick, onUninstallClick }: McpServerProps) {
+export default function McpServer({ server, onInstallClick, onBrowserInstallClick, onUninstallClick }: McpServerProps) {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const { installedMcpServers, installingMcpServerId, uninstallingMcpServerId } = useMcpServersStore();
   const { isRunning: sandboxIsRunning } = useSandboxStore();
@@ -44,6 +45,7 @@ export default function McpServer({ server, onInstallClick, onUninstallClick }: 
     category,
     archestra_config: {
       oauth: { required: requiresOAuthSetup },
+      browser_based: { required: requiresBrowserBasedSetup } = {},
     },
     programming_language: programmingLanguage,
     quality_score: qualityScore,
@@ -221,26 +223,51 @@ export default function McpServer({ server, onInstallClick, onUninstallClick }: 
                   )}
                 </Button>
               ) : (
-                <Button
-                  size="sm"
-                  onClick={() => onInstallClick(server)}
-                  disabled={isInstalling}
-                  className="cursor-pointer"
-                >
-                  {isInstalling ? (
-                    <>
-                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
-                      Installing...
-                    </>
-                  ) : requiresOAuthSetup ? (
-                    <>
-                      <Settings className="h-4 w-4 mr-2" />
-                      Setup & Install
-                    </>
-                  ) : (
-                    'Install'
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant={!requiresBrowserBasedSetup && !requiresOAuthSetup ? 'default' : 'outline'}
+                    onClick={() => onInstallClick(server)}
+                    disabled={isInstalling}
+                    className="cursor-pointer"
+                  >
+                    {isInstalling ? (
+                      <>
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                        Installing...
+                      </>
+                    ) : (
+                      'Install'
+                    )}
+                  </Button>
+                  {requiresOAuthSetup && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onInstallClick(server)}
+                      disabled={isInstalling}
+                      className="cursor-pointer"
+                    >
+                      Install (OAuth)
+                    </Button>
                   )}
-                </Button>
+                  {requiresBrowserBasedSetup && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (onBrowserInstallClick) {
+                          onBrowserInstallClick(server);
+                        } else {
+                          onInstallClick(server);
+                        }
+                      }}
+                      disabled={isInstalling}
+                      className="cursor-pointer"
+                    >
+                      Install (browser)
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           </div>

@@ -140,8 +140,8 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         errorInstallingMcpServer: null,
       });
 
-      // Special handling for Slack MCP server
-      if (id === 'korotovsky__slack-mcp-server') {
+      // Special handling for Slack MCP server with browser auth
+      if (id === 'korotovsky__slack-mcp-server' && (installData as any).useBrowserAuth) {
         try {
           // Open Slack authentication window and get tokens
           const tokens = await window.electronAPI.slackAuth();
@@ -175,6 +175,23 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
        * rather than directly "installing" the MCP server
        */
       if (requiresOAuth) {
+        // Show confirmation dialog before starting OAuth flow
+        const userConfirmed = window.confirm(
+          `You're about to connect ${installData.displayName || id} to Archestra.\n\n` +
+            `This will:\n` +
+            `• Open Google's authentication page in your browser\n` +
+            `• Request permission to access your Gmail account\n` +
+            `• Securely store your credentials in Archestra\n\n` +
+            `Do you want to continue?`
+        );
+
+        if (!userConfirmed) {
+          // User cancelled the OAuth flow
+          console.log('User cancelled OAuth flow');
+          set({ isInstallingMcpServer: false });
+          return;
+        }
+
         // Start OAuth flow with installation data
         const { data } = await startMcpServerOauth({
           body: {

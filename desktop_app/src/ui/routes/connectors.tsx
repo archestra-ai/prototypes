@@ -35,7 +35,8 @@ function ConnectorCatalogPage() {
 
   const installMcpServer = async (
     mcpServer: ArchestraMcpServerManifest,
-    userConfigValues?: McpServerUserConfigValues
+    userConfigValues?: McpServerUserConfigValues,
+    useBrowserAuth: boolean = false
   ) => {
     // Sanitize display name to match validation requirements
     // Only allow letters, numbers, spaces, and dashes
@@ -52,16 +53,11 @@ function ConnectorCatalogPage() {
        */
       serverConfig: mcpServer.server.mcp_config,
       userConfigValues: userConfigValues || {},
+      useBrowserAuth,
     });
   };
 
   const handleInstallClick = (mcpServer: ArchestraMcpServerManifest) => {
-    // Special handling for Slack MCP server - skip the config dialog
-    if (mcpServer.name === 'korotovsky__slack-mcp-server') {
-      installMcpServer(mcpServer);
-      return;
-    }
-
     // If server has user_config, show the dialog
     if (mcpServer.user_config && Object.keys(mcpServer.user_config).length > 0) {
       setSelectedServerForInstall(mcpServer);
@@ -69,6 +65,14 @@ function ConnectorCatalogPage() {
     } else {
       // Otherwise, install directly
       installMcpServer(mcpServer);
+    }
+  };
+
+  const handleBrowserInstallClick = async (mcpServer: ArchestraMcpServerManifest) => {
+    // Special handling for Slack MCP server - skip the config dialog and use browser auth
+    if (mcpServer.name === 'korotovsky__slack-mcp-server') {
+      // Directly install with browser auth flag
+      await installMcpServer(mcpServer, undefined, true);
     }
   };
 
@@ -157,6 +161,7 @@ function ConnectorCatalogPage() {
             key={connectorCatalogMcpServer.name}
             server={connectorCatalogMcpServer}
             onInstallClick={handleInstallClick}
+            onBrowserInstallClick={handleBrowserInstallClick}
             onUninstallClick={uninstallMcpServer}
           />
         ))}

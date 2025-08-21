@@ -12,11 +12,11 @@ export default function AlphaDisclaimerMessage(_props: AlphaDisclaimerMessagePro
         <p>
           Archestra's{' '}
           <a
-            href="https://www.archestra.ai/mcp-catalog"
+            href="http://localhost:3000/mcp-catalog/"
             className="underline hover:no-underline font-medium"
             onClick={(e) => {
               e.preventDefault();
-              window.electronAPI.openExternal('https://www.archestra.ai/mcp-catalog');
+              window.electronAPI.openExternal('http://localhost:3000/mcp-catalog/');
             }}
           >
             MCP Catalog
