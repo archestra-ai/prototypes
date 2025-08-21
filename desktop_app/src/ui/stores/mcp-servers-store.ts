@@ -208,11 +208,6 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
           console.log('Opening OAuth URL:', data.authUrl);
           window.electronAPI.openExternal(data.authUrl);
 
-          // Show user feedback
-          alert(
-            `OAuth setup started for ${installData.displayName || id}. Please complete the authentication in your browser.`
-          );
-
           // The OAuth callback will handle the rest of the installation
           // Navigate to the OAuth callback page to wait for completion
           window.location.href = '/oauth-callback';
