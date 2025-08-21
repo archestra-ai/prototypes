@@ -175,12 +175,18 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
        * rather than directly "installing" the MCP server
        */
       if (requiresOAuth) {
-        // Start OAuth flow
+        // Start OAuth flow with installation data
         const { data } = await startMcpServerOauth({
-          body: { catalogName: id || '' },
+          body: {
+            catalogName: id || '',
+            installData: installData,
+          },
         });
 
         if (data?.authUrl) {
+          // Store the state for OAuth callback
+          sessionStorage.setItem('oauth_state', data.state);
+
           // Open the OAuth URL in the default browser
           console.log('Opening OAuth URL:', data.authUrl);
           window.electronAPI.openExternal(data.authUrl);
@@ -189,6 +195,10 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
           alert(
             `OAuth setup started for ${installData.displayName || id}. Please complete the authentication in your browser.`
           );
+
+          // The OAuth callback will handle the rest of the installation
+          // Navigate to the OAuth callback page to wait for completion
+          window.location.href = '/oauth-callback';
         }
       } else {
         const { data: newlyInstalledMcpServer, error } = await installMcpServer({ body: installData });

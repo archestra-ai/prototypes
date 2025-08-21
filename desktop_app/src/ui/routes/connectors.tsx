@@ -37,9 +37,13 @@ function ConnectorCatalogPage() {
     mcpServer: ArchestraMcpServerManifest,
     userConfigValues?: McpServerUserConfigValues
   ) => {
+    // Sanitize display name to match validation requirements
+    // Only allow letters, numbers, spaces, and dashes
+    const sanitizedDisplayName = mcpServer.display_name.replace(/[^A-Za-z0-9\s-]/g, '-');
+
     _installMcpServer(mcpServer.archestra_config.oauth.required, {
       id: mcpServer.name,
-      displayName: mcpServer.display_name,
+      displayName: sanitizedDisplayName,
       /**
        * NOTE: TBD.. should we be sending the entire `mcpServer.server` object here? Is there
        * value in persisting that?

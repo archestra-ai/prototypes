@@ -4,6 +4,9 @@ import { client as _heyApiClient } from './client.gen';
 import type {
   ClearMcpRequestLogsData,
   ClearMcpRequestLogsResponses,
+  CompleteMcpServerOauthData,
+  CompleteMcpServerOauthErrors,
+  CompleteMcpServerOauthResponses,
   ConfigureCloudProviderData,
   ConfigureCloudProviderResponses,
   ConnectExternalMcpClientData,
@@ -343,6 +346,26 @@ export const startMcpServerOauth = <ThrowOnError extends boolean = false>(
 ) => {
   return (options.client ?? _heyApiClient).post<StartMcpServerOauthResponses, unknown, ThrowOnError>({
     url: '/api/mcp_server/start_oauth',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+};
+
+/**
+ * Complete MCP server OAuth flow and install with tokens
+ */
+export const completeMcpServerOauth = <ThrowOnError extends boolean = false>(
+  options: Options<CompleteMcpServerOauthData, ThrowOnError>
+) => {
+  return (options.client ?? _heyApiClient).post<
+    CompleteMcpServerOauthResponses,
+    CompleteMcpServerOauthErrors,
+    ThrowOnError
+  >({
+    url: '/api/mcp_server/complete_oauth',
     ...options,
     headers: {
       'Content-Type': 'application/json',

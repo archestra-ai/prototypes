@@ -16,6 +16,15 @@ if (started) {
   app.quit();
 }
 
+// Register protocol for OAuth callbacks
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient('archestra-ai', process.execPath, [path.resolve(process.argv[1])]);
+  }
+} else {
+  app.setAsDefaultProtocolClient('archestra-ai');
+}
+
 /**
  * Configure Sentry for error monitoring, logs, session replay, and tracing
  * https://docs.sentry.io/platforms/javascript/guides/electron/#configure
@@ -37,10 +46,11 @@ updateElectronApp({
 });
 
 let serverProcess: ChildProcess | null = null;
+let mainWindow: BrowserWindow | null = null;
 
 const createWindow = () => {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     resizable: true,
@@ -162,8 +172,62 @@ ipcMain.handle('open-external', async (_event, url: string) => {
   await shell.openExternal(url);
 });
 
+// Set up OAuth callback handler
+ipcMain.handle('oauth-callback', async (_event, params: any) => {
+  log.info('OAuth callback received:', params);
+  // The frontend will handle sending this to the backend
+  return { success: true };
+});
+
 // Set up Slack authentication handler
 setupSlackAuthHandler();
+
+// Handle protocol for OAuth callbacks (Windows/Linux)
+const handleProtocol = (url: string) => {
+  log.info('Protocol handler called with URL:', url);
+
+  // Parse the OAuth callback URL
+  if (url.startsWith('archestra-ai://oauth-callback')) {
+    const urlObj = new URL(url);
+    const params = Object.fromEntries(urlObj.searchParams.entries());
+
+    // Send to renderer process
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('oauth-callback', params);
+
+      // Focus the window
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  }
+};
+
+// Handle the protocol on Windows/Linux
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  handleProtocol(url);
+});
+
+// Handle protocol for single instance (Windows/Linux)
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, commandLine) => {
+    // Someone tried to run a second instance, we should focus our window instead.
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+
+    // Handle protocol URL from command line (Windows/Linux)
+    const url = commandLine.find((arg) => arg.startsWith('archestra-ai://'));
+    if (url) {
+      handleProtocol(url);
+    }
+  });
+}
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

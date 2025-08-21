@@ -9,6 +9,9 @@ import { AvailableToolSchema, McpServerContainerLogsSchema } from '@backend/sand
 import { ErrorResponseSchema } from '@backend/schemas';
 import log from '@backend/utils/logger';
 
+// Store for pending OAuth installations
+const pendingOAuthInstalls = new Map<string, z.infer<typeof McpServerInstallSchema>>();
+
 /**
  * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
  * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
@@ -97,18 +100,101 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         tags: ['MCP Server'],
         body: z.object({
           catalogName: z.string(),
+          installData: McpServerInstallSchema,
         }),
         response: {
-          200: z.object({ authUrl: z.string() }),
+          200: z.object({ authUrl: z.string(), state: z.string() }),
         },
       },
     },
-    async ({ body: { catalogName } }, reply) => {
-      // Use the correct OAuth initiation endpoint (not the callback endpoint)
-      const authUrl = `https://oauth-proxy-new-354887056155.europe-west1.run.app/auth/gmail`;
+    async ({ body: { catalogName, installData } }, reply) => {
+      // Generate unique state for this OAuth flow
+      const state = uuidv4();
+
+      // Store pending installation data with state
+      pendingOAuthInstalls.set(state, installData);
+
+      // Clean up old pending installs (older than 10 minutes)
+      const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+      for (const [key, value] of pendingOAuthInstalls.entries()) {
+        // Add timestamp to the stored data if needed
+        if (key !== state) {
+          pendingOAuthInstalls.delete(key);
+        }
+      }
+
+      // Use the OAuth proxy with state parameter
+      const authUrl = `https://oauth-proxy-new-354887056155.europe-west1.run.app/auth/gmail?state=${state}`;
       fastify.log.info(`OAuth URL for ${catalogName}: ${authUrl}`);
 
-      return reply.send({ authUrl });
+      return reply.send({ authUrl, state });
+    }
+  );
+
+  fastify.post(
+    '/api/mcp_server/complete_oauth',
+    {
+      schema: {
+        operationId: 'completeMcpServerOauth',
+        description: 'Complete MCP server OAuth flow and install with tokens',
+        tags: ['MCP Server'],
+        body: z.object({
+          service: z.string(),
+          access_token: z.string(),
+          refresh_token: z.string(),
+          expiry_date: z.string().optional(),
+          state: z.string(),
+        }),
+        response: {
+          200: McpServerSchema,
+          400: ErrorResponseSchema,
+          500: ErrorResponseSchema,
+        },
+      },
+    },
+    async ({ body }, reply) => {
+      const { service, access_token, refresh_token, expiry_date, state } = body;
+
+      // Retrieve pending installation data using state
+      const installData = pendingOAuthInstalls.get(state);
+
+      if (!installData) {
+        return reply.code(400).send({ error: 'Invalid or expired OAuth state' });
+      }
+
+      // Remove from pending
+      pendingOAuthInstalls.delete(state);
+
+      try {
+        // Add OAuth tokens to the server config environment variables
+        const updatedConfig = {
+          ...installData.serverConfig,
+          env: {
+            ...installData.serverConfig.env,
+            GOOGLE_MCP_ACCESS_TOKEN: access_token,
+            GOOGLE_MCP_REFRESH_TOKEN: refresh_token,
+            ...(expiry_date && { GOOGLE_MCP_TOKEN_EXPIRY: expiry_date }),
+          },
+        };
+
+        // Install MCP server with tokens in server_config
+        const server = await McpServerModel.installMcpServer({
+          ...installData,
+          serverConfig: updatedConfig,
+        });
+
+        fastify.log.info(`MCP server ${installData.id} installed with OAuth tokens`);
+
+        return reply.code(200).send(server);
+      } catch (error: any) {
+        log.error('Failed to install MCP server with OAuth:', error);
+
+        if (error.message?.includes('already installed')) {
+          return reply.code(400).send({ error: error.message });
+        }
+
+        return reply.code(500).send({ error: 'Failed to complete OAuth installation' });
+      }
     }
   );
 
