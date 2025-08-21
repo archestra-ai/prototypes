@@ -245,7 +245,6 @@ class OllamaClient {
       const data = await response.json();
       return OllamaListResponseSchema.parse(data);
     } catch (error) {
-      log.error('Failed to list models:', error);
       throw error;
     }
   }
@@ -297,14 +296,9 @@ CRITICAL REQUIREMENTS:
         prompt,
         stream: false,
         format: 'json',
-        options: {
-          temperature: 0.3,
-          num_predict: 8192, // Increased to handle larger responses
-        },
       });
 
       const rawResult = JSON.parse(response.response);
-      log.debug(`Raw Ollama response for tool analysis: ${response.response.substring(0, 200)}...`);
 
       const result: Record<string, z.infer<typeof ToolAnalysisResultSchema>> = {};
 
