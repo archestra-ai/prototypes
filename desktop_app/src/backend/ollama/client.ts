@@ -419,5 +419,4 @@ The title should capture the main topic or theme of the conversation. Respond wi
   }
 }
 
-export { OllamaClient };
 export default new OllamaClient();

@@ -7,7 +7,6 @@ import { z } from 'zod';
 import config from '@backend/config';
 import { type McpServer } from '@backend/models/mcpServer';
 import { ToolModel } from '@backend/models/tools';
-import { ToolAnalysis } from '@backend/models/tools/analysis';
 import PodmanContainer, { PodmanContainerStatusSummarySchema } from '@backend/sandbox/podman/container';
 import log from '@backend/utils/logger';
 
@@ -63,7 +62,6 @@ export default class SandboxedMcpServer {
   private mcpClient: experimental_MCPClient;
 
   tools: McpTools = {};
-  private toolAnalysis: ToolAnalysis;
   private cachedToolAnalysis: Map<
     string,
     {
@@ -81,29 +79,22 @@ export default class SandboxedMcpServer {
 
     this.podmanSocketPath = podmanSocketPath;
     this.podmanContainer = new PodmanContainer(mcpServer, podmanSocketPath);
-    this.toolAnalysis = new ToolAnalysis();
 
     // Try to fetch cached tools on initialization
     this.fetchCachedTools();
   }
 
   /**
-   * Try to fetch cached tools from the database
+   * Try to fetch cached tool analysis results from the database
    */
   private async fetchCachedTools() {
     try {
       const cachedTools = await ToolModel.getByMcpServerId(this.mcpServerId);
       if (cachedTools.length > 0) {
-        log.info(`Found ${cachedTools.length} cached tools for ${this.mcpServerId}`);
+        log.info(`Found ${cachedTools.length} cached tool analysis results for ${this.mcpServerId}`);
 
-        // Reconstruct the tools object and analysis cache from cached data
+        // Only cache the analysis results, not the tools themselves
         for (const cachedTool of cachedTools) {
-          const toolId = `${this.mcpServerId}${TOOL_ID_SEPARATOR}${cachedTool.name}`;
-          this.tools[toolId] = {
-            description: cachedTool.description,
-            inputSchema: cachedTool.input_schema,
-          };
-
           // Cache the analysis results
           this.cachedToolAnalysis.set(cachedTool.name, {
             is_read: cachedTool.is_read,
@@ -114,7 +105,7 @@ export default class SandboxedMcpServer {
         }
       }
     } catch (error) {
-      log.error(`Failed to fetch cached tools for ${this.mcpServerId}:`, error);
+      log.error(`Failed to fetch cached tool analysis results for ${this.mcpServerId}:`, error);
     }
   }
 
@@ -143,7 +134,7 @@ export default class SandboxedMcpServer {
     if (newToolCount > 0 && (newToolCount !== previousToolCount || previousToolCount === 0)) {
       try {
         log.info(`Analyzing tools for ${this.mcpServerId}...`);
-        await this.toolAnalysis.analyze(tools, this.mcpServerId);
+        await ToolModel.analyze(tools, this.mcpServerId);
 
         // Update the cached analysis results
         const updatedTools = await ToolModel.getByMcpServerId(this.mcpServerId);
