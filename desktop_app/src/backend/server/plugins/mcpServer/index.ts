@@ -2,13 +2,15 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
-import { getOAuthProvider } from '@backend/config/oauth-providers';
+import { TokenResponse } from '@backend/config/oauth-provider-interface';
+import { getOAuthProvider, getOAuthProviderConfig } from '@backend/config/oauth-providers';
 import McpRequestLog from '@backend/models/mcpRequestLog';
 import McpServerModel, { McpServerInstallSchema, McpServerSchema } from '@backend/models/mcpServer';
 import McpServerSandboxManager from '@backend/sandbox/manager';
 import { AvailableToolSchema, McpServerContainerLogsSchema } from '@backend/sandbox/sandboxedMcp';
 import { ErrorResponseSchema } from '@backend/schemas';
 import log from '@backend/utils/logger';
+import { getAuthorizationParams, handleProviderTokens, validateProvider } from '@backend/utils/oauth-provider-helper';
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '@backend/utils/pkce';
 
 // Store for pending OAuth installations with PKCE data
@@ -112,6 +114,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         }),
         response: {
           200: z.object({ authUrl: z.string(), state: z.string() }),
+          500: ErrorResponseSchema,
         },
       },
     },
@@ -120,6 +123,9 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         // Get OAuth provider configuration
         const providerName = installData.oauthProvider || 'google';
         const provider = getOAuthProvider(providerName);
+
+        // Validate provider configuration
+        validateProvider(provider);
 
         // Generate PKCE parameters
         const state = generateState();
@@ -159,26 +165,25 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         }
 
         // Build OAuth authorization URL with PKCE
-        const params = new URLSearchParams({
-          client_id: provider.clientId || process.env[`${providerName.toUpperCase()}_CLIENT_ID`] || '',
+        const baseParams: Record<string, string> = {
+          client_id: provider.clientId,
           redirect_uri: redirectUri,
           response_type: 'code',
           scope: provider.scopes.join(' '),
           state: state,
           access_type: 'offline', // For Google refresh tokens
           prompt: 'consent', // Force consent to get refresh token
-        });
+        };
 
         // Add PKCE parameters if provider supports it
         if (provider.usePKCE) {
-          params.append('code_challenge', codeChallenge);
-          params.append('code_challenge_method', 'S256');
+          baseParams.code_challenge = codeChallenge;
+          baseParams.code_challenge_method = 'S256';
         }
 
-        // For Slack, add user_scope parameter
-        if (providerName === 'slack') {
-          params.append('user_scope', provider.scopes.join(','));
-        }
+        // Get provider-specific authorization parameters
+        const authParams = getAuthorizationParams(provider, baseParams);
+        const params = new URLSearchParams(authParams);
 
         const authUrl = `${provider.authorizationUrl}?${params.toString()}`;
         fastify.log.info(`OAuth URL for ${catalogName} with provider ${providerName}: ${authUrl}`);
@@ -316,7 +321,9 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
           // Continue with the installation using the tokens
           body.access_token = tokens.access_token;
           body.refresh_token = tokens.refresh_token;
-          body.expiry_date = tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000).toISOString() : null;
+          body.expiry_date = tokens.expires_in
+            ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+            : undefined;
         } catch (error) {
           fastify.log.error('Token exchange error:', error);
           return reply.code(400).send({
@@ -337,29 +344,31 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
 
       try {
         const { installData } = pendingInstall;
+        const providerName = service || installData.oauthProvider || 'google';
+        const provider = getOAuthProvider(providerName);
 
-        // Add OAuth tokens to the server config environment variables
-        // Use different env vars based on the service
-        const tokenEnvVars =
-          service === 'slack'
-            ? {
-                SLACK_MCP_ACCESS_TOKEN: body.access_token,
-                // Slack doesn't use refresh tokens
-                ...(body.refresh_token && { SLACK_MCP_REFRESH_TOKEN: body.refresh_token }),
-              }
-            : {
-                GOOGLE_MCP_ACCESS_TOKEN: body.access_token,
-                GOOGLE_MCP_REFRESH_TOKEN: body.refresh_token,
-                ...(body.expiry_date && { GOOGLE_MCP_TOKEN_EXPIRY: body.expiry_date }),
-              };
-
-        const updatedConfig = {
-          ...installData.serverConfig,
-          env: {
-            ...installData.serverConfig.env,
-            ...tokenEnvVars,
-          },
+        // Handle tokens using the provider's configuration
+        const tokens: TokenResponse = {
+          access_token: body.access_token!,
+          refresh_token: body.refresh_token,
+          expires_in: body.expiry_date
+            ? Math.floor((new Date(body.expiry_date).getTime() - Date.now()) / 1000)
+            : undefined,
         };
+
+        const tokenEnvVars = await handleProviderTokens(provider, tokens, installData.id || installData.displayName);
+
+        // If provider has custom handler, tokenEnvVars will be undefined
+        // Otherwise, add the env vars to the server config
+        const updatedConfig = tokenEnvVars
+          ? {
+              ...installData.serverConfig,
+              env: {
+                ...installData.serverConfig.env,
+                ...tokenEnvVars,
+              },
+            }
+          : installData.serverConfig;
 
         // Install MCP server with tokens in server_config and OAuth fields
         const server = await McpServerModel.installMcpServer({

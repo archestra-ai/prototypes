@@ -5,6 +5,7 @@ import { config } from './config/index.js';
 import { initializeProviders, getAllProviders } from './providers/index.js';
 import tokenRoutes from './routes/token.js';
 import callbackRoutes from './routes/callback.js';
+import providersRoute from './routes/providers.js';
 
 export async function buildApp(httpsOptions = null) {
   // Initialize providers
@@ -25,6 +26,7 @@ export async function buildApp(httpsOptions = null) {
   // Register routes
   await app.register(tokenRoutes);
   await app.register(callbackRoutes);
+  await app.register(providersRoute);
 
   // Root endpoint - API documentation
   app.get('/', async (request, reply) => {
@@ -35,6 +37,9 @@ export async function buildApp(httpsOptions = null) {
       version: '2.0.0',
       description: 'Secure OAuth proxy for PKCE-based token exchange',
       endpoints: {
+        'GET /oauth/providers': 'List all configured and available providers',
+        'GET /oauth/providers/:name': 'Get detailed information about a provider',
+        'GET /oauth/providers/:name/status': 'Check if a provider is configured',
         'POST /oauth/token': {
           description: 'Exchange authorization code or refresh token',
           parameters: {
