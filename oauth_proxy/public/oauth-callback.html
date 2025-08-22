@@ -87,8 +87,11 @@
                 <p>Redirecting to desktop application...</p>
             `;
 
-        // Redirect to the Tauri app via deep-link
-        const deepLinkUrl = `archestra-ai://oauth-callback?service=${service}&access_token=${accessToken}&refresh_token=${refreshToken}&expiry_date=${expiryDate || ''}`;
+        // Redirect to the Electron app via deep-link
+        // Include the state parameter from the original OAuth request
+        const urlParams = new URLSearchParams(window.location.search);
+        const state = urlParams.get('state') || '';
+        const deepLinkUrl = `archestra-ai://oauth-callback?service=${service}&access_token=${accessToken}&refresh_token=${refreshToken}&expiry_date=${expiryDate || ''}&state=${state}`;
 
         setTimeout(() => {
           window.location.href = deepLinkUrl;

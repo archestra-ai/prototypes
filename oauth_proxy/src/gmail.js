@@ -9,7 +9,7 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
   throw new Error('Gmail OAuth credentials not configured');
 }
 
-const REDIRECT_URL = process.env.REDIRECT_URL || `http://localhost:${process.env.PORT}/oauth-callback/gmail`;
+const REDIRECT_URL = process.env.REDIRECT_URL || `https://oauth.dev.archestra.ai/oauth-callback/gmail`;
 
 const oauth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URL);
 
