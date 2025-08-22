@@ -76,7 +76,14 @@ export default class McpServerModel {
     displayName,
     serverConfig,
     userConfigValues,
-  }: z.infer<typeof McpServerInstallSchema>) {
+    oauthAccessToken,
+    oauthRefreshToken,
+    oauthExpiryDate,
+  }: z.infer<typeof McpServerInstallSchema> & {
+    oauthAccessToken?: string;
+    oauthRefreshToken?: string;
+    oauthExpiryDate?: string | null;
+  }) {
     /**
      * Check if an mcp server with this id already exists
      */
@@ -101,6 +108,9 @@ export default class McpServerModel {
         name: displayName,
         serverConfig,
         userConfigValues: userConfigValues,
+        oauthAccessToken: oauthAccessToken || null,
+        oauthRefreshToken: oauthRefreshToken || null,
+        oauthExpiryDate: oauthExpiryDate || null,
         createdAt: now.toISOString(),
       })
       .returning();

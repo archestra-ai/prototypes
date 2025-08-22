@@ -177,10 +177,13 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
           },
         };
 
-        // Install MCP server with tokens in server_config
+        // Install MCP server with tokens in server_config and OAuth fields
         const server = await McpServerModel.installMcpServer({
           ...installData,
           serverConfig: updatedConfig,
+          oauthAccessToken: access_token,
+          oauthRefreshToken: refresh_token,
+          oauthExpiryDate: expiry_date || null,
         });
 
         fastify.log.info(`MCP server ${installData.id} installed with OAuth tokens`);

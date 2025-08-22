@@ -42,6 +42,18 @@ export const mcpServersTable = sqliteTable('mcp_servers', {
    * See https://github.com/anthropics/dxt/blob/main/MANIFEST.md#variable-substitution-in-user-configuration
    */
   userConfigValues: text({ mode: 'json' }).$type<z.infer<typeof McpServerUserConfigValuesSchema>>(),
+  /**
+   * OAuth access token for servers that use OAuth authentication
+   */
+  oauthAccessToken: text('oauth_access_token'),
+  /**
+   * OAuth refresh token for servers that use OAuth authentication
+   */
+  oauthRefreshToken: text('oauth_refresh_token'),
+  /**
+   * OAuth token expiry date (as returned by provider, typically a timestamp or ISO date)
+   */
+  oauthExpiryDate: text('oauth_expiry_date'),
   createdAt: text()
     .notNull()
     .default(sql`(current_timestamp)`),
