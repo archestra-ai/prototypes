@@ -257,6 +257,37 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - Server settings: host, port, CORS origins
     - Required models list for auto-provisioning
     - Default model selection (`OLLAMA_MODEL` env var)
+- **OAuth Integration**:
+  - **OAuth Proxy Server**: Standalone Fastify server (`oauth_proxy/`) for secure token management
+    - Production URL: `https://oauth-proxy-new-354887056155.europe-west1.run.app`
+    - Stores OAuth client secrets (never exposed to desktop app)
+    - Handles token exchange and refresh operations
+    - Supports HTTPS with self-signed certificates for development
+  - **Supported Providers**:
+    - **Google OAuth**: Gmail API access (scopes: `gmail.readonly`, `gmail.send`, `gmail.modify`)
+    - **Slack OAuth**: Workspace access (channels, chat, groups, users, team, files)
+  - **PKCE Flow Implementation**:
+    - Secure OAuth 2.0 flow with code verifier/challenge
+    - CSRF protection via state parameter
+    - Deep link callback: `archestra-ai://oauth-callback`
+  - **API Endpoints**:
+    - `POST /api/mcp_server/start_oauth` - Initiates OAuth flow with PKCE parameters
+    - `POST /api/mcp_server/complete_oauth` - Completes OAuth and stores tokens
+    - `GET /api/mcp_server/:id/oauth_status` - Check OAuth configuration status
+  - **Database Schema**:
+    - MCP servers table extended with OAuth fields:
+      - `oauth_access_token`: Encrypted access token
+      - `oauth_refresh_token`: Encrypted refresh token (if supported)
+      - `oauth_expiry_date`: Token expiration timestamp
+      - `oauth_provider`: Provider identifier (google/slack)
+  - **Security Features**:
+    - Client secrets isolated in OAuth proxy
+    - Automatic cleanup of expired OAuth states (10-minute timeout)
+    - Token refresh handling (provider-dependent)
+    - Certificate validation with dev mode exceptions
+  - **MCP Server Environment**:
+    - Google: `GOOGLE_MCP_ACCESS_TOKEN`, `GOOGLE_MCP_REFRESH_TOKEN`, `GOOGLE_MCP_TOKEN_EXPIRY`
+    - Slack: `SLACK_MCP_ACCESS_TOKEN` (no refresh token)
 
 ### Directory Structure
 
@@ -280,6 +311,20 @@ desktop_app/src/
     ├── routes/       # Tanstack Router file-based routes
     ├── stores/       # Zustand state stores
     └── hooks/        # Custom React hooks
+
+oauth_proxy/
+├── src/
+│   ├── app.js         # Express app configuration
+│   ├── server.js      # Server entry point
+│   ├── config/        # Configuration and environment
+│   ├── providers/     # OAuth provider implementations
+│   │   ├── base.js    # Base OAuth provider class
+│   │   ├── google.js  # Google OAuth specifics
+│   │   └── slack.js   # Slack OAuth specifics
+│   └── routes/        # API routes
+│       ├── callback.js # OAuth callback handler
+│       └── token.js    # Token exchange endpoint
+└── package.json       # Dependencies and scripts
 ```
 
 ### Database Schema
