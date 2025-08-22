@@ -7,6 +7,7 @@ dotenv.config();
 
 // Import service handlers AFTER loading env vars
 const gmailService = require('./gmail');
+const slackService = require('./slack');
 
 const app = express();
 const PORT_LOCALHOST = process.env.PORT || 8080;
@@ -53,6 +54,8 @@ function getServiceHandler(service) {
   switch (service.toLowerCase()) {
     case 'gmail':
       return gmailService;
+    case 'slack':
+      return slackService;
     default:
       throw new Error(`Unsupported OAuth service: ${service}`);
   }
@@ -173,7 +176,7 @@ app.listen(PORT_LOCALHOST, () => {
     : `http://localhost:${PORT_LOCALHOST}`;
   console.log(`OAuth proxy server running on port ${PORT_LOCALHOST}`);
   console.log(`Health check URL: ${baseUrl}/health`);
-  console.log(`Supported services: gmail`);
+  console.log(`Supported services: gmail, slack`);
   console.log(`Auth URL pattern: ${baseUrl}/auth/<service>`);
   console.log(`Callback URL pattern: ${baseUrl}/oauth-callback/<service>`);
 });
