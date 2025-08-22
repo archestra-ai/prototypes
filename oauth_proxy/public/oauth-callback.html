@@ -63,6 +63,11 @@
           emoji: '📧',
           color: '#d93025',
         },
+        slack: {
+          name: 'Slack',
+          emoji: '💬',
+          color: '#4A154B',
+        },
         // Add more services here as needed
       };
 
@@ -79,7 +84,7 @@
                 <p>${error}</p>
                 <p>Please try again from your desktop application.</p>
             `;
-      } else if (accessToken && refreshToken) {
+      } else if (accessToken) {
         statusDiv.className = 'success';
         statusDiv.innerHTML = `
                 <h3>✅ Authentication Successful!</h3>
@@ -91,7 +96,15 @@
         // Include the state parameter from the original OAuth request
         const urlParams = new URLSearchParams(window.location.search);
         const state = urlParams.get('state') || '';
-        const deepLinkUrl = `archestra-ai://oauth-callback?service=${service}&access_token=${accessToken}&refresh_token=${refreshToken}&expiry_date=${expiryDate || ''}&state=${state}`;
+        
+        // Build deep link URL with only available parameters
+        let deepLinkUrl = `archestra-ai://oauth-callback?service=${service}&access_token=${accessToken}&state=${state}`;
+        if (refreshToken) {
+          deepLinkUrl += `&refresh_token=${refreshToken}`;
+        }
+        if (expiryDate) {
+          deepLinkUrl += `&expiry_date=${expiryDate}`;
+        }
 
         setTimeout(() => {
           window.location.href = deepLinkUrl;

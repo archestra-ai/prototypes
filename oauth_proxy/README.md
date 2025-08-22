@@ -18,6 +18,8 @@ Build is triggered when any file from this folder is changed. Open Cloud Run in 
    PORT=8080
    GOOGLE_CLIENT_ID=your_google_client_id
    GOOGLE_CLIENT_SECRET=your_google_client_secret
+   SLACK_CLIENT_ID=your_slack_client_id
+   SLACK_CLIENT_SECRET=your_slack_client_secret
    REDIRECT_URL=http://localhost:8080
    ```
 
@@ -28,3 +30,36 @@ Build is triggered when any file from this folder is changed. Open Cloud Run in 
    ```
 
 Server runs on `http://localhost:8080`
+
+### Running with HTTPS locally
+
+To run the OAuth proxy with HTTPS on localhost:
+
+1. **Install mkcert** (if not already installed):
+   ```bash
+   # macOS
+   brew install mkcert
+   
+   # Install the local CA
+   mkcert -install
+   ```
+
+2. **Generate certificates** for localhost:
+   ```bash
+   cd oauth_proxy
+   mkcert localhost
+   ```
+   This will create `localhost.pem` and `localhost-key.pem` files.
+
+3. **Update `.env` file** to use HTTPS:
+   ```bash
+   USE_LOCAL_HTTPS=true
+   REDIRECT_URL=https://localhost:8080
+   ```
+
+4. **Run the server:**
+   ```bash
+   pnpm start
+   ```
+
+Server will now run on `https://localhost:8080` with valid local certificates.

@@ -1,4 +1,7 @@
 const express = require('express');
+const https = require('https');
+const http = require('http');
+const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
 
@@ -153,8 +156,16 @@ app.get('/oauth-callback/:service', async (req, res) => {
     // Clean up state
     removeState(state);
 
-    // Redirect to the callback page with tokens and service info (use app state if available)
-    const redirectUrl = `/oauth-callback.html?service=${service}&access_token=${tokens.access_token}&refresh_token=${tokens.refresh_token}&expiry_date=${tokens.expiry_date}&state=${appState}`;
+    // Build redirect URL with only available tokens
+    let redirectUrl = `/oauth-callback.html?service=${service}&access_token=${tokens.access_token}&state=${appState}`;
+    
+    // Only add refresh_token and expiry_date if they exist
+    if (tokens.refresh_token) {
+      redirectUrl += `&refresh_token=${tokens.refresh_token}`;
+    }
+    if (tokens.expiry_date) {
+      redirectUrl += `&expiry_date=${tokens.expiry_date}`;
+    }
 
     res.redirect(redirectUrl);
   } catch (error) {
@@ -169,14 +180,52 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Start server
-app.listen(PORT_LOCALHOST, () => {
-  const baseUrl = process.env.REDIRECT_URL
-    ? process.env.REDIRECT_URL.replace(/\/oauth-callback.*/, '')
-    : `http://localhost:${PORT_LOCALHOST}`;
-  console.log(`OAuth proxy server running on port ${PORT_LOCALHOST}`);
-  console.log(`Health check URL: ${baseUrl}/health`);
-  console.log(`Supported services: gmail, slack`);
-  console.log(`Auth URL pattern: ${baseUrl}/auth/<service>`);
-  console.log(`Callback URL pattern: ${baseUrl}/oauth-callback/<service>`);
-});
+// Start server - HTTP or HTTPS based on environment
+const useLocalHttps = process.env.USE_LOCAL_HTTPS === 'true';
+
+if (useLocalHttps) {
+  // Look for mkcert certificates
+  const certPath = path.join(__dirname, '..', 'localhost.pem');
+  const keyPath = path.join(__dirname, '..', 'localhost-key.pem');
+  
+  // Fallback to certs directory if not in root
+  const altCertPath = path.join(__dirname, '..', 'certs', 'localhost.pem');
+  const altKeyPath = path.join(__dirname, '..', 'certs', 'localhost-key.pem');
+  
+  let cert, key;
+  
+  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+    cert = fs.readFileSync(certPath);
+    key = fs.readFileSync(keyPath);
+  } else if (fs.existsSync(altCertPath) && fs.existsSync(altKeyPath)) {
+    cert = fs.readFileSync(altCertPath);
+    key = fs.readFileSync(altKeyPath);
+  } else {
+    console.error('SSL certificates not found!');
+    console.error('Please run: mkcert localhost');
+    console.error('Expected files: localhost.pem and localhost-key.pem');
+    process.exit(1);
+  }
+  
+  https.createServer({ cert, key }, app).listen(PORT_LOCALHOST, () => {
+    const baseUrl = process.env.REDIRECT_URL
+      ? process.env.REDIRECT_URL.replace(/\/oauth-callback.*/, '')
+      : `https://localhost:${PORT_LOCALHOST}`;
+    console.log(`OAuth proxy server running on HTTPS port ${PORT_LOCALHOST}`);
+    console.log(`Health check URL: ${baseUrl}/health`);
+    console.log(`Supported services: gmail, slack`);
+    console.log(`Auth URL pattern: ${baseUrl}/auth/<service>`);
+    console.log(`Callback URL pattern: ${baseUrl}/oauth-callback/<service>`);
+  });
+} else {
+  http.createServer(app).listen(PORT_LOCALHOST, () => {
+    const baseUrl = process.env.REDIRECT_URL
+      ? process.env.REDIRECT_URL.replace(/\/oauth-callback.*/, '')
+      : `http://localhost:${PORT_LOCALHOST}`;
+    console.log(`OAuth proxy server running on HTTP port ${PORT_LOCALHOST}`);
+    console.log(`Health check URL: ${baseUrl}/health`);
+    console.log(`Supported services: gmail, slack`);
+    console.log(`Auth URL pattern: ${baseUrl}/auth/<service>`);
+    console.log(`Callback URL pattern: ${baseUrl}/oauth-callback/<service>`);
+  });
+}

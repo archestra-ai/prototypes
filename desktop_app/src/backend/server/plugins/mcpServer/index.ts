@@ -124,7 +124,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       }
 
       // Get OAuth provider from installData (passed from client)
-      const oauthProvider = (installData as any).oauthProvider || 'gmail';
+      const oauthProvider = installData.oauthProvider || 'gmail';
 
       // Use environment variable, or local proxy in development, or production proxy
       const oauthProxyBase =
@@ -177,13 +177,25 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
 
       try {
         // Add OAuth tokens to the server config environment variables
+        // Use different env vars based on the service
+        const tokenEnvVars =
+          service === 'slack'
+            ? {
+                SLACK_MCP_ACCESS_TOKEN: access_token,
+                // Slack doesn't use refresh tokens
+                ...(refresh_token && { SLACK_MCP_REFRESH_TOKEN: refresh_token }),
+              }
+            : {
+                GOOGLE_MCP_ACCESS_TOKEN: access_token,
+                GOOGLE_MCP_REFRESH_TOKEN: refresh_token,
+                ...(expiry_date && { GOOGLE_MCP_TOKEN_EXPIRY: expiry_date }),
+              };
+
         const updatedConfig = {
           ...installData.serverConfig,
           env: {
             ...installData.serverConfig.env,
-            GOOGLE_MCP_ACCESS_TOKEN: access_token,
-            GOOGLE_MCP_REFRESH_TOKEN: refresh_token,
-            ...(expiry_date && { GOOGLE_MCP_TOKEN_EXPIRY: expiry_date }),
+            ...tokenEnvVars,
           },
         };
 
