@@ -3,17 +3,14 @@
   # Archestra
   
   **Enterprise MCP Platform for AI Agents**
-  
-  ### 🎯 Meet us at KubeCon + CloudNativeCon North America 2025!
-  **[📅 Schedule a meeting with us](https://calendly.com/archestra/kubecon)**
+
+  **[📅 Schedule a meeting with us at KubeCon + CloudNativeCon North America 2025!](https://calendly.com/archestra/kubecon)**
   
   <br />
   
   [![License](https://img.shields.io/github/license/archestra-ai/archestra)](LICENSE)
   [![Contributors](https://img.shields.io/github/contributors/archestra-ai/archestra)](https://github.com/archestra-ai/archestra/graphs/contributors)
   [![Slack](https://img.shields.io/badge/Slack-Join%20Community-4A154B?logo=slack)](https://join.slack.com/t/archestracommunity/shared_invite/zt-39yk4skox-zBF1NoJ9u4t59OU8XxQChg)
-  
-  [Website](https://archestra.ai)
 </div>
 
 ---
@@ -57,13 +54,9 @@ pnpm start
 
 ---
 
-### 🎯 Meet us at KubeCon + CloudNativeCon North America 2025!
-
-**[📅 Schedule a meeting with us at KubeCon](https://calendly.com/archestra/kubecon)**
-
 <div align="center">
   <br />
-  <a href="https://www.linuxfoundation.org/"><img src="desktop_app/public/images/linux-foundation-logo.png" height="50" alt="Linux Foundation" /></a>
+  <a href="https://www.archestra.ai/blog/archestra-joins-cncf-linux-foundation"><img src="desktop_app/public/images/linux-foundation-logo.png" height="50" alt="Linux Foundation" /></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://www.cncf.io/"><img src="desktop_app/public/images/cncf-logo.png" height="50" alt="CNCF" /></a>
+  <a href="https://www.archestra.ai/blog/archestra-joins-cncf-linux-foundation"><img src="desktop_app/public/images/cncf-logo.png" height="50" alt="CNCF" /></a>
 </div>
