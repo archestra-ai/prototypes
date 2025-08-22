@@ -127,18 +127,18 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         const codeChallenge = await generateCodeChallenge(codeVerifier);
 
         // Determine redirect URI based on environment and provider
-        // For development, we'll use the OAuth proxy's callback endpoint since it has HTTPS
+        // OAuth provider redirects to proxy, which then uses deeplink to open desktop app
         let redirectUri = process.env.OAUTH_REDIRECT_URI;
 
         if (!redirectUri) {
-          // Use local HTTPS proxy for development (works for both Google and Slack)
+          // Use OAuth proxy for handling the callback (it will deeplink back to the app)
           const oauthProxyBase =
             process.env.OAUTH_PROXY_URL ||
             (process.env.NODE_ENV === 'development'
               ? 'https://localhost:8080'
               : 'https://oauth-proxy-new-354887056155.europe-west1.run.app');
 
-          // Use OAuth proxy's callback endpoint which will redirect back to the app
+          // Use OAuth proxy's callback endpoint which will deeplink back to the app
           redirectUri = `${oauthProxyBase}/callback/${providerName}`;
         }
 
@@ -266,17 +266,45 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
               ? 'https://localhost:8080'
               : 'https://oauth-proxy-new-354887056155.europe-west1.run.app');
 
-          const tokenResponse = await fetch(`${oauthProxyUrl}/oauth/token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              grant_type: 'authorization_code',
-              provider: service || pendingInstall.installData.oauthProvider || 'google',
-              code: body.code,
-              code_verifier: pendingInstall.codeVerifier,
-              redirect_uri: pendingInstall.redirectUri,
-            }),
-          });
+          // For development with self-signed certificates, we need special handling
+          let tokenResponse;
+          try {
+            const tokenUrl = `${oauthProxyUrl}/oauth/token`;
+            fastify.log.info(`Exchanging OAuth token at: ${tokenUrl}`);
+            fastify.log.info(`NODE_ENV: ${process.env.NODE_ENV}`);
+            fastify.log.info(`OAuth Proxy URL: ${oauthProxyUrl}`);
+
+            // In development, handle self-signed certificates
+            // Check for localhost URLs regardless of NODE_ENV since we're clearly in local development
+            if (oauthProxyUrl.includes('localhost')) {
+              fastify.log.info('Disabling certificate validation for localhost');
+              // Temporarily disable certificate validation for local development
+              process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
+            }
+
+            tokenResponse = await fetch(tokenUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                grant_type: 'authorization_code',
+                provider: service || pendingInstall.installData.oauthProvider || 'google',
+                code: body.code,
+                code_verifier: pendingInstall.codeVerifier,
+                redirect_uri: pendingInstall.redirectUri,
+              }),
+            });
+
+            // Re-enable certificate validation
+            if (oauthProxyUrl.includes('localhost')) {
+              delete process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
+            }
+          } catch (fetchError) {
+            fastify.log.error('Fetch error details:', fetchError);
+            fastify.log.error('Fetch error stack:', fetchError.stack);
+            // Re-enable certificate validation in case of error
+            delete process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
+            throw new Error(`Failed to connect to OAuth proxy at ${oauthProxyUrl}: ${fetchError.message}`);
+          }
 
           if (!tokenResponse.ok) {
             const error = await tokenResponse.json();
