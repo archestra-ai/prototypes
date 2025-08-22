@@ -54,7 +54,8 @@ To run the OAuth proxy with HTTPS on localhost:
 3. **Update `.env` file** to use HTTPS:
    ```bash
    USE_LOCAL_HTTPS=true
-   REDIRECT_URL=https://localhost:8080
+   REDIRECT_URL=https://localhost:8080/oauth-callback/gmail
+   SLACK_REDIRECT_URL=https://localhost:8080/oauth-callback/slack
    ```
 
 4. **Run the server:**

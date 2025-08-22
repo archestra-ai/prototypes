@@ -130,7 +130,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       const oauthProxyBase =
         process.env.OAUTH_PROXY_URL ||
         (process.env.NODE_ENV === 'development'
-          ? 'http://localhost:8080'
+          ? 'https://localhost:8080'
           : 'https://oauth-proxy-new-354887056155.europe-west1.run.app');
 
       // Use the OAuth proxy with state parameter and provider
