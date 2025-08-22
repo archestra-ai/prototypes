@@ -125,7 +125,10 @@ export type ArchestraMcpServerManifest = {
       };
     } | null;
     oauth: {
-      provider: 'google';
+      provider: 'google' | 'slack';
+      required: boolean;
+    };
+    browser_based: {
       required: boolean;
     };
   };

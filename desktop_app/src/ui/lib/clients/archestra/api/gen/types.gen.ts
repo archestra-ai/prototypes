@@ -221,21 +221,34 @@ export type AvailableToolInput = {
    */
   mcpServerName: string;
   /**
-   * Whether the tool is read-only
+   * Tool analysis results
    */
-  is_read?: boolean | null;
-  /**
-   * Whether the tool writes data
-   */
-  is_write?: boolean | null;
-  /**
-   * Whether the tool is idempotent
-   */
-  idempotent?: boolean | null;
-  /**
-   * Whether the tool actions are reversible
-   */
-  reversible?: boolean | null;
+  analysis: {
+    /**
+     * Analysis status
+     */
+    status: 'awaiting_ollama_model' | 'in_progress' | 'error' | 'completed';
+    /**
+     * Error message if analysis failed
+     */
+    error: string | null;
+    /**
+     * Whether the tool is read-only
+     */
+    is_read: boolean | null;
+    /**
+     * Whether the tool writes data
+     */
+    is_write: boolean | null;
+    /**
+     * Whether the tool is idempotent
+     */
+    idempotent: boolean | null;
+    /**
+     * Whether the tool actions are reversible
+     */
+    reversible: boolean | null;
+  };
 };
 
 export type OllamaRequiredModelStatusInput = {
@@ -473,21 +486,34 @@ export type AvailableTool = {
    */
   mcpServerName: string;
   /**
-   * Whether the tool is read-only
+   * Tool analysis results
    */
-  is_read?: boolean | null;
-  /**
-   * Whether the tool writes data
-   */
-  is_write?: boolean | null;
-  /**
-   * Whether the tool is idempotent
-   */
-  idempotent?: boolean | null;
-  /**
-   * Whether the tool actions are reversible
-   */
-  reversible?: boolean | null;
+  analysis: {
+    /**
+     * Analysis status
+     */
+    status: 'awaiting_ollama_model' | 'in_progress' | 'error' | 'completed';
+    /**
+     * Error message if analysis failed
+     */
+    error: string | null;
+    /**
+     * Whether the tool is read-only
+     */
+    is_read: boolean | null;
+    /**
+     * Whether the tool writes data
+     */
+    is_write: boolean | null;
+    /**
+     * Whether the tool is idempotent
+     */
+    idempotent: boolean | null;
+    /**
+     * Whether the tool actions are reversible
+     */
+    reversible: boolean | null;
+  };
 };
 
 export type OllamaRequiredModelStatus = {

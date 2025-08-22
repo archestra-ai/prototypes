@@ -820,56 +820,80 @@
             "description": "MCP server name",
             "type": "string"
           },
-          "is_read": {
-            "description": "Whether the tool is read-only",
-            "anyOf": [
-              {
-                "type": "boolean"
+          "analysis": {
+            "description": "Tool analysis results",
+            "type": "object",
+            "properties": {
+              "status": {
+                "description": "Analysis status",
+                "type": "string",
+                "enum": ["awaiting_ollama_model", "in_progress", "error", "completed"]
               },
-              {
-                "nullable": true,
-                "enum": [null]
-              }
-            ]
-          },
-          "is_write": {
-            "description": "Whether the tool writes data",
-            "anyOf": [
-              {
-                "type": "boolean"
+              "error": {
+                "description": "Error message if analysis failed",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
               },
-              {
-                "nullable": true,
-                "enum": [null]
-              }
-            ]
-          },
-          "idempotent": {
-            "description": "Whether the tool is idempotent",
-            "anyOf": [
-              {
-                "type": "boolean"
+              "is_read": {
+                "description": "Whether the tool is read-only",
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
               },
-              {
-                "nullable": true,
-                "enum": [null]
-              }
-            ]
-          },
-          "reversible": {
-            "description": "Whether the tool actions are reversible",
-            "anyOf": [
-              {
-                "type": "boolean"
+              "is_write": {
+                "description": "Whether the tool writes data",
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
               },
-              {
-                "nullable": true,
-                "enum": [null]
+              "idempotent": {
+                "description": "Whether the tool is idempotent",
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
+              },
+              "reversible": {
+                "description": "Whether the tool actions are reversible",
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
               }
-            ]
+            },
+            "required": ["status", "error", "is_read", "is_write", "idempotent", "reversible"]
           }
         },
-        "required": ["id", "name", "mcpServerId", "mcpServerName"]
+        "required": ["id", "name", "mcpServerId", "mcpServerName", "analysis"]
       },
       "OllamaRequiredModelStatusInput": {
         "type": "object",
@@ -1744,56 +1768,81 @@
             "description": "MCP server name",
             "type": "string"
           },
-          "is_read": {
-            "description": "Whether the tool is read-only",
-            "anyOf": [
-              {
-                "type": "boolean"
+          "analysis": {
+            "description": "Tool analysis results",
+            "type": "object",
+            "properties": {
+              "status": {
+                "description": "Analysis status",
+                "type": "string",
+                "enum": ["awaiting_ollama_model", "in_progress", "error", "completed"]
               },
-              {
-                "nullable": true,
-                "enum": [null]
-              }
-            ]
-          },
-          "is_write": {
-            "description": "Whether the tool writes data",
-            "anyOf": [
-              {
-                "type": "boolean"
+              "error": {
+                "description": "Error message if analysis failed",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
               },
-              {
-                "nullable": true,
-                "enum": [null]
-              }
-            ]
-          },
-          "idempotent": {
-            "description": "Whether the tool is idempotent",
-            "anyOf": [
-              {
-                "type": "boolean"
+              "is_read": {
+                "description": "Whether the tool is read-only",
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
               },
-              {
-                "nullable": true,
-                "enum": [null]
-              }
-            ]
-          },
-          "reversible": {
-            "description": "Whether the tool actions are reversible",
-            "anyOf": [
-              {
-                "type": "boolean"
+              "is_write": {
+                "description": "Whether the tool writes data",
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
               },
-              {
-                "nullable": true,
-                "enum": [null]
+              "idempotent": {
+                "description": "Whether the tool is idempotent",
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
+              },
+              "reversible": {
+                "description": "Whether the tool actions are reversible",
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "nullable": true,
+                    "enum": [null]
+                  }
+                ]
               }
-            ]
+            },
+            "required": ["status", "error", "is_read", "is_write", "idempotent", "reversible"],
+            "additionalProperties": false
           }
         },
-        "required": ["id", "name", "mcpServerId", "mcpServerName"],
+        "required": ["id", "name", "mcpServerId", "mcpServerName", "analysis"],
         "additionalProperties": false
       },
       "OllamaRequiredModelStatus": {

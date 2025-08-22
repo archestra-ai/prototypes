@@ -32,10 +32,16 @@ export const AvailableToolSchema = z.object({
   mcpServerId: z.string().describe('MCP server ID'),
   mcpServerName: z.string().describe('MCP server name'),
   // Analysis results
-  is_read: z.boolean().nullable().optional().describe('Whether the tool is read-only'),
-  is_write: z.boolean().nullable().optional().describe('Whether the tool writes data'),
-  idempotent: z.boolean().nullable().optional().describe('Whether the tool is idempotent'),
-  reversible: z.boolean().nullable().optional().describe('Whether the tool actions are reversible'),
+  analysis: z
+    .object({
+      status: z.enum(['awaiting_ollama_model', 'in_progress', 'error', 'completed']).describe('Analysis status'),
+      error: z.string().nullable().describe('Error message if analysis failed'),
+      is_read: z.boolean().nullable().describe('Whether the tool is read-only'),
+      is_write: z.boolean().nullable().describe('Whether the tool writes data'),
+      idempotent: z.boolean().nullable().describe('Whether the tool is idempotent'),
+      reversible: z.boolean().nullable().describe('Whether the tool actions are reversible'),
+    })
+    .describe('Tool analysis results'),
 });
 
 export const SandboxedMcpServerStatusSummarySchema = z.object({
@@ -160,7 +166,7 @@ export default class SandboxedMcpServer {
 
     try {
       const transport = new StreamableHTTPClientTransport(new URL(this.mcpServerProxyUrl));
-      this.mcpClient = await experimental_createMCPClient({ transport: transport as any });
+      this.mcpClient = await experimental_createMCPClient({ transport });
     } catch (error) {
       log.error(`Failed to connect MCP client for ${this.mcpServerId}:`, error);
     }
@@ -274,11 +280,24 @@ export default class SandboxedMcpServer {
         inputSchema: this.cleanToolInputSchema(tool.inputSchema),
         mcpServerId: this.mcpServerId,
         mcpServerName: this.mcpServer.name,
-        // Include analysis results if available
-        is_read: cachedAnalysis?.is_read ?? null,
-        is_write: cachedAnalysis?.is_write ?? null,
-        idempotent: cachedAnalysis?.idempotent ?? null,
-        reversible: cachedAnalysis?.reversible ?? null,
+        // Include analysis results - default to awaiting_ollama_model if not analyzed
+        analysis: cachedAnalysis
+          ? {
+              status: 'completed',
+              error: null,
+              is_read: cachedAnalysis.is_read,
+              is_write: cachedAnalysis.is_write,
+              idempotent: cachedAnalysis.idempotent,
+              reversible: cachedAnalysis.reversible,
+            }
+          : {
+              status: 'awaiting_ollama_model',
+              error: null,
+              is_read: null,
+              is_write: null,
+              idempotent: null,
+              reversible: null,
+            },
       };
     });
   }
