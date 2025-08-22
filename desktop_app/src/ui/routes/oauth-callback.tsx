@@ -29,23 +29,35 @@ function OAuthCallbackPage() {
       const state = params.state || sessionStorage.getItem('oauth_state');
 
       // Check if we have the required parameters
-      if (!params.access_token || !params.refresh_token || !state) {
+      // New flow: we get code instead of tokens
+      if (params.code && state) {
+        // New PKCE flow - exchange code for tokens
+      } else if (params.access_token && params.refresh_token && state) {
+        // Old flow - tokens provided directly
+      } else {
         setStatus('error');
         setErrorMessage('Missing required OAuth parameters');
         return;
       }
 
       try {
-        // Complete the OAuth flow by sending tokens to backend
-        const { data, error } = await completeMcpServerOauth({
-          body: {
-            service: params.service || 'gmail',
-            access_token: params.access_token,
-            refresh_token: params.refresh_token,
-            expiry_date: params.expiry_date,
-            state: state,
-          },
-        });
+        // Complete the OAuth flow by sending code or tokens to backend
+        const body: any = {
+          service: params.service || 'google',
+          state: state,
+        };
+
+        if (params.code) {
+          // New PKCE flow - send code for exchange
+          body.code = params.code;
+        } else {
+          // Old flow - send tokens directly
+          body.access_token = params.access_token;
+          body.refresh_token = params.refresh_token;
+          body.expiry_date = params.expiry_date;
+        }
+
+        const { data, error } = await completeMcpServerOauth({ body });
 
         if (error) {
           throw new Error(error.error || 'Failed to complete OAuth');
@@ -75,13 +87,15 @@ function OAuthCallbackPage() {
 
     // Also check URL parameters (for testing or direct navigation)
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('access_token')) {
+    if (urlParams.get('code') || urlParams.get('access_token')) {
       handleOAuthCallback({
         service: urlParams.get('service'),
+        code: urlParams.get('code'),
         access_token: urlParams.get('access_token'),
         refresh_token: urlParams.get('refresh_token'),
         expiry_date: urlParams.get('expiry_date'),
         state: urlParams.get('state'),
+        error: urlParams.get('error'),
       });
     }
 

@@ -4,13 +4,15 @@ import formbody from '@fastify/formbody';
 import { config } from './config/index.js';
 import { initializeProviders, getAllProviders } from './providers/index.js';
 import tokenRoutes from './routes/token.js';
+import callbackRoutes from './routes/callback.js';
 
-export async function buildApp() {
+export async function buildApp(httpsOptions = null) {
   // Initialize providers
   initializeProviders();
 
-  // Create Fastify instance
+  // Create Fastify instance with HTTPS if provided
   const app = Fastify({
+    https: httpsOptions,
     logger: process.env.NODE_ENV !== 'production' ? {
       level: process.env.LOG_LEVEL || 'info',
     } : false,
@@ -22,6 +24,7 @@ export async function buildApp() {
 
   // Register routes
   await app.register(tokenRoutes);
+  await app.register(callbackRoutes);
 
   // Root endpoint - API documentation
   app.get('/', async (request, reply) => {

@@ -2,15 +2,23 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
+import { getOAuthProvider } from '@backend/config/oauth-providers';
 import McpRequestLog from '@backend/models/mcpRequestLog';
 import McpServerModel, { McpServerInstallSchema, McpServerSchema } from '@backend/models/mcpServer';
 import McpServerSandboxManager from '@backend/sandbox/manager';
 import { AvailableToolSchema, McpServerContainerLogsSchema } from '@backend/sandbox/sandboxedMcp';
 import { ErrorResponseSchema } from '@backend/schemas';
 import log from '@backend/utils/logger';
+import { generateCodeChallenge, generateCodeVerifier, generateState } from '@backend/utils/pkce';
 
-// Store for pending OAuth installations
-const pendingOAuthInstalls = new Map<string, z.infer<typeof McpServerInstallSchema>>();
+// Store for pending OAuth installations with PKCE data
+interface PendingOAuthInstall {
+  installData: z.infer<typeof McpServerInstallSchema>;
+  codeVerifier: string;
+  redirectUri: string;
+  timestamp: number;
+}
+const pendingOAuthInstalls = new Map<string, PendingOAuthInstall>();
 
 /**
  * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
@@ -108,36 +116,109 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       },
     },
     async ({ body: { catalogName, installData } }, reply) => {
-      // Generate unique state for this OAuth flow
-      const state = uuidv4();
+      try {
+        // Get OAuth provider configuration
+        const providerName = installData.oauthProvider || 'google';
+        const provider = getOAuthProvider(providerName);
 
-      // Store pending installation data with state
-      pendingOAuthInstalls.set(state, installData);
+        // Generate PKCE parameters
+        const state = generateState();
+        const codeVerifier = generateCodeVerifier();
+        const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-      // Clean up old pending installs (older than 10 minutes)
-      const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
-      for (const [key, value] of pendingOAuthInstalls.entries()) {
-        // Add timestamp to the stored data if needed
-        if (key !== state) {
-          pendingOAuthInstalls.delete(key);
+        // Determine redirect URI based on environment and provider
+        // For development, we'll use the OAuth proxy's callback endpoint since it has HTTPS
+        let redirectUri = process.env.OAUTH_REDIRECT_URI;
+
+        if (!redirectUri) {
+          // Use local HTTPS proxy for development (works for both Google and Slack)
+          const oauthProxyBase =
+            process.env.OAUTH_PROXY_URL ||
+            (process.env.NODE_ENV === 'development'
+              ? 'https://localhost:8080'
+              : 'https://oauth-proxy-new-354887056155.europe-west1.run.app');
+
+          // Use OAuth proxy's callback endpoint which will redirect back to the app
+          redirectUri = `${oauthProxyBase}/callback/${providerName}`;
         }
+
+        // Store pending installation with PKCE verifier
+        pendingOAuthInstalls.set(state, {
+          installData,
+          codeVerifier,
+          redirectUri,
+          timestamp: Date.now(),
+        });
+
+        // Clean up old pending installs (older than 10 minutes)
+        const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+        for (const [key, data] of pendingOAuthInstalls.entries()) {
+          if (data.timestamp < tenMinutesAgo && key !== state) {
+            pendingOAuthInstalls.delete(key);
+          }
+        }
+
+        // Build OAuth authorization URL with PKCE
+        const params = new URLSearchParams({
+          client_id: provider.clientId || process.env[`${providerName.toUpperCase()}_CLIENT_ID`] || '',
+          redirect_uri: redirectUri,
+          response_type: 'code',
+          scope: provider.scopes.join(' '),
+          state: state,
+          access_type: 'offline', // For Google refresh tokens
+          prompt: 'consent', // Force consent to get refresh token
+        });
+
+        // Add PKCE parameters if provider supports it
+        if (provider.usePKCE) {
+          params.append('code_challenge', codeChallenge);
+          params.append('code_challenge_method', 'S256');
+        }
+
+        // For Slack, add user_scope parameter
+        if (providerName === 'slack') {
+          params.append('user_scope', provider.scopes.join(','));
+        }
+
+        const authUrl = `${provider.authorizationUrl}?${params.toString()}`;
+        fastify.log.info(`OAuth URL for ${catalogName} with provider ${providerName}: ${authUrl}`);
+
+        return reply.send({ authUrl, state });
+      } catch (error) {
+        fastify.log.error('Error starting OAuth flow:', error);
+        return reply.code(500).send({
+          error: error instanceof Error ? error.message : 'Failed to start OAuth flow',
+        });
+      }
+    }
+  );
+
+  // OAuth callback endpoint for handling redirects from providers
+  fastify.get(
+    '/api/oauth/callback',
+    {
+      schema: {
+        operationId: 'oauthCallback',
+        description: 'OAuth callback endpoint for provider redirects',
+        tags: ['MCP Server'],
+        querystring: z.object({
+          code: z.string(),
+          state: z.string(),
+          error: z.string().optional(),
+          error_description: z.string().optional(),
+        }),
+      },
+    },
+    async ({ query }, reply) => {
+      const { code, state, error, error_description } = query;
+
+      if (error) {
+        // Redirect to frontend with error
+        return reply.redirect(`/oauth-callback?error=${encodeURIComponent(error_description || error)}`);
       }
 
-      // Get OAuth provider from installData (passed from client)
-      const oauthProvider = installData.oauthProvider || 'gmail';
-
-      // Use environment variable, or local proxy in development, or production proxy
-      const oauthProxyBase =
-        process.env.OAUTH_PROXY_URL ||
-        (process.env.NODE_ENV === 'development'
-          ? 'https://localhost:8080'
-          : 'https://oauth-proxy-new-354887056155.europe-west1.run.app');
-
-      // Use the OAuth proxy with state parameter and provider
-      const authUrl = `${oauthProxyBase}/auth/${oauthProvider}?state=${state}`;
-      fastify.log.info(`OAuth URL for ${catalogName} with provider ${oauthProvider}: ${authUrl}`);
-
-      return reply.send({ authUrl, state });
+      // Redirect to frontend with code and state
+      return reply.redirect(`/oauth-callback?code=${code}&state=${state}`);
     }
   );
 
@@ -150,10 +231,12 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         tags: ['MCP Server'],
         body: z.object({
           service: z.string(),
-          access_token: z.string(),
-          refresh_token: z.string(),
-          expiry_date: z.string().optional(),
           state: z.string(),
+          // Either provide tokens directly (old flow) or code for exchange (new flow)
+          access_token: z.string().optional(),
+          refresh_token: z.string().optional(),
+          expiry_date: z.string().optional(),
+          code: z.string().optional(),
         }),
         response: {
           200: McpServerSchema,
@@ -165,10 +248,59 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
     async ({ body }, reply) => {
       const { service, access_token, refresh_token, expiry_date, state } = body;
 
-      // Retrieve pending installation data using state
-      const installData = pendingOAuthInstalls.get(state);
+      // For new PKCE flow, we need to exchange the code
+      if (body.code && !access_token) {
+        // Retrieve pending installation data using state
+        const pendingInstall = pendingOAuthInstalls.get(state);
 
-      if (!installData) {
+        if (!pendingInstall) {
+          return reply.code(400).send({ error: 'Invalid or expired OAuth state' });
+        }
+
+        try {
+          // Call the OAuth proxy to exchange code for tokens
+          const providerName = service || pendingInstall.installData.oauthProvider || 'google';
+          const oauthProxyUrl =
+            process.env.OAUTH_PROXY_URL ||
+            (process.env.NODE_ENV === 'development'
+              ? 'https://localhost:8080'
+              : 'https://oauth-proxy-new-354887056155.europe-west1.run.app');
+
+          const tokenResponse = await fetch(`${oauthProxyUrl}/oauth/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              grant_type: 'authorization_code',
+              provider: service || pendingInstall.installData.oauthProvider || 'google',
+              code: body.code,
+              code_verifier: pendingInstall.codeVerifier,
+              redirect_uri: pendingInstall.redirectUri,
+            }),
+          });
+
+          if (!tokenResponse.ok) {
+            const error = await tokenResponse.json();
+            throw new Error(error.error_description || error.error || 'Token exchange failed');
+          }
+
+          const tokens = await tokenResponse.json();
+
+          // Continue with the installation using the tokens
+          body.access_token = tokens.access_token;
+          body.refresh_token = tokens.refresh_token;
+          body.expiry_date = tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000).toISOString() : null;
+        } catch (error) {
+          fastify.log.error('Token exchange error:', error);
+          return reply.code(400).send({
+            error: error instanceof Error ? error.message : 'Token exchange failed',
+          });
+        }
+      }
+
+      // Retrieve pending installation data using state
+      const pendingInstall = pendingOAuthInstalls.get(state);
+
+      if (!pendingInstall) {
         return reply.code(400).send({ error: 'Invalid or expired OAuth state' });
       }
 
@@ -176,19 +308,21 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
       pendingOAuthInstalls.delete(state);
 
       try {
+        const { installData } = pendingInstall;
+
         // Add OAuth tokens to the server config environment variables
         // Use different env vars based on the service
         const tokenEnvVars =
           service === 'slack'
             ? {
-                SLACK_MCP_ACCESS_TOKEN: access_token,
+                SLACK_MCP_ACCESS_TOKEN: body.access_token,
                 // Slack doesn't use refresh tokens
-                ...(refresh_token && { SLACK_MCP_REFRESH_TOKEN: refresh_token }),
+                ...(body.refresh_token && { SLACK_MCP_REFRESH_TOKEN: body.refresh_token }),
               }
             : {
-                GOOGLE_MCP_ACCESS_TOKEN: access_token,
-                GOOGLE_MCP_REFRESH_TOKEN: refresh_token,
-                ...(expiry_date && { GOOGLE_MCP_TOKEN_EXPIRY: expiry_date }),
+                GOOGLE_MCP_ACCESS_TOKEN: body.access_token,
+                GOOGLE_MCP_REFRESH_TOKEN: body.refresh_token,
+                ...(body.expiry_date && { GOOGLE_MCP_TOKEN_EXPIRY: body.expiry_date }),
               };
 
         const updatedConfig = {
@@ -203,9 +337,9 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         const server = await McpServerModel.installMcpServer({
           ...installData,
           serverConfig: updatedConfig,
-          oauthAccessToken: access_token,
-          oauthRefreshToken: refresh_token,
-          oauthExpiryDate: expiry_date || null,
+          oauthAccessToken: body.access_token,
+          oauthRefreshToken: body.refresh_token,
+          oauthExpiryDate: body.expiry_date || null,
         });
 
         fastify.log.info(`MCP server ${installData.id} installed with OAuth tokens`);

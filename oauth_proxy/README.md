@@ -169,6 +169,10 @@ Revoke an access or refresh token.
 
 Health check endpoint.
 
+### `GET /callback/:provider`
+
+OAuth callback endpoint that redirects back to the desktop app with authorization code.
+
 ### `GET /`
 
 API documentation and configured providers list.

@@ -176,11 +176,15 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
        */
       if (requiresOAuth) {
         // Show confirmation dialog before starting OAuth flow
+        const provider = (installData as any).oauthProvider || 'google';
+        const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+        const serviceDescription = provider === 'slack' ? 'Slack workspace' : 'Gmail account';
+
         const userConfirmed = window.confirm(
           `You're about to connect ${installData.displayName || id} to Archestra.\n\n` +
             `This will:\n` +
-            `• Open Google's authentication page in your browser\n` +
-            `• Request permission to access your Gmail account\n` +
+            `• Open ${providerName}'s authentication page in your browser\n` +
+            `• Request permission to access your ${serviceDescription}\n` +
             `• Securely store your credentials in Archestra\n\n` +
             `Do you want to continue?`
         );
