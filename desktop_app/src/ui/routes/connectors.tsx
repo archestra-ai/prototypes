@@ -42,7 +42,7 @@ function ConnectorCatalogPage() {
     // Only allow letters, numbers, spaces, and dashes
     const sanitizedDisplayName = mcpServer.display_name.replace(/[^A-Za-z0-9\s-]/g, '-');
 
-    _installMcpServer(mcpServer.archestra_config.oauth.required, {
+    _installMcpServer(mcpServer.archestra_config.oauth?.required || false, {
       id: mcpServer.name,
       displayName: sanitizedDisplayName,
       /**
@@ -54,6 +54,7 @@ function ConnectorCatalogPage() {
       serverConfig: mcpServer.server.mcp_config,
       userConfigValues: userConfigValues || {},
       useBrowserAuth,
+      oauthProvider: mcpServer.archestra_config.oauth?.provider,
     });
   };
 
@@ -66,6 +67,11 @@ function ConnectorCatalogPage() {
       // Otherwise, install directly
       installMcpServer(mcpServer);
     }
+  };
+
+  const handleOAuthInstallClick = async (mcpServer: ArchestraMcpServerManifest) => {
+    // For OAuth install, skip the config dialog and go straight to OAuth flow
+    await installMcpServer(mcpServer);
   };
 
   const handleBrowserInstallClick = async (mcpServer: ArchestraMcpServerManifest) => {
@@ -161,6 +167,7 @@ function ConnectorCatalogPage() {
             key={connectorCatalogMcpServer.name}
             server={connectorCatalogMcpServer}
             onInstallClick={handleInstallClick}
+            onOAuthInstallClick={handleOAuthInstallClick}
             onBrowserInstallClick={handleBrowserInstallClick}
             onUninstallClick={uninstallMcpServer}
           />

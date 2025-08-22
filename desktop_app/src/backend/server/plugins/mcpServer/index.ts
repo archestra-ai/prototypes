@@ -123,9 +123,19 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         }
       }
 
-      // Use the OAuth proxy with state parameter
-      const authUrl = `https://oauth-proxy-new-354887056155.europe-west1.run.app/auth/gmail?state=${state}`;
-      fastify.log.info(`OAuth URL for ${catalogName}: ${authUrl}`);
+      // Get OAuth provider from installData (passed from client)
+      const oauthProvider = (installData as any).oauthProvider || 'gmail';
+
+      // Use environment variable, or local proxy in development, or production proxy
+      const oauthProxyBase =
+        process.env.OAUTH_PROXY_URL ||
+        (process.env.NODE_ENV === 'development'
+          ? 'http://localhost:8080'
+          : 'https://oauth-proxy-new-354887056155.europe-west1.run.app');
+
+      // Use the OAuth proxy with state parameter and provider
+      const authUrl = `${oauthProxyBase}/auth/${oauthProvider}?state=${state}`;
+      fastify.log.info(`OAuth URL for ${catalogName} with provider ${oauthProvider}: ${authUrl}`);
 
       return reply.send({ authUrl, state });
     }

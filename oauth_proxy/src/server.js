@@ -2,13 +2,14 @@ const express = require('express');
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Import service handlers
-const gmailService = require('./gmail');
-
+// Load environment variables FIRST
 dotenv.config();
 
+// Import service handlers AFTER loading env vars
+const gmailService = require('./gmail');
+
 const app = express();
-const PORT_LOCALHOST = process.env.PORT;
+const PORT_LOCALHOST = process.env.PORT || 8080;
 
 // Serve static files FIRST (before other routes)
 app.use(express.static('public'));

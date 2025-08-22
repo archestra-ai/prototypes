@@ -29,3 +29,4 @@ dist-ssr
 
 client_secret.json
 .local-mcp-repos
+.env

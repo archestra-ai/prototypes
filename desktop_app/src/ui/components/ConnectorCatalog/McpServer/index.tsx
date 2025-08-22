@@ -28,11 +28,18 @@ import McpServerDetailsDialog from './McpServerDetailsDialog';
 interface McpServerProps {
   server: ArchestraMcpServerManifest;
   onInstallClick: (server: ArchestraMcpServerManifest) => void;
+  onOAuthInstallClick?: (server: ArchestraMcpServerManifest) => void;
   onBrowserInstallClick?: (server: ArchestraMcpServerManifest) => void;
   onUninstallClick: (serverId: string) => void;
 }
 
-export default function McpServer({ server, onInstallClick, onBrowserInstallClick, onUninstallClick }: McpServerProps) {
+export default function McpServer({
+  server,
+  onInstallClick,
+  onOAuthInstallClick,
+  onBrowserInstallClick,
+  onUninstallClick,
+}: McpServerProps) {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const { installedMcpServers, installingMcpServerId, uninstallingMcpServerId } = useMcpServersStore();
   const { isRunning: sandboxIsRunning } = useSandboxStore();
@@ -244,7 +251,7 @@ export default function McpServer({ server, onInstallClick, onBrowserInstallClic
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => onInstallClick(server)}
+                      onClick={() => onOAuthInstallClick?.(server)}
                       disabled={isInstalling}
                       className="cursor-pointer"
                     >
