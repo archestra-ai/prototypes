@@ -54,7 +54,11 @@ function ConnectorCatalogPage() {
       serverConfig: mcpServer.server.mcp_config,
       userConfigValues: userConfigValues || {},
       useBrowserAuth,
-      oauthProvider: mcpServer.archestra_config.oauth?.provider,
+      // If using browser auth for Slack, use the slack-browser provider
+      oauthProvider:
+        useBrowserAuth && mcpServer.archestra_config.oauth?.provider === 'slack'
+          ? 'slack-browser'
+          : mcpServer.archestra_config.oauth?.provider,
     });
   };
 

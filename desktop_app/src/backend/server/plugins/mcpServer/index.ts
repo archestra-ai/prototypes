@@ -4,8 +4,13 @@ import { z } from 'zod';
 
 import { TokenResponse } from '@backend/config/oauth-provider-interface';
 import { getOAuthProvider, getOAuthProviderConfig } from '@backend/config/oauth-providers';
+import {
+  McpServerConfigSchema,
+  McpServerSchema,
+  McpServerUserConfigValuesSchema,
+} from '@backend/database/schema/mcpServer';
 import McpRequestLog from '@backend/models/mcpRequestLog';
-import McpServerModel, { McpServerInstallSchema, McpServerSchema } from '@backend/models/mcpServer';
+import McpServerModel, { McpServerInstallSchema } from '@backend/models/mcpServer';
 import McpServerSandboxManager from '@backend/sandbox/manager';
 import { AvailableToolSchema, McpServerContainerLogsSchema } from '@backend/sandbox/sandboxedMcp';
 import { ErrorResponseSchema } from '@backend/schemas';
@@ -26,7 +31,13 @@ const pendingOAuthInstalls = new Map<string, PendingOAuthInstall>();
  * Register our zod schemas into the global registry, such that they get output as components in the openapi spec
  * https://github.com/turkerdev/fastify-type-provider-zod?tab=readme-ov-file#how-to-create-refs-to-the-schemas
  */
+// Register base schemas first - these have no dependencies
+z.globalRegistry.add(McpServerConfigSchema, { id: 'McpServerConfig' });
+z.globalRegistry.add(McpServerUserConfigValuesSchema, { id: 'McpServerUserConfigValues' });
+
+// Then register schemas that depend on base schemas
 z.globalRegistry.add(McpServerSchema, { id: 'McpServer' });
+z.globalRegistry.add(McpServerInstallSchema, { id: 'McpServerInstall' });
 z.globalRegistry.add(McpServerContainerLogsSchema, { id: 'McpServerContainerLogs' });
 z.globalRegistry.add(AvailableToolSchema, { id: 'AvailableTool' });
 

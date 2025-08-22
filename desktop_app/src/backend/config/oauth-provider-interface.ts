@@ -110,6 +110,29 @@ export interface OAuthProviderDefinition {
     /** Additional notes for developers */
     notes?: string;
   };
+
+  /**
+   * Optional browser-based authentication configuration.
+   * Some providers (like Slack) support extracting tokens directly from their web interface.
+   */
+  browserAuthConfig?: {
+    /** Whether browser-based auth is enabled for this provider */
+    enabled: boolean;
+    /** URL to load for authentication */
+    loginUrl: string;
+    /**
+     * Function to extract tokens from the authenticated browser window.
+     * This function runs in the main process and can access window.webContents.
+     */
+    extractTokens: (window: any) => Promise<any>;
+    /**
+     * Optional function to validate navigation URLs.
+     * Return true to allow navigation, false to block.
+     */
+    navigationRules?: (url: string) => boolean;
+    /** Optional workspace detection pattern */
+    workspacePattern?: RegExp;
+  };
 }
 
 /**

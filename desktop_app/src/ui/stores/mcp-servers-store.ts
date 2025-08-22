@@ -140,20 +140,23 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         errorInstallingMcpServer: null,
       });
 
-      // Special handling for Slack MCP server with browser auth
-      if (id === 'korotovsky__slack-mcp-server' && (installData as any).useBrowserAuth) {
+      // Special handling for browser-based authentication
+      const useBrowserAuth = (installData as any).useBrowserAuth;
+      if (useBrowserAuth) {
         try {
-          // Open Slack authentication window and get tokens
-          const tokens = await window.electronAPI.slackAuth();
+          // Use the oauthProvider if specified (should be 'slack-browser' for Slack browser auth)
+          const provider = (installData as any).oauthProvider || 'slack-browser';
 
-          // Install the server with the extracted tokens
+          // Open browser authentication window and get tokens
+          const tokens = await window.electronAPI.providerBrowserAuth(provider);
+
+          // Send tokens as OAuth fields for consistent handling
           const { data } = await installMcpServer({
             body: {
               ...installData,
-              userConfigValues: {
-                ...installData.userConfigValues,
-                ...tokens,
-              },
+              oauthAccessToken: tokens.access_token,
+              oauthRefreshToken: tokens.refresh_token || null,
+              oauthExpiryDate: tokens.expires_at || null,
             },
           });
 

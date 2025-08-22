@@ -9,6 +9,7 @@ import { updateElectronApp } from 'update-electron-app';
 import log from '@backend/utils/logger';
 
 import config from './config';
+import { setupProviderBrowserAuthHandlers } from './main-browser-auth';
 import { setupSlackAuthHandler } from './main-slack-auth';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -179,8 +180,12 @@ ipcMain.handle('oauth-callback', async (_event, params: any) => {
   return { success: true };
 });
 
-// Set up Slack authentication handler
-setupSlackAuthHandler();
+// Set up provider-based browser authentication handlers
+setupProviderBrowserAuthHandlers();
+
+// Keep legacy Slack auth handler for backward compatibility (deprecated)
+// This is now handled by the provider-based system above
+// setupSlackAuthHandler();
 
 // Handle protocol for OAuth callbacks (Windows/Linux)
 const handleProtocol = (url: string) => {

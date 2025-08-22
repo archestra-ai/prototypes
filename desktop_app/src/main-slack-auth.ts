@@ -3,6 +3,10 @@ import { BrowserWindow, ipcMain } from 'electron';
 import log from './backend/utils/logger';
 
 /**
+ * @deprecated This module is deprecated. Use the provider-based browser authentication system instead.
+ * See main-browser-auth.ts and the 'slack-browser' provider configuration in oauth-providers.ts
+ *
+ * Legacy Slack authentication handler - kept for backward compatibility only.
  * Handles Slack authentication flow in a secure browser window
  * Extracts xoxc token from localStorage and xoxd token from cookies
  */

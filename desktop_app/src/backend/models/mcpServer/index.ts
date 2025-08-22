@@ -28,7 +28,10 @@ export const McpServerInstallSchema = z.object({
     .regex(/^[A-Za-z0-9-\s]{1,63}$/, 'Name can only contain letters, numbers, spaces, and dashes (-)'),
   serverConfig: McpServerConfigSchema,
   userConfigValues: McpServerUserConfigValuesSchema.optional(),
-  oauthProvider: z.enum(['google', 'slack']).optional(),
+  oauthProvider: z.enum(['google', 'slack', 'slack-browser']).optional(),
+  oauthAccessToken: z.string().optional(),
+  oauthRefreshToken: z.string().optional(),
+  oauthExpiryDate: z.string().nullable().optional(),
 });
 
 export default class McpServerModel {
@@ -77,14 +80,11 @@ export default class McpServerModel {
     displayName,
     serverConfig,
     userConfigValues,
+    oauthProvider,
     oauthAccessToken,
     oauthRefreshToken,
     oauthExpiryDate,
-  }: z.infer<typeof McpServerInstallSchema> & {
-    oauthAccessToken?: string;
-    oauthRefreshToken?: string;
-    oauthExpiryDate?: string | null;
-  }) {
+  }: z.infer<typeof McpServerInstallSchema>) {
     /**
      * Check if an mcp server with this id already exists
      */
@@ -101,13 +101,48 @@ export default class McpServerModel {
       throw new Error(`MCP server ${id} is already installed`);
     }
 
+    // Handle OAuth tokens - add them to environment variables based on provider
+    let finalServerConfig = serverConfig;
+    if (oauthAccessToken && oauthProvider) {
+      // Import the provider configuration to get token mapping
+      const { getOAuthProvider, hasOAuthProvider } = await import('@backend/config/oauth-providers');
+      const { handleProviderTokens } = await import('@backend/utils/oauth-provider-helper');
+
+      if (hasOAuthProvider(oauthProvider)) {
+        const provider = getOAuthProvider(oauthProvider);
+
+        // Create token response in standard format
+        const tokens = {
+          access_token: oauthAccessToken,
+          refresh_token: oauthRefreshToken || undefined,
+          expires_in: oauthExpiryDate
+            ? Math.floor((new Date(oauthExpiryDate).getTime() - Date.now()) / 1000)
+            : undefined,
+        };
+
+        // Use the provider's token handler to get the correct env vars
+        const tokenEnvVars = await handleProviderTokens(provider, tokens, id);
+
+        // Add tokens to server config environment
+        if (tokenEnvVars) {
+          finalServerConfig = {
+            ...serverConfig,
+            env: {
+              ...serverConfig.env,
+              ...tokenEnvVars,
+            },
+          };
+        }
+      }
+    }
+
     const now = new Date();
     const [server] = await db
       .insert(mcpServersTable)
       .values({
         id,
         name: displayName,
-        serverConfig,
+        serverConfig: finalServerConfig,
         userConfigValues: userConfigValues,
         oauthAccessToken: oauthAccessToken || null,
         oauthRefreshToken: oauthRefreshToken || null,

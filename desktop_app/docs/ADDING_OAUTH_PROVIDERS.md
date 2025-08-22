@@ -189,14 +189,153 @@ yourprovider: {
 }
 ```
 
-### 3.2 Browser-Based Authentication (Like Slack)
+### 3.2 Browser-Based Authentication
 
-For providers requiring browser-based auth:
+Some providers support extracting tokens directly from their web interface. The system now supports browser-based authentication through provider configuration.
 
-1. Create `desktop_app/src/main-yourprovider-auth.ts`
-2. Implement browser window flow similar to Slack
-3. Add IPC handler in main process
-4. Check for this in UI when initiating OAuth
+#### Approach 1: Separate Provider for Browser Auth (Recommended)
+
+Create a separate provider configuration for browser authentication:
+
+```typescript
+// desktop_app/src/backend/config/oauth-providers.ts
+
+'yourprovider-browser': {
+  name: 'yourprovider-browser',
+  authorizationUrl: '', // Not used for browser auth
+  scopes: [], // Not used for browser auth
+  usePKCE: false,
+  clientId: 'browser-auth', // Placeholder
+
+  // Map extracted tokens to environment variables
+  tokenEnvVarPattern: {
+    accessToken: 'YOURPROVIDER_ACCESS_TOKEN',
+    refreshToken: 'YOURPROVIDER_REFRESH_TOKEN', // optional
+  },
+
+  // Browser authentication configuration
+  browserAuthConfig: {
+    enabled: true,
+    loginUrl: 'https://yourprovider.com/login',
+
+    // Optional: Detect workspace/team IDs from URLs
+    workspacePattern: /yourprovider:\/\/([A-Z0-9]+)/,
+
+    // Control which URLs the user can navigate to
+    navigationRules: (url: string) => {
+      return url.includes('yourprovider.com');
+    },
+
+    // Extract tokens from the authenticated session
+    extractTokens: async (window: any) => {
+      const url = window.webContents.getURL();
+
+      // Only extract tokens on specific pages
+      if (!url.includes('yourprovider.com/dashboard')) {
+        return null;
+      }
+
+      // Example: Get token from localStorage
+      const token = await window.webContents.executeJavaScript(`
+        localStorage.getItem('auth_token')
+      `);
+
+      // Example: Get token from cookies
+      const cookies = await window.webContents.session.cookies.get({ name: 'session' });
+      const sessionToken = cookies[0]?.value;
+
+      if (token && sessionToken) {
+        // Return tokens in standard format
+        // These will be mapped according to tokenEnvVarPattern
+        return {
+          access_token: token,
+          refresh_token: sessionToken,
+        };
+      }
+
+      return null;
+    },
+  },
+
+  metadata: {
+    displayName: 'YourProvider (Browser Auth)',
+    notes: 'Direct browser authentication - no OAuth app required',
+  },
+}
+```
+
+#### Approach 2: Single Provider with Both Methods
+
+If you want one provider to support both OAuth and browser auth, you can check for a flag:
+
+```typescript
+yourprovider: {
+  // ... standard OAuth config ...
+
+  browserAuthConfig: {
+    enabled: true,
+    // ... browser auth config ...
+  },
+
+  // Custom token handler can detect token type
+  tokenHandler: async (tokens, serverId) => {
+    if ('browser_token' in tokens) {
+      // Handle browser tokens differently
+    } else {
+      // Handle OAuth tokens
+    }
+  },
+}
+```
+
+#### Real Example: Slack Browser Authentication
+
+```typescript
+'slack-browser': {
+  name: 'slack-browser',
+  authorizationUrl: '',
+  scopes: [],
+  usePKCE: false,
+  clientId: 'browser-auth',
+
+  tokenEnvVarPattern: {
+    accessToken: 'SLACK_MCP_XOXC_TOKEN',
+    refreshToken: 'SLACK_MCP_XOXD_TOKEN', // xoxd stored as "refresh"
+  },
+
+  browserAuthConfig: {
+    enabled: true,
+    loginUrl: 'https://slack.com/signin',
+    workspacePattern: /slack:\/\/([A-Z0-9]+)/,
+
+    navigationRules: (url) => {
+      return url.startsWith('https://slack.com/') ||
+             url.startsWith('https://app.slack.com/') ||
+             url.includes('.slack.com/');
+    },
+
+    extractTokens: async (window) => {
+      // Extract xoxc from localStorage and xoxd from cookies
+      // See full implementation in oauth-providers.ts
+    },
+  },
+}
+```
+
+#### UI Integration
+
+In your MCP server installation flow:
+
+```typescript
+// Determine which provider to use
+const provider = useBrowserAuth ? 'yourprovider-browser' : 'yourprovider';
+
+// For browser auth
+if (useBrowserAuth) {
+  const tokens = await window.electronAPI.providerBrowserAuth(provider);
+  // Tokens are automatically stored according to tokenEnvVarPattern
+}
+```
 
 ### 3.3 Non-Standard Token Response
 
@@ -350,12 +489,41 @@ Once your provider is working:
 
 ## Security Considerations
 
+### General OAuth Security
+
 1. **Never commit secrets** - Use environment variables
 2. **Always use PKCE** for public clients
 3. **Validate redirect URIs** to prevent attacks
 4. **Store tokens securely** - Never in plain text files outside containers
 5. **Implement token refresh** if provider supports it
 6. **Clean up tokens** when server is uninstalled
+
+### Browser Authentication Security
+
+When implementing browser-based authentication:
+
+1. **Domain Validation**: Always implement `navigationRules` to restrict navigation to official provider domains
+2. **Secure Context**: Use `contextIsolation: true` and `sandbox: true` in browser windows
+3. **Session Isolation**: Use separate partition for each provider (`partition: 'persist:provider-auth'`)
+4. **Token Extraction**: Only extract tokens on verified pages (check URL patterns)
+5. **Clear Session Data**: Clean up cookies and localStorage after token extraction
+6. **Timeout Handling**: Implement timeouts for user authentication
+7. **Error Messages**: Don't expose sensitive information in error messages
+
+Example secure browser window configuration:
+
+```typescript
+const authWindow = new BrowserWindow({
+  webPreferences: {
+    nodeIntegration: false,
+    contextIsolation: true,
+    webSecurity: true,
+    sandbox: true,
+    partition: `persist:${provider.name}-auth`,
+    allowRunningInsecureContent: false,
+  },
+});
+```
 
 ## Questions?
 

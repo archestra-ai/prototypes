@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
 /**
@@ -60,11 +59,18 @@ export const mcpServersTable = sqliteTable('mcp_servers', {
 });
 
 /**
- * TODO: this is kinda a hack to get the outputted zod (and thereby openapi spec) to be 100% correct...
+ * Pure Zod schema for OpenAPI generation
+ * This matches the structure of the database table but uses pure Zod types
  */
-export const McpServerSchema = createSelectSchema(mcpServersTable).extend({
+export const McpServerSchema = z.object({
+  id: z.string(),
+  name: z.string(),
   serverConfig: McpServerConfigSchema,
   userConfigValues: McpServerUserConfigValuesSchema.nullable(),
+  oauthAccessToken: z.string().nullable(),
+  oauthRefreshToken: z.string().nullable(),
+  oauthExpiryDate: z.string().nullable(),
+  createdAt: z.string(),
 });
 
 export type McpServer = z.infer<typeof McpServerSchema>;
