@@ -28,7 +28,7 @@ export const McpServerInstallSchema = z.object({
     .regex(/^[A-Za-z0-9-\s]{1,63}$/, 'Name can only contain letters, numbers, spaces, and dashes (-)'),
   serverConfig: McpServerConfigSchema,
   userConfigValues: McpServerUserConfigValuesSchema.optional(),
-  oauthProvider: z.enum(['gmail', 'slack']).optional(),
+  oauthProvider: z.enum(['google', 'slack']).optional(),
 });
 
 export default class McpServerModel {

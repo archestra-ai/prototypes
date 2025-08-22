@@ -18,7 +18,7 @@ export const oauthProviders: Record<string, OAuthProviderConfig> = {
     usePKCE: true,
     // This should be the same client ID configured in the OAuth proxy
     clientId:
-      process.env.GOOGLE_OAUTH_CLIENT_ID || '396993879434-hqvfev8s5v1ljesqj3fum2e60mj99g4l.apps.googleusercontent.com',
+      process.env.GOOGLE_OAUTH_CLIENT_ID || '354887056155-5b4rlcofccknibd4fv3ldud9vvac3rdf.apps.googleusercontent.com',
   },
 
   slack: {
