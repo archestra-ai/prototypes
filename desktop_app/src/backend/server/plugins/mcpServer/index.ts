@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
 import { TokenResponse } from '@backend/config/oauth-provider-interface';
-import { getOAuthProvider, getOAuthProviderConfig } from '@backend/config/oauth-providers';
+import { getOAuthProvider } from '@backend/config/oauth-providers';
 import {
   McpServerConfigSchema,
   McpServerSchema,

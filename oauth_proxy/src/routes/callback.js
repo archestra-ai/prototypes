@@ -57,11 +57,17 @@ export default async function callbackRoutes(fastify) {
         <div class="container">
           <h1>Authentication Successful</h1>
           <p>Redirecting to Archestra...</p>
-          <p>If the app doesn't open automatically, <a href="${deeplinkUrl}">click here</a></p>
+          <p>If the app doesn't open automatically, <a id="deeplink">click here</a></p>
         </div>
         <script>
+          // Safely encode the deeplink URL
+          const deeplinkUrl = ${JSON.stringify(deeplinkUrl)};
+          
+          // Set the href attribute safely
+          document.getElementById('deeplink').href = deeplinkUrl;
+          
           // Try to open the deeplink
-          window.location.href = "${deeplinkUrl}";
+          window.location.href = deeplinkUrl;
         </script>
       </body>
       </html>

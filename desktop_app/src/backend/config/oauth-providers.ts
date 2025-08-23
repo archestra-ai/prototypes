@@ -1,12 +1,9 @@
-import { OAuthProviderDefinition, OAuthProviderRegistry, TokenResponse } from './oauth-provider-interface';
-
-// Legacy interface for backward compatibility
-export interface OAuthProviderConfig {
-  authorizationUrl: string;
-  scopes: string[];
-  usePKCE: boolean;
-  clientId?: string; // Public client ID (not secret)
-}
+import {
+  BrowserTokenResponse,
+  OAuthProviderDefinition,
+  OAuthProviderRegistry,
+  TokenResponse,
+} from './oauth-provider-interface';
 
 /**
  * Registry of OAuth providers with extensible token handling.
@@ -98,10 +95,10 @@ export const oauthProviders: OAuthProviderRegistry = {
     usePKCE: false, // Not used for browser auth
     clientId: 'browser-auth', // Placeholder
 
-    // Browser tokens use different env vars
+    // Token pattern is required but handled by browser auth mapping
     tokenEnvVarPattern: {
-      accessToken: 'SLACK_MCP_XOXC_TOKEN',
-      refreshToken: 'SLACK_MCP_XOXD_TOKEN', // xoxd stored as "refresh" for consistency
+      accessToken: 'SLACK_MCP_XOXC_TOKEN', // Maps to primary_token
+      refreshToken: 'SLACK_MCP_XOXD_TOKEN', // Maps to secondary_token
     },
 
     // Browser-based authentication configuration
@@ -109,6 +106,12 @@ export const oauthProviders: OAuthProviderRegistry = {
       enabled: true,
       loginUrl: 'https://slack.com/signin',
       workspacePattern: /slack:\/\/([A-Z0-9]+)/,
+
+      // Map browser tokens to environment variables
+      tokenMapping: {
+        primary: 'SLACK_MCP_XOXC_TOKEN',
+        secondary: 'SLACK_MCP_XOXD_TOKEN',
+      },
 
       navigationRules: (url: string) => {
         // Only allow navigation to official Slack domains
@@ -210,10 +213,11 @@ export const oauthProviders: OAuthProviderRegistry = {
           // Log success
           console.log(`[Slack Browser Auth] Successfully extracted tokens for workspace ${result.workspaceId}`);
 
-          // Return tokens in format expected by tokenEnvVarPattern
+          // Return proper BrowserTokenResponse
           return {
-            access_token: result.xoxcToken, // Will be mapped to SLACK_MCP_XOXC_TOKEN
-            refresh_token: xoxdToken, // Will be mapped to SLACK_MCP_XOXD_TOKEN
+            primary_token: result.xoxcToken,
+            secondary_token: xoxdToken,
+            workspace_id: result.workspaceId,
           };
         }
 
@@ -248,19 +252,6 @@ export function getOAuthProvider(name: string): OAuthProviderDefinition {
     throw new Error(`OAuth provider '${name}' not configured`);
   }
   return provider;
-}
-
-/**
- * Get OAuth provider configuration (legacy format for backward compatibility)
- */
-export function getOAuthProviderConfig(name: string): OAuthProviderConfig {
-  const provider = getOAuthProvider(name);
-  return {
-    authorizationUrl: provider.authorizationUrl,
-    scopes: provider.scopes,
-    usePKCE: provider.usePKCE,
-    clientId: provider.clientId,
-  };
 }
 
 /**

@@ -4,7 +4,7 @@
  * This module provides helper functions for handling OAuth providers
  * in a unified way, supporting both standard and custom token handlers.
  */
-import { OAuthProviderDefinition, TokenResponse } from '@backend/config/oauth-provider-interface';
+import { BrowserTokenResponse, OAuthProviderDefinition, TokenResponse } from '@backend/config/oauth-provider-interface';
 import log from '@backend/utils/logger';
 
 /**
@@ -122,12 +122,23 @@ export function validateProvider(provider: OAuthProviderDefinition): void {
     throw new Error('Provider must have a name');
   }
 
-  if (!provider.authorizationUrl) {
-    throw new Error(`Provider ${provider.name} must have an authorization URL`);
-  }
+  // Browser auth providers have different requirements
+  if (provider.browserAuthConfig?.enabled) {
+    if (!provider.browserAuthConfig.loginUrl) {
+      throw new Error(`Browser auth provider ${provider.name} must have a login URL`);
+    }
+    if (!provider.browserAuthConfig.extractTokens) {
+      throw new Error(`Browser auth provider ${provider.name} must have token extraction function`);
+    }
+  } else {
+    // Standard OAuth providers need authorization URL and scopes
+    if (!provider.authorizationUrl) {
+      throw new Error(`Provider ${provider.name} must have an authorization URL`);
+    }
 
-  if (!provider.scopes || provider.scopes.length === 0) {
-    throw new Error(`Provider ${provider.name} must have at least one scope`);
+    if (!provider.scopes || provider.scopes.length === 0) {
+      throw new Error(`Provider ${provider.name} must have at least one scope`);
+    }
   }
 
   if (!provider.clientId) {
@@ -142,6 +153,11 @@ export function validateProvider(provider: OAuthProviderDefinition): void {
   // If using env var pattern, must have at least access token var
   if (provider.tokenEnvVarPattern && !provider.tokenEnvVarPattern.accessToken) {
     throw new Error(`Provider ${provider.name} tokenEnvVarPattern must define accessToken variable`);
+  }
+
+  // Validate usePKCE is defined (required field)
+  if (typeof provider.usePKCE !== 'boolean') {
+    throw new Error(`Provider ${provider.name} must define usePKCE as a boolean`);
   }
 }
 
@@ -179,4 +195,45 @@ export function getProviderDisplayInfo(provider: OAuthProviderDefinition): {
  */
 export function formatProviderForEnvVar(providerName: string): string {
   return providerName.toUpperCase().replace(/-/g, '_');
+}
+
+/**
+ * Handle browser authentication tokens for a provider.
+ * Maps BrowserTokenResponse to environment variables based on provider config.
+ *
+ * @param provider - The OAuth provider definition
+ * @param tokens - The browser tokens to store
+ * @returns The environment variables to add to server config
+ */
+export async function handleBrowserTokens(
+  provider: OAuthProviderDefinition,
+  tokens: BrowserTokenResponse
+): Promise<Record<string, string>> {
+  log.info(`[OAuth Helper] Handling browser tokens for provider: ${provider.name}`);
+
+  const envVars: Record<string, string> = {};
+
+  // Use browser auth token mapping if available
+  if (provider.browserAuthConfig?.tokenMapping) {
+    const mapping = provider.browserAuthConfig.tokenMapping;
+
+    if (tokens.primary_token && mapping.primary) {
+      envVars[mapping.primary] = tokens.primary_token;
+    }
+
+    if (tokens.secondary_token && mapping.secondary) {
+      envVars[mapping.secondary] = tokens.secondary_token;
+    }
+  } else if (provider.tokenEnvVarPattern) {
+    // Fallback to standard pattern (for backward compatibility)
+    if (tokens.primary_token && provider.tokenEnvVarPattern.accessToken) {
+      envVars[provider.tokenEnvVarPattern.accessToken] = tokens.primary_token;
+    }
+
+    if (tokens.secondary_token && provider.tokenEnvVarPattern.refreshToken) {
+      envVars[provider.tokenEnvVarPattern.refreshToken] = tokens.secondary_token;
+    }
+  }
+
+  return envVars;
 }

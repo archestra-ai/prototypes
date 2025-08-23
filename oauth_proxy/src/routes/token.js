@@ -93,14 +93,14 @@ export default async function tokenRoutes(fastify) {
       if (error.statusCode) {
         return reply.code(error.statusCode || 400).send({
           error: error.error || 'invalid_request',
-          error_description: error.error_description || error.message,
+          error_description: error.error_description || 'Token exchange failed',
         });
       }
       
       // Handle other errors
       return reply.code(400).send({
         error: 'invalid_request',
-        error_description: error.message,
+        error_description: 'Token exchange failed',
       });
     }
   });

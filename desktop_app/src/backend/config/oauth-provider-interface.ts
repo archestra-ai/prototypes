@@ -20,6 +20,21 @@ export interface TokenResponse {
 }
 
 /**
+ * Browser-based authentication token response
+ * Used when tokens are extracted directly from browser
+ */
+export interface BrowserTokenResponse {
+  // The main authentication token
+  primary_token: string;
+  // Optional secondary token (e.g., xoxd for Slack)
+  secondary_token?: string;
+  // Additional metadata
+  workspace_id?: string;
+  user_id?: string;
+  [key: string]: any;
+}
+
+/**
  * OAuth provider definition with extensible token handling
  */
 export interface OAuthProviderDefinition {
@@ -123,8 +138,17 @@ export interface OAuthProviderDefinition {
     /**
      * Function to extract tokens from the authenticated browser window.
      * This function runs in the main process and can access window.webContents.
+     * Should return BrowserTokenResponse or null if tokens not available.
      */
-    extractTokens: (window: any) => Promise<any>;
+    extractTokens: (window: any) => Promise<BrowserTokenResponse | null>;
+    /**
+     * Environment variable mapping for browser tokens.
+     * Maps BrowserTokenResponse fields to environment variables.
+     */
+    tokenMapping?: {
+      primary: string;
+      secondary?: string;
+    };
     /**
      * Optional function to validate navigation URLs.
      * Return true to allow navigation, false to block.
