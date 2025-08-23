@@ -287,11 +287,11 @@ export const oauthProviders: OAuthProviderRegistry = {
       },
 
       navigationRules: (url: string) => {
-        // Only allow navigation to official LinkedIn domains
+        // Only allow navigation to official LinkedIn domains over HTTPS
         return (
           url.startsWith('https://www.linkedin.com/') ||
           url.startsWith('https://linkedin.com/') ||
-          url.includes('.linkedin.com/')
+          (url.startsWith('https://') && url.includes('.linkedin.com/'))
         );
       },
 
@@ -317,7 +317,8 @@ export const oauthProviders: OAuthProviderRegistry = {
 
         console.log('[LinkedIn Browser Auth] Found li_at cookie:', !!liAtToken);
 
-        if (liAtToken) {
+        if (liAtToken && liAtToken.length > 10) {
+          // Validate cookie format (li_at cookies are typically long strings)
           // Log success
           console.log('[LinkedIn Browser Auth] Successfully extracted LinkedIn session cookie');
 
