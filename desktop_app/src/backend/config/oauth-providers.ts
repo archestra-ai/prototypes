@@ -251,7 +251,7 @@ export const oauthProviders: OAuthProviderRegistry = {
     // - r_liteprofile, r_emailaddress: Read profile and email
     scopes: ['openid', 'profile', 'email', 'w_member_social', 'r_liteprofile', 'r_emailaddress'],
     usePKCE: true,
-    clientId: process.env.LINKEDIN_OAUTH_CLIENT_ID || 'your-linkedin-client-id',
+    clientId: process.env.LINKEDIN_OAUTH_CLIENT_ID || '',
 
     // LinkedIn OAuth tokens mapped to environment variables
     // These will be passed to the MCP server container
@@ -338,15 +338,32 @@ export const oauthProviders: OAuthProviderRegistry = {
             domain: '.linkedin.com',
             url: 'https://www.linkedin.com',
           });
-          const liAtCookie = cookies[0]; // Direct access since we're filtering by name
-          const liAtToken = liAtCookie?.value;
 
+          // Handle edge case: no cookies found
+          if (!cookies || cookies.length === 0) {
+            console.error('[LinkedIn Browser Auth] No li_at cookie found');
+            return null;
+          }
+
+          // Handle edge case: multiple cookies (use the first non-expired one)
+          const validCookie = cookies.find((cookie) => {
+            const now = Date.now() / 1000;
+            return !cookie.expirationDate || cookie.expirationDate > now;
+          });
+
+          if (!validCookie) {
+            console.error('[LinkedIn Browser Auth] All li_at cookies are expired');
+            return null;
+          }
+
+          const liAtToken = validCookie.value;
           console.log('[LinkedIn Browser Auth] Found li_at cookie:', !!liAtToken);
 
-          if (liAtToken && liAtToken.length > 10) {
+          // Enhanced validation for edge cases
+          if (liAtToken && liAtToken.length > 10 && liAtToken.trim() === liAtToken) {
             // Validate cookie format (li_at cookies are typically long strings)
             // Additional validation to ensure cookie appears valid
-            if (!liAtToken.includes(' ') && !liAtToken.includes('\n')) {
+            if (!liAtToken.includes(' ') && !liAtToken.includes('\n') && !liAtToken.includes('\t')) {
               // Log success
               console.log('[LinkedIn Browser Auth] Successfully extracted LinkedIn session cookie');
 
