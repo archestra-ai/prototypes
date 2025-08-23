@@ -26,7 +26,30 @@ export const config = {
   },
   
   cors: {
-    origin: process.env.CORS_ORIGIN?.split(',') || true,
+    origin: (origin, callback) => {
+      // If CORS_ORIGIN is set, use that (comma-separated list)
+      if (process.env.CORS_ORIGIN) {
+        const allowedOrigins = process.env.CORS_ORIGIN.split(',').map(o => o.trim());
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      } else {
+        // Default allowed origins for development and production
+        const defaultOrigins = [
+          'archestra-ai://oauth-callback', // Desktop app deep link
+          'http://localhost:3000', // Development
+          'http://localhost:5173', // Vite dev server
+        ];
+        
+        if (!origin || defaultOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      }
+    },
     credentials: true,
   },
 };

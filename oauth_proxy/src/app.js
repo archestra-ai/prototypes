@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import formbody from '@fastify/formbody';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import { config } from './config/index.js';
 import { initializeProviders, getAllProviders } from './providers/index.js';
 import tokenRoutes from './routes/token.js';
@@ -14,12 +16,59 @@ export async function buildApp(httpsOptions = null) {
   // Create Fastify instance with HTTPS if provided
   const app = Fastify({
     https: httpsOptions,
-    logger: process.env.NODE_ENV !== 'production' ? {
-      level: process.env.LOG_LEVEL || 'info',
-    } : false,
+    logger: {
+      level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'warn' : 'info'),
+      // Log security-relevant events in production
+      serializers: {
+        req(request) {
+          return {
+            method: request.method,
+            url: request.url,
+            ip: request.ip,
+            headers: {
+              'user-agent': request.headers['user-agent'],
+              'x-forwarded-for': request.headers['x-forwarded-for'],
+            },
+          };
+        },
+      },
+    },
   });
 
-  // Register plugins
+  // Register security plugins
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"], // For inline redirect script
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+  });
+
+  // Rate limiting per IP
+  await app.register(rateLimit, {
+    max: 100, // Max 100 requests
+    timeWindow: '15 minutes',
+    skipFailedRequests: false,
+    keyGenerator: (request) => {
+      // Use X-Forwarded-For if behind proxy, otherwise use direct IP
+      return request.headers['x-forwarded-for']?.split(',')[0] || request.ip;
+    },
+  });
+
+  // Register other plugins
   await app.register(cors, config.cors);
   await app.register(formbody);
 

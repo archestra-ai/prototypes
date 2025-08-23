@@ -1,4 +1,4 @@
-import { getProvider } from '../providers/index.js';
+import { getProvider, getAllProviders } from '../providers/index.js';
 
 export default async function tokenRoutes(fastify) {
   // Token exchange/refresh endpoint
@@ -15,9 +15,22 @@ export default async function tokenRoutes(fastify) {
           provider: { type: 'string' },
           
           // For authorization_code grant
-          code: { type: 'string' },
-          redirect_uri: { type: 'string' },
-          code_verifier: { type: 'string' },
+          code: { 
+            type: 'string',
+            minLength: 1,
+            maxLength: 2048, // Reasonable limit for auth codes
+          },
+          redirect_uri: { 
+            type: 'string',
+            format: 'uri',
+            maxLength: 2048,
+          },
+          code_verifier: { 
+            type: 'string',
+            minLength: 43, // PKCE spec requirement
+            maxLength: 128, // PKCE spec requirement
+            pattern: '^[A-Za-z0-9-._~]+$', // Base64url characters only
+          },
           
           // For refresh_token grant
           refresh_token: { type: 'string' },
@@ -45,6 +58,15 @@ export default async function tokenRoutes(fastify) {
     },
   }, async (request, reply) => {
     const { grant_type, provider, ...params } = request.body;
+
+    // Validate provider
+    const validProviders = getAllProviders();
+    if (!validProviders.includes(provider.toLowerCase())) {
+      return reply.code(400).send({
+        error: 'invalid_request',
+        error_description: `Invalid provider. Valid providers are: ${validProviders.join(', ')}`,
+      });
+    }
 
     try {
       // Get the provider instance
