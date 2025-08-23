@@ -36,6 +36,12 @@ export const oauthProviders: OAuthProviderRegistry = {
       expiryDate: 'GOOGLE_MCP_TOKEN_EXPIRY',
     },
 
+    // Google-specific authorization parameters
+    authorizationParams: {
+      access_type: 'offline', // Required for refresh tokens
+      prompt: 'consent', // Force consent to ensure refresh token is returned
+    },
+
     metadata: {
       displayName: 'Google',
       documentationUrl: 'https://developers.google.com/identity/protocols/oauth2',
@@ -245,9 +251,22 @@ export const oauthProviders: OAuthProviderRegistry = {
   msteams: {
     name: 'msteams',
     // Use tenant-specific URL if provided via environment variable for better security
-    authorizationUrl: process.env.MSTEAMS_TENANT_ID
-      ? `https://login.microsoftonline.com/${process.env.MSTEAMS_TENANT_ID}/oauth2/v2.0/authorize`
-      : 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    authorizationUrl: (() => {
+      const tenantId = process.env.MSTEAMS_TENANT_ID?.trim();
+      if (tenantId) {
+        // Validate tenant ID format (GUID or domain)
+        if (
+          !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$|^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(
+            tenantId
+          )
+        ) {
+          console.warn(`Invalid MSTEAMS_TENANT_ID format: ${tenantId}. Using common endpoint.`);
+          return 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
+        }
+        return `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`;
+      }
+      return 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
+    })(),
     scopes: [
       'offline_access', // Required for refresh tokens
       'User.Read', // Basic user profile

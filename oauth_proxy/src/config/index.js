@@ -29,9 +29,21 @@ export const config = {
       clientSecret: process.env.MSTEAMS_CLIENT_SECRET,
       // Use tenant-specific endpoint if MSTEAMS_TENANT_ID is provided, otherwise fall back to common
       // Note: Using 'common' allows any Azure AD account - consider setting MSTEAMS_TENANT_ID for better security
-      tokenEndpoint: process.env.MSTEAMS_TENANT_ID 
-        ? `https://login.microsoftonline.com/${process.env.MSTEAMS_TENANT_ID}/oauth2/v2.0/token`
-        : 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+      tokenEndpoint: (() => {
+        const tenantId = process.env.MSTEAMS_TENANT_ID?.trim();
+        if (tenantId) {
+          // Validate tenant ID format (GUID or domain)
+          const isValidGuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(tenantId);
+          const isValidDomain = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(tenantId);
+          
+          if (!isValidGuid && !isValidDomain) {
+            console.warn(`Invalid MSTEAMS_TENANT_ID format: ${tenantId}. Using common endpoint.`);
+            return 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
+          }
+          return `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+        }
+        return 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
+      })(),
       revokeEndpoint: null, // Azure AD doesn't support token revocation via API
     },
   },
