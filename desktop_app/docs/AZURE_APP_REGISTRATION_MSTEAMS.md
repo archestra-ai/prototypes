@@ -78,7 +78,11 @@ Add the following to your OAuth proxy `.env` file:
 ```bash
 MSTEAMS_CLIENT_ID=<your-application-client-id>
 MSTEAMS_CLIENT_SECRET=<your-client-secret>
+# For single-tenant apps (recommended for better security):
+MSTEAMS_TENANT_ID=<your-tenant-id>
 ```
+
+**Security Note**: Setting `MSTEAMS_TENANT_ID` restricts authentication to your specific Azure AD tenant only. Without it, any Azure AD user can attempt authentication (though they still need proper permissions to access your Teams resources).
 
 ## Step 7: Configure MCP Server Environment
 

@@ -244,22 +244,26 @@ export const oauthProviders: OAuthProviderRegistry = {
 
   msteams: {
     name: 'msteams',
-    authorizationUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    // Use tenant-specific URL if provided via environment variable for better security
+    authorizationUrl: process.env.MSTEAMS_TENANT_ID
+      ? `https://login.microsoftonline.com/${process.env.MSTEAMS_TENANT_ID}/oauth2/v2.0/authorize`
+      : 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
     scopes: [
-      'offline_access',
-      'user.read',
-      'ChannelMessage.Send',
-      'ChannelMessage.Read.All',
-      'Chat.Create',
-      'Chat.ReadWrite',
-      'Chat.Read',
-      'ChatMessage.Read',
-      'ChatMessage.Send',
-      'Team.ReadBasic.All',
-      'TeamMember.Read.All',
+      'offline_access', // Required for refresh tokens
+      'User.Read', // Basic user profile
+      'ChannelMessage.Send', // Send messages to channels
+      'Chat.Create', // Create new chats
+      'Chat.ReadWrite', // Read and write to chats
+      'Team.ReadBasic.All', // Read basic team info
+      'TeamMember.Read.All', // Read team member info
     ],
     usePKCE: true,
-    clientId: process.env.MSTEAMS_OAUTH_CLIENT_ID || '',
+    clientId:
+      process.env.MSTEAMS_OAUTH_CLIENT_ID ||
+      (() => {
+        console.warn('MSTEAMS_OAUTH_CLIENT_ID not set. MS Teams OAuth will not be available.');
+        return 'msteams-client-id-not-configured';
+      })(),
 
     // MS Teams tokens will be stored as environment variables
     tokenEnvVarPattern: {

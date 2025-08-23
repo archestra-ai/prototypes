@@ -27,7 +27,11 @@ export const config = {
     msteams: {
       clientId: process.env.MSTEAMS_CLIENT_ID,
       clientSecret: process.env.MSTEAMS_CLIENT_SECRET,
-      tokenEndpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+      // Use tenant-specific endpoint if MSTEAMS_TENANT_ID is provided, otherwise fall back to common
+      // Note: Using 'common' allows any Azure AD account - consider setting MSTEAMS_TENANT_ID for better security
+      tokenEndpoint: process.env.MSTEAMS_TENANT_ID 
+        ? `https://login.microsoftonline.com/${process.env.MSTEAMS_TENANT_ID}/oauth2/v2.0/token`
+        : 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
       revokeEndpoint: null, // Azure AD doesn't support token revocation via API
     },
   },
