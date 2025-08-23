@@ -54,7 +54,7 @@ function OAuthCallbackPage() {
       try {
         // Validate service parameter
         const service = params.service || 'google';
-        const allowedServices = ['google', 'slack', 'slack-browser'];
+        const allowedServices = ['google', 'slack', 'slack-browser', 'linkedin'];
         if (!allowedServices.includes(service)) {
           throw new Error(`Invalid OAuth service: ${service}`);
         }
