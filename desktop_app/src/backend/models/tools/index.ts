@@ -171,11 +171,11 @@ export class ToolModel {
           // Get analysis results from Ollama
           const analysisResults = await OllamaClient.analyzeTools(batch);
 
-          // Persist results
-          for (const toolData of batch) {
+          // Persist results using bulk operation
+          const toolsToUpsert = batch.map((toolData) => {
             const analysis = analysisResults[toolData.name];
             if (analysis) {
-              await ToolModel.upsert({
+              return {
                 id: toolData.id,
                 mcp_server_id: mcpServerId,
                 name: toolData.name,
@@ -183,31 +183,33 @@ export class ToolModel {
                 input_schema: toolData.inputSchema,
                 ...analysis,
                 analyzed_at: new Date().toISOString(),
-              });
+              };
             } else {
               log.warn(`No analysis results for tool ${toolData.name}`);
               // Still save the tool, just without analysis results
-              await ToolModel.upsert({
+              return {
                 id: toolData.id,
                 mcp_server_id: mcpServerId,
                 name: toolData.name,
                 description: toolData.description,
                 input_schema: toolData.inputSchema,
-              });
+              };
             }
-          }
+          });
+
+          await ToolModel.upsertMany(toolsToUpsert);
         } catch (error) {
           log.error(`Failed to analyze batch of tools:`, error);
-          // Still save the tools without analysis results
-          for (const toolData of batch) {
-            await ToolModel.upsert({
-              id: toolData.id,
-              mcp_server_id: mcpServerId,
-              name: toolData.name,
-              description: toolData.description,
-              input_schema: toolData.inputSchema,
-            });
-          }
+          // Still save the tools without analysis results using bulk operation
+          const toolsToUpsert = batch.map((toolData) => ({
+            id: toolData.id,
+            mcp_server_id: mcpServerId,
+            name: toolData.name,
+            description: toolData.description,
+            input_schema: toolData.inputSchema,
+          }));
+
+          await ToolModel.upsertMany(toolsToUpsert);
         }
       }
 
