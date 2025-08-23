@@ -258,36 +258,37 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - Required models list for auto-provisioning
     - Default model selection (`OLLAMA_MODEL` env var)
 - **OAuth Integration**:
-  - **OAuth Proxy Server**: Standalone Fastify server (`oauth_proxy/`) for secure token management
-    - Production URL: `https://oauth-proxy-new-354887056155.europe-west1.run.app`
-    - Stores OAuth client secrets (never exposed to desktop app)
-    - Handles token exchange and refresh operations
-    - Supports HTTPS with self-signed certificates for development
+  - **Architecture**: Two-tier system with OAuth proxy (secrets) and desktop app (PKCE)
+    - OAuth Proxy: `oauth_proxy/` - Holds client secrets, exchanges codes
+    - Desktop App: Initiates OAuth flows, stores tokens as env vars
+    - Production proxy: `https://oauth-proxy-new-354887056155.europe-west1.run.app`
+  - **Extensible Provider System** (`src/backend/config/oauth-providers.ts`):
+    - Provider registry pattern with standardized configuration
+    - Supports OAuth, browser auth, and file-based credentials
+    - Provider interface: `OAuthProviderDefinition`
+    - Token mapping via `tokenEnvVarPattern` or custom `tokenHandler`
   - **Supported Providers**:
-    - **Google OAuth**: Gmail API access (scopes: `gmail.readonly`, `gmail.send`, `gmail.modify`)
-    - **Slack OAuth**: Workspace access (channels, chat, groups, users, team, files)
-  - **PKCE Flow Implementation**:
-    - Secure OAuth 2.0 flow with code verifier/challenge
-    - CSRF protection via state parameter
-    - Deep link callback: `archestra-ai://oauth-callback`
+    - **Google**: OAuth with file-based credentials option
+    - **Slack**: OAuth + browser auth (`slack-browser` provider)
+    - Extensible for Jira, LinkedIn, MS Teams, etc.
+  - **Browser Authentication** (`src/main-browser-auth.ts`):
+    - Extract tokens directly from provider web UI
+    - Secure Electron BrowserWindow with sandboxing
+    - Provider-specific token extraction logic
+    - Maps to same env vars as OAuth tokens
+  - **MCP Server Catalog Integration**:
+    - Catalog defines provider in `archestra_config.oauth.provider`
+    - UI auto-detects and triggers appropriate auth flow
+    - Browser auth mapped via `useBrowserAuth` flag
   - **API Endpoints**:
-    - `POST /api/mcp_server/start_oauth` - Initiates OAuth flow with PKCE parameters
-    - `POST /api/mcp_server/complete_oauth` - Completes OAuth and stores tokens
-    - `GET /api/mcp_server/:id/oauth_status` - Check OAuth configuration status
-  - **Database Schema**:
-    - MCP servers table extended with OAuth fields:
-      - `oauth_access_token`: Encrypted access token
-      - `oauth_refresh_token`: Encrypted refresh token (if supported)
-      - `oauth_expiry_date`: Token expiration timestamp
-      - `oauth_provider`: Provider identifier (google/slack)
-  - **Security Features**:
-    - Client secrets isolated in OAuth proxy
-    - Automatic cleanup of expired OAuth states (10-minute timeout)
-    - Token refresh handling (provider-dependent)
-    - Certificate validation with dev mode exceptions
-  - **MCP Server Environment**:
-    - Google: `GOOGLE_MCP_ACCESS_TOKEN`, `GOOGLE_MCP_REFRESH_TOKEN`, `GOOGLE_MCP_TOKEN_EXPIRY`
-    - Slack: `SLACK_MCP_ACCESS_TOKEN` (no refresh token)
+    - `POST /api/mcp_server/start_oauth` - Start OAuth with PKCE
+    - `POST /api/mcp_server/complete_oauth` - Complete OAuth flow
+    - `POST /api/mcp_server/install` - Install with OAuth tokens
+  - **Token Storage**:
+    - Database: `oauth_access_token`, `oauth_refresh_token`, `oauth_expiry_date`
+    - Environment vars: Provider-specific patterns (e.g., `SLACK_MCP_XOXC_TOKEN`)
+    - File-based: Custom handlers for providers like Google
+  - **Adding New Providers**: See `docs/ADDING_OAUTH_PROVIDERS.md`
 
 ### Directory Structure
 
