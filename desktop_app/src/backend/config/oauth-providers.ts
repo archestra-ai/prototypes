@@ -241,6 +241,46 @@ export const oauthProviders: OAuthProviderRegistry = {
       notes: 'Direct browser authentication using xoxc/xoxd tokens. No OAuth app required.',
     },
   },
+
+  msteams: {
+    name: 'msteams',
+    authorizationUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    scopes: [
+      'offline_access',
+      'user.read',
+      'ChannelMessage.Send',
+      'ChannelMessage.Read.All',
+      'Chat.Create',
+      'Chat.ReadWrite',
+      'Chat.Read',
+      'ChatMessage.Read',
+      'ChatMessage.Send',
+      'Team.ReadBasic.All',
+      'TeamMember.Read.All',
+    ],
+    usePKCE: true,
+    clientId: process.env.MSTEAMS_OAUTH_CLIENT_ID || '',
+
+    // MS Teams tokens will be stored as environment variables
+    tokenEnvVarPattern: {
+      accessToken: 'TEAMS_ACCESS_TOKEN',
+      refreshToken: 'TEAMS_REFRESH_TOKEN',
+      expiryDate: 'TEAMS_TOKEN_EXPIRY',
+    },
+
+    // MS Teams/Azure AD specific authorization parameters
+    authorizationParams: {
+      response_mode: 'query',
+      response_type: 'code',
+    },
+
+    metadata: {
+      displayName: 'Microsoft Teams',
+      documentationUrl: 'https://learn.microsoft.com/en-us/graph/auth-v2-user',
+      supportsRefresh: true,
+      notes: 'Uses Azure AD v2.0 endpoint for authentication. Requires Azure app registration.',
+    },
+  },
 };
 
 /**
