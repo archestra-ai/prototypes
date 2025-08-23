@@ -73,21 +73,54 @@ const OllamaListResponseSchema = z.object({
 type OllamaGenerateRequest = z.infer<typeof OllamaGenerateRequestSchema>;
 type OllamaGenerateResponse = z.infer<typeof OllamaGenerateResponseSchema>;
 type OllamaPullRequest = z.infer<typeof OllamaPullRequestSchema>;
-type OllamaPullResponse = z.infer<typeof OllamaPullResponseSchema>;
 type OllamaListResponse = z.infer<typeof OllamaListResponseSchema>;
 
 class OllamaClient {
   private baseUrl: string;
+  private modelAvailability: Record<string, boolean> = {};
+  private modelAvailabilityPromises: Record<string, Promise<void>> = {};
 
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl || config.ollama.server.host;
   }
 
   /**
-   * Generate a completion from a model
+   * Wait for a specific model to be available
    */
-  async generate(request: OllamaGenerateRequest): Promise<OllamaGenerateResponse> {
+  private async waitForModel(modelName: string): Promise<void> {
+    // If model is already available, return immediately
+    if (this.modelAvailability[modelName] === true) {
+      return;
+    }
+
+    // If there's already a promise waiting for this model, reuse it
+    if (modelName in this.modelAvailabilityPromises) {
+      return this.modelAvailabilityPromises[modelName];
+    }
+
+    // Create a new promise to wait for the model
+    this.modelAvailabilityPromises[modelName] = new Promise<void>((resolve) => {
+      const checkInterval = setInterval(() => {
+        if (this.modelAvailability[modelName] === true) {
+          clearInterval(checkInterval);
+          delete this.modelAvailabilityPromises[modelName];
+          resolve();
+        }
+      }, 500); // Check every 500ms
+    });
+
+    return this.modelAvailabilityPromises[modelName];
+  }
+
+  /**
+   * Generate a completion from a model
+   * Waits for the requested model to be available before making the API call
+   */
+  private async generate(request: OllamaGenerateRequest): Promise<OllamaGenerateResponse> {
     try {
+      // Wait for the model to be available before making the request
+      await this.waitForModel(request.model);
+
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: 'POST',
         headers: {
@@ -251,6 +284,7 @@ class OllamaClient {
 
   /**
    * Analyze tools and return structured analysis results
+   * Will wait for the required model to be downloaded if not already available
    */
   async analyzeTools(
     tools: Array<{
@@ -327,6 +361,7 @@ CRITICAL REQUIREMENTS:
 
   /**
    * Generate a chat title based on messages
+   * Will wait for the required model to be downloaded if not already available
    */
   async generateChatTitle(messages: string[]): Promise<string> {
     const prompt = `Generate a short, concise title (3-6 words) for a chat conversation that includes the following messages:
@@ -373,6 +408,7 @@ The title should capture the main topic or theme of the conversation. Respond wi
 
   /**
    * Ensure that required models are available, downloading them if necessary
+   * Populates the model availability map which is used by generate() to wait for models
    */
   async ensureModelsAvailable(): Promise<void> {
     await this.waitForServerReady();
@@ -380,6 +416,11 @@ The title should capture the main topic or theme of the conversation. Respond wi
     try {
       const { models: installedModels } = await this.list();
       const installedModelNames = installedModels.map((m) => m.name);
+
+      // Update model availability for all installed models
+      installedModelNames.forEach((modelName) => {
+        this.modelAvailability[modelName] = true;
+      });
 
       const modelsToDownload = config.ollama.requiredModels.filter(
         ({ model: modelName }) => !installedModelNames.includes(modelName)
@@ -397,6 +438,8 @@ The title should capture the main topic or theme of the conversation. Respond wi
         try {
           await this.pull({ name: modelName });
           log.info(`Successfully downloaded model '${modelName}'`);
+          // Mark model as available after successful download
+          this.modelAvailability[modelName] = true;
         } catch (error) {
           log.error(`Failed to download model '${modelName}':`, error);
           // Don't throw - allow other models to continue downloading
