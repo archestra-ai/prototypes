@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@ui/components/ui/hover-card';
+import { cn } from '@ui/lib/utils/tailwind';
 import { formatToolName } from '@ui/lib/utils/tools';
 import { useToolsStore } from '@ui/stores';
 import type { Tool } from '@ui/types';
@@ -84,7 +85,7 @@ export function ToolHoverCard({
                   {is_read !== null && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">Read-only:</span>
-                      <span className={`text-xs font-medium ${is_read ? 'text-green-600' : 'text-orange-600'}`}>
+                      <span className={cn('text-xs font-medium', is_read ? 'text-green-600' : 'text-orange-600')}>
                         {is_read ? 'Yes' : 'No'}
                       </span>
                     </div>
@@ -92,7 +93,7 @@ export function ToolHoverCard({
                   {is_write !== null && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">Writes data:</span>
-                      <span className={`text-xs font-medium ${is_write ? 'text-orange-600' : 'text-green-600'}`}>
+                      <span className={cn('text-xs font-medium', is_write ? 'text-orange-600' : 'text-green-600')}>
                         {is_write ? 'Yes' : 'No'}
                       </span>
                     </div>
@@ -100,7 +101,7 @@ export function ToolHoverCard({
                   {idempotent !== null && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">Idempotent:</span>
-                      <span className={`text-xs font-medium ${idempotent ? 'text-green-600' : 'text-orange-600'}`}>
+                      <span className={cn('text-xs font-medium', idempotent ? 'text-green-600' : 'text-orange-600')}>
                         {idempotent ? 'Yes' : 'No'}
                       </span>
                     </div>
@@ -108,7 +109,7 @@ export function ToolHoverCard({
                   {reversible !== null && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">Reversible:</span>
-                      <span className={`text-xs font-medium ${reversible ? 'text-green-600' : 'text-orange-600'}`}>
+                      <span className={cn('text-xs font-medium', reversible ? 'text-green-600' : 'text-orange-600')}>
                         {reversible ? 'Yes' : 'No'}
                       </span>
                     </div>
