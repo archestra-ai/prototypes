@@ -337,13 +337,18 @@ export const oauthProviders: OAuthProviderRegistry = {
 
           if (liAtToken && liAtToken.length > 10) {
             // Validate cookie format (li_at cookies are typically long strings)
-            // Log success
-            console.log('[LinkedIn Browser Auth] Successfully extracted LinkedIn session cookie');
+            // Additional validation to ensure cookie appears valid
+            if (!liAtToken.includes(' ') && !liAtToken.includes('\n')) {
+              // Log success
+              console.log('[LinkedIn Browser Auth] Successfully extracted LinkedIn session cookie');
 
-            // Return proper BrowserTokenResponse
-            return {
-              primary_token: liAtToken,
-            };
+              // Return proper BrowserTokenResponse
+              return {
+                primary_token: liAtToken,
+              };
+            } else {
+              console.error('[LinkedIn Browser Auth] Invalid cookie format detected');
+            }
           }
 
           // Log the error for debugging
