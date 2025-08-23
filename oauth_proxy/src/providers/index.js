@@ -1,6 +1,7 @@
 import { config } from '../config/index.js';
 import { GoogleOAuthProvider } from './google.js';
 import { SlackOAuthProvider } from './slack.js';
+import { MicrosoftOAuthProvider } from './microsoft.js';
 
 // Provider registry
 const providers = new Map();
@@ -17,6 +18,12 @@ export function initializeProviders() {
   if (config.providers.slack.clientId && config.providers.slack.clientSecret) {
     providers.set('slack', new SlackOAuthProvider(config.providers.slack));
     console.log('✓ Slack OAuth provider initialized');
+  }
+
+  // Microsoft OAuth
+  if (config.providers.microsoft.clientId && config.providers.microsoft.clientSecret) {
+    providers.set('microsoft', new MicrosoftOAuthProvider(config.providers.microsoft));
+    console.log('✓ Microsoft OAuth provider initialized');
   }
 
   if (providers.size === 0) {
