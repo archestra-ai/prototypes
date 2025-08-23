@@ -265,7 +265,7 @@ export const oauthProviders: OAuthProviderRegistry = {
       displayName: 'LinkedIn',
       documentationUrl: 'https://learn.microsoft.com/en-us/linkedin/shared/authentication/authentication',
       supportsRefresh: true,
-      notes: 'LinkedIn OAuth 2.0 implementation. The MCP server also supports cookie-based authentication.',
+      notes: 'Standard OAuth 2.0 implementation with refresh token support.',
     },
   },
 
@@ -308,7 +308,7 @@ export const oauthProviders: OAuthProviderRegistry = {
           const { webContents, session } = windowWithContext;
           const url = webContents.getURL();
 
-          console.log('[LinkedIn Browser Auth] Attempting token extraction on:', url);
+          console.log('[LinkedIn Browser Auth] Attempting token extraction');
 
           // Fast path: early return if not LinkedIn domain
           // Support both www and non-www variants
@@ -329,7 +329,7 @@ export const oauthProviders: OAuthProviderRegistry = {
             return null;
           }
 
-          console.log('[LinkedIn Browser Auth] On LinkedIn page, extracting cookie...');
+          // User is logged in, proceed with cookie extraction
 
           // Get li_at cookie which is the session cookie
           // Use specific filters to reduce cookie lookup overhead
@@ -357,7 +357,6 @@ export const oauthProviders: OAuthProviderRegistry = {
           }
 
           const liAtToken = validCookie.value;
-          console.log('[LinkedIn Browser Auth] Found li_at cookie:', !!liAtToken);
 
           // Enhanced validation for edge cases
           if (liAtToken && liAtToken.length > 10 && liAtToken.trim() === liAtToken) {
