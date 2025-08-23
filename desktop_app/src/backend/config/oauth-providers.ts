@@ -1,3 +1,4 @@
+import { MS_TEAMS_OAUTH_CONFIG, getAzureOAuthEndpoint } from '../utils/azure-tenant-validator';
 import {
   buildSlackTokenExtractionScript,
   buildSlackWorkspaceUrl,
@@ -41,6 +42,12 @@ export const oauthProviders: OAuthProviderRegistry = {
       accessToken: 'GOOGLE_MCP_ACCESS_TOKEN',
       refreshToken: 'GOOGLE_MCP_REFRESH_TOKEN',
       expiryDate: 'GOOGLE_MCP_TOKEN_EXPIRY',
+    },
+
+    // Google-specific authorization parameters
+    authorizationParams: {
+      access_type: 'offline', // Required for refresh tokens
+      prompt: 'consent', // Force consent to ensure refresh token is returned
     },
 
     metadata: {
@@ -195,6 +202,40 @@ export const oauthProviders: OAuthProviderRegistry = {
       documentationUrl: 'https://api.slack.com/authentication',
       supportsRefresh: false,
       notes: 'Direct browser authentication using xoxc/xoxd tokens. No OAuth app required.',
+    },
+  },
+
+  msteams: {
+    name: 'msteams',
+    // Use tenant-specific URL if provided via environment variable for better security
+    authorizationUrl: getAzureOAuthEndpoint(process.env.MSTEAMS_TENANT_ID, 'authorize'),
+    scopes: [...MS_TEAMS_OAUTH_CONFIG.scopes.required, ...MS_TEAMS_OAUTH_CONFIG.scopes.teams],
+    usePKCE: true,
+    clientId:
+      process.env.MSTEAMS_OAUTH_CLIENT_ID ||
+      (() => {
+        console.warn('MSTEAMS_OAUTH_CLIENT_ID not set. MS Teams OAuth will not be available.');
+        return 'msteams-client-id-not-configured';
+      })(),
+
+    // MS Teams tokens will be stored as environment variables
+    tokenEnvVarPattern: {
+      accessToken: 'TEAMS_ACCESS_TOKEN',
+      refreshToken: 'TEAMS_REFRESH_TOKEN',
+      expiryDate: 'TEAMS_TOKEN_EXPIRY',
+    },
+
+    // MS Teams/Azure AD specific authorization parameters
+    authorizationParams: {
+      response_mode: 'query',
+      response_type: 'code',
+    },
+
+    metadata: {
+      displayName: 'Microsoft Teams',
+      documentationUrl: 'https://learn.microsoft.com/en-us/graph/auth-v2-user',
+      supportsRefresh: true,
+      notes: 'Uses Azure AD v2.0 endpoint for authentication. Requires Azure app registration.',
     },
   },
 };

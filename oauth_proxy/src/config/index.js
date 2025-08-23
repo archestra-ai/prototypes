@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { getAzureOAuthEndpoint } from '../utils/azure-tenant-validator.js';
 
 dotenv.config();
 
@@ -22,6 +23,15 @@ export const config = {
       clientSecret: process.env.SLACK_CLIENT_SECRET,
       tokenEndpoint: 'https://slack.com/api/oauth.v2.access',
       revokeEndpoint: 'https://slack.com/api/auth.revoke',
+    },
+    
+    msteams: {
+      clientId: process.env.MSTEAMS_CLIENT_ID,
+      clientSecret: process.env.MSTEAMS_CLIENT_SECRET,
+      // Use tenant-specific endpoint if MSTEAMS_TENANT_ID is provided, otherwise fall back to common
+      // Note: Using 'common' allows any Azure AD account - consider setting MSTEAMS_TENANT_ID for better security
+      tokenEndpoint: getAzureOAuthEndpoint(process.env.MSTEAMS_TENANT_ID, 'token'),
+      revokeEndpoint: null, // Azure AD doesn't support token revocation via API
     },
   },
   

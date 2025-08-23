@@ -53,6 +53,31 @@ const providerMetadata = {
     ],
     notes: 'Tokens do not expire. Returns user tokens in nested structure.',
   },
+
+  msteams: {
+    name: 'msteams',
+    displayName: 'Microsoft Teams',
+    documentationUrl: 'https://learn.microsoft.com/en-us/graph/auth-v2-user',
+    supportsRefresh: true,
+    tokenExpiry: 3600,
+    supportsPKCE: true,
+    supportsState: true,
+    endpoints: {
+      authorization: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+      token: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+      revoke: null, // Azure AD doesn't support token revocation via API
+    },
+    defaultScopes: [
+      'offline_access',
+      'User.Read',
+      'ChannelMessage.Send',
+      'Chat.Create',
+      'Chat.ReadWrite',
+      'Team.ReadBasic.All',
+      'TeamMember.Read.All',
+    ],
+    notes: 'Uses Azure AD v2.0 endpoint. Requires Azure app registration. Supports tenant-specific endpoints via MSTEAMS_TENANT_ID.',
+  },
 };
 
 export default async function providersRoute(fastify, opts) {

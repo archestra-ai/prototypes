@@ -158,11 +158,11 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
 
         // Clean up old pending installs (older than 10 minutes)
         const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
-        for (const [key, data] of pendingOAuthInstalls.entries()) {
-          if (data.timestamp < tenMinutesAgo && key !== state) {
-            pendingOAuthInstalls.delete(key);
-          }
-        }
+        const expiredStates = Array.from(pendingOAuthInstalls.entries())
+          .filter(([key, data]) => data.timestamp < tenMinutesAgo && key !== state)
+          .map(([key]) => key);
+
+        expiredStates.forEach((key) => pendingOAuthInstalls.delete(key));
 
         // Build OAuth authorization URL with PKCE
         const baseParams: Record<string, string> = {
@@ -171,8 +171,6 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
           response_type: 'code',
           scope: provider.scopes.join(' '),
           state: state,
-          access_type: 'offline', // For Google refresh tokens
-          prompt: 'consent', // Force consent to get refresh token
         };
 
         // Add PKCE parameters if provider supports it
@@ -269,6 +267,8 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
 
           // For development with self-signed certificates, we need special handling
           let tokenResponse;
+          const originalTlsValue = process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
+
           try {
             const tokenUrl = `${oauthProxyUrl}/oauth/token`;
             fastify.log.info(`Exchanging OAuth token at: ${tokenUrl}`);
@@ -294,17 +294,19 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
                 redirect_uri: pendingInstall.redirectUri,
               }),
             });
-
-            // Re-enable certificate validation
-            if (oauthProxyUrl.includes('localhost')) {
-              delete process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
-            }
           } catch (fetchError) {
             fastify.log.error('Fetch error details:', fetchError);
             fastify.log.error('Fetch error stack:', fetchError.stack);
-            // Re-enable certificate validation in case of error
-            delete process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
             throw new Error(`Failed to connect to OAuth proxy at ${oauthProxyUrl}: ${fetchError.message}`);
+          } finally {
+            // Always restore original TLS setting
+            if (oauthProxyUrl.includes('localhost')) {
+              if (originalTlsValue === undefined) {
+                delete process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
+              } else {
+                process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = originalTlsValue;
+              }
+            }
           }
 
           if (!tokenResponse.ok) {
