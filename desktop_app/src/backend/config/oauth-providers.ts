@@ -297,11 +297,9 @@ export const oauthProviders: OAuthProviderRegistry = {
 
       navigationRules: (url: string) => {
         // Only allow navigation to official LinkedIn domains over HTTPS
-        return (
-          url.startsWith('https://www.linkedin.com/') ||
-          url.startsWith('https://linkedin.com/') ||
-          (url.startsWith('https://') && url.includes('.linkedin.com/'))
-        );
+        // Handle various LinkedIn subdomains and regional variations
+        const linkedInDomainPattern = /^https:\/\/([\w-]+\.)?linkedin\.com\//;
+        return linkedInDomainPattern.test(url);
       },
 
       extractTokens: async (windowWithContext: any) => {
@@ -313,7 +311,9 @@ export const oauthProviders: OAuthProviderRegistry = {
           console.log('[LinkedIn Browser Auth] Attempting token extraction on:', url);
 
           // Fast path: early return if not LinkedIn domain
-          if (!url.includes('linkedin.com/')) {
+          // Support both www and non-www variants
+          const isLinkedInDomain = url.includes('linkedin.com/');
+          if (!isLinkedInDomain) {
             console.log('[LinkedIn Browser Auth] Not a LinkedIn page, skipping token extraction');
             return null;
           }
@@ -321,7 +321,9 @@ export const oauthProviders: OAuthProviderRegistry = {
           // Check if user is logged in by looking for specific LinkedIn paths
           // LinkedIn redirects to these paths after successful login
           // Check most common path first for performance
-          const isLoggedIn = url.includes('/feed') || url.includes('/in/') || url.includes('/mynetwork');
+          // Also handle regional variations like /home for some locales
+          const isLoggedIn =
+            url.includes('/feed') || url.includes('/in/') || url.includes('/mynetwork') || url.includes('/home');
           if (!isLoggedIn) {
             console.log('[LinkedIn Browser Auth] User not logged in yet, waiting...');
             return null;
