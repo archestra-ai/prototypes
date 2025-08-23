@@ -50,15 +50,13 @@ This guide walks you through setting up OAuth 2.0 authentication for LinkedIn in
 
 ### Desktop App Configuration
 
-The LinkedIn OAuth provider is already configured in Archestra with a placeholder client ID. To use your own:
+The LinkedIn OAuth provider is already configured in Archestra. You must provide your own client ID:
 
-1. Set environment variable (optional):
+1. Set environment variable:
 
    ```bash
    export LINKEDIN_OAUTH_CLIENT_ID=your_client_id_here
    ```
-
-2. Or use the default public client ID in the code
 
 ### OAuth Proxy Configuration
 
