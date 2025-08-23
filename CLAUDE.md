@@ -270,6 +270,7 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
   - **Supported Providers**:
     - **Google**: OAuth with file-based credentials option
     - **Slack**: OAuth + browser auth (`slack-browser` provider)
+    - **Microsoft**: OAuth for Microsoft 365/Office 365 services
     - Extensible for Jira, LinkedIn, MS Teams, etc.
   - **Browser Authentication** (`src/main-browser-auth.ts`):
     - Extract tokens directly from provider web UI

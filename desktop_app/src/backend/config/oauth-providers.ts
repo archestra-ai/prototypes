@@ -241,6 +241,77 @@ export const oauthProviders: OAuthProviderRegistry = {
       notes: 'Direct browser authentication using xoxc/xoxd tokens. No OAuth app required.',
     },
   },
+
+  microsoft: {
+    name: 'microsoft',
+    authorizationUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    scopes: [
+      // Core scopes
+      'User.Read',
+      'offline_access',
+      // Email scopes
+      'Mail.Read',
+      'Mail.Send',
+      'Mail.ReadWrite',
+      // Calendar scopes
+      'Calendars.Read',
+      'Calendars.ReadWrite',
+      // OneDrive scopes
+      'Files.Read',
+      'Files.ReadWrite',
+      'Files.Read.All',
+      'Files.ReadWrite.All',
+      // OneNote scopes
+      'Notes.Read',
+      'Notes.Create',
+      // To Do scopes
+      'Tasks.Read',
+      'Tasks.ReadWrite',
+      // Planner scopes
+      'Tasks.Read.Shared',
+      'Tasks.ReadWrite.Shared',
+      // Contacts scopes
+      'Contacts.Read',
+      'Contacts.ReadWrite',
+      // Search scopes
+      'ExternalItem.Read.All',
+      // Organization mode scopes (Teams, SharePoint, etc.)
+      'Chat.Read',
+      'Chat.ReadWrite',
+      'Team.ReadBasic.All',
+      'Channel.ReadBasic.All',
+      'ChannelMessage.Read.All',
+      'ChannelMessage.Send',
+      'Sites.Read.All',
+      'Sites.ReadWrite.All',
+      'User.Read.All',
+      'Mail.Read.Shared',
+      'Mail.Send.Shared',
+    ],
+    usePKCE: true,
+    clientId: process.env.MICROSOFT_OAUTH_CLIENT_ID || 'f94d5e70-7111-447b-bba5-316ba6b99b59',
+
+    // Microsoft tokens go to specific env vars for MS365 MCP server
+    tokenEnvVarPattern: {
+      accessToken: 'MS365_MCP_OAUTH_TOKEN',
+      refreshToken: 'MS365_MCP_REFRESH_TOKEN',
+      expiryDate: 'MS365_MCP_TOKEN_EXPIRY',
+    },
+
+    // Microsoft-specific authorization parameters
+    authorizationParams: {
+      response_mode: 'query',
+      prompt: 'select_account',
+    },
+
+    metadata: {
+      displayName: 'Microsoft 365',
+      documentationUrl: 'https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow',
+      supportsRefresh: true,
+      notes:
+        'Supports both personal (outlook.com, hotmail.com) and work/school accounts. Organization mode features require work/school account.',
+    },
+  },
 };
 
 /**

@@ -23,6 +23,13 @@ export const config = {
       tokenEndpoint: 'https://slack.com/api/oauth.v2.access',
       revokeEndpoint: 'https://slack.com/api/auth.revoke',
     },
+    
+    microsoft: {
+      clientId: process.env.MICROSOFT_CLIENT_ID,
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+      tenant: process.env.MICROSOFT_TENANT_ID || 'common',
+      // Token endpoint is constructed in provider class with tenant
+    },
   },
   
   cors: {
