@@ -245,11 +245,16 @@ export const oauthProviders: OAuthProviderRegistry = {
   linkedin: {
     name: 'linkedin',
     authorizationUrl: 'https://www.linkedin.com/oauth/v2/authorization',
+    // LinkedIn OAuth scopes for comprehensive access
+    // - openid, profile, email: Basic user information
+    // - w_member_social: Allows posting on LinkedIn
+    // - r_liteprofile, r_emailaddress: Read profile and email
     scopes: ['openid', 'profile', 'email', 'w_member_social', 'r_liteprofile', 'r_emailaddress'],
     usePKCE: true,
     clientId: process.env.LINKEDIN_OAUTH_CLIENT_ID || 'your-linkedin-client-id',
 
-    // LinkedIn OAuth tokens
+    // LinkedIn OAuth tokens mapped to environment variables
+    // These will be passed to the MCP server container
     tokenEnvVarPattern: {
       accessToken: 'LINKEDIN_MCP_ACCESS_TOKEN',
       refreshToken: 'LINKEDIN_MCP_REFRESH_TOKEN',
@@ -272,16 +277,20 @@ export const oauthProviders: OAuthProviderRegistry = {
     clientId: 'browser-auth', // Placeholder
 
     // Token pattern for LinkedIn cookie
+    // The li_at cookie is LinkedIn's main session cookie
     tokenEnvVarPattern: {
       accessToken: 'LINKEDIN_COOKIE', // Maps to primary_token (li_at cookie)
     },
 
     // Browser-based authentication configuration
+    // This allows users to authenticate by logging into LinkedIn directly
+    // and extracting the session cookie, avoiding the need for OAuth app setup
     browserAuthConfig: {
       enabled: true,
       loginUrl: 'https://www.linkedin.com/login',
 
       // Map browser tokens to environment variables
+      // LinkedIn MCP server expects the cookie in LINKEDIN_COOKIE env var
       tokenMapping: {
         primary: 'LINKEDIN_COOKIE',
       },
@@ -310,6 +319,7 @@ export const oauthProviders: OAuthProviderRegistry = {
           }
 
           // Check if user is logged in by looking for specific LinkedIn paths
+          // LinkedIn redirects to these paths after successful login
           const isLoggedIn = url.includes('/feed') || url.includes('/in/') || url.includes('/mynetwork');
           if (!isLoggedIn) {
             console.log('[LinkedIn Browser Auth] User not logged in yet, waiting...');
