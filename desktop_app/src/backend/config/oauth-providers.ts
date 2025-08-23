@@ -241,6 +241,105 @@ export const oauthProviders: OAuthProviderRegistry = {
       notes: 'Direct browser authentication using xoxc/xoxd tokens. No OAuth app required.',
     },
   },
+
+  linkedin: {
+    name: 'linkedin',
+    authorizationUrl: 'https://www.linkedin.com/oauth/v2/authorization',
+    scopes: ['openid', 'profile', 'email'],
+    usePKCE: true,
+    clientId: process.env.LINKEDIN_OAUTH_CLIENT_ID || 'your-linkedin-client-id',
+
+    // LinkedIn OAuth tokens
+    tokenEnvVarPattern: {
+      accessToken: 'LINKEDIN_MCP_ACCESS_TOKEN',
+      refreshToken: 'LINKEDIN_MCP_REFRESH_TOKEN',
+      expiryDate: 'LINKEDIN_MCP_TOKEN_EXPIRY',
+    },
+
+    metadata: {
+      displayName: 'LinkedIn',
+      documentationUrl: 'https://learn.microsoft.com/en-us/linkedin/shared/authentication/authentication',
+      supportsRefresh: true,
+      notes: 'LinkedIn OAuth 2.0 implementation. The MCP server also supports cookie-based authentication.',
+    },
+  },
+
+  'linkedin-browser': {
+    name: 'linkedin-browser',
+    authorizationUrl: '', // Not used for browser auth
+    scopes: [], // Not used for browser auth
+    usePKCE: false, // Not used for browser auth
+    clientId: 'browser-auth', // Placeholder
+
+    // Token pattern for LinkedIn cookie
+    tokenEnvVarPattern: {
+      accessToken: 'LINKEDIN_COOKIE', // Maps to primary_token (li_at cookie)
+    },
+
+    // Browser-based authentication configuration
+    browserAuthConfig: {
+      enabled: true,
+      loginUrl: 'https://www.linkedin.com/login',
+
+      // Map browser tokens to environment variables
+      tokenMapping: {
+        primary: 'LINKEDIN_COOKIE',
+      },
+
+      navigationRules: (url: string) => {
+        // Only allow navigation to official LinkedIn domains
+        return (
+          url.startsWith('https://www.linkedin.com/') ||
+          url.startsWith('https://linkedin.com/') ||
+          url.includes('.linkedin.com/')
+        );
+      },
+
+      extractTokens: async (windowWithContext: any) => {
+        // Extract the actual window parts and context
+        const { webContents, session } = windowWithContext;
+        const url = webContents.getURL();
+
+        console.log('[LinkedIn Browser Auth] Attempting token extraction on:', url);
+
+        // Only try to extract on LinkedIn pages after login
+        if (!url.includes('linkedin.com/')) {
+          console.log('[LinkedIn Browser Auth] Not a LinkedIn page, skipping token extraction');
+          return null;
+        }
+
+        console.log('[LinkedIn Browser Auth] On LinkedIn page, extracting cookie...');
+
+        // Get li_at cookie which is the session cookie
+        const cookies = await session.cookies.get({ name: 'li_at', domain: '.linkedin.com' });
+        const liAtCookie = cookies.length > 0 ? cookies[0] : null;
+        const liAtToken = liAtCookie ? liAtCookie.value : null;
+
+        console.log('[LinkedIn Browser Auth] Found li_at cookie:', !!liAtToken);
+
+        if (liAtToken) {
+          // Log success
+          console.log('[LinkedIn Browser Auth] Successfully extracted LinkedIn session cookie');
+
+          // Return proper BrowserTokenResponse
+          return {
+            primary_token: liAtToken,
+          };
+        }
+
+        // Log the error for debugging
+        console.error('[LinkedIn Browser Auth] Missing li_at cookie');
+        return null;
+      },
+    },
+
+    metadata: {
+      displayName: 'LinkedIn (Browser Auth)',
+      documentationUrl: 'https://github.com/stickerdaniel/linkedin-mcp-server',
+      supportsRefresh: false,
+      notes: 'Direct browser authentication using LinkedIn session cookie (li_at). No OAuth app required.',
+    },
+  },
 };
 
 /**

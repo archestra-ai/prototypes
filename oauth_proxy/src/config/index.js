@@ -23,6 +23,13 @@ export const config = {
       tokenEndpoint: 'https://slack.com/api/oauth.v2.access',
       revokeEndpoint: 'https://slack.com/api/auth.revoke',
     },
+    
+    linkedin: {
+      clientId: process.env.LINKEDIN_CLIENT_ID,
+      clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
+      tokenEndpoint: 'https://www.linkedin.com/oauth/v2/accessToken',
+      revokeEndpoint: 'https://www.linkedin.com/oauth/v2/revoke',
+    },
   },
   
   cors: {
