@@ -1,3 +1,4 @@
+import { MS_TEAMS_OAUTH_CONFIG, getAzureOAuthEndpoint } from '../utils/azure-tenant-validator';
 import {
   BrowserTokenResponse,
   OAuthProviderDefinition,
@@ -251,31 +252,8 @@ export const oauthProviders: OAuthProviderRegistry = {
   msteams: {
     name: 'msteams',
     // Use tenant-specific URL if provided via environment variable for better security
-    authorizationUrl: (() => {
-      const tenantId = process.env.MSTEAMS_TENANT_ID?.trim();
-      if (tenantId) {
-        // Validate tenant ID format (GUID or domain)
-        if (
-          !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$|^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(
-            tenantId
-          )
-        ) {
-          console.warn(`Invalid MSTEAMS_TENANT_ID format: ${tenantId}. Using common endpoint.`);
-          return 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
-        }
-        return `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`;
-      }
-      return 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
-    })(),
-    scopes: [
-      'offline_access', // Required for refresh tokens
-      'User.Read', // Basic user profile
-      'ChannelMessage.Send', // Send messages to channels
-      'Chat.Create', // Create new chats
-      'Chat.ReadWrite', // Read and write to chats
-      'Team.ReadBasic.All', // Read basic team info
-      'TeamMember.Read.All', // Read team member info
-    ],
+    authorizationUrl: getAzureOAuthEndpoint(process.env.MSTEAMS_TENANT_ID, 'authorize'),
+    scopes: [...MS_TEAMS_OAUTH_CONFIG.scopes.required, ...MS_TEAMS_OAUTH_CONFIG.scopes.teams],
     usePKCE: true,
     clientId:
       process.env.MSTEAMS_OAUTH_CLIENT_ID ||
