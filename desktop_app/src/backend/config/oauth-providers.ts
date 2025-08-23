@@ -1,4 +1,4 @@
-import {
+import type {
   BrowserTokenResponse,
   OAuthProviderDefinition,
   OAuthProviderRegistry,
