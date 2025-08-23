@@ -32,6 +32,7 @@ This guide walks you through setting up OAuth 2.0 authentication for LinkedIn in
    - `openid` - OpenID Connect authentication
    - `profile` - Basic profile information
    - `email` - Email address
+   - `offline_access` - Required for refresh tokens (automatically included)
 
    Additional scopes may be required depending on your MCP server needs:
    - `w_member_social` - Share content on LinkedIn

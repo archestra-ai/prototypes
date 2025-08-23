@@ -2,6 +2,8 @@
 
 This guide helps you add OAuth providers (Jira, LinkedIn, MS Teams, etc.) to Archestra.
 
+**Already Implemented Providers**: Google, Slack, LinkedIn
+
 ## Architecture
 
 ```
