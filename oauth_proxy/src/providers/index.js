@@ -1,6 +1,7 @@
 import { config } from '../config/index.js';
 import { GoogleOAuthProvider } from './google.js';
 import { SlackOAuthProvider } from './slack.js';
+import { LinkedInOAuthProvider } from './linkedin.js';
 
 // Provider registry
 const providers = new Map();
@@ -17,6 +18,12 @@ export function initializeProviders() {
   if (config.providers.slack.clientId && config.providers.slack.clientSecret) {
     providers.set('slack', new SlackOAuthProvider(config.providers.slack));
     console.log('✓ Slack OAuth provider initialized');
+  }
+
+  // LinkedIn OAuth
+  if (config.providers.linkedin.clientId && config.providers.linkedin.clientSecret) {
+    providers.set('linkedin', new LinkedInOAuthProvider(config.providers.linkedin));
+    console.log('✓ LinkedIn OAuth provider initialized');
   }
 
   if (providers.size === 0) {

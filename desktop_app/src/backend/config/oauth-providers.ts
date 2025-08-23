@@ -241,6 +241,28 @@ export const oauthProviders: OAuthProviderRegistry = {
       notes: 'Direct browser authentication using xoxc/xoxd tokens. No OAuth app required.',
     },
   },
+
+  linkedin: {
+    name: 'linkedin',
+    authorizationUrl: 'https://www.linkedin.com/oauth/v2/authorization',
+    scopes: ['openid', 'profile', 'email'],
+    usePKCE: true,
+    clientId: process.env.LINKEDIN_OAUTH_CLIENT_ID || '',
+
+    // LinkedIn uses standard env vars for MCP server
+    tokenEnvVarPattern: {
+      accessToken: 'LINKEDIN_ACCESS_TOKEN',
+      refreshToken: 'LINKEDIN_REFRESH_TOKEN',
+      expiryDate: 'LINKEDIN_TOKEN_EXPIRY',
+    },
+
+    metadata: {
+      displayName: 'LinkedIn',
+      documentationUrl: 'https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow',
+      supportsRefresh: true,
+      notes: 'LinkedIn OAuth uses the v2 endpoint with PKCE support.',
+    },
+  },
 };
 
 /**
