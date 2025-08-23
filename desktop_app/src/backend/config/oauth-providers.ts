@@ -245,7 +245,7 @@ export const oauthProviders: OAuthProviderRegistry = {
   linkedin: {
     name: 'linkedin',
     authorizationUrl: 'https://www.linkedin.com/oauth/v2/authorization',
-    scopes: ['openid', 'profile', 'email'],
+    scopes: ['openid', 'profile', 'email', 'offline_access'],
     usePKCE: true,
     clientId: process.env.LINKEDIN_OAUTH_CLIENT_ID || '',
 
@@ -260,7 +260,7 @@ export const oauthProviders: OAuthProviderRegistry = {
       displayName: 'LinkedIn',
       documentationUrl: 'https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow',
       supportsRefresh: true,
-      notes: 'LinkedIn OAuth uses the v2 endpoint with PKCE support.',
+      notes: 'LinkedIn OAuth uses the v2 endpoint with PKCE support. Refresh tokens require offline_access scope.',
     },
   },
 };
