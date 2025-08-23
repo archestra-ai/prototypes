@@ -23,6 +23,13 @@ export const config = {
       tokenEndpoint: 'https://slack.com/api/oauth.v2.access',
       revokeEndpoint: 'https://slack.com/api/auth.revoke',
     },
+    
+    msteams: {
+      clientId: process.env.MSTEAMS_CLIENT_ID,
+      clientSecret: process.env.MSTEAMS_CLIENT_SECRET,
+      tokenEndpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+      revokeEndpoint: null, // Azure AD doesn't support token revocation via API
+    },
   },
   
   cors: {
