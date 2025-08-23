@@ -312,7 +312,7 @@ export const oauthProviders: OAuthProviderRegistry = {
 
           console.log('[LinkedIn Browser Auth] Attempting token extraction on:', url);
 
-          // Only try to extract on LinkedIn pages after login
+          // Fast path: early return if not LinkedIn domain
           if (!url.includes('linkedin.com/')) {
             console.log('[LinkedIn Browser Auth] Not a LinkedIn page, skipping token extraction');
             return null;
@@ -320,6 +320,7 @@ export const oauthProviders: OAuthProviderRegistry = {
 
           // Check if user is logged in by looking for specific LinkedIn paths
           // LinkedIn redirects to these paths after successful login
+          // Check most common path first for performance
           const isLoggedIn = url.includes('/feed') || url.includes('/in/') || url.includes('/mynetwork');
           if (!isLoggedIn) {
             console.log('[LinkedIn Browser Auth] User not logged in yet, waiting...');
@@ -329,9 +330,14 @@ export const oauthProviders: OAuthProviderRegistry = {
           console.log('[LinkedIn Browser Auth] On LinkedIn page, extracting cookie...');
 
           // Get li_at cookie which is the session cookie
-          const cookies = await session.cookies.get({ name: 'li_at', domain: '.linkedin.com' });
-          const liAtCookie = cookies.length > 0 ? cookies[0] : null;
-          const liAtToken = liAtCookie ? liAtCookie.value : null;
+          // Use specific filters to reduce cookie lookup overhead
+          const cookies = await session.cookies.get({
+            name: 'li_at',
+            domain: '.linkedin.com',
+            url: 'https://www.linkedin.com',
+          });
+          const liAtCookie = cookies[0]; // Direct access since we're filtering by name
+          const liAtToken = liAtCookie?.value;
 
           console.log('[LinkedIn Browser Auth] Found li_at cookie:', !!liAtToken);
 
