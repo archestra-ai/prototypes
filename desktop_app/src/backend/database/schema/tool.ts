@@ -1,60 +1,66 @@
 import { sql } from 'drizzle-orm';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
 import { mcpServersTable } from './mcpServer';
 
-export const toolsTable = sqliteTable('tools', {
-  /**
-   * Unique identifier combining mcp_server_id and tool_name
-   * Format: {mcp_server_id}__{tool_name} (double underscore separator)
-   */
-  id: text().primaryKey(),
+export const toolsTable = sqliteTable(
+  'tools',
+  {
+    /**
+     * Unique identifier combining mcp_server_id and tool_name
+     * Format: {mcp_server_id}__{tool_name} (double underscore separator)
+     */
+    id: text().primaryKey(),
 
-  /**
-   * Foreign key reference to mcp_servers table
-   */
-  mcp_server_id: text()
-    .notNull()
-    .references(() => mcpServersTable.id, { onDelete: 'cascade' }),
+    /**
+     * Foreign key reference to mcp_servers table
+     */
+    mcp_server_id: text()
+      .notNull()
+      .references(() => mcpServersTable.id, { onDelete: 'cascade' }),
 
-  /**
-   * Tool name from the MCP server
-   */
-  name: text().notNull(),
+    /**
+     * Tool name from the MCP server
+     */
+    name: text().notNull(),
 
-  /**
-   * Tool description
-   */
-  description: text(),
+    /**
+     * Tool description
+     */
+    description: text(),
 
-  /**
-   * Original tool schema from MCP server
-   */
-  input_schema: text({ mode: 'json' }),
+    /**
+     * Original tool schema from MCP server
+     */
+    input_schema: text({ mode: 'json' }),
 
-  /**
-   * Analysis results
-   */
-  is_read: integer({ mode: 'boolean' }),
-  is_write: integer({ mode: 'boolean' }),
-  idempotent: integer({ mode: 'boolean' }),
-  reversible: integer({ mode: 'boolean' }),
+    /**
+     * Analysis results
+     */
+    is_read: integer({ mode: 'boolean' }),
+    is_write: integer({ mode: 'boolean' }),
+    idempotent: integer({ mode: 'boolean' }),
+    reversible: integer({ mode: 'boolean' }),
 
-  /**
-   * Timestamp of when the analysis was performed
-   */
-  analyzed_at: text(),
+    /**
+     * Timestamp of when the analysis was performed
+     */
+    analyzed_at: text(),
 
-  created_at: text()
-    .notNull()
-    .default(sql`(current_timestamp)`),
+    created_at: text()
+      .notNull()
+      .default(sql`(current_timestamp)`),
 
-  updated_at: text()
-    .notNull()
-    .default(sql`(current_timestamp)`),
-});
+    updated_at: text()
+      .notNull()
+      .default(sql`(current_timestamp)`),
+  },
+  (table) => ({
+    mcpServerIdIdx: index('tools_mcp_server_id_idx').on(table.mcp_server_id),
+  })
+);
 
 export const ToolAnalysisResultSchema = z.object({
   is_read: z.boolean(),

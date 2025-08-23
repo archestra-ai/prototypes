@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "72c7aa7f-3e59-474c-ae8c-be7ee07f2f49",
+  "id": "ecb9da1d-8c1e-4e78-b856-634814da0ac8",
   "prevId": "423c2ca5-c274-4a03-9fd7-23c6d4090eb6",
   "tables": {
     "chats": {
@@ -474,7 +474,15 @@
           "default": "(current_timestamp)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "tools_mcp_server_id_idx": {
+          "name": "tools_mcp_server_id_idx",
+          "columns": [
+            "mcp_server_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "tools_mcp_server_id_mcp_servers_id_fk": {
           "name": "tools_mcp_server_id_mcp_servers_id_fk",
