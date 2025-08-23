@@ -245,7 +245,7 @@ export const oauthProviders: OAuthProviderRegistry = {
   linkedin: {
     name: 'linkedin',
     authorizationUrl: 'https://www.linkedin.com/oauth/v2/authorization',
-    scopes: ['openid', 'profile', 'email'],
+    scopes: ['openid', 'profile', 'email', 'w_member_social', 'r_liteprofile', 'r_emailaddress'],
     usePKCE: true,
     clientId: process.env.LINKEDIN_OAUTH_CLIENT_ID || 'your-linkedin-client-id',
 
@@ -296,41 +296,57 @@ export const oauthProviders: OAuthProviderRegistry = {
       },
 
       extractTokens: async (windowWithContext: any) => {
-        // Extract the actual window parts and context
-        const { webContents, session } = windowWithContext;
-        const url = webContents.getURL();
+        try {
+          // Extract the actual window parts and context
+          const { webContents, session } = windowWithContext;
+          const url = webContents.getURL();
 
-        console.log('[LinkedIn Browser Auth] Attempting token extraction on:', url);
+          console.log('[LinkedIn Browser Auth] Attempting token extraction on:', url);
 
-        // Only try to extract on LinkedIn pages after login
-        if (!url.includes('linkedin.com/')) {
-          console.log('[LinkedIn Browser Auth] Not a LinkedIn page, skipping token extraction');
+          // Only try to extract on LinkedIn pages after login
+          if (!url.includes('linkedin.com/')) {
+            console.log('[LinkedIn Browser Auth] Not a LinkedIn page, skipping token extraction');
+            return null;
+          }
+
+          // Check if user is logged in by looking for specific LinkedIn paths
+          const isLoggedIn = url.includes('/feed') || url.includes('/in/') || url.includes('/mynetwork');
+          if (!isLoggedIn) {
+            console.log('[LinkedIn Browser Auth] User not logged in yet, waiting...');
+            return null;
+          }
+
+          console.log('[LinkedIn Browser Auth] On LinkedIn page, extracting cookie...');
+
+          // Get li_at cookie which is the session cookie
+          const cookies = await session.cookies.get({ name: 'li_at', domain: '.linkedin.com' });
+          const liAtCookie = cookies.length > 0 ? cookies[0] : null;
+          const liAtToken = liAtCookie ? liAtCookie.value : null;
+
+          console.log('[LinkedIn Browser Auth] Found li_at cookie:', !!liAtToken);
+
+          if (liAtToken && liAtToken.length > 10) {
+            // Validate cookie format (li_at cookies are typically long strings)
+            // Log success
+            console.log('[LinkedIn Browser Auth] Successfully extracted LinkedIn session cookie');
+
+            // Return proper BrowserTokenResponse
+            return {
+              primary_token: liAtToken,
+            };
+          }
+
+          // Log the error for debugging
+          if (!liAtToken) {
+            console.error('[LinkedIn Browser Auth] Missing li_at cookie');
+          } else {
+            console.error('[LinkedIn Browser Auth] Invalid li_at cookie format');
+          }
+          return null;
+        } catch (error) {
+          console.error('[LinkedIn Browser Auth] Error extracting tokens:', error);
           return null;
         }
-
-        console.log('[LinkedIn Browser Auth] On LinkedIn page, extracting cookie...');
-
-        // Get li_at cookie which is the session cookie
-        const cookies = await session.cookies.get({ name: 'li_at', domain: '.linkedin.com' });
-        const liAtCookie = cookies.length > 0 ? cookies[0] : null;
-        const liAtToken = liAtCookie ? liAtCookie.value : null;
-
-        console.log('[LinkedIn Browser Auth] Found li_at cookie:', !!liAtToken);
-
-        if (liAtToken && liAtToken.length > 10) {
-          // Validate cookie format (li_at cookies are typically long strings)
-          // Log success
-          console.log('[LinkedIn Browser Auth] Successfully extracted LinkedIn session cookie');
-
-          // Return proper BrowserTokenResponse
-          return {
-            primary_token: liAtToken,
-          };
-        }
-
-        // Log the error for debugging
-        console.error('[LinkedIn Browser Auth] Missing li_at cookie');
-        return null;
       },
     },
 
