@@ -8,6 +8,11 @@ import { BrowserWindow, ipcMain } from 'electron';
 
 import { BrowserTokenResponse, OAuthProviderDefinition } from './backend/config/oauth-provider-interface';
 import { getOAuthProvider, hasOAuthProvider } from './backend/config/oauth-providers';
+import {
+  BROWSER_AUTH_WINDOW_CONFIG,
+  getProviderSessionPartition,
+  setupTokenExtractionHandlers,
+} from './backend/utils/browser-auth-utils';
 import log from './backend/utils/logger';
 
 /**
@@ -80,23 +85,12 @@ async function handleBrowserAuth(provider: OAuthProviderDefinition): Promise<any
     try {
       // Create a secure browser window for authentication
       authWindow = new BrowserWindow({
-        width: 1024,
-        height: 768,
+        ...BROWSER_AUTH_WINDOW_CONFIG,
         webPreferences: {
-          // Security settings - keep all security features enabled
-          nodeIntegration: false,
-          contextIsolation: true,
-          webSecurity: true,
-          sandbox: true,
+          ...BROWSER_AUTH_WINDOW_CONFIG.webPreferences,
           // Use a separate session for authentication
-          partition: `persist:${provider.name}-auth`,
-          // Security: Block insecure content
-          allowRunningInsecureContent: false,
+          partition: getProviderSessionPartition(provider.name),
         },
-        // Show standard window chrome for transparency
-        autoHideMenuBar: false,
-        titleBarStyle: 'default',
-        frame: true,
       });
 
       // Setup navigation handlers
@@ -104,8 +98,16 @@ async function handleBrowserAuth(provider: OAuthProviderDefinition): Promise<any
         detectedWorkspaceId = workspaceId;
       });
 
-      // Setup token extraction with workspace ID getter
-      setupTokenExtraction(authWindow, provider, () => detectedWorkspaceId, resolve, reject);
+      // Setup token extraction with simplified handlers
+      setupTokenExtractionHandlers({
+        window: authWindow,
+        provider,
+        getWorkspaceId: () => detectedWorkspaceId,
+        onSuccess: (tokens) => {
+          const oauthTokens = convertBrowserTokensToOAuthFormat(tokens, provider);
+          resolve(oauthTokens);
+        },
+      });
 
       // Handle window closed
       authWindow.on('closed', () => {
@@ -188,84 +190,6 @@ function setupNavigationHandlers(
 
     // Deny opening a new window
     return { action: 'deny' };
-  });
-}
-
-/**
- * Set up token extraction logic for when authentication is complete
- */
-function setupTokenExtraction(
-  authWindow: BrowserWindow,
-  provider: OAuthProviderDefinition,
-  getWorkspaceId: () => string | null,
-  resolve: (tokens: any) => void,
-  reject: (error: Error) => void
-) {
-  const config = provider.browserAuthConfig;
-  if (!config) return;
-
-  // Extract tokens when page finishes loading
-  authWindow.webContents.on('did-finish-load', async () => {
-    const url = authWindow.webContents.getURL();
-    log.info(`[Browser Auth - ${provider.name}] Page loaded:`, url);
-
-    // Provider-specific token extraction
-    try {
-      // Pass workspace ID to extraction function if available
-      const extractionContext = {
-        url,
-        workspaceId: getWorkspaceId(),
-        provider: provider.name,
-      };
-
-      // Try to extract tokens - pass the window and context properly
-      const tokens = await config.extractTokens({
-        webContents: authWindow.webContents,
-        session: authWindow.webContents.session,
-        context: extractionContext,
-      });
-
-      if (tokens) {
-        log.info(`[Browser Auth - ${provider.name}] Successfully extracted tokens`);
-        authWindow.close();
-        // Convert browser tokens to OAuth format for UI compatibility
-        const oauthTokens = convertBrowserTokensToOAuthFormat(tokens, provider);
-        resolve(oauthTokens);
-      }
-    } catch (error) {
-      // Token extraction might fail on intermediate pages, which is normal
-      log.debug(`[Browser Auth - ${provider.name}] Token extraction attempt on ${url}:`, error);
-    }
-  });
-
-  // Also listen for navigation within the same page (SPA navigation)
-  authWindow.webContents.on('did-navigate-in-page', async () => {
-    const url = authWindow.webContents.getURL();
-    log.info(`[Browser Auth - ${provider.name}] In-page navigation:`, url);
-
-    try {
-      const extractionContext = {
-        url,
-        workspaceId: detectedWorkspaceId,
-        provider: provider.name,
-      };
-
-      const tokens = await config.extractTokens({
-        webContents: authWindow.webContents,
-        session: authWindow.webContents.session,
-        context: extractionContext,
-      });
-
-      if (tokens) {
-        log.info(`[Browser Auth - ${provider.name}] Successfully extracted tokens after navigation`);
-        authWindow.close();
-        // Convert browser tokens to OAuth format for UI compatibility
-        const oauthTokens = convertBrowserTokensToOAuthFormat(tokens, provider);
-        resolve(oauthTokens);
-      }
-    } catch (error) {
-      log.debug(`[Browser Auth - ${provider.name}] Token extraction attempt after navigation:`, error);
-    }
   });
 }
 

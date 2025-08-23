@@ -1,4 +1,11 @@
 import {
+  buildSlackTokenExtractionScript,
+  buildSlackWorkspaceUrl,
+  extractWorkspaceIdFromProtocol,
+  isSlackWorkspacePage,
+} from '@backend/utils/slack-token-extractor';
+
+import {
   BrowserTokenResponse,
   OAuthProviderDefinition,
   OAuthProviderRegistry,
@@ -130,7 +137,7 @@ export const oauthProviders: OAuthProviderRegistry = {
         console.log('[Slack Browser Auth] Attempting token extraction on:', url);
 
         // Only try to extract on workspace pages
-        if (!url.includes('app.slack.com/client/')) {
+        if (!isSlackWorkspacePage(url)) {
           console.log('[Slack Browser Auth] Not a workspace page, skipping token extraction');
           return null;
         }
@@ -147,60 +154,9 @@ export const oauthProviders: OAuthProviderRegistry = {
         // Pass the workspace ID from context if available
         const contextWorkspaceId = context?.workspaceId || '';
 
-        // Get xoxc token from localStorage
-        const result = await webContents.executeJavaScript(`
-          (function() {
-            try {
-              console.log('[Slack Token Extraction] Starting token extraction...');
-              console.log('[Slack Token Extraction] Current URL:', window.location.pathname);
-              
-              // Use workspace ID from context or extract from URL
-              let workspaceId = '${contextWorkspaceId}';
-              console.log('[Slack Token Extraction] Context workspace ID:', workspaceId || 'none');
-              
-              if (!workspaceId) {
-                const urlMatch = window.location.pathname.match(/^\\/client\\/([A-Z0-9]+)/);
-                if (urlMatch) {
-                  workspaceId = urlMatch[1];
-                  console.log('[Slack Token Extraction] Extracted workspace ID from URL:', workspaceId);
-                }
-              }
-              
-              if (!workspaceId) {
-                // Try to get from localStorage
-                const localConfig = localStorage.getItem('localConfig_v2');
-                if (localConfig) {
-                  const config = JSON.parse(localConfig);
-                  const teamIds = Object.keys(config.teams || {});
-                  if (teamIds.length > 0) {
-                    workspaceId = teamIds[0];
-                  }
-                }
-              }
-              
-              if (!workspaceId) {
-                return { success: false, error: 'Could not determine workspace ID' };
-              }
-              
-              // Get xoxc token from localStorage
-              const localConfig = localStorage.getItem('localConfig_v2');
-              if (!localConfig) {
-                return { success: false, error: 'localConfig_v2 not found' };
-              }
-              
-              const config = JSON.parse(localConfig);
-              if (!config.teams || !config.teams[workspaceId]) {
-                return { success: false, error: 'Workspace not found in config' };
-              }
-              
-              const xoxcToken = config.teams[workspaceId].token;
-              return { success: true, xoxcToken: xoxcToken, workspaceId: workspaceId };
-              
-            } catch (error) {
-              return { success: false, error: error.message };
-            }
-          })();
-        `);
+        // Get xoxc token from localStorage using extraction script
+        const extractionScript = buildSlackTokenExtractionScript(contextWorkspaceId);
+        const result = await webContents.executeJavaScript(extractionScript);
 
         console.log('[Slack Browser Auth] Token extraction result:', {
           success: result.success,

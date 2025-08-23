@@ -15,6 +15,7 @@ import McpServerSandboxManager from '@backend/sandbox/manager';
 import { AvailableToolSchema, McpServerContainerLogsSchema } from '@backend/sandbox/sandboxedMcp';
 import { ErrorResponseSchema } from '@backend/schemas';
 import log from '@backend/utils/logger';
+import { OAUTH_REQUEST_CONFIG, OAUTH_STATE_CLEANUP, getOAuthProxyUrl } from '@backend/utils/oauth-config';
 import { getAuthorizationParams, handleProviderTokens, validateProvider } from '@backend/utils/oauth-provider-helper';
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '@backend/utils/pkce';
 
@@ -145,19 +146,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
 
         // Determine redirect URI based on environment and provider
         // OAuth provider redirects to proxy, which then uses deeplink to open desktop app
-        let redirectUri = process.env.OAUTH_REDIRECT_URI;
-
-        if (!redirectUri) {
-          // Use OAuth proxy for handling the callback (it will deeplink back to the app)
-          const oauthProxyBase =
-            process.env.OAUTH_PROXY_URL ||
-            (process.env.NODE_ENV === 'development'
-              ? 'https://localhost:8080'
-              : 'https://oauth-proxy-new-354887056155.europe-west1.run.app');
-
-          // Use OAuth proxy's callback endpoint which will deeplink back to the app
-          redirectUri = `${oauthProxyBase}/callback/${providerName}`;
-        }
+        const redirectUri = process.env.OAUTH_REDIRECT_URI || `${getOAuthProxyUrl()}/callback/${providerName}`;
 
         // Store pending installation with PKCE verifier
         pendingOAuthInstalls.set(state, {
@@ -276,11 +265,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         try {
           // Call the OAuth proxy to exchange code for tokens
           const providerName = service || pendingInstall.installData.oauthProvider || 'google';
-          const oauthProxyUrl =
-            process.env.OAUTH_PROXY_URL ||
-            (process.env.NODE_ENV === 'development'
-              ? 'https://localhost:8080'
-              : 'https://oauth-proxy-new-354887056155.europe-west1.run.app');
+          const oauthProxyUrl = getOAuthProxyUrl();
 
           // For development with self-signed certificates, we need special handling
           let tokenResponse;
