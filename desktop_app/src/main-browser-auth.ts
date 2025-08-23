@@ -6,7 +6,7 @@
  */
 import { BrowserWindow, ipcMain } from 'electron';
 
-import { OAuthProviderDefinition } from './backend/config/oauth-provider-interface';
+import { BrowserTokenResponse, OAuthProviderDefinition } from './backend/config/oauth-provider-interface';
 import { getOAuthProvider, hasOAuthProvider } from './backend/config/oauth-providers';
 import log from './backend/utils/logger';
 
@@ -31,11 +31,36 @@ export function setupProviderBrowserAuthHandlers() {
 
   // Legacy support for Slack (backward compatibility)
   ipcMain.handle('slack-auth', async () => {
-    const provider = getOAuthProvider('slack');
+    const provider = getOAuthProvider('slack-browser');
+    if (!provider.browserAuthConfig?.enabled) {
+      throw new Error('Browser auth not enabled for Slack');
+    }
     return handleBrowserAuth(provider);
   });
 
   log.info('[Browser Auth] Provider browser auth handlers registered');
+}
+
+/**
+ * Convert BrowserTokenResponse to OAuth-like format for UI compatibility
+ */
+function convertBrowserTokensToOAuthFormat(tokens: BrowserTokenResponse, provider: OAuthProviderDefinition): any {
+  // Map browser tokens to OAuth format based on provider config
+  if (provider.tokenEnvVarPattern) {
+    return {
+      access_token: tokens.primary_token,
+      refresh_token: tokens.secondary_token || null,
+      // Browser tokens typically don't expire
+      expires_at: null,
+    };
+  }
+
+  // Default mapping
+  return {
+    access_token: tokens.primary_token,
+    refresh_token: tokens.secondary_token || null,
+    expires_at: null,
+  };
 }
 
 /**
@@ -79,8 +104,8 @@ async function handleBrowserAuth(provider: OAuthProviderDefinition): Promise<any
         detectedWorkspaceId = workspaceId;
       });
 
-      // Setup token extraction
-      setupTokenExtraction(authWindow, provider, detectedWorkspaceId, resolve, reject);
+      // Setup token extraction with workspace ID getter
+      setupTokenExtraction(authWindow, provider, () => detectedWorkspaceId, resolve, reject);
 
       // Handle window closed
       authWindow.on('closed', () => {
@@ -172,7 +197,7 @@ function setupNavigationHandlers(
 function setupTokenExtraction(
   authWindow: BrowserWindow,
   provider: OAuthProviderDefinition,
-  detectedWorkspaceId: string | null,
+  getWorkspaceId: () => string | null,
   resolve: (tokens: any) => void,
   reject: (error: Error) => void
 ) {
@@ -189,7 +214,7 @@ function setupTokenExtraction(
       // Pass workspace ID to extraction function if available
       const extractionContext = {
         url,
-        workspaceId: detectedWorkspaceId,
+        workspaceId: getWorkspaceId(),
         provider: provider.name,
       };
 
@@ -203,7 +228,9 @@ function setupTokenExtraction(
       if (tokens) {
         log.info(`[Browser Auth - ${provider.name}] Successfully extracted tokens`);
         authWindow.close();
-        resolve(tokens);
+        // Convert browser tokens to OAuth format for UI compatibility
+        const oauthTokens = convertBrowserTokensToOAuthFormat(tokens, provider);
+        resolve(oauthTokens);
       }
     } catch (error) {
       // Token extraction might fail on intermediate pages, which is normal
@@ -232,7 +259,9 @@ function setupTokenExtraction(
       if (tokens) {
         log.info(`[Browser Auth - ${provider.name}] Successfully extracted tokens after navigation`);
         authWindow.close();
-        resolve(tokens);
+        // Convert browser tokens to OAuth format for UI compatibility
+        const oauthTokens = convertBrowserTokensToOAuthFormat(tokens, provider);
+        resolve(oauthTokens);
       }
     } catch (error) {
       log.debug(`[Browser Auth - ${provider.name}] Token extraction attempt after navigation:`, error);
@@ -256,11 +285,11 @@ export async function showBrowserMessage(
       const messageDiv = document.createElement('div');
       messageDiv.id = 'archestra-message';
       messageDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: ${backgroundColor}; color: white; padding: 15px 20px; border-radius: 8px; z-index: 10000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);';
-      messageDiv.innerHTML = '<strong>Archestra:</strong> ${message}';
+      messageDiv.innerHTML = '<strong>Archestra:</strong> ' + ${JSON.stringify(message)};
       document.body.appendChild(messageDiv);
     } else {
       existingMessage.style.background = '${backgroundColor}';
-      existingMessage.innerHTML = '<strong>Archestra:</strong> ${message}';
+      existingMessage.innerHTML = '<strong>Archestra:</strong> ' + ${JSON.stringify(message)};
     }
   `);
 }

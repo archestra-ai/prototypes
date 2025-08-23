@@ -8,6 +8,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@ui/c
 import { completeMcpServerOauth } from '@ui/lib/clients/archestra/api/gen';
 import { useMcpServersStore } from '@ui/stores';
 
+interface OAuthCallbackParams {
+  service?: string;
+  code?: string;
+  state?: string;
+  error?: string;
+  // Legacy OAuth flow params
+  access_token?: string;
+  refresh_token?: string;
+  expiry_date?: string;
+}
+
 export const Route = createFileRoute('/oauth-callback')({
   component: OAuthCallbackPage,
 });
@@ -16,12 +27,12 @@ function OAuthCallbackPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [oauthParams, setOauthParams] = useState<any>(null);
+  const [oauthParams, setOauthParams] = useState<OAuthCallbackParams | null>(null);
   const { loadInstalledMcpServers } = useMcpServersStore();
 
   useEffect(() => {
     // Listen for OAuth callback from deep link
-    const handleOAuthCallback = async (params: any) => {
+    const handleOAuthCallback = async (params: OAuthCallbackParams) => {
       console.log('OAuth callback received:', params);
       setOauthParams(params);
 
@@ -41,11 +52,18 @@ function OAuthCallbackPage() {
       }
 
       try {
+        // Validate service parameter
+        const service = params.service || 'google';
+        const allowedServices = ['google', 'slack', 'slack-browser'];
+        if (!allowedServices.includes(service)) {
+          throw new Error(`Invalid OAuth service: ${service}`);
+        }
+
         // Complete the OAuth flow by sending code or tokens to backend
-        const body: any = {
-          service: params.service || 'google',
+        const body = {
+          service: service,
           state: state,
-        };
+        } as any;
 
         if (params.code) {
           // New PKCE flow - send code for exchange
@@ -157,7 +175,17 @@ function OAuthCallbackPage() {
             <details className="mt-6">
               <summary className="cursor-pointer text-sm text-muted-foreground">Debug Information</summary>
               <pre className="mt-2 p-3 bg-gray-100 rounded text-xs overflow-auto">
-                {JSON.stringify(oauthParams, null, 2)}
+                {JSON.stringify(
+                  {
+                    ...oauthParams,
+                    // Redact sensitive tokens
+                    access_token: oauthParams.access_token ? '[REDACTED]' : undefined,
+                    refresh_token: oauthParams.refresh_token ? '[REDACTED]' : undefined,
+                    code: oauthParams.code ? '[REDACTED]' : undefined,
+                  },
+                  null,
+                  2
+                )}
               </pre>
             </details>
           )}
