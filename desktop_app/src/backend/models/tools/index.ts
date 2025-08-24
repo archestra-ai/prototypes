@@ -110,32 +110,6 @@ export class ToolModel {
   }
 
   /**
-   * Delete tools by MCP server ID
-   */
-  static async deleteByMcpServerId(mcpServerId: string): Promise<void> {
-    await db.delete(toolsTable).where(eq(toolsTable.mcp_server_id, mcpServerId));
-  }
-
-  /**
-   * Delete a tool by ID
-   */
-  static async deleteById(id: string): Promise<void> {
-    await db.delete(toolsTable).where(eq(toolsTable.id, id));
-  }
-
-  /**
-   * Check if tools exist for a given MCP server
-   */
-  static async existsForMcpServer(mcpServerId: string): Promise<boolean> {
-    const result = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(toolsTable)
-      .where(eq(toolsTable.mcp_server_id, mcpServerId));
-
-    return result[0].count > 0;
-  }
-
-  /**
    * Get unanalyzed tools for a given MCP server
    */
   static async getUnanalyzedByMcpServerId(mcpServerId: string): Promise<Tool[]> {
@@ -148,11 +122,43 @@ export class ToolModel {
   }
 
   /**
-   * Analyze tools using Ollama and persist results
+   * Analyze tools - saves tools immediately and analyzes in background
+   * This is non-blocking and will not wait for Ollama models to be available
    */
   static async analyze(tools: McpTools, mcpServerId: string): Promise<void> {
     try {
-      log.info(`Analyzing ${Object.keys(tools).length} tools for MCP server ${mcpServerId}`);
+      log.info(`Starting async analysis of ${Object.keys(tools).length} tools for MCP server ${mcpServerId}`);
+
+      // Prepare tools for saving
+      const toolsToSave = Object.entries(tools).map(([name, tool]) => ({
+        id: `${mcpServerId}__${name}`,
+        mcp_server_id: mcpServerId,
+        name,
+        description: tool.description || '',
+        input_schema: tool.inputSchema,
+      }));
+
+      // Save tools immediately without analysis results
+      await ToolModel.upsertMany(toolsToSave);
+      log.info(`Saved ${toolsToSave.length} tools for MCP server ${mcpServerId}, analysis will happen in background`);
+
+      // Start analysis in background without awaiting
+      ToolModel.performBackgroundAnalysis(tools, mcpServerId).catch((error) => {
+        log.error(`Background analysis failed for MCP server ${mcpServerId}:`, error);
+      });
+    } catch (error) {
+      log.error(`Failed to save tools for MCP server ${mcpServerId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Perform tool analysis in the background
+   * This method will wait for Ollama models if needed and update tools with analysis results
+   */
+  private static async performBackgroundAnalysis(tools: McpTools, mcpServerId: string): Promise<void> {
+    try {
+      log.info(`Starting background analysis for ${Object.keys(tools).length} tools of MCP server ${mcpServerId}`);
 
       // Prepare tools for analysis
       const toolsForAnalysis = Object.entries(tools).map(([name, tool]) => ({
@@ -162,107 +168,32 @@ export class ToolModel {
         inputSchema: tool.inputSchema,
       }));
 
-      // Analyze tools in batches to avoid overwhelming the LLM
+      // Analyze tools in batches
       const batchSize = 10;
       for (let i = 0; i < toolsForAnalysis.length; i += batchSize) {
         const batch = toolsForAnalysis.slice(i, i + batchSize);
 
         try {
-          // Get analysis results from Ollama
-          const analysisResults = await OllamaClient.analyzeTools(batch);
-
-          // Persist results using bulk operation
-          const toolsToUpsert = batch.map((toolData) => {
-            const analysis = analysisResults[toolData.name];
-            if (analysis) {
-              return {
-                id: toolData.id,
-                mcp_server_id: mcpServerId,
-                name: toolData.name,
-                description: toolData.description,
-                input_schema: toolData.inputSchema,
-                ...analysis,
-                analyzed_at: new Date().toISOString(),
-              };
-            } else {
-              log.warn(`No analysis results for tool ${toolData.name}`);
-              // Still save the tool, just without analysis results
-              return {
-                id: toolData.id,
-                mcp_server_id: mcpServerId,
-                name: toolData.name,
-                description: toolData.description,
-                input_schema: toolData.inputSchema,
-              };
-            }
-          });
-
-          await ToolModel.upsertMany(toolsToUpsert);
-        } catch (error) {
-          log.error(`Failed to analyze batch of tools:`, error);
-          // Still save the tools without analysis results using bulk operation
-          const toolsToUpsert = batch.map((toolData) => ({
-            id: toolData.id,
-            mcp_server_id: mcpServerId,
-            name: toolData.name,
-            description: toolData.description,
-            input_schema: toolData.inputSchema,
-          }));
-
-          await ToolModel.upsertMany(toolsToUpsert);
-        }
-      }
-
-      log.info(`Completed analysis of tools for MCP server ${mcpServerId}`);
-    } catch (error) {
-      log.error(`Failed to analyze tools for MCP server ${mcpServerId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Re-analyze tools that haven't been analyzed yet
-   */
-  static async reanalyzeUnanalyzedTools(mcpServerId: string): Promise<void> {
-    try {
-      const unanalyzedTools = await ToolModel.getUnanalyzedByMcpServerId(mcpServerId);
-
-      if (unanalyzedTools.length === 0) {
-        log.info(`No unanalyzed tools found for MCP server ${mcpServerId}`);
-        return;
-      }
-
-      log.info(`Re-analyzing ${unanalyzedTools.length} unanalyzed tools for MCP server ${mcpServerId}`);
-
-      // Convert to format expected by analyzeTools
-      const toolsForAnalysis = unanalyzedTools.map((tool) => ({
-        name: tool.name,
-        description: tool.description || '',
-        inputSchema: tool.input_schema,
-      }));
-
-      // Analyze in batches
-      const batchSize = 10;
-      for (let i = 0; i < toolsForAnalysis.length; i += batchSize) {
-        const batch = toolsForAnalysis.slice(i, i + batchSize);
-
-        try {
+          // This will wait for the model if it's not available yet
           const analysisResults = await OllamaClient.analyzeTools(batch);
 
           // Update tools with analysis results
-          for (const tool of unanalyzedTools.slice(i, i + batchSize)) {
-            const analysis = analysisResults[tool.name];
+          for (const toolData of batch) {
+            const analysis = analysisResults[toolData.name];
             if (analysis) {
-              await ToolModel.updateAnalysisResults(tool.id, analysis);
+              await ToolModel.updateAnalysisResults(toolData.id, analysis);
+              log.info(`Updated analysis for tool ${toolData.name}`);
             }
           }
         } catch (error) {
-          log.error(`Failed to re-analyze batch of tools:`, error);
+          log.error(`Failed to analyze batch of tools in background:`, error);
+          // Continue with next batch even if this one fails
         }
       }
+
+      log.info(`Completed background analysis for MCP server ${mcpServerId}`);
     } catch (error) {
-      log.error(`Failed to re-analyze unanalyzed tools for MCP server ${mcpServerId}:`, error);
-      throw error;
+      log.error(`Background analysis failed for MCP server ${mcpServerId}:`, error);
     }
   }
 }

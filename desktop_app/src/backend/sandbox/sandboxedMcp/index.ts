@@ -66,6 +66,7 @@ export default class SandboxedMcpServer {
   private podmanContainer: PodmanContainer;
 
   private mcpClient: experimental_MCPClient;
+  private analysisUpdateInterval: NodeJS.Timeout | null = null;
 
   tools: McpTools = {};
   private cachedToolAnalysis: Map<
@@ -88,6 +89,9 @@ export default class SandboxedMcpServer {
 
     // Try to fetch cached tools on initialization
     this.fetchCachedTools();
+
+    // Set up periodic updates for cached analysis
+    this.startPeriodicAnalysisUpdates();
   }
 
   /**
@@ -116,6 +120,69 @@ export default class SandboxedMcpServer {
   }
 
   /**
+   * Update cached tool analysis results from database
+   * This is called periodically to pick up background analysis results
+   */
+  private async updateCachedAnalysis() {
+    try {
+      const tools = await ToolModel.getByMcpServerId(this.mcpServerId);
+      let hasUpdates = false;
+
+      for (const tool of tools) {
+        const cachedAnalysis = this.cachedToolAnalysis.get(tool.name);
+
+        // Check if this tool has new analysis results
+        if (
+          tool.analyzed_at &&
+          (!cachedAnalysis ||
+            cachedAnalysis.is_read !== tool.is_read ||
+            cachedAnalysis.is_write !== tool.is_write ||
+            cachedAnalysis.idempotent !== tool.idempotent ||
+            cachedAnalysis.reversible !== tool.reversible)
+        ) {
+          // Update cache
+          this.cachedToolAnalysis.set(tool.name, {
+            is_read: tool.is_read,
+            is_write: tool.is_write,
+            idempotent: tool.idempotent,
+            reversible: tool.reversible,
+          });
+          hasUpdates = true;
+          log.info(`Updated cached analysis for tool ${tool.name} in ${this.mcpServerId}`);
+        }
+      }
+
+      return hasUpdates;
+    } catch (error) {
+      log.error(`Failed to update cached tool analysis for ${this.mcpServerId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Start periodic updates for cached analysis
+   */
+  private startPeriodicAnalysisUpdates() {
+    // Update every 5 seconds
+    this.analysisUpdateInterval = setInterval(async () => {
+      const hasUpdates = await this.updateCachedAnalysis();
+      if (hasUpdates) {
+        log.info(`Analysis cache updated for MCP server ${this.mcpServerId}`);
+      }
+    }, 5000);
+  }
+
+  /**
+   * Stop periodic updates for cached analysis
+   */
+  private stopPeriodicAnalysisUpdates() {
+    if (this.analysisUpdateInterval) {
+      clearInterval(this.analysisUpdateInterval);
+      this.analysisUpdateInterval = null;
+    }
+  }
+
+  /**
    * Fetchs tools from the sandboxed MCP server's container and slightly transforms their "ids" to be in the format of
    * `<mcp_server_id>${TOOL_ID_SEPARATOR}<tool_name>`
    */
@@ -139,22 +206,11 @@ export default class SandboxedMcpServer {
     // If we have new tools or the count changed, analyze them
     if (newToolCount > 0 && (newToolCount !== previousToolCount || previousToolCount === 0)) {
       try {
-        log.info(`Analyzing tools for ${this.mcpServerId}...`);
+        log.info(`Starting async analysis of tools for ${this.mcpServerId}...`);
         await ToolModel.analyze(tools, this.mcpServerId);
-
-        // Update the cached analysis results
-        const updatedTools = await ToolModel.getByMcpServerId(this.mcpServerId);
-        for (const tool of updatedTools) {
-          this.cachedToolAnalysis.set(tool.name, {
-            is_read: tool.is_read,
-            is_write: tool.is_write,
-            idempotent: tool.idempotent,
-            reversible: tool.reversible,
-          });
-        }
       } catch (error) {
-        log.error(`Failed to analyze tools for ${this.mcpServerId}:`, error);
-        // Continue even if analysis fails
+        log.error(`Failed to save tools for ${this.mcpServerId}:`, error);
+        // Continue even if saving fails
       }
     }
   }
@@ -221,6 +277,8 @@ export default class SandboxedMcpServer {
   }
 
   async stop() {
+    this.stopPeriodicAnalysisUpdates();
+
     await this.podmanContainer.stopContainer();
 
     if (this.mcpClient) {
