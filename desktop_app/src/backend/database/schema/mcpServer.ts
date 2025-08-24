@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
 /**
@@ -42,17 +41,36 @@ export const mcpServersTable = sqliteTable('mcp_servers', {
    * See https://github.com/anthropics/dxt/blob/main/MANIFEST.md#variable-substitution-in-user-configuration
    */
   userConfigValues: text({ mode: 'json' }).$type<z.infer<typeof McpServerUserConfigValuesSchema>>(),
+  /**
+   * OAuth access token for servers that use OAuth authentication
+   */
+  oauthAccessToken: text('oauth_access_token'),
+  /**
+   * OAuth refresh token for servers that use OAuth authentication
+   */
+  oauthRefreshToken: text('oauth_refresh_token'),
+  /**
+   * OAuth token expiry date (as returned by provider, typically a timestamp or ISO date)
+   */
+  oauthExpiryDate: text('oauth_expiry_date'),
   createdAt: text()
     .notNull()
     .default(sql`(current_timestamp)`),
 });
 
 /**
- * TODO: this is kinda a hack to get the outputted zod (and thereby openapi spec) to be 100% correct...
+ * Pure Zod schema for OpenAPI generation
+ * This matches the structure of the database table but uses pure Zod types
  */
-export const McpServerSchema = createSelectSchema(mcpServersTable).extend({
+export const McpServerSchema = z.object({
+  id: z.string(),
+  name: z.string(),
   serverConfig: McpServerConfigSchema,
   userConfigValues: McpServerUserConfigValuesSchema.nullable(),
+  oauthAccessToken: z.string().nullable(),
+  oauthRefreshToken: z.string().nullable(),
+  oauthExpiryDate: z.string().nullable(),
+  createdAt: z.string(),
 });
 
 export type McpServer = z.infer<typeof McpServerSchema>;

@@ -35,11 +35,16 @@ function ConnectorCatalogPage() {
 
   const installMcpServer = async (
     mcpServer: ArchestraMcpServerManifest,
-    userConfigValues?: McpServerUserConfigValues
+    userConfigValues?: McpServerUserConfigValues,
+    useBrowserAuth: boolean = false
   ) => {
-    _installMcpServer(mcpServer.archestra_config.oauth.required, {
+    // Sanitize display name to match validation requirements
+    // Only allow letters, numbers, spaces, and dashes
+    const sanitizedDisplayName = mcpServer.display_name.replace(/[^A-Za-z0-9\s-]/g, '-');
+
+    _installMcpServer(mcpServer.archestra_config.oauth?.required || false, {
       id: mcpServer.name,
-      displayName: mcpServer.display_name,
+      displayName: sanitizedDisplayName,
       /**
        * NOTE: TBD.. should we be sending the entire `mcpServer.server` object here? Is there
        * value in persisting that?
@@ -48,16 +53,16 @@ function ConnectorCatalogPage() {
        */
       serverConfig: mcpServer.server.mcp_config,
       userConfigValues: userConfigValues || {},
+      useBrowserAuth,
+      // If using browser auth for Slack, use the slack-browser provider
+      oauthProvider:
+        useBrowserAuth && mcpServer.archestra_config.oauth?.provider === 'slack'
+          ? 'slack-browser'
+          : mcpServer.archestra_config.oauth?.provider,
     });
   };
 
   const handleInstallClick = (mcpServer: ArchestraMcpServerManifest) => {
-    // Special handling for Slack MCP server - skip the config dialog
-    if (mcpServer.name === 'korotovsky__slack-mcp-server') {
-      installMcpServer(mcpServer);
-      return;
-    }
-
     // If server has user_config, show the dialog
     if (mcpServer.user_config && Object.keys(mcpServer.user_config).length > 0) {
       setSelectedServerForInstall(mcpServer);
@@ -65,6 +70,19 @@ function ConnectorCatalogPage() {
     } else {
       // Otherwise, install directly
       installMcpServer(mcpServer);
+    }
+  };
+
+  const handleOAuthInstallClick = async (mcpServer: ArchestraMcpServerManifest) => {
+    // For OAuth install, skip the config dialog and go straight to OAuth flow
+    await installMcpServer(mcpServer);
+  };
+
+  const handleBrowserInstallClick = async (mcpServer: ArchestraMcpServerManifest) => {
+    // Special handling for Slack MCP server - skip the config dialog and use browser auth
+    if (mcpServer.name === 'korotovsky__slack-mcp-server') {
+      // Directly install with browser auth flag
+      await installMcpServer(mcpServer, undefined, true);
     }
   };
 
@@ -153,6 +171,8 @@ function ConnectorCatalogPage() {
             key={connectorCatalogMcpServer.name}
             server={connectorCatalogMcpServer}
             onInstallClick={handleInstallClick}
+            onOAuthInstallClick={handleOAuthInstallClick}
+            onBrowserInstallClick={handleBrowserInstallClick}
             onUninstallClick={uninstallMcpServer}
           />
         ))}

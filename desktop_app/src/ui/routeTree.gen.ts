@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as OauthCallbackRouteImport } from './routes/oauth-callback'
 import { Route as LlmProvidersRouteImport } from './routes/llm-providers'
 import { Route as ConnectorsRouteImport } from './routes/connectors'
 import { Route as ChatRouteImport } from './routes/chat'
@@ -24,6 +25,11 @@ import { Route as LlmProvidersCloudRouteImport } from './routes/llm-providers/cl
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthCallbackRoute = OauthCallbackRouteImport.update({
+  id: '/oauth-callback',
+  path: '/oauth-callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LlmProvidersRoute = LlmProvidersRouteImport.update({
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof ChatRoute
   '/connectors': typeof ConnectorsRoute
   '/llm-providers': typeof LlmProvidersRouteWithChildren
+  '/oauth-callback': typeof OauthCallbackRoute
   '/settings': typeof SettingsRouteWithChildren
   '/llm-providers/cloud': typeof LlmProvidersCloudRoute
   '/llm-providers/ollama': typeof LlmProvidersOllamaRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/connectors': typeof ConnectorsRoute
   '/llm-providers': typeof LlmProvidersRouteWithChildren
+  '/oauth-callback': typeof OauthCallbackRoute
   '/llm-providers/cloud': typeof LlmProvidersCloudRoute
   '/llm-providers/ollama': typeof LlmProvidersOllamaRoute
   '/settings/mcp-clients': typeof SettingsMcpClientsRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/chat': typeof ChatRoute
   '/connectors': typeof ConnectorsRoute
   '/llm-providers': typeof LlmProvidersRouteWithChildren
+  '/oauth-callback': typeof OauthCallbackRoute
   '/settings': typeof SettingsRouteWithChildren
   '/llm-providers/cloud': typeof LlmProvidersCloudRoute
   '/llm-providers/ollama': typeof LlmProvidersOllamaRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/connectors'
     | '/llm-providers'
+    | '/oauth-callback'
     | '/settings'
     | '/llm-providers/cloud'
     | '/llm-providers/ollama'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/connectors'
     | '/llm-providers'
+    | '/oauth-callback'
     | '/llm-providers/cloud'
     | '/llm-providers/ollama'
     | '/settings/mcp-clients'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/connectors'
     | '/llm-providers'
+    | '/oauth-callback'
     | '/settings'
     | '/llm-providers/cloud'
     | '/llm-providers/ollama'
@@ -162,6 +174,7 @@ export interface RootRouteChildren {
   ChatRoute: typeof ChatRoute
   ConnectorsRoute: typeof ConnectorsRoute
   LlmProvidersRoute: typeof LlmProvidersRouteWithChildren
+  OauthCallbackRoute: typeof OauthCallbackRoute
   SettingsRoute: typeof SettingsRouteWithChildren
 }
 
@@ -172,6 +185,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth-callback': {
+      id: '/oauth-callback'
+      path: '/oauth-callback'
+      fullPath: '/oauth-callback'
+      preLoaderRoute: typeof OauthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/llm-providers': {
@@ -284,6 +304,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRoute,
   ConnectorsRoute: ConnectorsRoute,
   LlmProvidersRoute: LlmProvidersRouteWithChildren,
+  OauthCallbackRoute: OauthCallbackRoute,
   SettingsRoute: SettingsRouteWithChildren,
 }
 export const routeTree = rootRouteImport

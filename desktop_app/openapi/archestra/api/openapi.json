@@ -2802,9 +2802,66 @@
                 "properties": {
                   "catalogName": {
                     "type": "string"
+                  },
+                  "installData": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "displayName": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9-\\s]{1,63}$"
+                      },
+                      "serverConfig": {
+                        "type": "object",
+                        "properties": {
+                          "command": {
+                            "type": "string"
+                          },
+                          "args": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "env": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": ["command"],
+                        "additionalProperties": false
+                      },
+                      "userConfigValues": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "required": ["displayName", "serverConfig"]
                   }
                 },
-                "required": ["catalogName"]
+                "required": ["catalogName", "installData"]
               }
             }
           },
@@ -2820,9 +2877,93 @@
                   "properties": {
                     "authUrl": {
                       "type": "string"
+                    },
+                    "state": {
+                      "type": "string"
                     }
                   },
-                  "required": ["authUrl"],
+                  "required": ["authUrl", "state"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp_server/complete_oauth": {
+      "post": {
+        "operationId": "completeMcpServerOauth",
+        "tags": ["MCP Server"],
+        "description": "Complete MCP server OAuth flow and install with tokens",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "service": {
+                    "type": "string"
+                  },
+                  "access_token": {
+                    "type": "string"
+                  },
+                  "refresh_token": {
+                    "type": "string"
+                  },
+                  "expiry_date": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  }
+                },
+                "required": ["service", "access_token", "refresh_token", "state"]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpServer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }

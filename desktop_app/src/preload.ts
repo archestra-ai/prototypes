@@ -1,11 +1,25 @@
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
-import { contextBridge, ipcRenderer } from 'electron';
+import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   serverPort: 54587,
   websocketPort: 54588,
   ollamaPort: 54589,
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
+
+  // Generic provider browser auth
+  providerBrowserAuth: (provider: string) => ipcRenderer.invoke('provider-browser-auth', provider),
+
+  // Legacy Slack auth (backward compatibility - uses provider-browser-auth internally)
   slackAuth: () => ipcRenderer.invoke('slack-auth'),
+
+  onOAuthCallback: (callback: (params: any) => void) => {
+    ipcRenderer.on('oauth-callback', (_event: IpcRendererEvent, params: any) => {
+      callback(params);
+    });
+  },
+  removeOAuthCallbackListener: () => {
+    ipcRenderer.removeAllListeners('oauth-callback');
+  },
 });

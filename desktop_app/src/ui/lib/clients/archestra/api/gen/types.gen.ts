@@ -992,6 +992,20 @@ export type UninstallMcpServerResponse = UninstallMcpServerResponses[keyof Unins
 export type StartMcpServerOauthData = {
   body: {
     catalogName: string;
+    installData: {
+      id?: string;
+      displayName: string;
+      serverConfig: {
+        command: string;
+        args?: Array<string>;
+        env?: {
+          [key: string]: string;
+        };
+      };
+      userConfigValues?: {
+        [key: string]: string | number | boolean | Array<string>;
+      };
+    };
   };
   path?: never;
   query?: never;
@@ -1004,10 +1018,50 @@ export type StartMcpServerOauthResponses = {
    */
   200: {
     authUrl: string;
+    state: string;
   };
 };
 
 export type StartMcpServerOauthResponse = StartMcpServerOauthResponses[keyof StartMcpServerOauthResponses];
+
+export type CompleteMcpServerOauthData = {
+  body: {
+    service: string;
+    access_token: string;
+    refresh_token: string;
+    expiry_date?: string;
+    state: string;
+  };
+  path?: never;
+  query?: never;
+  url: '/api/mcp_server/complete_oauth';
+};
+
+export type CompleteMcpServerOauthErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+  };
+};
+
+export type CompleteMcpServerOauthError = CompleteMcpServerOauthErrors[keyof CompleteMcpServerOauthErrors];
+
+export type CompleteMcpServerOauthResponses = {
+  /**
+   * Default Response
+   */
+  200: McpServer;
+};
+
+export type CompleteMcpServerOauthResponse = CompleteMcpServerOauthResponses[keyof CompleteMcpServerOauthResponses];
 
 export type GetMcpServerLogsData = {
   body?: never;

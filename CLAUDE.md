@@ -267,6 +267,38 @@ Archestra is an enterprise-grade Model Context Protocol (MCP) platform built as 
     - Server settings: host, port, CORS origins
     - Required models list for auto-provisioning
     - Default model selection (`OLLAMA_MODEL` env var)
+- **OAuth Integration**:
+  - **Architecture**: Two-tier system with OAuth proxy (secrets) and desktop app (PKCE)
+    - OAuth Proxy: `oauth_proxy/` - Holds client secrets, exchanges codes
+    - Desktop App: Initiates OAuth flows, stores tokens as env vars
+    - Production proxy: `https://oauth-proxy-new-354887056155.europe-west1.run.app`
+  - **Extensible Provider System** (`src/backend/config/oauth-providers.ts`):
+    - Provider registry pattern with standardized configuration
+    - Supports OAuth, browser auth, and file-based credentials
+    - Provider interface: `OAuthProviderDefinition`
+    - Token mapping via `tokenEnvVarPattern` or custom `tokenHandler`
+  - **Supported Providers**:
+    - **Google**: OAuth with file-based credentials option
+    - **Slack**: OAuth + browser auth (`slack-browser` provider)
+    - Extensible for Jira, LinkedIn, MS Teams, etc.
+  - **Browser Authentication** (`src/main-browser-auth.ts`):
+    - Extract tokens directly from provider web UI
+    - Secure Electron BrowserWindow with sandboxing
+    - Provider-specific token extraction logic
+    - Maps to same env vars as OAuth tokens
+  - **MCP Server Catalog Integration**:
+    - Catalog defines provider in `archestra_config.oauth.provider`
+    - UI auto-detects and triggers appropriate auth flow
+    - Browser auth mapped via `useBrowserAuth` flag
+  - **API Endpoints**:
+    - `POST /api/mcp_server/start_oauth` - Start OAuth with PKCE
+    - `POST /api/mcp_server/complete_oauth` - Complete OAuth flow
+    - `POST /api/mcp_server/install` - Install with OAuth tokens
+  - **Token Storage**:
+    - Database: `oauth_access_token`, `oauth_refresh_token`, `oauth_expiry_date`
+    - Environment vars: Provider-specific patterns (e.g., `SLACK_MCP_XOXC_TOKEN`)
+    - File-based: Custom handlers for providers like Google
+  - **Adding New Providers**: See `docs/ADDING_OAUTH_PROVIDERS.md`
 
 ### Directory Structure
 
@@ -290,6 +322,20 @@ desktop_app/src/
     ├── routes/       # Tanstack Router file-based routes
     ├── stores/       # Zustand state stores
     └── hooks/        # Custom React hooks
+
+oauth_proxy/
+├── src/
+│   ├── app.js         # Express app configuration
+│   ├── server.js      # Server entry point
+│   ├── config/        # Configuration and environment
+│   ├── providers/     # OAuth provider implementations
+│   │   ├── base.js    # Base OAuth provider class
+│   │   ├── google.js  # Google OAuth specifics
+│   │   └── slack.js   # Slack OAuth specifics
+│   └── routes/        # API routes
+│       ├── callback.js # OAuth callback handler
+│       └── token.js    # Token exchange endpoint
+└── package.json       # Dependencies and scripts
 ```
 
 ### Database Schema

@@ -140,20 +140,23 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
         errorInstallingMcpServer: null,
       });
 
-      // Special handling for Slack MCP server
-      if (id === 'korotovsky__slack-mcp-server') {
+      // Special handling for browser-based authentication
+      const useBrowserAuth = (installData as any).useBrowserAuth;
+      if (useBrowserAuth) {
         try {
-          // Open Slack authentication window and get tokens
-          const tokens = await window.electronAPI.slackAuth();
+          // Use the oauthProvider if specified (should be 'slack-browser' for Slack browser auth)
+          const provider = (installData as any).oauthProvider || 'slack-browser';
 
-          // Install the server with the extracted tokens
+          // Open browser authentication window and get tokens
+          const tokens = await window.electronAPI.providerBrowserAuth(provider);
+
+          // Send tokens as OAuth fields for consistent handling
           const { data } = await installMcpServer({
             body: {
               ...installData,
-              userConfigValues: {
-                ...installData.userConfigValues,
-                ...tokens,
-              },
+              oauthAccessToken: tokens.access_token,
+              oauthRefreshToken: tokens.refresh_token || null,
+              oauthExpiryDate: tokens.expires_at || null,
             },
           });
 
@@ -175,20 +178,46 @@ export const useMcpServersStore = create<McpServersStore>((set, get) => ({
        * rather than directly "installing" the MCP server
        */
       if (requiresOAuth) {
-        // Start OAuth flow
+        // Show confirmation dialog before starting OAuth flow
+        const provider = (installData as any).oauthProvider || 'google';
+        const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+        const serviceDescription = provider === 'slack' ? 'Slack workspace' : 'Gmail account';
+
+        const userConfirmed = window.confirm(
+          `You're about to connect ${installData.displayName || id} to Archestra.\n\n` +
+            `This will:\n` +
+            `• Open ${providerName}'s authentication page in your browser\n` +
+            `• Request permission to access your ${serviceDescription}\n` +
+            `• Securely store your credentials in Archestra\n\n` +
+            `Do you want to continue?`
+        );
+
+        if (!userConfirmed) {
+          // User cancelled the OAuth flow
+          console.log('User cancelled OAuth flow');
+          set({ isInstallingMcpServer: false });
+          return;
+        }
+
+        // Start OAuth flow with installation data
         const { data } = await startMcpServerOauth({
-          body: { catalogName: id || '' },
+          body: {
+            catalogName: id || '',
+            installData: installData,
+          },
         });
 
         if (data?.authUrl) {
+          // Store the state for OAuth callback
+          sessionStorage.setItem('oauth_state', data.state);
+
           // Open the OAuth URL in the default browser
           console.log('Opening OAuth URL:', data.authUrl);
           window.electronAPI.openExternal(data.authUrl);
 
-          // Show user feedback
-          alert(
-            `OAuth setup started for ${installData.displayName || id}. Please complete the authentication in your browser.`
-          );
+          // The OAuth callback will handle the rest of the installation
+          // Navigate to the OAuth callback page to wait for completion
+          window.location.href = '/oauth-callback';
         }
       } else {
         const { data: newlyInstalledMcpServer, error } = await installMcpServer({ body: installData });
